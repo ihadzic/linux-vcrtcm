@@ -650,6 +650,9 @@ struct drm_prime_handle {
 #define DRM_IOCTL_GEM_OPEN		DRM_IOWR(0x0b, struct drm_gem_open)
 #define DRM_IOCTL_GET_CAP		DRM_IOWR(0x0c, struct drm_get_cap)
 
+#define DRM_IOCTL_RENDER_NODE_CREATE    DRM_IOWR(0x0d, struct drm_render_node_create)
+#define DRM_IOCTL_RENDER_NODE_REMOVE    DRM_IOWR(0x0e, struct drm_render_node_remove)
+
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, struct drm_unique)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, struct drm_auth)
 #define DRM_IOCTL_BLOCK			DRM_IOWR(0x12, struct drm_block)
