@@ -1510,6 +1510,12 @@ extern void drm_master_put(struct drm_master **master);
 extern void drm_put_dev(struct drm_device *dev);
 extern int drm_put_minor(struct drm_minor **minor);
 extern void drm_unplug_dev(struct drm_device *dev);
+
+extern int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv);
+extern int drm_render_node_remove_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv);
+
 extern unsigned int drm_debug;
 
 extern unsigned int drm_vblank_offdelay;
