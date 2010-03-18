@@ -547,3 +547,59 @@ void drm_unplug_dev(struct drm_device *dev)
 	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_unplug_dev);
+
+int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv)
+{
+	struct drm_render_node_create *args = data;
+	int ret;
+	struct drm_minor *new_minor;
+	int total_ids, i;
+	uint32_t __user *ids_ptr;
+	ret = drm_create_minor_render(dev, &new_minor);
+	if (ret)
+		goto out;
+
+	args->node_minor_id = new_minor->index;
+
+	if (args->num_crtc == 0 && args->num_encoder == 0 &&
+	    args->num_connector == 0 && args->num_plane == 0)
+		goto out;
+	if (args->num_crtc == 0 ||
+	    args->num_encoder == 0 ||
+	    args->num_connector == 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = drm_mode_group_init(dev, &new_minor->mode_group);
+	if (ret)
+		goto out;
+
+	ids_ptr = (uint32_t __user *)(unsigned long)args->id_list_ptr;
+	total_ids = args->num_crtc + args->num_encoder +
+		args->num_connector + args->num_plane;
+	for (i = 0; i < total_ids; i++) {
+		if (get_user(new_minor->mode_group.id_list[i], &ids_ptr[i])) {
+			ret = -EFAULT;
+			goto out_put;
+		}
+	}
+out_put:
+	drm_put_minor(&new_minor);
+out:
+	return ret;
+}
+
+int drm_render_node_remove_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv)
+{
+	struct drm_render_node_remove *args = data;
+	struct drm_minor *del_minor, *tmp;
+
+	list_for_each_entry_safe(del_minor, tmp, &dev->render_minor_list, render_node_list) {
+		if (del_minor->index == args->node_minor_id)
+			drm_put_minor(&del_minor);
+	}
+	return 0;
+}
