@@ -1,0 +1,60 @@
+/*
+   Copyright (C) 2011 Alcatel-Lucent, Inc.
+   Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+
+/*
+  Public interface for Virtual CRTC Manager to the GPU
+  GPU drivers should include this file only
+*/
+
+#ifndef __VCRTCM_GPU_H__
+#define __VCRTCM_GPU_H__
+
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+
+#include "vcrtcm_common.h"
+
+/* setup/config functions for GPU driver's use */
+int vcrtcm_attach(int major, int minor, int flow,
+		  struct drm_crtc *drm_crtc,
+		  void (*detach_gpu_callback) (struct drm_crtc *drm_crtc),
+		  void (*vblank_gpu_callback) (struct drm_crtc *drm_crtc),
+		  void (*sync_gpu_callback) (struct drm_crtc *drm_crtc),
+		  struct vcrtcm_dev_hal **vcrtcm_dev_hal);
+int vcrtcm_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
+
+/* functions for use by GPU driver in operational state */
+int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		  struct vcrtcm_fb *vcrtcm_fb);
+int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		  struct vcrtcm_fb *vcrtcm_fb);
+int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
+int vcrtcm_force_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
+int vcrtcm_wait_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
+int vcrtcm_get_fps(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *fps);
+int vcrtcm_set_fps(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int fps);
+int vcrtcm_set_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		      struct vcrtcm_cursor *vcrtcm_cursor);
+int vcrtcm_get_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		      struct vcrtcm_cursor *vcrtcm_cursor);
+int vcrtcm_set_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int state);
+int vcrtcm_get_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *state);
+
+#endif
