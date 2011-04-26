@@ -1036,8 +1036,11 @@ static void radeon_crtc_prepare(struct drm_crtc *crtc)
 	* The hardware wedges sometimes if you reconfigure one CRTC
 	* whilst another is running (see fdo bug #24611).
 	*/
-	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head)
-		radeon_crtc_dpms(crtci, DRM_MODE_DPMS_OFF);
+	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtci->helper_private;
+		if  (crtc_funcs->dpms)
+			crtc_funcs->dpms(crtci, DRM_MODE_DPMS_OFF);
+	}
 }
 
 static void radeon_crtc_commit(struct drm_crtc *crtc)
@@ -1049,8 +1052,11 @@ static void radeon_crtc_commit(struct drm_crtc *crtc)
 	* Reenable the CRTCs that should be running.
 	*/
 	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head) {
-		if (crtci->enabled)
-			radeon_crtc_dpms(crtci, DRM_MODE_DPMS_ON);
+		if (crtci->enabled) {
+			struct drm_crtc_helper_funcs *crtc_funcs = crtci->helper_private;
+			if  (crtc_funcs->dpms)
+				crtc_funcs->dpms(crtci, DRM_MODE_DPMS_ON);
+		}
 	}
 }
 
