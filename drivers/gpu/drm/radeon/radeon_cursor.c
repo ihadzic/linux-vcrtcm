@@ -27,6 +27,7 @@
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
 
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
@@ -196,6 +197,14 @@ unpin:
 	}
 
 	radeon_crtc->cursor_bo = obj;
+	if (radeon_crtc->vcrtcm_dev_hal) {
+		struct radeon_device *rdev = crtc->dev->dev_private;
+		if (radeon_crtc->enabled) {
+			mutex_lock(&rdev->cs_mutex);
+			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
+			mutex_unlock(&rdev->cs_mutex);
+		}
+	}
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
