@@ -347,7 +347,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	struct drm_crtc *drmcrtc;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= dev->num_crtcs) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
