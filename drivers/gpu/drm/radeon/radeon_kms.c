@@ -394,18 +394,24 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	struct drm_crtc *drmcrtc;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= rdev->num_crtc) {
+	if (crtc < 0 || crtc >= rdev->num_crtc + rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
 
-	/* Get associated drm_crtc: */
-	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
+	if (crtc >= rdev->num_crtc) {
+		/* REVISIT: implement timestamp_kms for virtual CRTC ? */
+		DRM_INFO("radeon_get_vblank_timestamp_kms not supported for virtual crtc\n");
+		return -ENOTSUPP;
+	} else {
+		/* Get associated drm_crtc: */
+		drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
 
-	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
-						     vblank_time, flags,
-						     drmcrtc);
+		/* Helper routine in DRM core does all the work: */
+		return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+							     vblank_time, flags,
+							     drmcrtc);
+	}
 }
 
 /*
