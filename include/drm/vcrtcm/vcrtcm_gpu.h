@@ -56,5 +56,6 @@ int vcrtcm_get_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		      struct vcrtcm_cursor *vcrtcm_cursor);
 int vcrtcm_set_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int state);
 int vcrtcm_get_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *state);
-
+int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+			   struct timeval *vblank_time);
 #endif

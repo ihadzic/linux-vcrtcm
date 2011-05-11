@@ -73,6 +73,9 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 	vcrtcm_dev_info->hw_minor = minor;
 	vcrtcm_dev_info->hw_flow = flow;
 	vcrtcm_dev_info->hw_drv_info = hw_drv_info;
+	vcrtcm_dev_info->vblank_time_valid = 0;
+	vcrtcm_dev_info->vblank_time.tv_sec = 0;
+	vcrtcm_dev_info->vblank_time.tv_usec = 0;
 	vcrtcm_dev_info->drm_crtc = NULL;
 	vcrtcm_dev_info->detach_gpu_callback = NULL;
 	vcrtcm_dev_info->vblank_gpu_callback = NULL;
@@ -177,6 +180,10 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
+	mutex_lock(&vcrtcm_dev_list_mutex);
+	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
+	vcrtcm_dev_info->vblank_time_valid = 1;
+	mutex_unlock(&vcrtcm_dev_list_mutex);
 	if (vcrtcm_dev_info->vblank_gpu_callback) {
 		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,

@@ -513,3 +513,23 @@ int vcrtcm_get_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *state)
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_dpms);
+
+/* retrieve the last (fake) vblank time if it exists */
+int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+			   struct timeval *vblank_time)
+{
+	int r;
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal,
+			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_info->vblank_time_valid) {
+		*vblank_time = vcrtcm_dev_info->vblank_time;
+		r = 0;
+	} else
+		r = -EAGAIN;
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_get_vblank_time);
