@@ -38,6 +38,9 @@ struct vcrtcm_dev_info {
 	int hw_major;
 	int hw_minor;
 	int hw_flow;
+	/* records the time when last (emulated) vblank occurred */
+	struct timeval vblank_time;
+	int vblank_time_valid;
 	/* pointer back to the (hardware) specific CTD driver structure */
 	void *hw_drv_info;
 	/* identifies the CRTC using this HAL */
