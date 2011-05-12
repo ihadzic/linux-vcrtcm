@@ -57,6 +57,9 @@ struct vcrtcm_cursor {
 #define VCRTCM_DPMS_STATE_ON  0x1
 #define VCRTCM_DPMS_STATE_OFF 0x0
 
+#define VCRTCM_FB_STATUS_IDLE  0x0
+#define VCRTCM_FB_STATUS_XMIT  0x1
+
 struct vcrtcm_dev_hal;
 
 /* hardware-specific back-end for each HAL function */
@@ -75,6 +78,8 @@ struct vcrtcm_funcs {
 			      int flow);
 	int (*wait_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);
+	int (*get_fb_status)(struct drm_crtc *drm_crtc, void *hw_drv_info,
+			int flow, u32 *status);
 	int (*set_fps) (int fps, void *hw_drv_info, int flow);
 	int (*get_fps) (int *fps, void *hw_drv_info, int flow);
 	int (*set_cursor) (struct vcrtcm_cursor *vcrtcm_cursor,

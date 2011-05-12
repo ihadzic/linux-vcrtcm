@@ -327,6 +327,37 @@ int vcrtcm_wait_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 }
 EXPORT_SYMBOL(vcrtcm_wait_fb);
 
+/* retrieves the status of frame buffer */
+int vcrtcm_get_fb_status(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+			 u32 *status)
+{
+	int r;
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
+			 vcrtcm_dev_hal);
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_hal->funcs.get_fb_status) {
+		VCRTCM_DEBUG("calling get_fb_status backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+		r = vcrtcm_dev_hal->funcs.get_fb_status(vcrtcm_dev_info->drm_crtc,
+							vcrtcm_dev_info->hw_drv_info,
+							vcrtcm_dev_info->hw_flow,
+							status);
+	} else {
+		VCRTCM_WARNING("missing get_fb_status backend, HAL %d.%d.%d\n",
+			       vcrtcm_dev_info->hw_major,
+			       vcrtcm_dev_info->hw_minor,
+			       vcrtcm_dev_info->hw_flow);
+		r = 0;
+	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_get_fb_status);
+
 /* sets the frame rate for frame buffer transmission */
 int vcrtcm_set_fps(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int fps)
 {
