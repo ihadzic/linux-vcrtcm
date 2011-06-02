@@ -1530,6 +1530,12 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int 
 
 	struct radeon_device *rdev = dev->dev_private;
 
+	if (crtc >= rdev->num_crtc+rdev->num_virtual_crtc)
+		return -EINVAL;
+
+	if (crtc >= rdev->num_crtc)
+		return -ENOTSUPP;
+
 	if (ASIC_IS_DCE4(rdev)) {
 		if (crtc == 0) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
