@@ -60,6 +60,8 @@ struct vcrtcm_cursor {
 #define VCRTCM_FB_STATUS_IDLE  0x0
 #define VCRTCM_FB_STATUS_XMIT  0x1
 
+#define VCRTCM_PFLIP_DEFERRED 1
+
 struct vcrtcm_dev_hal;
 
 /* hardware-specific back-end for each HAL function */
@@ -72,6 +74,7 @@ struct vcrtcm_funcs {
 		       int flow);
 	int (*get_fb) (struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		       int flow);
+	int (*page_flip) (u32 ioaddr, void *hw_drv_info, int flow);
 	int (*xmit_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);
 	int (*force_xmit_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
