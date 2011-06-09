@@ -45,6 +45,8 @@ int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		  struct vcrtcm_fb *vcrtcm_fb);
 int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		  struct vcrtcm_fb *vcrtcm_fb);
+int vcrtcm_page_flip(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		     u32 ioaddr);
 int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 int vcrtcm_force_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 int vcrtcm_wait_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);

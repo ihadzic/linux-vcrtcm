@@ -223,6 +223,37 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 }
 EXPORT_SYMBOL(vcrtcm_get_fb);
 
+/* Emulates a page-flip call for a virtual CRTC
+   similar to vcrtcm_set_fb, but only the ioaddr is modified
+   and the backend is expected to make sure that frame tearing
+   is avoided
+
+   GPU driver should pass the IO address of where the new frame buffer
+   is; backend must be able to deal with the address (FIXME: we may need
+   a 64-bit address); the function will return 0 if the flip was
+   done right away, VCRTCM_PFLIP_DEFERRED if the flip could not be
+   done immediately (backend must chache it and execute when possible)
+   or an error code when if the flip can't be done at all */
+int vcrtcm_page_flip(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		     u32 ioaddr)
+{
+	int r;
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
+			 vcrtcm_dev_hal);
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_hal->funcs.page_flip)
+		r = vcrtcm_dev_hal->funcs.page_flip(ioaddr,
+						    vcrtcm_dev_info->hw_drv_info,
+						    vcrtcm_dev_info->hw_flow);
+	else
+		r = 0;
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_page_flip);
+
 /* GPU driver calls this function whenever the the framebuffer
    associated with a given CRTC has changed to request transmission
    the transmission policy and scheduling is totally up to the
