@@ -296,6 +296,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	if (!radeon_crtc->deferred_flip_completion) {
 		/* do the flip (mmio) */
 		update_pending = radeon_page_flip(rdev, crtc_id, work->new_crtc_base);
+		radeon_vcrtcm_page_flip(radeon_crtc, work->new_crtc_base);
 	} else {
 		/* This is just a completion of a flip queued in crtc
 		 * at last invocation. Make sure we go directly to
