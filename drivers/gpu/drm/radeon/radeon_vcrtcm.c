@@ -27,6 +27,25 @@
 #include "radeon_virtual_crtc.h"
 #include "radeon_vcrtcm_kernel.h"
 
+/* note: intended to be called from ISR (atomic context), so
+   no mutex/semaphore holding allowed */
+int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
+			    uint64_t fb_location)
+{
+	struct drm_crtc *crtc = &radeon_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	unsigned int tmp;
+	u32 ioaddr;
+
+	if (radeon_crtc->vcrtcm_dev_hal) {
+		tmp = fb_location - rdev->mc.vram_start;
+		ioaddr = rdev->mc.aper_base + tmp;
+		return vcrtcm_page_flip(radeon_crtc->vcrtcm_dev_hal, ioaddr);
+	}
+	return 0;
+}
+
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 int x, int y, uint64_t fb_location)
 {
@@ -131,13 +150,11 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 
 static void radeon_emulate_vblank(struct drm_crtc *crtc)
 {
-	struct drm_device *ddev;
-	struct radeon_device *rdev;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *ddev = radeon_crtc->base.dev;
+	struct radeon_device *rdev = ddev->dev_private;
 
 	if (radeon_crtc->vblank_emulation_enabled) {
-		ddev = radeon_crtc->base.dev;
-		rdev = ddev->dev_private;
 		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
 			  radeon_crtc->crtc_id);
 		drm_handle_vblank(ddev, radeon_crtc->crtc_id);
@@ -147,6 +164,13 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	} else
 		DRM_DEBUG("vblank emulation for virtual crtc %d disabled\n",
 			  radeon_crtc->crtc_id);
+
+	if (radeon_crtc->pflip_emulation_enabled) {
+		DRM_DEBUG("emulating page flip interrupt on virtual crtc %d\n",
+			  radeon_crtc->crtc_id);
+		radeon_crtc->emulated_pflip_counter++;
+		radeon_virtual_crtc_handle_flip(rdev, radeon_crtc->crtc_id);
+	}
 }
 
 static void radeon_sync_callback(struct drm_crtc *crtc)

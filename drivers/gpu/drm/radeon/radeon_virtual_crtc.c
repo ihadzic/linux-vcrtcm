@@ -391,6 +391,272 @@ static bool radeon_virtual_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static void radeon_virtual_crtc_pre_page_flip(struct radeon_device *rdev, int crtc)
+{
+	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return;
+	}
+
+	if (crtc >= rdev->num_crtc) {
+		struct virtual_crtc *virtual_crtc;
+		list_for_each_entry(virtual_crtc,
+				    &rdev->mode_info.virtual_crtcs, list) {
+			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+				DRM_DEBUG("pflip emulation enabled for virtual crtc_id %d\n", crtc);
+				virtual_crtc->radeon_crtc->pflip_emulation_enabled = true;
+				break;
+			}
+		}
+	} else {
+		DRM_ERROR("radeon_virtual_crtc_pre_page_flip called on physical crtc\n");
+	}
+}
+
+static void radeon_virtual_crtc_post_page_flip(struct radeon_device *rdev, int crtc)
+{
+	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return;
+	}
+
+	if (crtc >= rdev->num_crtc) {
+		struct virtual_crtc *virtual_crtc;
+		list_for_each_entry(virtual_crtc,
+				    &rdev->mode_info.virtual_crtcs, list) {
+			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+				DRM_DEBUG("pflip emulation disabled for virtual crtc_id %d\n", crtc);
+				virtual_crtc->radeon_crtc->pflip_emulation_enabled = false;
+				break;
+			}
+		}
+	} else {
+		DRM_ERROR("radeon_virtual_crtc_post_page_flip called on physical crtc\n");
+	}
+}
+
+
+static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 struct drm_pending_vblank_event *event)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_framebuffer *old_radeon_fb;
+	struct radeon_framebuffer *new_radeon_fb;
+	struct drm_gem_object *obj;
+	struct radeon_bo *rbo;
+	struct radeon_fence *fence;
+	struct radeon_unpin_work *work;
+	unsigned long flags;
+	u64 base;
+	int r;
+
+	work = kzalloc(sizeof *work, GFP_KERNEL);
+	if (work == NULL)
+		return -ENOMEM;
+
+	r = radeon_fence_create(rdev, &fence);
+	if (unlikely(r != 0)) {
+		kfree(work);
+		DRM_ERROR("flip queue: failed to create fence.\n");
+		return -ENOMEM;
+	}
+	work->event = event;
+	work->rdev = rdev;
+	work->crtc_id = radeon_crtc->crtc_id;
+	work->fence = radeon_fence_ref(fence);
+	old_radeon_fb = to_radeon_framebuffer(crtc->fb);
+	new_radeon_fb = to_radeon_framebuffer(fb);
+	/* schedule unpin of the old buffer */
+	obj = old_radeon_fb->obj;
+	rbo = gem_to_radeon_bo(obj);
+	work->old_rbo = rbo;
+	INIT_WORK(&work->work, radeon_unpin_work_func);
+
+	/* We borrow the event spin lock for protecting unpin_work */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (radeon_crtc->unpin_work) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		kfree(work);
+		radeon_fence_unref(&fence);
+
+		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
+		return -EBUSY;
+	}
+	radeon_crtc->unpin_work = work;
+	radeon_crtc->deferred_flip_completion = 0;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	/* pin the new buffer */
+	obj = new_radeon_fb->obj;
+	rbo = gem_to_radeon_bo(obj);
+
+	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
+			 work->old_rbo, rbo);
+
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("failed to reserve new rbo buffer before flip\n");
+		goto pflip_cleanup;
+	}
+	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &base);
+	if (unlikely(r != 0)) {
+		radeon_bo_unreserve(rbo);
+		r = -EINVAL;
+		DRM_ERROR("failed to pin new rbo buffer before flip\n");
+		goto pflip_cleanup;
+	}
+	radeon_bo_unreserve(rbo);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	work->new_crtc_base = base;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	/* update crtc fb */
+	crtc->fb = fb;
+
+	r = drm_vblank_get(dev, radeon_crtc->crtc_id);
+	if (r) {
+		DRM_ERROR("failed to get vblank before flip\n");
+		goto pflip_cleanup1;
+	}
+
+	/* 32 ought to cover us */
+	r = radeon_ring_lock(rdev, 32);
+	if (r) {
+		DRM_ERROR("failed to lock the ring before flip\n");
+		goto pflip_cleanup2;
+	}
+
+	/* emit the fence */
+	radeon_fence_emit(rdev, fence);
+
+	/* set the proper interrupt */
+	radeon_virtual_crtc_pre_page_flip(rdev, radeon_crtc->crtc_id);
+
+	/* fire the ring */
+	radeon_ring_unlock_commit(rdev);
+
+	return 0;
+
+pflip_cleanup2:
+	drm_vblank_put(dev, radeon_crtc->crtc_id);
+
+pflip_cleanup1:
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("failed to reserve new rbo in error path\n");
+		goto pflip_cleanup;
+	}
+	r = radeon_bo_unpin(rbo);
+	if (unlikely(r != 0)) {
+		radeon_bo_unreserve(rbo);
+		r = -EINVAL;
+		DRM_ERROR("failed to unpin new rbo in error path\n");
+		goto pflip_cleanup;
+	}
+	radeon_bo_unreserve(rbo);
+
+pflip_cleanup:
+	spin_lock_irqsave(&dev->event_lock, flags);
+	radeon_crtc->unpin_work = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	radeon_fence_unref(&fence);
+	kfree(work);
+
+	return r;
+}
+
+/* page flip handler for virtual CRTCs, follows the same logic as
+   the one for physical CRTC, except that backend calls are different
+   this one doesn't poke any registers but instead calls vcrtcm backend
+*/
+void radeon_virtual_crtc_handle_flip(struct radeon_device *rdev, int crtc)
+{
+	struct virtual_crtc *virtual_crtc;
+	struct radeon_crtc *radeon_crtc = NULL;
+	struct radeon_unpin_work *work;
+	struct drm_pending_vblank_event *e;
+	struct timeval now;
+	unsigned long flags;
+	u32 update_pending;
+
+	if (crtc < rdev->num_crtc) {
+		DRM_ERROR("not supposed to be here for (physical) crtc %d\n", crtc);
+		return;
+	}
+	list_for_each_entry(virtual_crtc,
+			    &rdev->mode_info.virtual_crtcs, list) {
+		if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+			radeon_crtc = virtual_crtc->radeon_crtc;
+			break;
+		}
+	}
+	if (!radeon_crtc) {
+		DRM_ERROR("crtc not found\n");
+		return;
+	}
+	DRM_DEBUG("performing page flip on virtual crtc %d\n", crtc);
+	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
+	work = radeon_crtc->unpin_work;
+	if (work == NULL ||
+	    !radeon_fence_signaled(work->fence)) {
+		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
+		return;
+	}
+
+	/* New pageflip, or just completion of a previous one? */
+	if (!radeon_crtc->deferred_flip_completion) {
+		/* do the flip (call into vcrtcm backend) */
+		update_pending =
+			radeon_vcrtcm_page_flip(radeon_crtc, work->new_crtc_base);
+		/* if flip has failed, we warn and continue */
+		/* screen will be corrupted, but there is nothing we can do about it */
+		if (update_pending < 0) {
+			DRM_ERROR("page flip failed err %d\n", update_pending);
+			update_pending = 0;
+		}
+	} else {
+		/* This is just a completion of a flip queued in crtc
+		 * at last invocation. Make sure we go directly to
+		 * completion routine.
+		 */
+		update_pending = 0;
+		radeon_crtc->deferred_flip_completion = 0;
+	}
+
+	if (update_pending) {
+		/* unlike physical crtc, we have either completed or not */
+		/* there is no need to examine vpos to tell if we "might" */
+		/* still complete. if we didn't complete, then we the flip */
+		/* will be queued up and completed at next vcrtcm transmission */
+		radeon_crtc->deferred_flip_completion = 1;
+		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
+		return;
+	}
+
+	/* if we got here, then page flip has completed, so clean up */
+	radeon_crtc->unpin_work = NULL;
+
+	/* wakeup userspace */
+	if (work->event) {
+		e = work->event;
+		e->event.sequence = drm_vblank_count_and_time(rdev->ddev, crtc, &now);
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+	}
+	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
+
+	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
+	radeon_fence_unref(&work->fence);
+	radeon_virtual_crtc_post_page_flip(rdev, crtc);
+	schedule_work(&work->work);
+}
+
 int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
 				    int x, int y, int atomic)
@@ -764,13 +1030,16 @@ static const struct drm_crtc_funcs radeon_virtual_crtc_funcs = {
 	.gamma_set = radeon_virtual_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = radeon_virtual_crtc_destroy,
+	.page_flip = radeon_virtual_crtc_page_flip
 };
 
 void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 {
 	/* virtual crtc specific initialization */
 	radeon_crtc->emulated_vblank_counter = 0;
-	radeon_crtc->vblank_emulation_enabled = 0;
+	radeon_crtc->vblank_emulation_enabled = false;
+	radeon_crtc->emulated_pflip_counter = 0;
+	radeon_crtc->pflip_emulation_enabled = false;
 	radeon_crtc->vcrtcm_dev_hal = NULL;
 }
 
