@@ -254,7 +254,7 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 /*
  * Handle unpin events outside the interrupt handler proper.
  */
-static void radeon_unpin_work_func(struct work_struct *__work)
+void radeon_unpin_work_func(struct work_struct *__work)
 {
 	struct radeon_unpin_work *work =
 		container_of(__work, struct radeon_unpin_work, work);

@@ -288,7 +288,9 @@ struct radeon_crtc {
 	int deferred_flip_completion;
 	/* virtual crtc stuff */
 	bool vblank_emulation_enabled;
+	bool pflip_emulation_enabled;
 	int emulated_vblank_counter;
+	int emulated_pflip_counter;
 	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
 };
 
@@ -702,6 +704,7 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
+void radeon_unpin_work_func(struct work_struct *__work);
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
 #endif

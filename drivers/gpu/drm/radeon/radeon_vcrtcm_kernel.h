@@ -51,5 +51,6 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 int x, int y,
 			 uint64_t fb_location);
-
+int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
+			    u64 base);
 #endif
