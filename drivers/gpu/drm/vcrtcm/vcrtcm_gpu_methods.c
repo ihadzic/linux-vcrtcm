@@ -170,7 +170,6 @@ int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_hal->funcs.set_fb) {
 		VCRTCM_DEBUG("calling set_fb backend, HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -186,7 +185,6 @@ int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_fb);
@@ -202,7 +200,6 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_hal->funcs.get_fb) {
 		VCRTCM_DEBUG("calling get_fb backend, HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -218,7 +215,6 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_fb);
@@ -242,14 +238,14 @@ int vcrtcm_page_flip(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	/* this method is intended to be called from ISR, so no */
+	/* semaphore grabbing allowed */
 	if (vcrtcm_dev_hal->funcs.page_flip)
 		r = vcrtcm_dev_hal->funcs.page_flip(ioaddr,
 						    vcrtcm_dev_info->hw_drv_info,
 						    vcrtcm_dev_info->hw_flow);
 	else
 		r = 0;
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_page_flip);
@@ -367,7 +363,6 @@ int vcrtcm_get_fb_status(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_hal->funcs.get_fb_status) {
 		VCRTCM_DEBUG("calling get_fb_status backend, HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -384,7 +379,6 @@ int vcrtcm_get_fb_status(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_fb_status);
@@ -585,13 +579,11 @@ int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		container_of(vcrtcm_dev_hal,
 			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
 
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_info->vblank_time_valid) {
 		*vblank_time = vcrtcm_dev_info->vblank_time;
 		r = 0;
 	} else
 		r = -EAGAIN;
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_vblank_time);
