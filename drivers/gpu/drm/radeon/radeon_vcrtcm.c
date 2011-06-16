@@ -153,7 +153,9 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *ddev = radeon_crtc->base.dev;
 	struct radeon_device *rdev = ddev->dev_private;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rdev->ih.lock, flags);
 	if (radeon_crtc->vblank_emulation_enabled) {
 		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
 			  radeon_crtc->crtc_id);
@@ -171,6 +173,7 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 		radeon_crtc->emulated_pflip_counter++;
 		radeon_virtual_crtc_handle_flip(rdev, radeon_crtc->crtc_id);
 	}
+	spin_unlock_irqrestore(&rdev->ih.lock, flags);
 }
 
 static void radeon_sync_callback(struct drm_crtc *crtc)
