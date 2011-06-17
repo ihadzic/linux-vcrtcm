@@ -26,6 +26,7 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "radeon_virtual_crtc.h"
 
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
@@ -158,6 +159,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!handle) {
 		/* turn off cursor */
 		radeon_hide_cursor(crtc);
+		radeon_hide_virtual_cursor(radeon_crtc);
 		obj = NULL;
 		goto unpin;
 	}
@@ -184,6 +186,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	/* XXX only 27 bit offset for legacy cursor */
 	radeon_set_cursor(crtc, obj, gpu_addr);
 	radeon_show_cursor(crtc);
+	radeon_show_and_set_virtual_cursor(radeon_crtc, obj, gpu_addr);
 	radeon_lock_cursor(crtc, false);
 
 unpin:
@@ -208,6 +211,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	int xorigin = 0, yorigin = 0;
 	int w = radeon_crtc->cursor_width;
 
+	radeon_virtual_crtc_cursor_move (crtc, x, y);
 	if (ASIC_IS_AVIVO(rdev)) {
 		/* avivo cursor are offset into the total surface */
 		x += crtc->x;

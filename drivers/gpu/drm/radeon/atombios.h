@@ -2779,8 +2779,8 @@ typedef struct _ATOM_INTEGRATED_SYSTEM_INFO_V5
 #define ATOM_DEVICE_DFP3_INDEX                            0x00000009
 #define ATOM_DEVICE_DFP4_INDEX                            0x0000000A
 #define ATOM_DEVICE_DFP5_INDEX                            0x0000000B
+#define ATOM_DEVICE_VIRTUAL_INDEX                         0x0000000C
 
-#define ATOM_DEVICE_RESERVEDC_INDEX                       0x0000000C
 #define ATOM_DEVICE_RESERVEDD_INDEX                       0x0000000D
 #define ATOM_DEVICE_RESERVEDE_INDEX                       0x0000000E
 #define ATOM_DEVICE_RESERVEDF_INDEX                       0x0000000F
@@ -2802,6 +2802,7 @@ typedef struct _ATOM_INTEGRATED_SYSTEM_INFO_V5
 #define ATOM_DEVICE_DFP3_SUPPORT                          (0x1L << ATOM_DEVICE_DFP3_INDEX )
 #define ATOM_DEVICE_DFP4_SUPPORT                          (0x1L << ATOM_DEVICE_DFP4_INDEX )
 #define ATOM_DEVICE_DFP5_SUPPORT                          (0x1L << ATOM_DEVICE_DFP5_INDEX )
+#define ATOM_DEVICE_VIRTUAL_SUPPORT                       (0x1L << ATOM_DEVICE_VIRTUAL_INDEX)
 
 #define ATOM_DEVICE_CRT_SUPPORT                           (ATOM_DEVICE_CRT1_SUPPORT | ATOM_DEVICE_CRT2_SUPPORT)
 #define ATOM_DEVICE_DFP_SUPPORT                           (ATOM_DEVICE_DFP1_SUPPORT | ATOM_DEVICE_DFP2_SUPPORT |  ATOM_DEVICE_DFP3_SUPPORT | ATOM_DEVICE_DFP4_SUPPORT | ATOM_DEVICE_DFP5_SUPPORT | ATOM_DEVICE_DFP6_SUPPORT)

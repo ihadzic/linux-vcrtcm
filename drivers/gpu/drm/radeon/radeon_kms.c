@@ -29,6 +29,8 @@
 #include "drm_sarea.h"
 #include "radeon.h"
 #include "radeon_drm.h"
+#include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
@@ -123,6 +125,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_info *info;
 	struct radeon_mode_info *minfo = &rdev->mode_info;
+	struct virtual_crtc *virtual_crtc;
 	uint32_t *value_ptr;
 	uint32_t value;
 	struct drm_crtc *crtc;
@@ -156,6 +159,14 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			if (crtc && crtc->base.id == value) {
 				struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 				value = radeon_crtc->crtc_id;
+				found = 1;
+				break;
+			}
+		}
+		list_for_each_entry(virtual_crtc, &minfo->virtual_crtcs, list) {
+			crtc = &virtual_crtc->radeon_crtc->base;
+			if (crtc->base.id == value) {
+				value = virtual_crtc->radeon_crtc->crtc_id;
 				found = 1;
 				break;
 			}
@@ -302,41 +313,77 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	struct virtual_crtc *virtual_crtc;
+	int ret;
 
-	if (crtc < 0 || crtc >= rdev->num_crtc) {
+	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
 
-	return radeon_get_vblank_counter(rdev, crtc);
+	if (crtc >= rdev->num_crtc) {
+		ret = 0;
+		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+				ret = virtual_crtc->radeon_crtc->emulated_vblank_counter;
+				break;
+			}
+		}
+	} else
+		ret = radeon_get_vblank_counter(rdev, crtc);
+
+	return ret;
 }
 
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= rdev->num_crtc) {
+	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
 
-	rdev->irq.crtc_vblank_int[crtc] = true;
-
-	return radeon_irq_set(rdev);
+	if (crtc >= rdev->num_crtc) {
+		struct virtual_crtc *virtual_crtc;
+		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+				DRM_DEBUG("vblank enabled for virtual crtc_id %d\n", crtc);
+				virtual_crtc->radeon_crtc->vblank_emulation_enabled = true;
+				break;
+			}
+		}
+		return 0;
+	} else {
+		DRM_DEBUG("vblank enabled for physical crtc_id %d\n", crtc);
+		rdev->irq.crtc_vblank_int[crtc] = true;
+		return radeon_irq_set(rdev);
+	}
 }
 
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= rdev->num_crtc) {
+	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return;
 	}
 
-	rdev->irq.crtc_vblank_int[crtc] = false;
-
-	radeon_irq_set(rdev);
+	if (crtc >= rdev->num_crtc) {
+		struct virtual_crtc *virtual_crtc;
+		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+				DRM_DEBUG("vblank disabled for virtual crtc_id %d\n", crtc);
+				virtual_crtc->radeon_crtc->vblank_emulation_enabled = false;
+				break;
+			}
+		}
+	} else {
+		DRM_DEBUG("vblank disabled for physical crtc_id %d\n", crtc);
+		rdev->irq.crtc_vblank_int[crtc] = false;
+		radeon_irq_set(rdev);
+	}
 }
 
 int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
@@ -451,5 +498,6 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(RADEON_VCRTCM, radeon_vcrtcm_ioctl, DRM_UNLOCKED)
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

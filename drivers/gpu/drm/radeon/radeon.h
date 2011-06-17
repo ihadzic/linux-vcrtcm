@@ -94,6 +94,7 @@ extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
 extern int radeon_pcie_gen2;
 extern int radeon_msi;
+extern int radeon_num_virt_crtcs;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1388,6 +1389,8 @@ struct radeon_device {
 	/* debugfs */
 	struct radeon_debugfs	debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
 	unsigned 		debugfs_count;
+	/* virtual crtcs */
+	int num_virtual_crtc;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

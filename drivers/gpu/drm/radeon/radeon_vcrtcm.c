@@ -1,0 +1,342 @@
+/*
+ * Copyright 2010 Alcatel-Lucent Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+ */
+
+#include <drm/drmP.h>
+#include "radeon.h"
+#include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
+
+int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
+			 int x, int y, uint64_t fb_location)
+{
+	struct drm_crtc *crtc = &radeon_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	struct vcrtcm_fb vcrtcm_fb;
+	unsigned int tmp;
+
+	if (radeon_crtc->vcrtcm_dev_hal) {
+		DRM_INFO("crtc %d has vcrtcm HAL, calling vcrtcm_set_fb\n",
+			 radeon_crtc->crtc_id);
+		/* tell the vcrtcm HAL the address and geometry of the */
+		/* frame buffer associated with this CRTC */
+		tmp = fb_location - rdev->mc.vram_start;
+		vcrtcm_fb.ioaddr = rdev->mc.aper_base + tmp;
+		vcrtcm_fb.bpp = crtc->fb->bits_per_pixel;
+		vcrtcm_fb.width = crtc->fb->width;
+		vcrtcm_fb.pitch = crtc->fb->pitch;
+		vcrtcm_fb.height = crtc->fb->height;
+		vcrtcm_fb.viewport_x = x;
+		vcrtcm_fb.viewport_y = y;
+		vcrtcm_fb.hdisplay = crtc->mode.hdisplay;
+		vcrtcm_fb.vdisplay = crtc->mode.vdisplay;
+		return vcrtcm_set_fb(radeon_crtc->vcrtcm_dev_hal, &vcrtcm_fb);
+	}
+	return 0;
+}
+
+int radeon_vcrtcm_wait(struct radeon_device *rdev)
+{
+	struct virtual_crtc *virtual_crtc;
+	int i, r;
+
+	/* REVISIT: this is extremely conservative (we wait for every */
+	/* HAL of every CRTC, but we have no choice */
+	/* once we start supporting multiple VMs, we will wait only */
+	/* for those HALs that are serving CRTCs of the VM that sent this */
+	/* batch of IBs. */
+
+	/* first wait for all real CRTCs */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->mode_info.crtcs[i]->vcrtcm_dev_hal) {
+			r = vcrtcm_wait_fb(rdev->mode_info.crtcs[i]->
+					   vcrtcm_dev_hal);
+			if (r)
+				return r;
+		}
+	}
+
+	/* now do the same kind of wait for all virtual CRTCs */
+	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+		if (virtual_crtc->radeon_crtc->vcrtcm_dev_hal) {
+			r = vcrtcm_wait_fb(virtual_crtc->radeon_crtc->
+					   vcrtcm_dev_hal);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+
+}
+
+void radeon_vcrtcm_xmit(struct radeon_device *rdev)
+{
+	int i;
+	struct radeon_crtc *radeon_crtc = NULL;
+	struct virtual_crtc *virtual_crtc;
+
+	/* loop through CRTCs and attempt to transmit each CRTC */
+	/* back-end will "evaluate" if the transmission is necessary */
+	/* and possible and either "silently" return or start the */
+	/* transmission. */
+	/* REVISIT: we can (in theory) get smarter if we knew */
+	/* what rendering activity belonged to what CRTC/framebuffer */
+	/* however we don't since that would require that we interpret */
+	/* the rendering commands in radeon_cs; maybe one day we will */
+	/* have the necessary information and make this smarter */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		radeon_crtc = rdev->mode_info.crtcs[i];
+		if ((radeon_crtc->vcrtcm_dev_hal) && (radeon_crtc->enabled))
+			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
+	}
+
+	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+		radeon_crtc = virtual_crtc->radeon_crtc;
+		if ((radeon_crtc->vcrtcm_dev_hal) && (radeon_crtc->enabled))
+			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
+	}
+}
+
+static void radeon_detach_callback(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	DRM_INFO("dereferencing HAL pointer from crtc_id %d\n",
+		 radeon_crtc->crtc_id);
+	radeon_crtc->vcrtcm_dev_hal = NULL;
+}
+
+static void radeon_emulate_vblank(struct drm_crtc *crtc)
+{
+	struct drm_device *ddev;
+	struct radeon_device *rdev;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	if (radeon_crtc->vblank_emulation_enabled) {
+		ddev = radeon_crtc->base.dev;
+		rdev = ddev->dev_private;
+		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
+			  radeon_crtc->crtc_id);
+		drm_handle_vblank(ddev, radeon_crtc->crtc_id);
+		rdev->pm.vblank_sync = true;
+		radeon_crtc->emulated_vblank_counter++;
+		wake_up(&rdev->irq.vblank_queue);
+	} else
+		DRM_DEBUG("vblank emulation for virtual crtc %d disabled\n",
+			  radeon_crtc->crtc_id);
+}
+
+static void radeon_sync_callback(struct drm_crtc *crtc)
+{
+	struct drm_device *ddev;
+	struct radeon_device *rdev;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	ddev = radeon_crtc->base.dev;
+	rdev = ddev->dev_private;
+	DRM_INFO("in radeon_sync_callback, crtc_id %d\n", radeon_crtc->crtc_id);
+	radeon_fence_wait_last(rdev);
+}
+
+static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
+				int minor, int flow)
+{
+	int r;
+	struct drm_crtc *crtc = &radeon_crtc->base;
+	struct radeon_device *rdev =
+	    (struct radeon_device *)crtc->dev->dev_private;
+
+	if (radeon_crtc->crtc_id < rdev->num_crtc)
+		r = vcrtcm_attach(major, minor, flow, crtc,
+				  radeon_detach_callback,
+				  /* no vblank emulation for real CRTC */
+				  NULL,
+				  radeon_sync_callback,
+				  &radeon_crtc->vcrtcm_dev_hal);
+	else
+		r = vcrtcm_attach(major, minor, flow, crtc,
+				  radeon_detach_callback,
+				  radeon_emulate_vblank,
+				  radeon_sync_callback,
+				  &radeon_crtc->vcrtcm_dev_hal);
+
+	if (r)
+		return r;
+
+	/* if the attach was successful, we also need to send the crtc */
+	/* FB address and geometry to VCRTCM module. This is because */
+	/* the attach can happed after the displays have been created */
+	/* (e.g. X has already started); the application in that case */
+	/* won't call set_base helper function and VCRTCM module won't */
+	/* have the FB information. So we do it here (we use */
+	/* atomic==1 because if this CRTC has the frame buffer */
+	/* bound, it should presumably be already pinned */
+	if (crtc->fb) {
+		DRM_INFO("radeon_vcrtcm_attach: frame buffer exists\n");
+		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
+						    crtc->y, 1);
+		if (r)
+			return r;
+	}
+	/* and we also need to set the cursor */
+	if (radeon_crtc->cursor_bo) {
+		struct vcrtcm_cursor vcrtcm_cursor;
+		struct radeon_device *rdev =
+		    (struct radeon_device *)crtc->dev->dev_private;
+		struct radeon_bo *rbo;
+		uint64_t cursor_gpuaddr;
+
+		DRM_INFO("radeon_vcrtcm_attach: cursor exists w=%d, h=%d\n",
+			 radeon_crtc->cursor_width, radeon_crtc->cursor_height);
+		vcrtcm_cursor.flag = 0x0;
+		vcrtcm_cursor.width = radeon_crtc->cursor_width;
+		vcrtcm_cursor.height = radeon_crtc->cursor_height;
+
+		/* REVISIT: we don't have any other place to put it */
+		/* (radeon_crtc does not maintain cursor location) */
+		/* so we just set it to zero; it will be updated to */
+		/* the right value at the first cursor move */
+		vcrtcm_cursor.location_x = 0;
+		vcrtcm_cursor.location_y = 0;
+
+		/* cursor object should be pinned at this point so */
+		/* we just go for its address */
+		rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+		r = radeon_bo_reserve(rbo, false);
+		if (unlikely(r))
+			return r;
+		cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
+		radeon_bo_unreserve(rbo);
+
+		vcrtcm_cursor.ioaddr =
+		    rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
+		DRM_INFO("radeon_vcrtcm_attach: cursor i/o address 0x%08x\n",
+			 vcrtcm_cursor.ioaddr);
+		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
+				      &vcrtcm_cursor);
+	}
+	/* and we need to update the DPMS state */
+	if (radeon_crtc->enabled)
+		vcrtcm_set_dpms(radeon_crtc->vcrtcm_dev_hal,
+				VCRTCM_DPMS_STATE_ON);
+	else
+		vcrtcm_set_dpms(radeon_crtc->vcrtcm_dev_hal,
+				VCRTCM_DPMS_STATE_OFF);
+
+	return r;
+
+}
+
+static struct radeon_crtc
+*display_index_to_radeon_crtc(struct radeon_device *rdev, int display_index)
+{
+	struct radeon_crtc *radeon_crtc;
+	struct virtual_crtc *virtual_crtc;
+
+	radeon_crtc = NULL;
+
+	if (display_index < rdev->num_crtc) {
+		radeon_crtc = rdev->mode_info.crtcs[display_index];
+	}
+
+	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+		if (virtual_crtc->radeon_crtc->crtc_id == display_index) {
+			radeon_crtc = virtual_crtc->radeon_crtc;
+			break;
+		}
+	}
+	return radeon_crtc;
+}
+
+static inline int radeon_vcrtcm_set_fps(struct radeon_crtc *radeon_crtc,
+					int fps)
+{
+	if (radeon_crtc->vcrtcm_dev_hal)
+		return vcrtcm_set_fps(radeon_crtc->vcrtcm_dev_hal, fps);
+	else
+		return -EINVAL;
+}
+
+int radeon_vcrtcm_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+
+	radeon_vcrtcm_ctl_descriptor_t *radeon_vcrtcm_ctl_descriptor = data;
+	struct radeon_device *rdev = dev->dev_private;
+	int display_index = radeon_vcrtcm_ctl_descriptor->display_index;
+	int op_code = radeon_vcrtcm_ctl_descriptor->op_code;
+	struct radeon_crtc *radeon_crtc;
+
+	DRM_INFO("in radeon_vcrtcm_ioctl, display_index %d\n", display_index);
+
+	/* validate the display index */
+	if (display_index >= rdev->num_crtc + rdev->num_virtual_crtc) {
+		DRM_INFO("bad display index\n");
+		return -EINVAL;
+	}
+
+	radeon_crtc = display_index_to_radeon_crtc(rdev, display_index);
+	if (!radeon_crtc) {
+		DRM_ERROR("invalid crtc pointer\n");
+		return -EINVAL;
+	}
+
+	switch (op_code) {
+
+	case RADEON_VCRTCM_CTL_OP_CODE_NOP:
+		DRM_INFO("+-> nop\n");
+		return 0;
+
+	case RADEON_VCRTCM_CTL_OP_CODE_SET_RATE:
+		DRM_INFO("+-> set fps\n");
+		return radeon_vcrtcm_set_fps(radeon_crtc,
+					     radeon_vcrtcm_ctl_descriptor->arg1.
+					     fps);
+
+	case RADEON_VCRTCM_CTL_OP_CODE_ATTACH:
+		DRM_INFO("+-> attach\n");
+		return radeon_vcrtcm_attach(radeon_crtc,
+					    radeon_vcrtcm_ctl_descriptor->arg1.
+					    major,
+					    radeon_vcrtcm_ctl_descriptor->arg2.
+					    minor,
+					    radeon_vcrtcm_ctl_descriptor->arg3.
+					    flow);
+
+	case RADEON_VCRTCM_CTL_OP_CODE_DETACH:
+		DRM_INFO("+-> detach\n");
+		return radeon_vcrtcm_detach(radeon_crtc);
+
+	case RADEON_VCRTCM_CTL_OP_CODE_XMIT:
+		DRM_INFO("+-> force\n");
+		return radeon_vcrtcm_force(radeon_crtc);
+
+	default:
+		DRM_INFO("+-> invalid op code\n");
+		return -EINVAL;
+	}
+
+}

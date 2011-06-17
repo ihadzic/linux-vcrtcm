@@ -27,8 +27,10 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 #include "radeon.h"
 #include "atom.h"
+#include "radeon_vcrtcm_kernel.h"
 
 static void radeon_overscan_setup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode)
@@ -369,13 +371,13 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
-	uint64_t base;
+	uint64_t base, fb_location;
 	uint32_t crtc_offset, crtc_offset_cntl, crtc_tile_x0_y0 = 0;
 	uint32_t crtc_pitch, pitch_pixels;
 	uint32_t tiling_flags;
 	int format;
 	uint32_t gen_cntl_reg, gen_cntl_val;
-	int r;
+	int r = 0;
 
 	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
@@ -419,7 +421,8 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &base);
+	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
+	base = fb_location;
 	if (unlikely(r != 0)) {
 		radeon_bo_unreserve(rbo);
 		return -EINVAL;
@@ -519,6 +522,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
@@ -532,7 +536,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	/* Bytes per pixel may have changed */
 	radeon_bandwidth_update(rdev);
 
-	return 0;
+	return r;
 }
 
 static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mode *mode)

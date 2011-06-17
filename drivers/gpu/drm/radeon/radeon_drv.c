@@ -121,6 +121,7 @@ int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
 int radeon_msi = -1;
+int radeon_num_virt_crtcs;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -169,6 +170,9 @@ module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, radeon_msi, int, 0444);
+
+MODULE_PARM_DESC(num_virt_crtcs, "Number of virtual crtcs to allocate");
+module_param_named(num_virt_crtcs, radeon_num_virt_crtcs, int, 0644);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {
