@@ -118,7 +118,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	spin_lock_init(&rdev->irq.sw_lock);
 	for (i = 0; i < rdev->num_crtc; i++)
 		spin_lock_init(&rdev->irq.pflip_lock[i]);
-	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
+	r = drm_vblank_init(rdev->ddev, rdev->num_crtc+rdev->num_virtual_crtc);
 	if (r) {
 		return r;
 	}

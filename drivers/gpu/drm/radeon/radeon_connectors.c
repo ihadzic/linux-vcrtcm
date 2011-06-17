@@ -619,7 +619,7 @@ radeon_lvds_detect(struct drm_connector *connector, bool force)
 	return ret;
 }
 
-static void radeon_connector_destroy(struct drm_connector *connector)
+void radeon_connector_destroy(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 

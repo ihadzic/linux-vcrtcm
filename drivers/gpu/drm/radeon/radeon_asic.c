@@ -1061,6 +1061,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic->set_memory_clock = NULL;
 	}
 
+	rdev->num_virtual_crtc = radeon_num_virt_crtcs;
 	return 0;
 }
 

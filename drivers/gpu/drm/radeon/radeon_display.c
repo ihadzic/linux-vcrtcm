@@ -26,6 +26,8 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
 
 #include "atom.h"
 #include <asm/div64.h>
@@ -241,6 +243,10 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
+	/* if this CRTC has a vcrtcm HAL attached to it,
+	   detach it at this point (ignore the error code)
+	   since there is nothing we can do about it */
+	radeon_vcrtcm_detach(radeon_crtc);
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);
 }
@@ -504,6 +510,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 
 	drm_mode_crtc_set_gamma_size(&radeon_crtc->base, 256);
 	radeon_crtc->crtc_id = index;
+	radeon_virtual_crtc_data_init(radeon_crtc);
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
 #if 0
@@ -524,7 +531,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 		radeon_legacy_init_crtc(dev, radeon_crtc);
 }
 
-static const char *encoder_names[36] = {
+static const char *encoder_names[37] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -561,6 +568,7 @@ static const char *encoder_names[36] = {
 	"INTERNAL_UNIPHY2",
 	"NUTMEG",
 	"TRAVIS",
+	"VIRTUAL"
 };
 
 static const char *connector_names[15] = {
@@ -639,27 +647,32 @@ static void radeon_print_display_setup(struct drm_device *dev)
 			devices = radeon_encoder->devices & radeon_connector->devices;
 			if (devices) {
 				if (devices & ATOM_DEVICE_CRT1_SUPPORT)
-					DRM_INFO("    CRT1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    CRT1: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_CRT2_SUPPORT)
-					DRM_INFO("    CRT2: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    CRT2: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_LCD1_SUPPORT)
-					DRM_INFO("    LCD1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    LCD1: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP1_SUPPORT)
-					DRM_INFO("    DFP1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP1: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP2_SUPPORT)
-					DRM_INFO("    DFP2: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP2: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP3_SUPPORT)
-					DRM_INFO("    DFP3: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP3: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP4_SUPPORT)
-					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP5_SUPPORT)
-					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_DFP6_SUPPORT)
-					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_TV1_SUPPORT)
-					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
 				if (devices & ATOM_DEVICE_CV_SUPPORT)
-					DRM_INFO("    CV: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					DRM_INFO("    CV: %s\n", encoder_names[radeon_encoder->encoder_id & 0xffff]);
+				if (devices & ATOM_DEVICE_VIRTUAL_SUPPORT)
+				  if ((radeon_connector->connector_id & 0xffff) == (radeon_encoder->encoder_id >> 16))
+					DRM_INFO("    VIRTUAL: %s-%d\n",
+						 encoder_names[radeon_encoder->encoder_id & 0xffff],
+						 radeon_encoder->encoder_id >> 16);
 			}
 		}
 		i++;
@@ -671,6 +684,7 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *drm_connector;
 	bool ret = false;
+	int i;
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios) {
@@ -686,6 +700,11 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 		if (!ASIC_IS_AVIVO(rdev))
 			ret = radeon_get_legacy_connector_info_from_table(dev);
 	}
+
+	/* add virtual connectors to the system */
+	for (i = 0; i < rdev->num_virtual_crtc; i++)
+		radeon_add_virtual_enc_conn(dev, i);
+
 	if (ret) {
 		radeon_setup_encoder_clones(dev);
 		radeon_print_display_setup(dev);
@@ -1330,6 +1349,13 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
+
+	/* allocate virtual crtcs; use id numbers that follow the
+	   last real CRTC id */
+	INIT_LIST_HEAD(&rdev->mode_info.virtual_crtcs);
+
+	for (i = rdev->num_crtc; i < rdev->num_crtc+rdev->num_virtual_crtc; i++)
+		radeon_virtual_crtc_init(rdev->ddev, i);
 
 	/* okay we should have all the bios connectors */
 	ret = radeon_setup_enc_conn(rdev->ddev);

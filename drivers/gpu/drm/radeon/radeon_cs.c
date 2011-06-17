@@ -28,6 +28,8 @@
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
 
 void r100_cs_dump_packet(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt);
@@ -223,6 +225,12 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	int r;
 
 	mutex_lock(&rdev->cs_mutex);
+
+	/* to avoid frame tearing, we must wait until vcrtcm transmission */
+	/* is done before scheduling the next batch of IBs to the GPU */
+	radeon_vcrtcm_xmit(rdev);
+	radeon_vcrtcm_wait(rdev);
+
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;

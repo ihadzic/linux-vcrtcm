@@ -243,6 +243,9 @@ struct radeon_mode_info {
 
 	/* pointer to fbdev info structure */
 	struct radeon_fbdev *rfbdev;
+
+	/* virtual crtcs supported by this driver */
+	struct list_head virtual_crtcs;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32
@@ -283,6 +286,10 @@ struct radeon_crtc {
 	/* page flipping */
 	struct radeon_unpin_work *unpin_work;
 	int deferred_flip_completion;
+	/* virtual crtc stuff */
+	bool vblank_emulation_enabled;
+	int emulated_vblank_counter;
+	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
 };
 
 struct radeon_encoder_primary_dac {

@@ -93,6 +93,7 @@ extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
 extern int radeon_pcie_gen2;
+extern int radeon_num_virt_crtcs;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1242,6 +1243,8 @@ struct radeon_device {
 	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
+	/* virtual crtcs */
+	int num_virtual_crtc;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

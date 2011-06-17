@@ -27,9 +27,11 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 #include "radeon.h"
 #include "atom.h"
 #include "atom-bits.h"
+#include "radeon_vcrtcm_kernel.h"
 
 static void atombios_overscan_setup(struct drm_crtc *crtc,
 				    struct drm_display_mode *mode,
@@ -1052,7 +1054,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	u32 tmp, viewport_w, viewport_h;
-	int r;
+	int r = 0;
 
 	/* no fb bound */
 	if (!atomic && !crtc->fb) {
@@ -1191,6 +1193,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
@@ -1204,7 +1207,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* Bytes per pixel may have changed */
 	radeon_bandwidth_update(rdev);
 
-	return 0;
+	return r;
 }
 
 static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
@@ -1222,7 +1225,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	u32 tmp, viewport_w, viewport_h;
-	int r;
+	int r = 0;
 
 	/* no fb bound */
 	if (!atomic && !crtc->fb) {
@@ -1360,6 +1363,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
@@ -1373,7 +1377,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	/* Bytes per pixel may have changed */
 	radeon_bandwidth_update(rdev);
 
-	return 0;
+	return r;
 }
 
 int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,

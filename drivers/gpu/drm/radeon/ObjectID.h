@@ -85,6 +85,7 @@
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA   0x1F
 #define ENCODER_OBJECT_ID_INTERNAL_UNIPHY1        0x20
 #define ENCODER_OBJECT_ID_INTERNAL_UNIPHY2        0x21
+#define ENCODER_OBJECT_ID_VIRTUAL                 0x24
 
 #define ENCODER_OBJECT_ID_GENERAL_EXTERNAL_DVO    0xFF
 
@@ -114,6 +115,7 @@
 #define CONNECTOR_OBJECT_ID_eDP                   0x14
 #define CONNECTOR_OBJECT_ID_MXM                   0x15
 #define CONNECTOR_OBJECT_ID_LVDS_eDP              0x16
+#define CONNECTOR_OBJECT_ID_VIRTUAL               0x17
 
 /* deleted */
 
