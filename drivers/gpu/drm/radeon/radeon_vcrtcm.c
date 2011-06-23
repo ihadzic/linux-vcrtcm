@@ -318,7 +318,10 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 	struct radeon_crtc *radeon_crtc;
 
 	DRM_INFO("in radeon_vcrtcm_ioctl, display_index %d\n", display_index);
-
+	if (!ASIC_IS_VCRTC_CAPABLE(rdev)) {
+		DRM_INFO("GPU too old for VCRTCM\n");
+		return -ENOTSUPP;
+	}
 	/* validate the display index */
 	if (display_index >= rdev->num_crtc + rdev->num_virtual_crtc) {
 		DRM_INFO("bad display index\n");

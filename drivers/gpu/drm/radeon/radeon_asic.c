@@ -1061,7 +1061,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic->set_memory_clock = NULL;
 	}
 
-	rdev->num_virtual_crtc = radeon_num_virt_crtcs;
+	if (ASIC_IS_VCRTC_CAPABLE(rdev)) {
+		rdev->num_virtual_crtc = radeon_num_virt_crtcs;
+	} else {
+		rdev->num_virtual_crtc = 0;
+		if (radeon_num_virt_crtcs)
+			DRM_INFO("GPU too old for virtual crtcs\n");
+	}
 	return 0;
 }
 
