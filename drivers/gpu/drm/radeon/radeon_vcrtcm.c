@@ -117,10 +117,10 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 	struct radeon_crtc *radeon_crtc = NULL;
 	struct virtual_crtc *virtual_crtc;
 
-	/* loop through CRTCs and attempt to transmit each CRTC */
-	/* back-end will "evaluate" if the transmission is necessary */
-	/* and possible and either "silently" return or start the */
-	/* transmission. */
+	/* loop through CRTCs and mark each CRTC for transmission */
+	/* back-end will evaluate the flag in the work function */
+	/* and deal with the CTD transmission hardware */
+
 	/* REVISIT: we can (in theory) get smarter if we knew */
 	/* what rendering activity belonged to what CRTC/framebuffer */
 	/* however we don't since that would require that we interpret */
