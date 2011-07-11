@@ -285,43 +285,6 @@ int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 }
 EXPORT_SYMBOL(vcrtcm_xmit_fb);
 
-/* GPU driver calls this function to indicate that the
-   next call to xmit_fb will be forced, that is that
-   the xmit_fb should not delay the transmission
-   (typically used by the GPU driver when it knows
-   that something has changed on the screen without
-   rendering activity -- e.g., cursor change) */
-int vcrtcm_force_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
-{
-	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			 vcrtcm_dev_hal);
-
-	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
-	if (vcrtcm_dev_hal->funcs.force_xmit_fb) {
-		VCRTCM_DEBUG("calling force_xmit_fb backend, HAL %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_dev_hal->funcs.force_xmit_fb(vcrtcm_dev_info->
-							drm_crtc,
-							vcrtcm_dev_info->
-							hw_drv_info,
-							vcrtcm_dev_info->
-							hw_flow);
-	} else {
-		VCRTCM_WARNING("missing force_xmit_fb backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
-		r = 0;
-	}
-	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
-	return r;
-}
-EXPORT_SYMBOL(vcrtcm_force_xmit_fb);
-
 /* GPU driver can use this function to synchronize with the
    CTD driver transmission (e.g. wait for the transmission to
    complete). whether the wait will actually occur or not
