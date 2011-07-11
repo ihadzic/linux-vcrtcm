@@ -864,8 +864,7 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc)
 		/* force xmit only if xmit is enabled, */
 		/* otherwise, just silently return */
 		if (fps > 0)
-			return vcrtcm_force_xmit_fb(radeon_crtc->
-						    vcrtcm_dev_hal);
+			return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
 		else
 			return 0;
 	}
@@ -905,8 +904,7 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 		if (r)
 			return r;
 		if (fps > 0)
-			return vcrtcm_force_xmit_fb(radeon_crtc->
-						    vcrtcm_dev_hal);
+			return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
 		else
 			return 0;
 	}
