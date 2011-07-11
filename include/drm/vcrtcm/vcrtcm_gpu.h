@@ -48,7 +48,6 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 int vcrtcm_page_flip(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		     u32 ioaddr);
 int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
-int vcrtcm_force_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 int vcrtcm_wait_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 int vcrtcm_get_fb_status(struct vcrtcm_dev_hal *vcrtcm_dev_hal, u32 *status);
 int vcrtcm_get_fps(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *fps);

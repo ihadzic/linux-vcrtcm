@@ -77,8 +77,6 @@ struct vcrtcm_funcs {
 	int (*page_flip) (u32 ioaddr, void *hw_drv_info, int flow);
 	int (*xmit_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);
-	int (*force_xmit_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
-			      int flow);
 	int (*wait_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);
 	int (*get_fb_status)(struct drm_crtc *drm_crtc, void *hw_drv_info,
