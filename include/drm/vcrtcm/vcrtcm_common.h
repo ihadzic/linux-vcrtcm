@@ -106,4 +106,18 @@ struct vcrtcm_dev_hal {
 	struct vcrtcm_funcs funcs;
 };
 
+struct vcrtcm_gpu_callbacks {
+
+	/* callback into GPU driver when detach is called */
+	void (*detach) (struct drm_crtc *drm_crtc);
+
+	/* callback into the GPU driver for VBLANK emulation function  */
+	/* if one is needed by the HAL (typically used by virtual CRTCs)  */
+	void (*vblank) (struct drm_crtc *drm_crtc);
+
+	/* callback into the GPU driver for synchronization with */
+	/* GPU rendering (e.g. fence wait) */
+	void (*sync) (struct drm_crtc *drm_crtc);
+};
+
 #endif
