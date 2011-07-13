@@ -136,10 +136,12 @@ struct vcrtcm_gpu_callbacks {
 	void (*sync) (struct drm_crtc *drm_crtc);
 
 	/* allocate push buffer */
-	int (*pb_alloc) (struct vcrtcm_push_buffer_descriptor *pbd);
+	int (*pb_alloc) (struct drm_device *dev,
+			 struct vcrtcm_push_buffer_descriptor *pbd);
 
 	/* return push buffer NB: may not be NULL if pb_alloc exists */
-	void (*pb_free) (struct drm_gem_object *obj);
+	void (*pb_free) (struct drm_device *dev,
+			 struct drm_gem_object *obj);
 };
 
 #endif
