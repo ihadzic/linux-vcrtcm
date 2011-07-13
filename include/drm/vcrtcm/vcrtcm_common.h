@@ -106,18 +106,40 @@ struct vcrtcm_dev_hal {
 	struct vcrtcm_funcs funcs;
 };
 
+/* descriptor for push buffer; when push-method is used */
+/* CTD device must obtain the buffer from GPU because it */
+/* must be a proper buffer object (GEM or TTM or whatever */
+/* the specific GPU "likes"; CTD driver, however only cares about the pages */
+/* so this is a "minimalistic" descriptor that satisfies the CTD driver */
+/* the only TTM-ish restriction is that the list of pages first */
+/* lists all lo-mem pages followed by all hi-mem pages */
+/* of course, we need an object pointer so that we can return the buffer */
+/* when we don't need it any more */
+struct vcrtcm_push_buffer_descriptor {
+	struct drm_gem_object *obj;
+	struct page **pages;
+	unsigned long num_pages;
+	unsigned long last_lomem_page;
+	unsigned long first_himem_page;
+};
+
 struct vcrtcm_gpu_callbacks {
 
 	/* callback into GPU driver when detach is called */
 	void (*detach) (struct drm_crtc *drm_crtc);
 
-	/* callback into the GPU driver for VBLANK emulation function  */
+	/* VBLANK emulation function  */
 	/* if one is needed by the HAL (typically used by virtual CRTCs)  */
 	void (*vblank) (struct drm_crtc *drm_crtc);
 
-	/* callback into the GPU driver for synchronization with */
-	/* GPU rendering (e.g. fence wait) */
+	/* synchronization with GPU rendering (e.g. fence wait) */
 	void (*sync) (struct drm_crtc *drm_crtc);
+
+	/* allocate push buffer */
+	int (*pb_alloc) (struct vcrtcm_push_buffer_descriptor *pbd);
+
+	/* return push buffer NB: may not be NULL if pb_alloc exists */
+	void (*pb_free) (struct drm_gem_object *obj);
 };
 
 #endif
