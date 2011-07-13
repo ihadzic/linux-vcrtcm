@@ -34,9 +34,7 @@
    callback function to be called on detach */
 int vcrtcm_attach(int major, int minor, int flow,
 		  struct drm_crtc *drm_crtc,
-		  void (*detach_gpu_callback) (struct drm_crtc *drm_crtc),
-		  void (*vblank_gpu_callback) (struct drm_crtc *drm_crtc),
-		  void (*sync_gpu_callback) (struct drm_crtc *drm_crtc),
+		  struct vcrtcm_gpu_callbacks *gpu_callbacks,
 		  struct vcrtcm_dev_hal **vcrtcm_dev_hal)
 {
 
@@ -84,11 +82,7 @@ int vcrtcm_attach(int major, int minor, int flow,
 			vcrtcm_dev_info->hw_flow = flow;
 			vcrtcm_dev_info->drm_crtc = drm_crtc;
 			vcrtcm_dev_info->status |= VCRTCM_STATUS_HAL_IN_USE;
-			vcrtcm_dev_info->detach_gpu_callback =
-			    detach_gpu_callback;
-			vcrtcm_dev_info->vblank_gpu_callback =
-			    vblank_gpu_callback;
-			vcrtcm_dev_info->sync_gpu_callback = sync_gpu_callback;
+			vcrtcm_dev_info->gpu_callbacks = *gpu_callbacks;
 
 			/* point the GPU driver to HAL we have just attached */
 			*vcrtcm_dev_hal = &vcrtcm_dev_info->vcrtcm_dev_hal;
@@ -141,12 +135,11 @@ int vcrtcm_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 						vcrtcm_dev_hal,
 						vcrtcm_dev_info->hw_drv_info,
 						vcrtcm_dev_info->hw_flow);
-	if (vcrtcm_dev_info->detach_gpu_callback)
-		vcrtcm_dev_info->detach_gpu_callback(vcrtcm_dev_info->drm_crtc);
-	vcrtcm_dev_info->detach_gpu_callback = NULL;
+	if (vcrtcm_dev_info->gpu_callbacks.detach)
+		vcrtcm_dev_info->gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
+	memset(&vcrtcm_dev_info->gpu_callbacks, 0,
+	       sizeof(struct vcrtcm_gpu_callbacks));
 	vcrtcm_dev_info->drm_crtc = NULL;
-	vcrtcm_dev_info->vblank_gpu_callback = NULL;
-	vcrtcm_dev_info->sync_gpu_callback = NULL;
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return 0;
 

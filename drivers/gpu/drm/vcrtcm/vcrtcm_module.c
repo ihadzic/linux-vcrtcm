@@ -65,10 +65,9 @@ static void __exit vcrtcm_exit(void)
 				    detach(&vcrtcm_dev_info->vcrtcm_dev_hal,
 					   vcrtcm_dev_info->hw_drv_info,
 					   vcrtcm_dev_info->hw_flow);
-			if (vcrtcm_dev_info->detach_gpu_callback)
+			if (vcrtcm_dev_info->gpu_callbacks.detach)
 				vcrtcm_dev_info->
-				    detach_gpu_callback(vcrtcm_dev_info->
-							drm_crtc);
+					gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
 		}
 		list_del(&vcrtcm_dev_info->list);
 		mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);

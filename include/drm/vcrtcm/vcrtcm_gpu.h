@@ -34,9 +34,7 @@
 /* setup/config functions for GPU driver's use */
 int vcrtcm_attach(int major, int minor, int flow,
 		  struct drm_crtc *drm_crtc,
-		  void (*detach_gpu_callback) (struct drm_crtc *drm_crtc),
-		  void (*vblank_gpu_callback) (struct drm_crtc *drm_crtc),
-		  void (*sync_gpu_callback) (struct drm_crtc *drm_crtc),
+		  struct vcrtcm_gpu_callbacks *gpu_callbacks,
 		  struct vcrtcm_dev_hal **vcrtcm_dev_hal);
 int vcrtcm_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 

@@ -45,14 +45,8 @@ struct vcrtcm_dev_info {
 	void *hw_drv_info;
 	/* identifies the CRTC using this HAL */
 	struct drm_crtc *drm_crtc;
-	/* callback into GPU driver when detach is called */
-	void (*detach_gpu_callback) (struct drm_crtc *drm_crtc);
-	/* callback into the GPU driver for VBLANK emulation function  */
-	/* if one is needed by the HAL (typically used by virtual CRTCs)  */
-	void (*vblank_gpu_callback) (struct drm_crtc *drm_crtc);
-	/* callback into the GPU driver for synchronization with */
-	/* GPU rendering (e.g. fence wait) */
-	void (*sync_gpu_callback) (struct drm_crtc *drm_crtc);
+	/* callbacks from CTD driver into the GPU */
+	struct vcrtcm_gpu_callbacks gpu_callbacks;
 	/* public HAL information */
 	struct vcrtcm_dev_hal vcrtcm_dev_hal;
 };

@@ -77,9 +77,8 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 	vcrtcm_dev_info->vblank_time.tv_sec = 0;
 	vcrtcm_dev_info->vblank_time.tv_usec = 0;
 	vcrtcm_dev_info->drm_crtc = NULL;
-	vcrtcm_dev_info->detach_gpu_callback = NULL;
-	vcrtcm_dev_info->vblank_gpu_callback = NULL;
-	vcrtcm_dev_info->sync_gpu_callback = NULL;
+	memset(&vcrtcm_dev_info->gpu_callbacks, 0,
+	       sizeof(struct vcrtcm_gpu_callbacks));
 
 	VCRTCM_INFO("adding new HAL %d.%d.%d\n",
 		    vcrtcm_dev_info->hw_major,
@@ -122,10 +121,9 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 						   vcrtcm_dev_hal,
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
-				if (vcrtcm_dev_info->detach_gpu_callback)
+				if (vcrtcm_dev_info->gpu_callbacks.detach)
 					vcrtcm_dev_info->
-					    detach_gpu_callback
-					    (vcrtcm_dev_info->drm_crtc);
+						gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
 			}
 			list_del(&vcrtcm_dev_info->list);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
@@ -159,8 +157,8 @@ void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 		    vcrtcm_dev_info->hw_major,
 		    vcrtcm_dev_info->hw_minor, vcrtcm_dev_info->hw_flow);
 	jiffies_snapshot = jiffies;
-	if (vcrtcm_dev_info->sync_gpu_callback)
-		vcrtcm_dev_info->sync_gpu_callback(vcrtcm_dev_info->drm_crtc);
+	if (vcrtcm_dev_info->gpu_callbacks.sync)
+		vcrtcm_dev_info->gpu_callbacks.sync(vcrtcm_dev_info->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
@@ -184,12 +182,12 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
 	vcrtcm_dev_info->vblank_time_valid = 1;
 	/* REVISIT: release the spinlock here */
-	if (vcrtcm_dev_info->vblank_gpu_callback) {
+	if (vcrtcm_dev_info->gpu_callbacks.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		vcrtcm_dev_info->vblank_gpu_callback(vcrtcm_dev_info->drm_crtc);
+		vcrtcm_dev_info->gpu_callbacks.vblank(vcrtcm_dev_info->drm_crtc);
 	}
 }
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
