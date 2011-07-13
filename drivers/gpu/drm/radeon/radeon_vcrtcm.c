@@ -188,6 +188,19 @@ static void radeon_sync_callback(struct drm_crtc *crtc)
 	radeon_fence_wait_last(rdev);
 }
 
+
+struct vcrtcm_gpu_callbacks physical_crtc_gpu_callbacks = {
+	.detach = radeon_detach_callback,
+	.vblank = NULL, /* no vblank emulation for real CRTC */
+	.sync = radeon_sync_callback
+};
+
+struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
+	.detach = radeon_detach_callback,
+	.vblank = radeon_emulate_vblank,
+	.sync = radeon_sync_callback
+};
+
 static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 				int minor, int flow)
 {
@@ -198,16 +211,11 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
 		r = vcrtcm_attach(major, minor, flow, crtc,
-				  radeon_detach_callback,
-				  /* no vblank emulation for real CRTC */
-				  NULL,
-				  radeon_sync_callback,
+				  &physical_crtc_gpu_callbacks,
 				  &radeon_crtc->vcrtcm_dev_hal);
 	else
 		r = vcrtcm_attach(major, minor, flow, crtc,
-				  radeon_detach_callback,
-				  radeon_emulate_vblank,
-				  radeon_sync_callback,
+				  &virtual_crtc_gpu_callbacks,
 				  &radeon_crtc->vcrtcm_dev_hal);
 
 	if (r)
