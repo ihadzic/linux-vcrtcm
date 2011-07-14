@@ -230,6 +230,8 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		VCRTCM_DEBUG("freeing push buffer name=%d, size=%d\n",
 			     obj->name, obj->size);
 		vcrtcm_dev_info->gpu_callbacks.pb_free(dev, obj);
+		memset(pbd, 0,
+		       sizeof(struct vcrtcm_push_buffer_descriptor));
 	}
 }
 EXPORT_SYMBOL(vcrtcm_push_buffer_free);
