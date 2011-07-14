@@ -119,8 +119,8 @@ struct vcrtcm_push_buffer_descriptor {
 	void *gpu_private;
 	struct page **pages;
 	unsigned long num_pages;
-	unsigned long last_lomem_page;
-	unsigned long first_himem_page;
+	long last_lomem_page;
+	long first_himem_page;
 };
 
 struct vcrtcm_gpu_callbacks {
