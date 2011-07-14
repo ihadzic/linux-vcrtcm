@@ -116,7 +116,7 @@ struct vcrtcm_dev_hal {
 /* of course, we need an object pointer so that we can return the buffer */
 /* when we don't need it any more */
 struct vcrtcm_push_buffer_descriptor {
-	struct drm_gem_object *obj;
+	void *gpu_private;
 	struct page **pages;
 	unsigned long num_pages;
 	unsigned long last_lomem_page;
