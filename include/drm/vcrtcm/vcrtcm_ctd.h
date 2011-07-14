@@ -39,5 +39,9 @@ void vcrtcm_hw_del(int major, int minor, int flow);
 /* functions for use by CTD driver in operational state */
 void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
+int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+			     struct vcrtcm_push_buffer_descriptor *pbd);
+void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+			     struct vcrtcm_push_buffer_descriptor *pbd);
 
 #endif
