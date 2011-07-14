@@ -201,11 +201,15 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     vcrtcm_dev_hal);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 	struct drm_device *dev = crtc->dev;
+	struct drm_gem_object *obj;
 
 	if (vcrtcm_dev_info->gpu_callbacks.pb_alloc) {
-		vcrtcm_dev_info->gpu_callbacks.pb_alloc(dev, pbd);
+		int r;
+		r = vcrtcm_dev_info->gpu_callbacks.pb_alloc(dev, pbd);
+		obj = pbd->gpu_private;
 		VCRTCM_DEBUG("allocated push buffer name=%d, size=%d\n",
-			     pbd->obj->name, pbd->obj->size);
+			     obj->name, obj->size);
+		return r;
 	} else
 		return -ENOMEM;
 }
@@ -220,11 +224,12 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     vcrtcm_dev_hal);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 	struct drm_device *dev = crtc->dev;
+	struct drm_gem_object *obj = pbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_callbacks.pb_free) {
 		VCRTCM_DEBUG("freeing push buffer name=%d, size=%d\n",
-			     pbd->obj->name, pbd->obj->size);
-		vcrtcm_dev_info->gpu_callbacks.pb_free(dev, pbd->obj);
+			     obj->name, obj->size);
+		vcrtcm_dev_info->gpu_callbacks.pb_free(dev, obj);
 	}
 }
 EXPORT_SYMBOL(vcrtcm_push_buffer_free);
