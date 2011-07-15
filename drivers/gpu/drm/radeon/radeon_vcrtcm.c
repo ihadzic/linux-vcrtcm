@@ -240,8 +240,7 @@ radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
 	return 0;
 }
 
-static void radeon_vcrtcm_push_buffer_free(struct drm_device *dev,
-					   struct drm_gem_object *obj)
+static void radeon_vcrtcm_push_buffer_free(struct drm_gem_object *obj)
 {
 	struct radeon_bo *rbo = gem_to_radeon_bo(obj);
 
