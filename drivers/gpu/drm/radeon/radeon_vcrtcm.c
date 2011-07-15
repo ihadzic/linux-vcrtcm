@@ -303,43 +303,44 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 						    crtc->y, 1);
 		if (r)
 			return r;
-	}
-	/* and we also need to set the cursor */
-	if (radeon_crtc->cursor_bo) {
-		struct vcrtcm_cursor vcrtcm_cursor;
-		struct radeon_device *rdev =
-		    (struct radeon_device *)crtc->dev->dev_private;
-		struct radeon_bo *rbo;
-		uint64_t cursor_gpuaddr;
+		/* we also need to set the cursor */
+		if (radeon_crtc->cursor_bo) {
+			struct vcrtcm_cursor vcrtcm_cursor;
+			struct radeon_device *rdev =
+				(struct radeon_device *)crtc->dev->dev_private;
+			struct radeon_bo *rbo;
+			uint64_t cursor_gpuaddr;
 
-		DRM_INFO("radeon_vcrtcm_attach: cursor exists w=%d, h=%d\n",
-			 radeon_crtc->cursor_width, radeon_crtc->cursor_height);
-		vcrtcm_cursor.flag = 0x0;
-		vcrtcm_cursor.width = radeon_crtc->cursor_width;
-		vcrtcm_cursor.height = radeon_crtc->cursor_height;
+			DRM_INFO("radeon_vcrtcm_attach: cursor exists w=%d, h=%d\n",
+				 radeon_crtc->cursor_width, radeon_crtc->cursor_height);
+			vcrtcm_cursor.flag = 0x0;
+			vcrtcm_cursor.width = radeon_crtc->cursor_width;
+			vcrtcm_cursor.height = radeon_crtc->cursor_height;
+			vcrtcm_cursor.bpp = crtc->fb->bits_per_pixel;
 
-		/* REVISIT: we don't have any other place to put it */
-		/* (radeon_crtc does not maintain cursor location) */
-		/* so we just set it to zero; it will be updated to */
-		/* the right value at the first cursor move */
-		vcrtcm_cursor.location_x = 0;
-		vcrtcm_cursor.location_y = 0;
+			/* REVISIT: we don't have any other place to put it */
+			/* (radeon_crtc does not maintain cursor location) */
+			/* so we just set it to zero; it will be updated to */
+			/* the right value at the first cursor move */
+			vcrtcm_cursor.location_x = 0;
+			vcrtcm_cursor.location_y = 0;
 
-		/* cursor object should be pinned at this point so */
-		/* we just go for its address */
-		rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
-		r = radeon_bo_reserve(rbo, false);
-		if (unlikely(r))
-			return r;
-		cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
-		radeon_bo_unreserve(rbo);
+			/* cursor object should be pinned at this point so */
+			/* we just go for its address */
+			rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+			r = radeon_bo_reserve(rbo, false);
+			if (unlikely(r))
+				return r;
+			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
+			radeon_bo_unreserve(rbo);
 
-		vcrtcm_cursor.ioaddr =
-		    rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
-		DRM_INFO("radeon_vcrtcm_attach: cursor i/o address 0x%08x\n",
-			 vcrtcm_cursor.ioaddr);
-		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
-				      &vcrtcm_cursor);
+			vcrtcm_cursor.ioaddr =
+				rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
+			DRM_INFO("radeon_vcrtcm_attach: cursor i/o address 0x%08x\n",
+				 vcrtcm_cursor.ioaddr);
+			r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
+					      &vcrtcm_cursor);
+		}
 	}
 	/* and we need to update the DPMS state */
 	if (radeon_crtc->enabled)
@@ -348,7 +349,6 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 	else
 		vcrtcm_set_dpms(radeon_crtc->vcrtcm_dev_hal,
 				VCRTCM_DPMS_STATE_OFF);
-
 	return r;
 
 }
