@@ -47,6 +47,7 @@ struct vcrtcm_fb {
 
 struct vcrtcm_cursor {
 	u32 ioaddr;
+	unsigned int bpp;
 	unsigned int location_x;
 	unsigned int location_y;
 	unsigned int height;
