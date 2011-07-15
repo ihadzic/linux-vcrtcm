@@ -222,14 +222,12 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			     vcrtcm_dev_hal);
-	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
-	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *obj = pbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_callbacks.pb_free) {
 		VCRTCM_DEBUG("freeing push buffer name=%d, size=%d\n",
 			     obj->name, obj->size);
-		vcrtcm_dev_info->gpu_callbacks.pb_free(dev, obj);
+		vcrtcm_dev_info->gpu_callbacks.pb_free(obj);
 		memset(pbd, 0,
 		       sizeof(struct vcrtcm_push_buffer_descriptor));
 	}
