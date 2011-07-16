@@ -43,5 +43,7 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
+int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		struct vcrtcm_push_buffer_descriptor *pbd);
 
 #endif
