@@ -251,13 +251,60 @@ static void radeon_vcrtcm_push_buffer_free(struct drm_gem_object *obj)
 	radeon_bo_unref(&rbo);
 }
 
+static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
+			       struct drm_gem_object *dbuf)
+{
+	struct radeon_bo *dst_rbo = gem_to_radeon_bo(dbuf);
+	struct drm_framebuffer *sfb = scrtc->fb;
+	struct radeon_framebuffer *srfb = to_radeon_framebuffer(sfb);
+	struct drm_gem_object *src_bo = srfb->obj;
+	struct radeon_bo *src_rbo = gem_to_radeon_bo(src_bo);
+	struct radeon_device *rdev = scrtc->dev->dev_private;
+	struct radeon_fence *fence = NULL;
+	uint64_t saddr, daddr;
+	unsigned num_pages, size_in_bytes;
+	int r;
+
+	r = radeon_fence_create(rdev, &fence);
+	if (r)
+		return r;
+
+	/* calculate gpu addresses: both buffers should be already */
+	/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
+	/* has been pinned at in do_set_base crtc function */
+	daddr = radeon_bo_gpu_offset(dst_rbo);
+
+	/* calculate saddr and adjust it for crtc offset */
+	/* FIXME: this will change once we cut our own blit copy */
+	/* that can carve out CRTC window precisely; also this offset */
+	/* adjustment probably doesn't work for tiled buffers */
+	saddr = radeon_bo_gpu_offset(src_rbo);
+	saddr += sfb->pitch * scrtc->y;
+
+	/* calculate number of pages we need to transfer */
+	/* FIXME: this will also change once we cut our own blit copy */
+	size_in_bytes = sfb->pitch * scrtc->mode.vdisplay;
+	size_in_bytes /= sfb->bits_per_pixel >> 3;
+	num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
+	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
+		num_pages++;
+	DRM_INFO("pushing %d pages from %llx to %llx\n",
+		 num_pages, saddr, daddr);
+	radeon_copy(rdev, saddr, daddr, num_pages, fence);
+
+	/* FIXME: don't wait here move this to a separate thread */
+	r = radeon_fence_wait(fence, false);
+	radeon_fence_unref(&fence);
+	return 0;
+}
 
 struct vcrtcm_gpu_callbacks physical_crtc_gpu_callbacks = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.sync = radeon_sync_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
-	.pb_free = radeon_vcrtcm_push_buffer_free
+	.pb_free = radeon_vcrtcm_push_buffer_free,
+	.push = radeon_vcrtcm_push
 };
 
 struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
@@ -265,7 +312,8 @@ struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
 	.vblank = radeon_emulate_vblank,
 	.sync = radeon_sync_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
-	.pb_free = radeon_vcrtcm_push_buffer_free
+	.pb_free = radeon_vcrtcm_push_buffer_free,
+	.push = radeon_vcrtcm_push
 };
 
 static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
