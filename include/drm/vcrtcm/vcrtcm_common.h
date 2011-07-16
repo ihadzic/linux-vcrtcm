@@ -142,6 +142,11 @@ struct vcrtcm_gpu_callbacks {
 
 	/* return push buffer NB: may not be NULL if pb_alloc exists */
 	void (*pb_free) (struct drm_gem_object *obj);
+
+	/* CTD requests from GPU to push the buffer to it */
+	int (*push) (struct drm_crtc *scrtc,
+		     struct drm_gem_object *dbuf);
+
 };
 
 #endif

@@ -233,3 +233,27 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	}
 }
 EXPORT_SYMBOL(vcrtcm_push_buffer_free);
+
+/* called by the CTD driver to request GPU push of the */
+/* frame buffer pixels; pushes the frame buffer associated with  */
+/* the ctrc that is attached to the specified hal into the push buffer */
+/* defined by pbd */
+int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
+			     vcrtcm_dev_hal);
+	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
+	struct drm_gem_object *push_buffer = pbd->gpu_private;
+
+	if (vcrtcm_dev_info->gpu_callbacks.push) {
+		VCRTCM_DEBUG("push for HAL  %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+		return vcrtcm_dev_info->gpu_callbacks.push(crtc, push_buffer);
+	} else
+		return -ENOTSUPP;
+}
+EXPORT_SYMBOL(vcrtcm_push);
