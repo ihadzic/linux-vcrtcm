@@ -207,7 +207,11 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		int r;
 		r = vcrtcm_dev_info->gpu_callbacks.pb_alloc(dev, pbd);
 		obj = pbd->gpu_private;
-		VCRTCM_DEBUG("allocated push buffer name=%d, size=%d\n",
+		VCRTCM_DEBUG("HAL %d.%d.%d "
+			     "allocated push buffer name=%d, size=%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow,
 			     obj->name, obj->size);
 		return r;
 	} else
@@ -225,7 +229,11 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	struct drm_gem_object *obj = pbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_callbacks.pb_free) {
-		VCRTCM_DEBUG("freeing push buffer name=%d, size=%d\n",
+		VCRTCM_DEBUG("HAL %d.%d.%d "
+			     "freeing push buffer name=%d, size=%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow,
 			     obj->name, obj->size);
 		vcrtcm_dev_info->gpu_callbacks.pb_free(obj);
 		memset(pbd, 0,
