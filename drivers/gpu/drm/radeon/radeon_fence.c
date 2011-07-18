@@ -39,6 +39,7 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_trace.h"
+#include "radeon_virtual_crtc.h"
 
 static void radeon_fence_write(struct radeon_device *rdev, u32 seq)
 {
@@ -101,6 +102,8 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 	uint32_t seq;
 	bool wake = false;
 	unsigned long cjiffies;
+	unsigned long flags;
+	struct push_vblank_pending *push_vblank_pending;
 
 	seq = radeon_fence_read(rdev);
 	if (seq != rdev->fence_drv.last_seq) {
@@ -148,6 +151,22 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 		} while (i != &rdev->fence_drv.emited);
 		wake = true;
 	}
+	/* check fences that need vblank emulation */
+	spin_lock_irqsave(&rdev->vbl_emu_drv.pending_queue_lock,
+			  flags);
+	list_for_each_entry(push_vblank_pending,
+			    &rdev->vbl_emu_drv.pending_queue,
+			    list) {
+		if (push_vblank_pending->radeon_fence->signaled) {
+			push_vblank_pending->end_jiffies = jiffies;
+			radeon_emulate_vblank_locked(rdev,
+				push_vblank_pending->radeon_crtc);
+			push_vblank_pending->vblank_sent = 1;
+		}
+	}
+	spin_unlock_irqrestore(&rdev->vbl_emu_drv.pending_queue_lock,
+			       flags);
+	schedule_work(&rdev->vbl_emu_drv.cleanup_work);
 	return wake;
 }
 

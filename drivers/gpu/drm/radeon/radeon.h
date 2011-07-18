@@ -1151,6 +1151,16 @@ struct r700_vram_scratch {
 	volatile uint32_t		*ptr;
 };
 
+/* vblank emulation for virtual CRTCs */
+/* used in push mode only */
+struct radeon_vblank_emu_driver {
+	struct work_struct	cleanup_work;
+	spinlock_t		pending_queue_lock;
+	struct list_head	pending_queue;
+};
+
+void radeon_vbl_emu_cleanup_work(struct work_struct *work);
+
 /*
  * Core structure, functions and helpers.
  */
@@ -1245,6 +1255,7 @@ struct radeon_device {
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
 	/* virtual crtcs */
 	int num_virtual_crtc;
+	struct radeon_vblank_emu_driver vbl_emu_drv;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

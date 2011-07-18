@@ -730,6 +730,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
 
+	/* vblank emulation init */
+	INIT_LIST_HEAD(&rdev->vbl_emu_drv.pending_queue);
+	spin_lock_init(&rdev->vbl_emu_drv.pending_queue_lock);
+	INIT_WORK(&rdev->vbl_emu_drv.cleanup_work, radeon_vbl_emu_cleanup_work);
+
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)
