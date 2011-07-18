@@ -260,50 +260,77 @@ static void radeon_vcrtcm_push_buffer_free(struct drm_gem_object *obj)
 }
 
 static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
-			      struct drm_gem_object *dbuf)
+			      struct drm_gem_object *dbuf_fb,
+			      struct drm_gem_object *dbuf_cursor)
 {
-	struct radeon_bo *dst_rbo = gem_to_radeon_bo(dbuf);
 	struct drm_framebuffer *sfb = scrtc->fb;
 	struct radeon_framebuffer *srfb = to_radeon_framebuffer(sfb);
-	struct drm_gem_object *src_bo = srfb->obj;
-	struct radeon_bo *src_rbo = gem_to_radeon_bo(src_bo);
+	struct drm_gem_object *sfbbo = srfb->obj;
 	struct radeon_device *rdev = scrtc->dev->dev_private;
-	struct radeon_fence *fence = NULL;
+	struct radeon_fence *fence_fb = NULL;
+	struct radeon_fence *fence_cursor = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
+	struct drm_gem_object *scbo = srcrtc->cursor_bo;
 	struct push_vblank_pending *push_vblank_pending = NULL;
+	struct radeon_bo *src_rbo, *dst_rbo;
 	uint64_t saddr, daddr;
 	unsigned num_pages, size_in_bytes;
 	int r;
+
+	/* mouse cursor push needs a fence no matter what */
+	r = radeon_fence_create(rdev, &fence_cursor);
+	if (r)
+		return r;
 
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
 	/* vblank, so we need a fence and pending vblank queue element */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		push_vblank_pending =
 			kmalloc(sizeof(struct push_vblank_pending), GFP_KERNEL);
-		if (!push_vblank_pending)
+		if (!push_vblank_pending) {
+			radeon_fence_unref(&fence_cursor);
 			return -ENOMEM;
-		r = radeon_fence_create(rdev, &fence);
+		}
+		r = radeon_fence_create(rdev, &fence_fb);
 		if (r) {
+			radeon_fence_unref(&fence_cursor);
 			kfree(push_vblank_pending);
 			return r;
 		}
-		push_vblank_pending->radeon_fence = fence;
+		push_vblank_pending->radeon_fence = fence_fb;
 		push_vblank_pending->vblank_sent = 0;
 		push_vblank_pending->radeon_crtc = srcrtc;
 		push_vblank_pending->start_jiffies = jiffies;
 	}
 
-	/* TODO copy the mouse cursor here */
+	/* copy the mouse cursor first */
 
 	/* calculate gpu addresses: both buffers should be already */
 	/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
-	/* has been pinned at in do_set_base crtc function */
+	/* has been pinned at cursor_set time */
+	dst_rbo = gem_to_radeon_bo(dbuf_cursor);
+	daddr = radeon_bo_gpu_offset(dst_rbo);
+	src_rbo = gem_to_radeon_bo(scbo);
+	saddr = radeon_bo_gpu_offset(src_rbo);
+	size_in_bytes = srcrtc->cursor_width * srcrtc->cursor_height;
+	size_in_bytes /= sfb->bits_per_pixel >> 3;
+	num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
+	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
+		num_pages++;
+	radeon_copy(rdev, saddr, daddr, num_pages, fence_cursor);
+	radeon_fence_wait(fence_cursor, false);
+	radeon_fence_unref(&fence_cursor);
+
+	/* now copy the frame buffer */
+	/* cacluate gpu addresses: both buffers should be already pinned */
+	dst_rbo = gem_to_radeon_bo(dbuf_fb);
 	daddr = radeon_bo_gpu_offset(dst_rbo);
 
 	/* calculate saddr and adjust it for crtc offset */
 	/* FIXME: this will change once we cut our own blit copy */
 	/* that can carve out CRTC window precisely; also this offset */
 	/* adjustment probably doesn't work for tiled buffers */
+	src_rbo = gem_to_radeon_bo(sfbbo);
 	saddr = radeon_bo_gpu_offset(src_rbo);
 	saddr += sfb->pitch * scrtc->y;
 
@@ -317,11 +344,11 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 
 	DRM_INFO("pushing framebuffer: %d pages from %llx to %llx\n",
 		 num_pages, saddr, daddr);
-	radeon_copy(rdev, saddr, daddr, num_pages, fence);
+	radeon_copy(rdev, saddr, daddr, num_pages, fence_fb);
 
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		unsigned long flags;
-		BUG_ON(!fence);
+		BUG_ON(!fence_fb);
 		BUG_ON(!push_vblank_pending);
 		/* we don't wait for fence here, but we put it in */
 		/* a queue; when the fence is signaled, the queue */
