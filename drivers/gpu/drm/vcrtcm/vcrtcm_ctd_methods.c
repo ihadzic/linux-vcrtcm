@@ -247,20 +247,23 @@ EXPORT_SYMBOL(vcrtcm_push_buffer_free);
 /* the ctrc that is attached to the specified hal into the push buffer */
 /* defined by pbd */
 int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
-		struct vcrtcm_push_buffer_descriptor *pbd)
+		struct vcrtcm_push_buffer_descriptor *fpbd,
+		struct vcrtcm_push_buffer_descriptor *cpbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			     vcrtcm_dev_hal);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
-	struct drm_gem_object *push_buffer = pbd->gpu_private;
+	struct drm_gem_object *push_buffer_fb = fpbd->gpu_private;
+	struct drm_gem_object *push_buffer_cursor = cpbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_callbacks.push) {
 		VCRTCM_DEBUG("push for HAL  %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		return vcrtcm_dev_info->gpu_callbacks.push(crtc, push_buffer);
+		return vcrtcm_dev_info->gpu_callbacks.push(crtc,
+			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
 }
