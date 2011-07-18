@@ -148,14 +148,11 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 	radeon_crtc->vcrtcm_dev_hal = NULL;
 }
 
-static void radeon_emulate_vblank(struct drm_crtc *crtc)
+void radeon_emulate_vblank_locked(struct radeon_device *rdev,
+				  struct radeon_crtc *radeon_crtc)
 {
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct drm_device *ddev = radeon_crtc->base.dev;
-	struct radeon_device *rdev = ddev->dev_private;
-	unsigned long flags;
+	struct drm_device *ddev = rdev->ddev;
 
-	spin_lock_irqsave(&rdev->ih.lock, flags);
 	if (radeon_crtc->vblank_emulation_enabled) {
 		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
 			  radeon_crtc->crtc_id);
@@ -173,6 +170,17 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 		radeon_crtc->emulated_pflip_counter++;
 		radeon_virtual_crtc_handle_flip(rdev, radeon_crtc->crtc_id);
 	}
+}
+
+static void radeon_emulate_vblank(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *ddev = radeon_crtc->base.dev;
+	struct radeon_device *rdev = ddev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->ih.lock, flags);
+	radeon_emulate_vblank_locked(rdev, radeon_crtc);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);
 }
 
@@ -252,7 +260,7 @@ static void radeon_vcrtcm_push_buffer_free(struct drm_gem_object *obj)
 }
 
 static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
-			       struct drm_gem_object *dbuf)
+			      struct drm_gem_object *dbuf)
 {
 	struct radeon_bo *dst_rbo = gem_to_radeon_bo(dbuf);
 	struct drm_framebuffer *sfb = scrtc->fb;
@@ -261,13 +269,31 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	struct radeon_bo *src_rbo = gem_to_radeon_bo(src_bo);
 	struct radeon_device *rdev = scrtc->dev->dev_private;
 	struct radeon_fence *fence = NULL;
+	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
+	struct push_vblank_pending *push_vblank_pending = NULL;
 	uint64_t saddr, daddr;
 	unsigned num_pages, size_in_bytes;
 	int r;
 
-	r = radeon_fence_create(rdev, &fence);
-	if (r)
-		return r;
+	/* if we are dealing with a virtual CRTC, we'll need to emulate */
+	/* vblank, so we need a fence and pending vblank queue element */
+	if (srcrtc->crtc_id >= rdev->num_crtc) {
+		push_vblank_pending =
+			kmalloc(sizeof(struct push_vblank_pending), GFP_KERNEL);
+		if (!push_vblank_pending)
+			return -ENOMEM;
+		r = radeon_fence_create(rdev, &fence);
+		if (r) {
+			kfree(push_vblank_pending);
+			return r;
+		}
+		push_vblank_pending->radeon_fence = fence;
+		push_vblank_pending->vblank_sent = 0;
+		push_vblank_pending->radeon_crtc = srcrtc;
+		push_vblank_pending->start_jiffies = jiffies;
+	}
+
+	/* TODO copy the mouse cursor here */
 
 	/* calculate gpu addresses: both buffers should be already */
 	/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
@@ -288,13 +314,26 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
 	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
 		num_pages++;
-	DRM_INFO("pushing %d pages from %llx to %llx\n",
+
+	DRM_INFO("pushing framebuffer: %d pages from %llx to %llx\n",
 		 num_pages, saddr, daddr);
 	radeon_copy(rdev, saddr, daddr, num_pages, fence);
 
-	/* FIXME: don't wait here move this to a separate thread */
-	r = radeon_fence_wait(fence, false);
-	radeon_fence_unref(&fence);
+	if (srcrtc->crtc_id >= rdev->num_crtc) {
+		unsigned long flags;
+		BUG_ON(!fence);
+		BUG_ON(!push_vblank_pending);
+		/* we don't wait for fence here, but we put it in */
+		/* a queue; when the fence is signaled, the queue */
+		/* is checked and if the fence is there, vblank */
+		/* emulation is called; not used for physical crtcs */
+		spin_lock_irqsave(&rdev->vbl_emu_drv.pending_queue_lock,
+				  flags);
+		list_add_tail(&push_vblank_pending->list,
+			      &rdev->vbl_emu_drv.pending_queue);
+		spin_unlock_irqrestore(&rdev->vbl_emu_drv.pending_queue_lock,
+				       flags);
+	}
 	return 0;
 }
 

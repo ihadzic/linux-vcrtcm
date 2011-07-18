@@ -26,6 +26,15 @@
 #ifndef __RADEON_VIRTUAL_CRTC_H__
 #define __RADEON_VIRTUAL_CRTC_H__
 
+struct push_vblank_pending {
+	unsigned long start_jiffies;
+	unsigned long end_jiffies;
+	int vblank_sent;
+	struct list_head list;
+	struct radeon_crtc *radeon_crtc;
+	struct radeon_fence *radeon_fence;
+};
+
 struct virtual_crtc {
 	struct list_head list;
 	struct radeon_crtc *radeon_crtc;
@@ -48,4 +57,6 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc);
 int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 				       struct drm_gem_object *obj,
 				       uint64_t cursor_gpuaddr);
+void radeon_emulate_vblank_locked(struct radeon_device *rdev,
+				  struct radeon_crtc *radeon_crtc);
 #endif

@@ -1253,6 +1253,15 @@ struct r600_vram_scratch {
 	u64				gpu_addr;
 };
 
+/* vblank emulation for virtual CRTCs */
+/* used in push mode only */
+struct radeon_vblank_emu_driver {
+	struct work_struct	cleanup_work;
+	spinlock_t		pending_queue_lock;
+	struct list_head	pending_queue;
+};
+
+void radeon_vbl_emu_cleanup_work(struct work_struct *work);
 
 /*
  * Mutex which allows recursive locking from the same process.
@@ -1391,6 +1400,7 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual crtcs */
 	int num_virtual_crtc;
+	struct radeon_vblank_emu_driver vbl_emu_drv;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
