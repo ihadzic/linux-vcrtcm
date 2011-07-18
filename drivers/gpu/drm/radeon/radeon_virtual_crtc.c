@@ -895,6 +895,7 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 		vcrtcm_cursor.flag &= ~VCRTCM_CURSOR_FLAG_HIDE;
 		vcrtcm_cursor.width = radeon_crtc->cursor_width;
 		vcrtcm_cursor.height = radeon_crtc->cursor_height;
+		vcrtcm_cursor.bpp = radeon_crtc->base.fb->bits_per_pixel;
 		vcrtcm_cursor.ioaddr = cursor_ioaddr;
 		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
 				      &vcrtcm_cursor);
