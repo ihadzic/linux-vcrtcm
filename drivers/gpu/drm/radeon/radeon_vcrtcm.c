@@ -277,10 +277,36 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	unsigned num_pages, size_in_bytes;
 	int r;
 
-	/* mouse cursor push needs a fence no matter what */
-	r = radeon_fence_create(rdev, &fence_cursor);
-	if (r)
-		return r;
+	/* copy the mouse cursor first (if we have one) */
+	if (dbuf_cursor) {
+		/* mouse cursor push needs a fence no matter what */
+		/* REVISIT: we may be able to get away without the fence */
+		r = radeon_fence_create(rdev, &fence_cursor);
+		if (r)
+			return r;
+		/* calculate gpu addresses: both buffers should be already */
+		/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
+		/* has been pinned at cursor_set time */
+		dst_rbo = gem_to_radeon_bo(dbuf_cursor);
+		daddr = radeon_bo_gpu_offset(dst_rbo);
+		src_rbo = gem_to_radeon_bo(scbo);
+		saddr = radeon_bo_gpu_offset(src_rbo);
+		size_in_bytes = srcrtc->cursor_width * srcrtc->cursor_height *
+			sfb->bits_per_pixel >> 3;
+		num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
+		if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
+			num_pages++;
+		if (num_pages) {
+			DRM_INFO("pushing cursor: %d pages from %llx to %llx\n",
+				 num_pages, saddr, daddr);
+			radeon_copy(rdev, saddr, daddr,
+				    num_pages, fence_cursor);
+			/* REVISIT: we may not need the wait */
+			radeon_fence_wait(fence_cursor, false);
+		}
+		radeon_fence_unref(&fence_cursor);
+	}
+
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
 	/* vblank, so we need a fence and pending vblank queue element */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
@@ -301,26 +327,6 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		push_vblank_pending->radeon_crtc = srcrtc;
 		push_vblank_pending->start_jiffies = jiffies;
 	}
-
-	/* copy the mouse cursor first */
-
-	/* calculate gpu addresses: both buffers should be already */
-	/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
-	/* has been pinned at cursor_set time */
-	dst_rbo = gem_to_radeon_bo(dbuf_cursor);
-	daddr = radeon_bo_gpu_offset(dst_rbo);
-	src_rbo = gem_to_radeon_bo(scbo);
-	saddr = radeon_bo_gpu_offset(src_rbo);
-	size_in_bytes = srcrtc->cursor_width * srcrtc->cursor_height *
-		sfb->bits_per_pixel >> 3;
-	num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
-	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
-		num_pages++;
-	DRM_INFO("pushing cursor: %d pages from %llx to %llx\n",
-		 num_pages, saddr, daddr);
-	radeon_copy(rdev, saddr, daddr, num_pages, fence_cursor);
-	radeon_fence_wait(fence_cursor, false);
-	radeon_fence_unref(&fence_cursor);
 
 	/* now copy the frame buffer */
 	/* cacluate gpu addresses: both buffers should be already pinned */
