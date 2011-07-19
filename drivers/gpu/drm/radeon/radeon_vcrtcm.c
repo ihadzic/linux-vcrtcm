@@ -268,7 +268,6 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	struct drm_gem_object *sfbbo = srfb->obj;
 	struct radeon_device *rdev = scrtc->dev->dev_private;
 	struct radeon_fence *fence_fb = NULL;
-	struct radeon_fence *fence_cursor = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
 	struct push_vblank_pending *push_vblank_pending = NULL;
@@ -279,11 +278,6 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 
 	/* copy the mouse cursor first (if we have one) */
 	if (dbuf_cursor && scbo) {
-		/* mouse cursor push needs a fence no matter what */
-		/* REVISIT: we may be able to get away without the fence */
-		r = radeon_fence_create(rdev, &fence_cursor);
-		if (r)
-			return r;
 		/* calculate gpu addresses: both buffers should be already */
 		/* pinned dst_rbo has been pinned at allocation time; dst_rbo */
 		/* has been pinned at cursor_set time */
@@ -299,25 +293,19 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		if (num_pages) {
 			DRM_INFO("pushing cursor: %d pages from %llx to %llx\n",
 				 num_pages, saddr, daddr);
-			radeon_copy(rdev, saddr, daddr,
-				    num_pages, fence_cursor);
-			/* REVISIT: we may not need the wait */
-			radeon_fence_wait(fence_cursor, false);
+			radeon_copy(rdev, saddr, daddr, num_pages, NULL);
 		}
-		radeon_fence_unref(&fence_cursor);
 	}
+
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
 	/* vblank, so we need a fence and pending vblank queue element */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		push_vblank_pending =
 			kmalloc(sizeof(struct push_vblank_pending), GFP_KERNEL);
-		if (!push_vblank_pending) {
-			radeon_fence_unref(&fence_cursor);
+		if (!push_vblank_pending)
 			return -ENOMEM;
-		}
 		r = radeon_fence_create(rdev, &fence_fb);
 		if (r) {
-			radeon_fence_unref(&fence_cursor);
 			kfree(push_vblank_pending);
 			return r;
 		}
