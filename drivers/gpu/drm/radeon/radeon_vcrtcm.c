@@ -278,7 +278,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	int r;
 
 	/* copy the mouse cursor first (if we have one) */
-	if (dbuf_cursor) {
+	if (dbuf_cursor && scbo) {
 		/* mouse cursor push needs a fence no matter what */
 		/* REVISIT: we may be able to get away without the fence */
 		r = radeon_fence_create(rdev, &fence_cursor);
@@ -306,7 +306,6 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		}
 		radeon_fence_unref(&fence_cursor);
 	}
-
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
 	/* vblank, so we need a fence and pending vblank queue element */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
