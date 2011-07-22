@@ -661,6 +661,9 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 			cursor_pixel +=	(line_num-vcrtcm_cursor->location_y)*vcrtcm_cursor->width;
 
 			for (i = 0; i < vcrtcm_cursor->width; i++) {
+				if (hline_pixel >= (uint32_t *)line_end)
+					continue;
+
 				alpha_overlay_argb32(hline_pixel, cursor_pixel);
 				cursor_pixel++;
 				hline_pixel++;
