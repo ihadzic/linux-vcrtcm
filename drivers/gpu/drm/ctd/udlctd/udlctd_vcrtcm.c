@@ -107,43 +107,51 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 
 	if (udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal == vcrtcm_dev_hal) {
 		pr_debug("Found descriptor that should be removed.\n");
-/*
+
 		if (udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages) {
 			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[0].gpu_private);
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_fb[0]);
-			if (udlctd_vcrtcm_hal_descriptor->pb_fb[0])
+			if (udlctd_vcrtcm_hal_descriptor->pb_fb[0]) {
 				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[0],
 					udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages);
+				udlctd_vcrtcm_hal_descriptor->pb_fb[0] = NULL;
+			}
+			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+					&udlctd_vcrtcm_hal_descriptor->pbd_fb[0]);
 		}
 
 		if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages) {
 			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].gpu_private);
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[0]);
-			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[0])
+			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[0]) {
 				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[0],
 					udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages);
+				udlctd_vcrtcm_hal_descriptor->pb_cursor[0] = NULL;
+			}
+			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[0]);
 		}
 
 		if (udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages) {
 			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[1].gpu_private);
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-						&udlctd_vcrtcm_hal_descriptor->pbd_fb[1]);
-			if (udlctd_vcrtcm_hal_descriptor->pb_fb[1])
+			if (udlctd_vcrtcm_hal_descriptor->pb_fb[1]) {
 				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[1],
 					udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages);
+				udlctd_vcrtcm_hal_descriptor->pb_fb[1] = NULL;
+			}
+			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+						&udlctd_vcrtcm_hal_descriptor->pbd_fb[1]);
 		}
 
 		if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages) {
 			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].gpu_private);
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[1]);
-			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[1])
+			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[1]) {
 				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[1],
 					udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages);
+				udlctd_vcrtcm_hal_descriptor->pb_cursor[1] = NULL;
+			}
+			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[1]);
 		}
-*/
+
 		udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
 		udlctd_kfree(udlctd_info, udlctd_vcrtcm_hal_descriptor);
 		if (udlctd_info->local_cursor)
@@ -223,11 +231,14 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				/* free old buffer if there is one */
 				if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages) {
 					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[i].gpu_private);
+					if (udlctd_vcrtcm_hal_descriptor->pb_fb[i]) {
+						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
+								udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
+						udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
+					}
 					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-					vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
-							udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
-					udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
+
 				}
 			} else if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages == requested_num_pages) {
 				pr_debug("framebuffer[%d]: reusing existing push buffer\n", i);
@@ -241,11 +252,14 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				/* free old buffer */
 				if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages) {
 					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[i].gpu_private);
+					if (udlctd_vcrtcm_hal_descriptor->pb_fb[i]) {
+						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
+								udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
+						udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
+					}
 					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-					vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
-							udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
-					udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
+
 				}
 
 				/* allocate new buffer */
@@ -287,15 +301,16 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 
 				udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
 				pr_debug("framebuffer[%d]: allocated %lu pages, last_lomem=%ld, "
-						"first_himem=%ld, vmap=%p\n", i,
+						"first_himem=%ld\n", i,
 						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages,
 						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].last_lomem_page,
-						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].first_himem_page,
-						udlctd_vcrtcm_hal_descriptor->pb_fb[i]);
+						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].first_himem_page);
 
 				for (j = 0; j < udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages; j++)
 					pr_debug("framebuffer[%d]: page [%d]=%p\n", i, j,
 							udlctd_vcrtcm_hal_descriptor->pbd_fb[i].pages[j]);
+
+				pr_debug("framebuffer[%d]: vmap=%p\n", i, udlctd_vcrtcm_hal_descriptor->pb_fb[i]);
 			}
 		}
 	}
@@ -569,12 +584,13 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				/* free old buffer if there is one */
 				if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages) {
 					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].gpu_private);
+					if (udlctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
+						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
+								udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
+						udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
+					}
 					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-					vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
-							udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
-					udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
-
 				}
 			} else if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages == requested_num_pages) {
 				pr_debug("cursor[%d]: reusing existing push buffer\n", i);
@@ -588,11 +604,13 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				/* free old buffer */
 				if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages) {
 					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].gpu_private);
+					if (udlctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
+						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
+								udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
+						udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
+					}
 					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-					vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
-							udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
-					udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
 				}
 
 				/* allocate the buffer */
@@ -634,22 +652,22 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 				udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
 				pr_debug("cursor[%d]: allocated %lu pages, last_lomem=%ld, "
-						"first_himem=%ld, vmap=%p\n", i,
+						"first_himem=%ld\n", i,
 						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages,
 						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].last_lomem_page,
-						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].first_himem_page,
-						udlctd_vcrtcm_hal_descriptor->pb_cursor[i]);
+						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].first_himem_page);
 
 				for (j = 0; j < udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages; j++)
 					pr_debug("cursor[%d]: page[%d]=%p\n", i, j,
 							udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].pages[j]);
+
+				pr_debug("cursor[%d]: vmap=%p\n", i, udlctd_vcrtcm_hal_descriptor->pb_cursor[i]);
 			}
 		}
 	}
 
 	/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-
-	return 0;
+	return r;
 }
 
 int udlctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
