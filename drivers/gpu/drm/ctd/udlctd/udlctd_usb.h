@@ -108,6 +108,12 @@ static void udlctd_release_urb_work(struct work_struct *work);
 #define MIN_RLX_PIX_BYTES       4
 #define MIN_RLX_CMD_BYTES	(RLX_HEADER_BYTES + MIN_RLX_PIX_BYTES)
 
+/*
+#define RLX8_HEADER_BYTES 	7
+#define MIN_RLX8_PIX_BYTES	2
+#define MIN_RLX8_CMD_BYTES	(RLX8_HEADER_BYTES + MIN_RLX8_PIX_BYTES)
+*/
+
 #define RLE_HEADER_BYTES	6
 #define MIN_RLE_PIX_BYTES	3
 #define MIN_RLE_CMD_BYTES	(RLE_HEADER_BYTES + MIN_RLE_PIX_BYTES)
@@ -181,8 +187,10 @@ inline void split_pixel_argb32(const uint32_t *pixel32,
 	uint8_t grn = RGB_GETGRN(*pixel32);
 	uint8_t blu = RGB_GETBLU(*pixel32);
 
-	*pixel16 = (RG16(blu, grn) << 8) + GB16(grn, red);
-	*pixel8 = RGB8(blu, grn, red);
+	if (pixel16)
+		*pixel16 = (RG16(blu, grn) << 8) + GB16(grn, red);
+	if (pixel8)
+		*pixel8 = RGB8(blu, grn, red);
 
 	return;
 }
@@ -198,7 +206,6 @@ inline void alpha_overlay_argb32(uint32_t *fb_pixel, uint32_t *overlay_pixel)
 inline void overlay_cursor(uint32_t *cursor_pixel,
 		uint16_t *hline16_pixel, uint8_t *hline8_pixel)
 {
-
 	if (*cursor_pixel >> 24 > 0) {
 		split_pixel_argb32(cursor_pixel, hline16_pixel, hline8_pixel);
 	}
