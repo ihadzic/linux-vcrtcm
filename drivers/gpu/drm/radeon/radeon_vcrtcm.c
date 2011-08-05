@@ -264,17 +264,23 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_cursor)
 {
 	struct drm_framebuffer *sfb = scrtc->fb;
-	struct radeon_framebuffer *srfb = to_radeon_framebuffer(sfb);
-	struct drm_gem_object *sfbbo = srfb->obj;
 	struct radeon_device *rdev = scrtc->dev->dev_private;
 	struct radeon_fence *fence = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
 	struct push_vblank_pending *push_vblank_pending = NULL;
+	struct drm_gem_object *sfbbo;
+	struct radeon_framebuffer *srfb;
 	struct radeon_bo *src_rbo, *dst_rbo;
 	uint64_t saddr, daddr;
 	unsigned num_pages, size_in_bytes;
 	int r;
+
+	/* bail out if we don't have the frame buffer */
+	if (!sfb)
+		return -ENOENT;
+	srfb = to_radeon_framebuffer(sfb);
+	sfbbo = srfb->obj;
 
 	/* copy the mouse cursor first (if we have one) */
 	if (dbuf_cursor && scbo) {
