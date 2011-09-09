@@ -35,8 +35,9 @@
 #define UDLCTD_FB_PULL 0
 #define UDLCTD_FB_PUSH 1
 #define UDLCTD_FB_XFER_MODE UDLCTD_FB_PUSH
-#define UDLCTD_PSEUDO_24BPP
-/*#define UDLCTD_TRUE_24BPP*/
+
+/* Module options */
+extern int true32bpp;
 
 extern struct usb_driver udlctd_driver;
 extern struct list_head udlctd_info_list;
