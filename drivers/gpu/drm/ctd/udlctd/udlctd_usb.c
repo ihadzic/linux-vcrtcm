@@ -729,77 +729,79 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	line_end16 = (u8 *)(pixel16);
 	line_end8 = (u8 *)(pixel8);
 
-#ifdef UDLCTD_PSEUDO_24BPP
-	while (next_pixel16 < line_end16) {
-
-
-		udlctd_compress_hline_16((const uint16_t **) &next_pixel16,
+	if (!true32bpp) {
+		while (next_pixel16 < line_end16) {
+			udlctd_compress_hline_16(
+					(const uint16_t **) &next_pixel16,
 					(const uint16_t *) line_end16,
 					&dev_addr16,
 					(u8 **) &cmd, (u8 *) cmd_end);
 
-		if (cmd >= cmd_end) {
-			int len = cmd - (u8 *) urb->transfer_buffer;
-			if (udlctd_submit_urb(udlctd_info, urb, len))
-				return 1;	/* lost pixels is set */
+			if (cmd >= cmd_end) {
+				int len = cmd - (u8 *) urb->transfer_buffer;
+				if (udlctd_submit_urb(udlctd_info, urb, len))
+					return 1; /* lost pixels is set */
 
-			*sent_ptr += len;
-			urb = udlctd_get_urb(udlctd_info);
-			if (!urb)
-				return 1;	/* lost pixels is set */
-			*urb_ptr = urb;
-			cmd = urb->transfer_buffer;
-			cmd_end = &cmd[urb->transfer_buffer_length];
+				*sent_ptr += len;
+				urb = udlctd_get_urb(udlctd_info);
+				if (!urb)
+					return 1; /* lost pixels is set */
+				*urb_ptr = urb;
+				cmd = urb->transfer_buffer;
+				cmd_end = &cmd[urb->transfer_buffer_length];
+			}
 		}
 	}
-#endif
 
-#ifdef UDLCTD_TRUE_24BPP
-	while (next_pixel16 < line_end16 || next_pixel8 < line_end8) {
-		uint8_t *cmd_before = cmd;
-		int cmd_len = 0;
-		udlctd_compress_hline_16((const uint16_t **) &next_pixel16,
+	else if (true32bpp) {
+		while (next_pixel16 < line_end16 || next_pixel8 < line_end8) {
+			uint8_t *cmd_before = cmd;
+			int cmd_len = 0;
+			udlctd_compress_hline_16(
+					(const uint16_t **) &next_pixel16,
 					(const uint16_t *) line_end16,
 					&dev_addr16,
 					(u8 **) &cmd, (u8 *) cmd_end);
-		cmd_len = (uint8_t *)cmd - cmd_before;
-		/*pr_info("Len %d\n", cmd_len); */
-/*
-		if (cmd + 1024 >= cmd_end)
-		{
-			int len = cmd - (u8 *) urb->transfer_buffer;
-			if (udlctd_submit_urb(udlctd_info, urb, len))
-				return 1;
+			cmd_len = (uint8_t *)cmd - cmd_before;
+			/*pr_info("Len %d\n", cmd_len); */
+	/*
+			if (cmd + 1024 >= cmd_end)
+			{
+				int len = cmd - (u8 *) urb->transfer_buffer;
+				if (udlctd_submit_urb(udlctd_info, urb, len))
+					return 1;
 
-			*sent_ptr += len;
-			urb = udlctd_get_urb(udlctd_info);
-			if(!urb)
-				return 1;
-			*urb_ptr = urb;
-			cmd = urb->transfer_buffer;
-			cmd_end = &cmd[urb->transfer_buffer_length];
-		}
-*/
-		udlctd_compress_hline_8((const uint8_t **) &next_pixel8,
+				*sent_ptr += len;
+				urb = udlctd_get_urb(udlctd_info);
+				if(!urb)
+					return 1;
+				*urb_ptr = urb;
+				cmd = urb->transfer_buffer;
+				cmd_end = &cmd[urb->transfer_buffer_length];
+			}
+	*/
+			udlctd_compress_hline_8(
+					(const uint8_t **) &next_pixel8,
 					(const uint8_t *) line_end8,
 					&dev_addr8,
 					(u8 **) &cmd, (u8 *) cmd_end);
 
-		if (cmd >= cmd_end) {
-			int len = cmd - (u8 *) urb->transfer_buffer;
-			if (udlctd_submit_urb(udlctd_info, urb, len))
-				return 1;
+			if (cmd >= cmd_end) {
+				int len = cmd - (u8 *) urb->transfer_buffer;
+				if (udlctd_submit_urb(udlctd_info, urb, len))
+					return 1;
 
-			*sent_ptr += len;
-			urb = udlctd_get_urb(udlctd_info);
-			if(!urb)
-				return 1;
-			*urb_ptr = urb;
-			cmd = urb->transfer_buffer;
-			cmd_end = &cmd[urb->transfer_buffer_length];
+				*sent_ptr += len;
+				urb = udlctd_get_urb(udlctd_info);
+				if (!urb)
+					return 1;
+				*urb_ptr = urb;
+				cmd = urb->transfer_buffer;
+				cmd_end = &cmd[urb->transfer_buffer_length];
+			}
 		}
 	}
-#endif
+
 	*urb_buf_ptr = cmd;
 
 	return 0;
@@ -1213,13 +1215,11 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 	* pointers, currently, we only * use the 16 bpp segment.
 	*/
 	wrptr = udlctd_vidreg_lock(buf);
-	#ifdef UDLCTD_PSEUDO_24BPP
-		wrptr = udlctd_set_color_depth(wrptr, 0x00);
-	#endif
 
-	#ifdef UDLCTD_TRUE_24BPP
+	if (!true32bpp)
+		wrptr = udlctd_set_color_depth(wrptr, 0x00);
+	else if (true32bpp)
 		wrptr = udlctd_set_color_depth(wrptr, 0x01);
-	#endif
 
 	/* set base for 16bpp segment to 0 */
 	wrptr = udlctd_set_base16bpp(wrptr, 0);

@@ -37,6 +37,9 @@
 #include "udlctd_utils.h"
 #include "vcrtcm/vcrtcm_ctd.h"
 
+/* Module option(s) */
+int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
+
 struct list_head udlctd_info_list;
 int udlctd_major = -1;
 int udlctd_num_minors;
@@ -109,6 +112,9 @@ static void __exit udlctd_exit(void)
 
 module_init(udlctd_init);
 module_exit(udlctd_exit);
+
+module_param(true32bpp, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(true32bpp, "Enable support for true 32bpp color. *Experimental and buggy*");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DisplayLink USB CTD Driver");
