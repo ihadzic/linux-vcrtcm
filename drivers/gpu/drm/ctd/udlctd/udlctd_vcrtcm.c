@@ -1060,14 +1060,14 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_ha
 	}
 
 	if (udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[push_buffer_index]) {
-
+		unsigned long jiffies_snapshot;
 		pr_info("udlctd_do_xmit_fb_push[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
 		udlctd_info->main_buffer = udlctd_vcrtcm_hal_descriptor->pb_fb[push_buffer_index];
 		udlctd_info->cursor = udlctd_vcrtcm_hal_descriptor->pb_cursor[push_buffer_index];
 
-		unsigned long jiffies_snapshot = jiffies;
+		jiffies_snapshot = jiffies;
 		udlctd_transmit_framebuffer(udlctd_info);
 		pr_info("transmit over USB took %u ms\n", jiffies_to_msecs(jiffies - jiffies_snapshot));
 
