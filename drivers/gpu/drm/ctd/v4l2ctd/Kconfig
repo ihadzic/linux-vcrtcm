@@ -1,0 +1,13 @@
+config DRM_VCRTCM_CTD_V4L2CTD
+	tristate "Video for Linux CTD Driver"
+	depends on DRM_VCRTCM && VIDEO_V4L2
+	help
+	 CTD Driver for V4L2. Attaches to a Virtual CTRC
+	 and presents the pixel flow from GPU as a
+	 V4L2 device to the user space. Allows applications
+	 that can take the V4L2 input to do something good
+	 with rendered pixels
+
+	 select 'm' or 'n'; 'y' not tested yet
+
+

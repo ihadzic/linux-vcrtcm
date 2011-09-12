@@ -43,6 +43,7 @@ config DRM_VCRTCM
 menu "VCRTCM CTD Drivers"
         depends on DRM_VCRTCM
 	source "drivers/gpu/drm/ctd/udlctd/Kconfig"
+	source "drivers/gpu/drm/ctd/v4l2ctd/Kconfig"
 endmenu
 
 config DRM_TTM
