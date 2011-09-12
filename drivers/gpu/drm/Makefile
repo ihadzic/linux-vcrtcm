@@ -26,6 +26,7 @@ obj-$(CONFIG_DRM)	+= drm.o
 obj-$(CONFIG_DRM_TTM)	+= ttm/
 obj-$(CONFIG_DRM_VCRTCM) += vcrtcm/
 obj-$(CONFIG_DRM_VCRTCM_CTD_UDLCTD) += ctd/udlctd/
+obj-$(CONFIG_DRM_VCRTCM_CTD_V4L2CTD) += ctd/v4l2ctd/
 obj-$(CONFIG_DRM_TDFX)	+= tdfx/
 obj-$(CONFIG_DRM_R128)	+= r128/
 obj-$(CONFIG_DRM_RADEON)+= radeon/
