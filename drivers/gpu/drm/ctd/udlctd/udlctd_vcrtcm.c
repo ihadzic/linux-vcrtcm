@@ -22,6 +22,157 @@
 #include "udlctd_utils.h"
 #include "vcrtcm/vcrtcm_ctd.h"
 
+static void udlctd_free_pb(struct udlctd_info *udlctd_info,
+		struct udlctd_vcrtcm_hal_descriptor
+			*udlctd_vcrtcm_hal_descriptor,
+		int flag)
+{
+	int i;
+
+	struct vcrtcm_push_buffer_descriptor *pbd;
+	void *pb_mapped_ram;
+
+	for (i = 0; i < 2; i++) {
+		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
+			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_fb[i];
+			pb_mapped_ram =
+				udlctd_vcrtcm_hal_descriptor->pb_fb[i];
+		} else {
+			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_cursor[i];
+			pb_mapped_ram =
+				udlctd_vcrtcm_hal_descriptor->pb_cursor[i];
+		}
+
+		if (pbd->num_pages) {
+			BUG_ON(!pbd->gpu_private);
+			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
+			vcrtcm_push_buffer_free(\
+				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+					pbd);
+		}
+	}
+}
+
+static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
+		struct udlctd_vcrtcm_hal_descriptor
+			*udlctd_vcrtcm_hal_descriptor,
+		int requested_num_pages,
+		int flag)
+{
+	int i;
+	int r = 0;
+	struct vcrtcm_push_buffer_descriptor *pbd = NULL;
+
+	for (i = 0; i < 2; i++) {
+		if (flag == UDLCTD_ALLOC_PB_FLAG_FB)
+			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_fb[i];
+		else
+			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_cursor[i];
+
+		pbd->num_pages = requested_num_pages;
+		r = vcrtcm_push_buffer_alloc(
+			udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal, pbd);
+		if (r) {
+			PR_ERR("%s[%d]: push buffer alloc_failed\n",
+					UDLCTD_ALLOC_PB_STRING(flag), i);
+			memset(pbd, 0,
+				sizeof(struct vcrtcm_push_buffer_descriptor));
+			break;
+		}
+
+		if (pbd->num_pages != requested_num_pages) {
+			PR_ERR("%s[%d]: incorrect size allocated\n",
+					UDLCTD_ALLOC_PB_STRING(flag), i);
+			vcrtcm_push_buffer_free(
+				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+					pbd);
+			/* incorrect size in most cases means too few pages */
+			/* so it makes sense to return ENOMEM here */
+			r = -ENOMEM;
+			break;
+		}
+
+		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
+		PR_DEBUG("%s[%d]: allocated %lu pages, last_lomem=%ld, "
+				"first_himem=%ld\n",
+				UDLCTD_ALLOC_PB_STRING(flag),
+				i,
+				pbd->num_pages,
+				pbd->last_lomem_page,
+				pbd->first_himem_page);
+
+		/* we have the buffer, now we need to map it */
+		/* (and that can fail too) */
+		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
+			udlctd_vcrtcm_hal_descriptor->pb_fb[i] =
+				vm_map_ram(udlctd_vcrtcm_hal_descriptor->
+							pbd_fb->pages,
+					udlctd_vcrtcm_hal_descriptor->
+							pbd_fb->num_pages,
+					0, PAGE_KERNEL);
+
+			if (udlctd_vcrtcm_hal_descriptor->pb_fb[i] == NULL) {
+				/* If we couldn't map it, we need to */
+				/* free the buffer */
+				vcrtcm_push_buffer_free(
+					udlctd_vcrtcm_hal_descriptor->
+						vcrtcm_dev_hal,
+					udlctd_vcrtcm_hal_descriptor->pbd_fb);
+				/* TODO: Is this right to return ENOMEM? */
+				r = -ENOMEM;
+				break;
+			}
+		} else {
+			udlctd_vcrtcm_hal_descriptor->pb_cursor[i] =
+				vm_map_ram(udlctd_vcrtcm_hal_descriptor->
+							pbd_cursor->pages,
+					udlctd_vcrtcm_hal_descriptor->
+							pbd_cursor->num_pages,
+					0, PAGE_KERNEL);
+
+			if (udlctd_vcrtcm_hal_descriptor
+					->pb_cursor[i] == NULL) {
+				/* If we couldn't map it, we need to */
+				/* free the buffer */
+				vcrtcm_push_buffer_free(
+						udlctd_vcrtcm_hal_descriptor->
+								vcrtcm_dev_hal,
+						udlctd_vcrtcm_hal_descriptor->
+								pbd_cursor);
+				/* TODO: Is this right to return ENOMEM? */
+				r = -ENOMEM;
+				break;
+			}
+		}
+	}
+
+	if (r && (i == 1)) {
+		/* allocation failed in the second iteration */
+		/* of the loop, we must release the buffer */
+		/* allocated in the first one before returning*/
+		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
+			vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->
+							pbd_fb[0].pages,
+				udlctd_vcrtcm_hal_descriptor->
+							pbd_fb[0].num_pages);
+			vcrtcm_push_buffer_free(
+				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+				&udlctd_vcrtcm_hal_descriptor->pbd_fb[0]);
+		} else {
+			vm_unmap_ram(
+				udlctd_vcrtcm_hal_descriptor->
+						pbd_cursor[0].pages,
+				udlctd_vcrtcm_hal_descriptor->
+						pbd_cursor[0].num_pages);
+			vcrtcm_push_buffer_free(
+				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
+				&udlctd_vcrtcm_hal_descriptor->pbd_cursor[0]);
+		}
+	}
+
+	return r;
+}
+
 int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			void *hw_drv_info, int flow)
 {
@@ -40,8 +191,8 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		struct udlctd_vcrtcm_hal_descriptor
 			*udlctd_vcrtcm_hal_descriptor =
 			udlctd_kzalloc(udlctd_info,
-					sizeof(struct udlctd_vcrtcm_hal_descriptor),
-					GFP_KERNEL);
+				sizeof(struct udlctd_vcrtcm_hal_descriptor),
+				GFP_KERNEL);
 		if (udlctd_vcrtcm_hal_descriptor == NULL) {
 			mutex_unlock(&udlctd_info->xmit_mutex);
 			PR_ERR("attach: no memory\n");
@@ -60,9 +211,9 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[0] = 0;
 		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[1] = 0;
 		memset(&udlctd_vcrtcm_hal_descriptor->pbd_fb, 0,
-				2 * sizeof(struct vcrtcm_push_buffer_descriptor));
+			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
 		memset(&udlctd_vcrtcm_hal_descriptor->pbd_cursor, 0,
-				2 * sizeof(struct vcrtcm_push_buffer_descriptor));
+			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
 		udlctd_vcrtcm_hal_descriptor->pb_fb[0] = 0;
 		udlctd_vcrtcm_hal_descriptor->pb_fb[1] = 0;
 		udlctd_vcrtcm_hal_descriptor->pb_cursor[0] = 0;
@@ -106,49 +257,12 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	if (udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal == vcrtcm_dev_hal) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		if (udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages) {
-			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[0].gpu_private);
-			if (udlctd_vcrtcm_hal_descriptor->pb_fb[0]) {
-				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[0],
-					udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages);
-				udlctd_vcrtcm_hal_descriptor->pb_fb[0] = NULL;
-			}
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_fb[0]);
-		}
-
-		if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages) {
-			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].gpu_private);
-			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[0]) {
-				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[0],
-					udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages);
-				udlctd_vcrtcm_hal_descriptor->pb_cursor[0] = NULL;
-			}
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[0]);
-		}
-
-		if (udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages) {
-			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[1].gpu_private);
-			if (udlctd_vcrtcm_hal_descriptor->pb_fb[1]) {
-				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[1],
-					udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages);
-				udlctd_vcrtcm_hal_descriptor->pb_fb[1] = NULL;
-			}
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-						&udlctd_vcrtcm_hal_descriptor->pbd_fb[1]);
-		}
-
-		if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages) {
-			BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].gpu_private);
-			if (udlctd_vcrtcm_hal_descriptor->pb_cursor[1]) {
-				vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[1],
-					udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages);
-				udlctd_vcrtcm_hal_descriptor->pb_cursor[1] = NULL;
-			}
-			vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					&udlctd_vcrtcm_hal_descriptor->pbd_cursor[1]);
-		}
+		udlctd_free_pb(udlctd_info,
+				udlctd_vcrtcm_hal_descriptor,
+				UDLCTD_ALLOC_PB_FLAG_FB);
+		udlctd_free_pb(udlctd_info,
+				udlctd_vcrtcm_hal_descriptor,
+				UDLCTD_ALLOC_PB_FLAG_CURSOR);
 
 		udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
 		udlctd_kfree(udlctd_info, udlctd_vcrtcm_hal_descriptor);
@@ -214,7 +328,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	}
 
 	if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH) {
-		int size_in_bytes, requested_num_pages, i, j;
+		int size_in_bytes, requested_num_pages;
 
 		size_in_bytes = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch *
 				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
@@ -223,93 +337,35 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-		for (i = 0; i < 2; i++) {
-			if (!requested_num_pages) {
-				PR_DEBUG("framebuffer[%d]: zero size requested\n", i);
-				/* free old buffer if there is one */
-				if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages) {
-					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[i].gpu_private);
-					if (udlctd_vcrtcm_hal_descriptor->pb_fb[i]) {
-						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
-								udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
-						udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
-					}
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
+		BUG_ON(udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages !=
+			udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages);
 
-				}
-			} else if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages == requested_num_pages) {
-				PR_DEBUG("framebuffer[%d]: reusing existing push buffer\n", i);
-			} else {
-				/* if we have got here, then we either don't have the push buffer */
-				/* or we have one of the wrong size (i.e. mode has changed) */
+		if (!requested_num_pages) {
+			PR_DEBUG("framebuffer: zero size requested\n");
+			udlctd_free_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					UDLCTD_ALLOC_PB_FLAG_FB);
+		} else if (udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages ==
+				requested_num_pages) {
+			/* we can safely check index 0 num_pages against */
+			/* index 1 num_pages because we checked that they */
+			/* are equal above. */
+			PR_DEBUG("framebuffer: "
+				"reusing existing push buffer\n");
+		} else {
+			/* if we are here, we either have no push buffer */
+			/* or we have the wrong size (i.e. mode changed) */
+			PR_INFO("framebuffer: allocating push buffer, "
+					"size=%d, num_pages=%d\n",
+					size_in_bytes, requested_num_pages);
+			udlctd_free_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					UDLCTD_ALLOC_PB_FLAG_FB);
 
-				PR_DEBUG("framebuffer[%d]: allocating push buffer, size=%d, "
-						"num_pages=%d\n", i, size_in_bytes, requested_num_pages);
-
-				/* free old buffer */
-				if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages) {
-					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_fb[i].gpu_private);
-					if (udlctd_vcrtcm_hal_descriptor->pb_fb[i]) {
-						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_fb[i],
-								udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages);
-						udlctd_vcrtcm_hal_descriptor->pb_fb[i] = NULL;
-					}
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-
-				}
-
-				/* allocate new buffer */
-				udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages =
-						requested_num_pages;
-				r = vcrtcm_push_buffer_alloc(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-						&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-
-				/* sanity check */
-				if (r) {
-					PR_ERR("framebuffer[%d]: push buffer alloc failed\n", i);
-					memset(&udlctd_vcrtcm_hal_descriptor->pbd_fb, 0,
-							sizeof(struct vcrtcm_push_buffer_descriptor));
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				if (udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages < requested_num_pages) {
-					PR_ERR("framebuffer[%d]: not enough pages allocated\n", i);
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				/* vmap the allocated pages */
-				udlctd_vcrtcm_hal_descriptor->pb_fb[i] =
-					vm_map_ram(udlctd_vcrtcm_hal_descriptor->pbd_fb[i].pages,
-							udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages,
-							0, PAGE_KERNEL);
-
-				if (!udlctd_vcrtcm_hal_descriptor->pb_fb[i]) {
-					PR_ERR("framebuffer[%d]: could not do vmap\n", i);
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_fb[i]);
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
-				PR_DEBUG("framebuffer[%d]: allocated %lu pages, last_lomem=%ld, "
-						"first_himem=%ld\n", i,
-						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages,
-						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].last_lomem_page,
-						udlctd_vcrtcm_hal_descriptor->pbd_fb[i].first_himem_page);
-
-				for (j = 0; j < udlctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages; j++)
-					PR_DEBUG("framebuffer[%d]: page [%d]=%p\n", i, j,
-							udlctd_vcrtcm_hal_descriptor->pbd_fb[i].pages[j]);
-
-				PR_DEBUG("framebuffer[%d]: vmap=%p\n", i, udlctd_vcrtcm_hal_descriptor->pb_fb[i]);
-			}
+			r = udlctd_alloc_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					requested_num_pages,
+					UDLCTD_ALLOC_PB_FLAG_FB);
 		}
 	}
 
@@ -562,7 +618,7 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 		queue_work(udlctd_info->workqueue, &udlctd_info->copy_cursor_work);
 
 	} else if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH) {
-		int size_in_bytes, requested_num_pages, i, j;
+		int size_in_bytes, requested_num_pages;
 
 		/* calculate the push buffer size for cursor */
 		size_in_bytes =
@@ -576,91 +632,34 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 		if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-		for (i = 0; i < 2; i++) {
-			if (!requested_num_pages) {
-				PR_DEBUG("cursor[%d]: zero size requested, nothing allocated\n", i);
-				/* free old buffer if there is one */
-				if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages) {
-					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].gpu_private);
-					if (udlctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
-						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
-								udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
-						udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
-					}
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-				}
-			} else if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages == requested_num_pages) {
-				PR_DEBUG("cursor[%d]: reusing existing push buffer\n", i);
-			} else {
-				/* if we got there, then we either dont have the push buffer
-				 * or we have one of the wrong size (i.e. mode has changed)
-				 */
-				PR_DEBUG("cursor[%d]: allocating push buffer size=%d, "
-					"num_pages=%d\n", i, size_in_bytes, requested_num_pages);
+		BUG_ON(udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages !=
+			udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages);
 
-				/* free old buffer */
-				if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages) {
-					BUG_ON(!udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].gpu_private);
-					if (udlctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
-						vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->pb_cursor[i],
-								udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages);
-						udlctd_vcrtcm_hal_descriptor->pb_cursor[i] = NULL;
-					}
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-				}
+		if (!requested_num_pages) {
+			PR_DEBUG("cursor: zero size requested\n");
+			udlctd_free_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					UDLCTD_ALLOC_PB_FLAG_CURSOR);
+		} else if (udlctd_vcrtcm_hal_descriptor->
+				pbd_cursor[0].num_pages ==
+						requested_num_pages) {
+			PR_DEBUG("cursor : reusing existing push buffer\n");
+		} else {
+			/* if we got here, then we either dont have the */
+			/* push buffer or we ahve one of the wrong size */
+			/* (i.e. cursor size changed) */
+			PR_INFO("cursor: allocating push buffer size=%d, "
+					"num_pages=%d\n",
+					size_in_bytes, requested_num_pages);
 
-				/* allocate the buffer */
-				udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages =
-						requested_num_pages;
-				r = vcrtcm_push_buffer_alloc(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-						&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
+			udlctd_free_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					UDLCTD_ALLOC_PB_FLAG_CURSOR);
 
-				/* sanity check */
-				if (r) {
-					PR_ERR("cursor[%d]: push buffer alloc failed\n", i);
-					memset(&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i], 0,
-							sizeof(struct vcrtcm_push_buffer_descriptor));
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				if (udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages < requested_num_pages) {
-					PR_ERR("cursor[%d]: not enough pages allocated\n", i);
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				/* vmap the allocated pages */
-				udlctd_vcrtcm_hal_descriptor->pb_cursor[i] =
-					vm_map_ram(udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].pages,
-							udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages,
-							0, PAGE_KERNEL);
-
-				if (!udlctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
-					PR_ERR("cursor[%d]: could not do vmap\n", i);
-					vcrtcm_push_buffer_free(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-							&udlctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
-					/*mutex_unlock(&udlctd_info->xmit_mutex);*/
-					return -ENOMEM;
-				}
-
-				udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
-				PR_DEBUG("cursor[%d]: allocated %lu pages, last_lomem=%ld, "
-						"first_himem=%ld\n", i,
-						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages,
-						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].last_lomem_page,
-						udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].first_himem_page);
-
-				for (j = 0; j < udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages; j++)
-					PR_DEBUG("cursor[%d]: page[%d]=%p\n", i, j,
-							udlctd_vcrtcm_hal_descriptor->pbd_cursor[i].pages[j]);
-
-				PR_DEBUG("cursor[%d]: vmap=%p\n", i, udlctd_vcrtcm_hal_descriptor->pb_cursor[i]);
-			}
+			r = udlctd_alloc_pb(udlctd_info,
+					udlctd_vcrtcm_hal_descriptor,
+					requested_num_pages,
+					UDLCTD_ALLOC_PB_FLAG_CURSOR);
 		}
 	}
 
