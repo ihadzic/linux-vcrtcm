@@ -17,8 +17,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -39,6 +37,7 @@
 
 /* Module option(s) */
 int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
+int debug; /* Enable the printing of debugging information */
 
 struct list_head udlctd_info_list;
 int udlctd_major = -1;
@@ -67,28 +66,28 @@ static int __init udlctd_init(void)
 	int ret;
 	dev_t dev;
 
-	pr_info("DisplayLink USB CTD Driver, "
+	PR_INFO("DisplayLink USB CTD Driver, "
 	"(C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	pr_info("Push mode enabled");
+	PR_INFO("Push mode enabled");
 
 	INIT_LIST_HEAD(&udlctd_info_list);
 
-	pr_info("Allocating/registering dynamic major number");
+	PR_INFO("Allocating/registering dynamic major number");
 	ret = alloc_chrdev_region(&dev, 0, MAX_DL_DEVICES, "udlctd");
 	udlctd_major = MAJOR(dev);
 
 	if (ret) {
-		pr_warn("Can't get major device number, driver unusable\n");
+		PR_WARN("Can't get major device number, driver unusable\n");
 		udlctd_major = -1;
 		udlctd_num_minors = 0;
 	} else {
-		pr_info("Using major device number %d\n", udlctd_major);
+		PR_INFO("Using major device number %d\n", udlctd_major);
 	}
 
 	ret = usb_register(&udlctd_driver);
 
 	if (ret) {
-		pr_err("usb_register failed. Error number %d", ret);
+		PR_ERR("usb_register failed. Error number %d", ret);
 		return ret;
 	}
 
@@ -97,11 +96,11 @@ static int __init udlctd_init(void)
 
 static void __exit udlctd_exit(void)
 {
-	pr_info("Cleaning up udlctd\n");
+	PR_INFO("Cleaning up udlctd\n");
 	usb_deregister(&udlctd_driver);
 
 	if (udlctd_major >= -1) {
-		pr_info
+		PR_INFO
 		("Deallocating major device number %d, count %d\n",
 			udlctd_major, MAX_DL_DEVICES);
 		unregister_chrdev_region(MKDEV(udlctd_major, 0), MAX_DL_DEVICES);
@@ -115,6 +114,9 @@ module_exit(udlctd_exit);
 
 module_param(true32bpp, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(true32bpp, "Enable support for true 32bpp color. *Experimental and buggy*");
+
+module_param(debug, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(debug, "Enable debugging information.");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DisplayLink USB CTD Driver");

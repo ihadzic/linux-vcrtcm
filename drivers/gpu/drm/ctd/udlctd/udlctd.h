@@ -38,6 +38,7 @@
 
 /* Module options */
 extern int true32bpp;
+extern int debug;
 
 extern struct usb_driver udlctd_driver;
 extern struct list_head udlctd_info_list;

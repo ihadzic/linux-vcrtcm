@@ -17,8 +17,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/usb.h>
@@ -83,7 +81,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_info = kzalloc(sizeof(struct udlctd_info), GFP_KERNEL);
 
 	if (udlctd_info == NULL) {
-		pr_err("udlctd_usb_probe: failed alloc of udlctd_info\n");
+		PR_ERR("udlctd_usb_probe: failed alloc of udlctd_info\n");
 		goto error;
 	}
 
@@ -95,22 +93,22 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_info->gdev = &usbdev->dev;  /* generic struct device */
 	usb_set_intfdata(interface, udlctd_info);
 
-	pr_info("%s %s - serial #%s\n",
+	PR_INFO("%s %s - serial #%s\n",
 		usbdev->manufacturer, usbdev->product, usbdev->serial);
-	pr_info("vid_%04x&pid_%04x&rev_%04x driver's udlctd_info struct at %p\n",
+	PR_INFO("vid_%04x&pid_%04x&rev_%04x driver's udlctd_info struct at %p\n",
 		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
 		usbdev->descriptor.bcdDevice, udlctd_info);
 
 	udlctd_info->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
 
 	if (!udlctd_parse_vendor_descriptor(udlctd_info, usbdev)) {
-		pr_err("Firmware not recognized. Assume incompatible device.\n");
+		PR_ERR("Firmware not recognized. Assume incompatible device.\n");
 		goto error;
 	}
 
 	if (!udlctd_alloc_urb_list(udlctd_info, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		retval = -ENOMEM;
-		pr_err("udlctd_alloc_urb_list failed\n");
+		PR_ERR("udlctd_alloc_urb_list failed\n");
 		goto error;
 	}
 
@@ -140,7 +138,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	retval = udlctd_setup_modes(udlctd_info);
 
 	if (retval != 0) {
-		pr_err("Unable to find common mode for display and adapter.\n");
+		PR_ERR("Unable to find common mode for display and adapter.\n");
 		goto error;
 	}
 
@@ -148,22 +146,20 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_select_std_channel(udlctd_info);
 	udlctd_setup_screen(udlctd_info, &udlctd_info->default_video_mode, UDLCTD_DEFAULT_PIXEL_DEPTH);
 
-	pr_info("DisplayLink USB device attached.\n");
-	pr_info("successfully registered"
+	PR_INFO("DisplayLink USB device attached.\n");
+	PR_INFO("successfully registered"
 		" minor %d\n", udlctd_info->minor);
 
 
-	#ifndef DEBUG_NO_VCRTCM_KERNEL
-	pr_info("Calling vcrtcm_hw_add for udlctd %p major %d minor %d\n",
+	PR_DEBUG("Calling vcrtcm_hw_add for udlctd %p major %d minor %d\n",
 		udlctd_info, udlctd_major, udlctd_info->minor);
 	if (vcrtcm_hw_add(&udlctd_vcrtcm_funcs, udlctd_major,
 			udlctd_info->minor, 0, udlctd_info)) {
 
-		pr_warn("vcrtcm_hw_add failed, udlctd major %d, minor %d,"
+		PR_WARN("vcrtcm_hw_add failed, udlctd major %d, minor %d,"
 			" won't work\n",
 			udlctd_major, udlctd_info->minor);
 	}
-	#endif
 
 	list_add(&udlctd_info->list, &udlctd_info_list);
 
@@ -171,7 +167,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 
 error:
 	if (udlctd_info) {
-		pr_err("Got to error in probe");
+		PR_ERR("Got to error in probe");
 		/* Ref for framebuffer */
 		kref_put(&udlctd_info->kref, udlctd_free);
 		/* vcrtcm reference */
@@ -189,7 +185,7 @@ static void udlctd_usb_disconnect(struct usb_interface *interface)
 
 	udlctd_info = usb_get_intfdata(interface);
 
-	pr_info("USB disconnect starting\n");
+	PR_DEBUG("USB disconnect starting\n");
 
 	/* TODO: Do we need this? Maybe we can just detach and be done */
 	/* we virtualize until everyone is done with it, then we free */
@@ -202,7 +198,7 @@ static void udlctd_usb_disconnect(struct usb_interface *interface)
 
 	#ifndef DEBUG_NO_VCRTCM_KERNEL
 	/* unregister with VCRTCM */
-	pr_info("Calling vcrtcm_hw_del for "
+	PR_DEBUG("Calling vcrtcm_hw_del for "
 		"udlctd %p, major %d, minor %d\n",
 		udlctd_info, udlctd_major, udlctd_info->minor);
 
@@ -231,12 +227,12 @@ void udlctd_free(struct kref *kref)
 	if (udlctd_info->urbs.count > 0)
 		udlctd_free_urb_list(udlctd_info);
 
-	pr_info("freeing backing buffer: %p\n", udlctd_info->backing_buffer);
+	PR_DEBUG("freeing backing buffer: %p\n", udlctd_info->backing_buffer);
 	if (udlctd_info->backing_buffer)
 		udlctd_vfree(udlctd_info,
 				udlctd_info->backing_buffer);
 
-	pr_info("freeing local_fb: %p, local_cursor %p, hline_16 %p, hline_8 %p\n",
+	PR_DEBUG("freeing local_fb: %p, local_cursor %p, hline_16 %p, hline_8 %p\n",
 			udlctd_info->local_fb,
 			udlctd_info->local_cursor,
 			udlctd_info->hline_16,
@@ -252,20 +248,20 @@ void udlctd_free(struct kref *kref)
 		udlctd_vfree(udlctd_info, udlctd_info->hline_8);
 
 
-	pr_info("freeing edid: %p\n", udlctd_info->edid);
+	PR_DEBUG("freeing edid: %p\n", udlctd_info->edid);
 	udlctd_kfree(udlctd_info, udlctd_info->edid);
 
-	pr_info("freeing mode list");
+	PR_DEBUG("freeing mode list");
 	list_for_each_entry_safe(udlctd_video_mode,
 				tmp, &udlctd_info->fb_mode_list, list) {
 		list_del(&udlctd_video_mode->list);
 		udlctd_kfree(udlctd_info, udlctd_video_mode);
 	}
 
-	pr_warn("freeing udlctd_info data %p\n", udlctd_info);
-	pr_info("page_track : %d\n", udlctd_info->page_track);
-	pr_info("kmalloc_track: %d\n", udlctd_info->kmalloc_track);
-	pr_info("vmalloc_track: %d\n", udlctd_info->vmalloc_track);
+	PR_WARN("freeing udlctd_info data %p\n", udlctd_info);
+	PR_DEBUG("page_track : %d\n", udlctd_info->page_track);
+	PR_DEBUG("kmalloc_track: %d\n", udlctd_info->kmalloc_track);
+	PR_DEBUG("vmalloc_track: %d\n", udlctd_info->vmalloc_track);
 
 	list_del(&udlctd_info->list);
 	kfree(udlctd_info);
@@ -288,14 +284,14 @@ int udlctd_setup_screen(struct udlctd_info *udlctd_info,
 	udlctd_info->main_buffer = udlctd_info->local_fb;
 
 	if (result)
-		pr_err("Could not allocate framebuffer(s)\n");
+		PR_ERR("Could not allocate framebuffer(s)\n");
 
 	udlctd_set_video_mode(udlctd_info, mode, bpp);
 
 	if (result)
-		pr_err("Could not set screen mode\n");
+		PR_ERR("Could not set screen mode\n");
 
-	pr_info("Filling framebuffer with blue\n");
+	PR_DEBUG("Filling framebuffer with blue\n");
 
 	pix_framebuffer = (u32 *) udlctd_info->main_buffer;
 	for (i = 0; i < (udlctd_info->fb_len / 4); i++)
@@ -479,9 +475,9 @@ static void udlctd_compress_hline_16(
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
 
-			/* pr_info("pixel16: %x\n", *pixel); */
+			/* PR_DEBUG("pixel16: %x\n", *pixel); */
 			*(uint16_t *)cmd = cpu_to_be16p(pixel);
-			/* pr_info("cmd16: %x\n", *cmd); */
+			/* PR_DEBUG("cmd16: %x\n", *cmd); */
 			cmd += 2;
 			pixel++;
 
@@ -515,7 +511,7 @@ static void udlctd_compress_hline_16(
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
-		pr_info("16 padded with %d\n", cmd_buffer_end-cmd);
+		PR_DEBUG("16 padded with %d\n", cmd_buffer_end-cmd);
 		/* Fill leftover bytes with no-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
@@ -606,7 +602,7 @@ static void udlctd_compress_hline_8(
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
-		pr_info("8 padded with %d\n", cmd_buffer_end-cmd);
+		PR_DEBUG("8 padded with %d\n", cmd_buffer_end-cmd);
 		/* Fill leftover bytes with no-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
@@ -763,7 +759,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 					&dev_addr16,
 					(u8 **) &cmd, (u8 *) cmd_end);
 			cmd_len = (uint8_t *)cmd - cmd_before;
-			/*pr_info("Len %d\n", cmd_len); */
+			/*PR_DEBUG("Len %d\n", cmd_len); */
 	/*
 			if (cmd + 1024 >= cmd_end)
 			{
@@ -844,7 +840,7 @@ static int udlctd_parse_vendor_descriptor(struct udlctd_info *udlctd_info,
 	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
-		pr_info("vendor descriptor length:%x data:%02x %02x %02x %02x" \
+		PR_INFO("vendor descriptor length:%x data:%02x %02x %02x %02x" \
 			"%02x %02x %02x %02x %02x %02x %02x\n",
 			total_len, desc[0],
 			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
@@ -873,7 +869,7 @@ static int udlctd_parse_vendor_descriptor(struct udlctd_info *udlctd_info,
 			case 0x0200: { /* max_area */
 				u32 max_area;
 				max_area = le32_to_cpu(*((u32 *)desc));
-				pr_warn("DL chip limited to %d pixel modes\n",
+				PR_WARN("DL chip limited to %d pixel modes\n",
 					max_area);
 				udlctd_info->sku_pixel_limit = max_area;
 				break;
@@ -889,7 +885,7 @@ static int udlctd_parse_vendor_descriptor(struct udlctd_info *udlctd_info,
 
 unrecognized:
 	/* allow driver to load for now even if firmware unrecognized */
-	pr_err("Unrecognized vendor firmware descriptor\n");
+	PR_ERR("Unrecognized vendor firmware descriptor\n");
 
 success:
 	udlctd_kfree(udlctd_info, buf);
@@ -915,7 +911,7 @@ static int udlctd_get_edid(struct udlctd_info *udlctd_info,
 				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
 				    HZ);
 		if (ret < 1) {
-			pr_err("Read EDID byte %d failed err %x\n", i, ret);
+			PR_ERR("Read EDID byte %d failed err %x\n", i, ret);
 			i--;
 			break;
 		}
@@ -935,12 +931,12 @@ static int udlctd_is_valid_mode(struct udlctd_info *udlctd_info,
 				int xres, int yres)
 {
 	if (xres * yres > udlctd_info->sku_pixel_limit) {
-		pr_warn("%dx%d beyond chip capabilities\n",
+		PR_WARN("%dx%d beyond chip capabilities\n",
 		       xres, yres);
 		return 0;
 	}
 
-	pr_info("%dx%d valid mode\n", xres, yres);
+	PR_INFO("%dx%d valid mode\n", xres, yres);
 
 	return 1;
 }
@@ -1126,7 +1122,7 @@ static int udlctd_alloc_framebuffer(struct udlctd_info *udlctd_info,
 
 	int bytes_per_pixel = bpp / 8;
 
-	pr_warn("(Re)allocating framebuffer at %dx%d@%dbpp\n", mode->xres, mode->yres, bpp);
+	PR_WARN("(Re)allocating framebuffer at %dx%d@%dbpp\n", mode->xres, mode->yres, bpp);
 	new_len = mode->xres * bytes_per_pixel * mode->yres;
 
 	/*if (PAGE_ALIGN(new_len) > old_len) {*/
@@ -1140,7 +1136,7 @@ static int udlctd_alloc_framebuffer(struct udlctd_info *udlctd_info,
 	new_hline_8 = udlctd_vmalloc(udlctd_info, mode->xres * 1);
 
 	if (!new_fb || !new_hline_16 || !new_hline_8) {
-		pr_err("Virtual framebuffer alloc failed.\n");
+		PR_ERR("Virtual framebuffer alloc failed.\n");
 		goto error;
 	}
 
@@ -1171,7 +1167,7 @@ static int udlctd_alloc_framebuffer(struct udlctd_info *udlctd_info,
 	new_back = udlctd_vzalloc(udlctd_info, new_len);
 
 	if (!new_back)
-		pr_info("No shadow/backing buffer allocated\n");
+		PR_INFO("No shadow/backing buffer allocated\n");
 	else {
 		if (udlctd_info->backing_buffer)
 			udlctd_vfree(udlctd_info, udlctd_info->backing_buffer);
@@ -1205,7 +1201,7 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 	if (!urb)
 		return -ENOMEM;
 
-	pr_info("Setting video mode to %dx%d.\n", mode->xres, mode->yres);
+	PR_INFO("Setting video mode to %dx%d.\n", mode->xres, mode->yres);
 
 	buf = (char *) urb->transfer_buffer;
 
@@ -1421,7 +1417,7 @@ static void udlctd_urb_completion(struct urb *urb)
 		if (!(urb->status == -ENOENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN)) {
-			pr_err("%s - nonzero write bulk status received: %d\n",
+			PR_ERR("%s - nonzero write bulk status received: %d\n",
 				__func__, urb->status);
 			atomic_set(&udlctd_info->lost_pixels, 1);
 		}
@@ -1549,7 +1545,7 @@ static struct urb *udlctd_get_urb(struct udlctd_info *udlctd_info)
 	ret = down_timeout(&udlctd_info->urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
 		atomic_set(&udlctd_info->lost_pixels, 1);
-		pr_warn("wait for urb interrupted: %x available: %d\n",
+		PR_WARN("wait for urb interrupted: %x available: %d\n",
 		       ret, udlctd_info->urbs.available);
 		goto error;
 	}
@@ -1581,7 +1577,7 @@ static int udlctd_submit_urb(struct udlctd_info *udlctd_info, struct urb *urb, s
 	if (ret) {
 		udlctd_urb_completion(urb); /* because no one else will */
 		atomic_set(&udlctd_info->lost_pixels, 1);
-		pr_err("usb_submit_urb error %x\n", ret);
+		PR_ERR("usb_submit_urb error %x\n", ret);
 	}
 	return ret;
 }
