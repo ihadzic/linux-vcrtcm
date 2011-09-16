@@ -20,6 +20,27 @@
 #ifndef __UDLCTD_UTILS_H__
 #define __UDLCTD_UTILS_H__
 
+#include <linux/console.h>
+#include "udlctd.h"
+
+extern int debug;
+
+#define PR_INFO(fmt, args...) \
+	do { \
+		printk(KERN_INFO "[" KBUILD_MODNAME "]: " fmt, ## args); \
+	} while (0)
+
+#define PR_ERR(fmt, args...) \
+	printk(KERN_ERR "[" KBUILD_MODNAME "]: " fmt, ## args)
+#define PR_WARN(fmt, args...) \
+	printk(KERN_WARNING "[" KBUILD_MODNAME "]: " fmt, ## args)
+#define PR_DEBUG(fmt, args...) \
+	do { \
+		if (debug > 0) \
+			printk(KERN_INFO "[" KBUILD_MODNAME "]: " \
+					fmt, ## args); \
+	} while (0)
+
 inline struct page *udlctd_alloc_page(struct udlctd_info *udlctd_info,
 				gfp_t gfp_mask);
 
