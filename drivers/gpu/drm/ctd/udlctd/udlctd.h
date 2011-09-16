@@ -36,6 +36,10 @@
 #define UDLCTD_FB_PUSH 1
 #define UDLCTD_FB_XFER_MODE UDLCTD_FB_PUSH
 
+#define UDLCTD_ALLOC_PB_FLAG_FB 0x0
+#define UDLCTD_ALLOC_PB_FLAG_CURSOR 0x1
+#define UDLCTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+
 /* Module options */
 extern int true32bpp;
 extern int debug;
