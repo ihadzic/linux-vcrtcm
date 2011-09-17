@@ -432,8 +432,10 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 		DRM_INFO("radeon_vcrtcm_attach: frame buffer exists\n");
 		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
 						    crtc->y, 1);
-		if (r)
+		if (r) {
+			vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
 			return r;
+		}
 		/* we also need to set the cursor */
 		if (radeon_crtc->cursor_bo) {
 			struct vcrtcm_cursor vcrtcm_cursor;
@@ -460,8 +462,10 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 			/* we just go for its address */
 			rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
 			r = radeon_bo_reserve(rbo, false);
-			if (unlikely(r))
+			if (unlikely(r)) {
+				vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
 				return r;
+			}
 			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
 			radeon_bo_unreserve(rbo);
 
@@ -471,6 +475,10 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 				 vcrtcm_cursor.ioaddr);
 			r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
 					      &vcrtcm_cursor);
+			if (r) {
+				vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
+				return r;
+			}
 		}
 	}
 	/* and we need to update the DPMS state */
