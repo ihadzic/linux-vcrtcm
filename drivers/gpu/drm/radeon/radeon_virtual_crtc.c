@@ -471,6 +471,8 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
+	/* take a reference to the old object */
+	drm_gem_object_reference(obj);
 	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
 	INIT_WORK(&work->work, radeon_unpin_work_func);
@@ -478,6 +480,7 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (radeon_crtc->unpin_work) {
+		drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
 		radeon_fence_unref(&fence);
