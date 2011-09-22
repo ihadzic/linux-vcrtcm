@@ -107,7 +107,7 @@ static int radeon_virtual_connector_set_property(struct drm_connector
 						 uint64_t val)
 {
 	/* REVISIT: does nothing for now */
-	DRM_INFO("in radeon_virtual_connector_set_property\n");
+	DRM_DEBUG("\n");
 	return 0;
 }
 
@@ -119,7 +119,7 @@ static void radeon_virtual_connector_force(struct drm_connector *connector)
 	/* it probably has no effect for virtual connector since */
 	/* none of its helper funcs will look at ->use_digital field */
 	/* but it doesn't hurt either */
-	DRM_INFO("in radeon_virtual_connector_force\n");
+	DRM_DEBUG("\n");
 	if (connector->force == DRM_FORCE_ON)
 		radeon_connector->use_digital = false;
 	if (connector->force == DRM_FORCE_ON_DIGITAL)
@@ -145,14 +145,14 @@ static void radeon_virtual_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	/* REVISIT: all DPMS stuff is handled by CRTC dpms (for now) */
 	/* this might change in the future */
-	DRM_INFO("in radeon_virtual_encoder_dpms, mode %d\n", mode);
+	DRM_DEBUG("mode %d\n", mode);
 }
 
 static bool radeon_virtual_mode_fixup(struct drm_encoder *encoder,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
 {
-	DRM_INFO("in radeon_virtual_mode_fixup\n");
+	DRM_DEBUG("\n");
 
 	/* set the active encoder to connector routing */
 	radeon_encoder_set_active_device(encoder);
@@ -163,32 +163,29 @@ static bool radeon_virtual_mode_fixup(struct drm_encoder *encoder,
 
 static void radeon_virtual_encoder_prepare(struct drm_encoder *encoder)
 {
-	DRM_INFO("in radeon_virtual_encoder_prepare\n");
+	DRM_DEBUG("\n");
 	radeon_virtual_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
 static void radeon_virtual_encoder_commit(struct drm_encoder *encoder)
 {
-	DRM_INFO("in radeon_virtual_encoder_commit");
+	DRM_DEBUG("\n");
 	radeon_virtual_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
-static void radeon_virtual_encoder_mode_set(struct drm_encoder *encoder,
-					    struct drm_display_mode *mode,
-					    struct drm_display_mode
-					    *adjusted_mode)
+static void
+radeon_virtual_encoder_mode_set(struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
-	DRM_INFO("in radeon_virtual_encoder_mode_set\n");
+	DRM_DEBUG("\n");
 }
 
-static enum drm_connector_status radeon_virtual_encoder_detect(struct
-							       drm_encoder
-							       *encoder,
-							       struct
-							       drm_connector
-							       *connector)
+static enum drm_connector_status
+radeon_virtual_encoder_detect(struct drm_encoder *encoder,
+			      struct drm_connector *connector)
 {
-	DRM_INFO("in radeon_virtual_encoder_detect\n");
+	DRM_DEBUG("\n");
 	/* REVISIT: virtual connector/encoder are always connected (for now) */
 	/* consider asking VCRTCM module for real status and if the DCT device */
 	/* is really always connected hard-code the status there */
@@ -205,8 +202,8 @@ static void radeon_virtual_encoder_disable(struct drm_encoder *encoder)
 	radeon_encoder->active_device = 0;
 }
 
-static const struct drm_encoder_helper_funcs radeon_virtual_encoder_helper_funcs
-    = {
+static const struct drm_encoder_helper_funcs
+radeon_virtual_encoder_helper_funcs = {
 	.dpms = radeon_virtual_encoder_dpms,
 	.mode_fixup = radeon_virtual_mode_fixup,
 	.prepare = radeon_virtual_encoder_prepare,
@@ -234,7 +231,7 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 	uint32_t subpixel_order = SubPixelHorizontalRGB;
 	struct radeon_hpd hpd;
 
-	DRM_INFO("in radeon_add_virtual_enc_conn, instance %d\n", inst);
+	DRM_DEBUG("instance %d\n", inst);
 
 	/* use special supported device number for virtual display */
 	supported_device = ATOM_DEVICE_VIRTUAL_SUPPORT;
@@ -247,17 +244,17 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 		radeon_connector = to_radeon_connector(connector);
 		if (radeon_connector->connector_id == connector_id) {
 			radeon_connector->devices |= supported_device;
-			DRM_INFO("+-> connector_id %d already added\n",
+			DRM_ERROR("connector_id %d already added\n",
 				 connector_id);
 			return;
 		}
 	}
 
-	DRM_INFO("+-> adding a new connector\n");
+	DRM_INFO("adding new virtual connector %d\n", connector_id);
 
 	radeon_connector = kzalloc(sizeof(struct radeon_connector), GFP_KERNEL);
 	if (!radeon_connector) {
-		DRM_INFO("+-> oops, can't get memory\n");
+		DRM_ERROR("can't get memory\n");
 		return;
 	}
 
@@ -288,11 +285,11 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 
 	drm_sysfs_connector_add(connector);
 
-	DRM_INFO("+-> connector added\n");
-	DRM_INFO("+-> connector_type %d, connector_type_id %d base.id=%d\n",
+	DRM_INFO("connector added\n");
+	DRM_INFO("connector_type %d, connector_type_id %d base.id=%d\n",
 		 connector->connector_type,
 		 connector->connector_type_id, connector->base.id);
-	DRM_INFO("+-> radeon_connector_id %d, radeon_connector_object_id %d\n",
+	DRM_INFO("radeon_connector_id %d, radeon_connector_object_id %d\n",
 		 radeon_connector->connector_id,
 		 radeon_connector->connector_object_id);
 	/* encoder does not have different fields for id and object_id like */
@@ -304,18 +301,18 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 		radeon_encoder = to_radeon_encoder(encoder);
 		if (radeon_encoder->encoder_id == encoder_id) {
 			radeon_encoder->devices |= supported_device;
-			DRM_INFO("+-> encoder_id %d already added\n",
+			DRM_ERROR("encoder_id %d already added\n",
 				 encoder_id);
 			return;
 		}
 	}
 
-	DRM_INFO("+-> adding a new encoder\n");
+	DRM_INFO("adding a new virtual encoder\n");
 
 	/* add a new one */
 	radeon_encoder = kzalloc(sizeof(struct radeon_encoder), GFP_KERNEL);
 	if (!radeon_encoder) {
-		DRM_INFO("+-> oops, can't get memory\n");
+		DRM_ERROR("can't get memory\n");
 		return;
 	}
 
@@ -336,10 +333,10 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 	/* normally, it should be something like this */
 	/* radeon_encoder->enc_priv = radeon_atombios_get_primary_dac_info(radeon_encoder); */
 
-	DRM_INFO("+-> encoder added\n");
-	DRM_INFO("+-> encoder_type %d, encoder_id %d\n",
+	DRM_INFO("encoder added\n");
+	DRM_INFO("encoder_type %d, encoder_id %d\n",
 		 encoder->encoder_type, encoder->base.id);
-	DRM_INFO("+-> radeon_encoder_id %d\n", radeon_encoder->encoder_id);
+	DRM_INFO("radeon_encoder_id %d\n", radeon_encoder->encoder_id);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
 
@@ -351,8 +348,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	/*struct radeon_device *rdev = dev->dev_private; */
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	DRM_INFO("in radeon_virtual_crtc_dpms, crtc_id=%d, mode=%d\n",
-		 radeon_crtc->crtc_id, mode);
+	DRM_DEBUG("crtc_id=%d, mode=%d\n", radeon_crtc->crtc_id, mode);
 
 	/* REVISIT: consider sending this info over the network to the client */
 	/*          and adding support to the client to act upon the command */
@@ -360,7 +356,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	/*           (e.g. auto power savings screen turnoff etc.) */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		DRM_INFO("+-> enabling crtc\n");
+		DRM_DEBUG("enabling crtc\n");
 		radeon_crtc->enabled = true;
 		/*radeon_pm_compute_clocks(rdev); */
 		if (radeon_crtc->vcrtcm_dev_hal)
@@ -371,7 +367,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		DRM_INFO("+-> disabling crtc\n");
+		DRM_DEBUG("disabling crtc\n");
 		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
 		if (radeon_crtc->vcrtcm_dev_hal)
 			vcrtcm_set_dpms(radeon_crtc->vcrtcm_dev_hal,
@@ -387,7 +383,7 @@ static bool radeon_virtual_crtc_mode_fixup(struct drm_crtc *crtc,
 					   struct drm_display_mode
 					   *adjusted_mode)
 {
-	DRM_INFO("in radeon_virtual_crtc_mode_fixup\n");
+	DRM_DEBUG("\n");
 	return true;
 }
 
@@ -409,7 +405,7 @@ static void radeon_virtual_crtc_pre_page_flip(struct radeon_device *rdev, int cr
 			}
 		}
 	} else {
-		DRM_ERROR("radeon_virtual_crtc_pre_page_flip called on physical crtc\n");
+		DRM_ERROR("virtual pflip requested on physical crtc\n");
 	}
 }
 
@@ -645,8 +641,8 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 	u64 fb_gpuaddr;
 	u32 fb_ioaddr;
 
-	DRM_INFO("in radeon_virtual_crtc_do_set_base, crtc=%d, x=%d, y=%d,"
-		 " atomic=%d\n", radeon_crtc->crtc_id, x, y, atomic);
+	DRM_DEBUG("crtc=%d, x=%d, y=%d, atomic=%d\n",
+		  radeon_crtc->crtc_id, x, y, atomic);
 
 	/* no fb bound */
 	if (!atomic && !crtc->fb) {
@@ -662,7 +658,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = crtc->fb;
 	}
 
-	DRM_INFO("new framebuffer info\n");
+	DRM_INFO("set base (vcrtc): new framebuffer info\n");
 	DRM_INFO("frame buffer pitch %d width %d height %d bpp %d\n",
 		 (unsigned int)(target_fb->pitch),
 		 (unsigned int)(target_fb->width),
@@ -694,7 +690,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 
 	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_gpuaddr);
 	if (!atomic && fb && fb != crtc->fb) {
-		DRM_INFO("found old framebuffer, unpinning\n");
+		DRM_DEBUG("found old framebuffer, unpinning\n");
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -709,7 +705,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
 	} else
-		DRM_INFO("no old framebuffer\n");
+		DRM_DEBUG("no old framebuffer\n");
 
 	return r;
 }
@@ -734,27 +730,27 @@ static int radeon_virtual_crtc_mode_set(struct drm_crtc *crtc,
 					int x, int y,
 					struct drm_framebuffer *old_fb)
 {
-	DRM_INFO("in radeon_virtual_crtc_mode_set\n");
+	DRM_DEBUG("\n");
 	return radeon_virtual_crtc_set_base(crtc, x, y, old_fb);
 }
 
 static void radeon_virtual_crtc_disable(struct drm_crtc *crtc)
 {
 
-	DRM_INFO("in radeon_virtual_crtc_disable\n");
+	DRM_DEBUG("\n");
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void radeon_virtual_crtc_prepare(struct drm_crtc *crtc)
 {
 
-	DRM_INFO("in radeon_virtual_crtc_prepare\n");
+	DRM_DEBUG("\n");
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void radeon_virtual_crtc_commit(struct drm_crtc *crtc)
 {
-	DRM_INFO("in radeon_virtual_crtc_commit\n");
+	DRM_DEBUG("\n");
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
@@ -765,7 +761,7 @@ static void radeon_virtual_crtc_commit(struct drm_crtc *crtc)
 /* should not need this function anyway */
 static void radeon_virtual_crtc_load_lut(struct drm_crtc *crtc)
 {
-	DRM_INFO("in radeon_virtual_crtc_load_lut\n");
+	DRM_DEBUG("\n");
 }
 
 static const struct drm_crtc_helper_funcs virtual_helper_funcs = {
@@ -786,8 +782,7 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct radeon_device *rdev = crtc->dev->dev_private;
 	int r = 0;
 
-	DRM_DEBUG("radeon_virtual_crtc_cursor_move x %d y %d crtc %d\n",
-		  x, y, radeon_crtc->crtc_id);
+	DRM_DEBUG("x %d y %d crtc %d\n", x, y, radeon_crtc->crtc_id);
 
 	if (x < 0)
 		x = 0;
@@ -821,6 +816,7 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc)
 	int r = 0;
 	int fps;
 
+	DRM_DEBUG("\n");
 	if (radeon_crtc->vcrtcm_dev_hal) {
 		/* turn off cursor */
 		r = vcrtcm_get_cursor(radeon_crtc->vcrtcm_dev_hal,
@@ -856,11 +852,12 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 	int r = 0;
 	int fps;
 
+	DRM_DEBUG("\n");
 	if (radeon_crtc->vcrtcm_dev_hal) {
 		cursor_ioaddr =
 		    rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
-		DRM_INFO("radeon_set_virtual_cursor: cursor sprite ioaddr %llx gpuaddr %llx size %d\n",
-		     cursor_ioaddr, cursor_gpuaddr, obj->size);
+		DRM_DEBUG("cursor sprite ioaddr %llx gpuaddr %llx size %d\n",
+			  cursor_ioaddr, cursor_gpuaddr, obj->size);
 
 		r = vcrtcm_get_cursor(radeon_crtc->vcrtcm_dev_hal,
 				      &vcrtcm_cursor);
@@ -896,8 +893,8 @@ int radeon_virtual_crtc_cursor_set(struct drm_crtc *crtc,
 	uint64_t cursor_gpuaddr;
 	int r = 0;
 
-	DRM_DEBUG("radeon_virtual_crtc_cursor_set w %d h %d hdl %d crtc_id %d\n",
-		width, height, handle, radeon_crtc->crtc_id);
+	DRM_DEBUG("w %d h %d hdl %d crtc_id %d\n",
+		  width, height, handle, radeon_crtc->crtc_id);
 
 	if (!handle) {
 		obj = NULL;
@@ -906,13 +903,15 @@ int radeon_virtual_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
-		DRM_ERROR("bad cursor width or height %d x %d\n", width, height);
+		DRM_ERROR("bad cursor width or height %d x %d\n",
+			  width, height);
 		return -EINVAL;
 	}
 
 	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
 	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
+		DRM_ERROR("cannot find cursor object %x for crtc %d\n",
+			  handle, radeon_crtc->crtc_id);
 		return -EINVAL;
 	}
 
@@ -953,7 +952,7 @@ static void radeon_virtual_crtc_destroy(struct drm_crtc *crtc)
 	struct radeon_device *rdev = crtc->dev->dev_private;
 	struct virtual_crtc *virtual_crtc, *tmp;
 
-	DRM_INFO("in radeon_virtual_crtc_destroy %d\n", radeon_crtc->crtc_id);
+	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
 
 	/* if this CRTC has a vcrtcm HAL attached to it, */
 	/* detach it at this point; ignore the error code */
@@ -963,13 +962,14 @@ static void radeon_virtual_crtc_destroy(struct drm_crtc *crtc)
 	list_for_each_entry_safe(virtual_crtc, tmp,
 				 &rdev->mode_info.virtual_crtcs, list) {
 		if (virtual_crtc->radeon_crtc == radeon_crtc) {
-			DRM_INFO("found virtual crtc that should be removed\n");
+			DRM_DEBUG("found virtual crtc that should be removed\n");
 			list_del(&virtual_crtc->list);
 			kfree(virtual_crtc);
 			if (rdev->num_virtual_crtc != 0)
 				rdev->num_virtual_crtc--;
 			else
-				DRM_ERROR("num_virtual_crtc corrupted, but can't do anything about it\n");
+				DRM_ERROR("num_virtual_crtc corrupted, "
+					  "but can't do anything about it\n");
 		}
 	}
 
@@ -1023,7 +1023,7 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 	struct virtual_crtc *virtual_crtc;
 	int i;
 
-	DRM_INFO("in radeon_virtual_crtc_init index=%d\n", index);
+	DRM_DEBUG("index=%d\n", index);
 
 	/* REVISIT: why do we need to extend the size by some "magic" number */
 	/* of connector structure sizes (check who uses it for now, we just */
@@ -1073,7 +1073,7 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 	/* specific) to DRM; functions are (un)implemented in this file */
 	drm_crtc_helper_add(&radeon_crtc->base, &virtual_helper_funcs);
 
-	DRM_INFO("+-> created crtc radeon_crtc_id %d, drm_crtc_id %d\n",
+	DRM_INFO("created virtual crtc radeon_crtc_id %d, drm_crtc_id %d\n",
 		 radeon_crtc->crtc_id, radeon_crtc->base.base.id);
 }
 
@@ -1089,10 +1089,9 @@ void radeon_vbl_emu_cleanup_work(struct work_struct *work)
 	list_for_each_entry_safe(push_vblank_pending, tmp,
 				 &vbl_emu_drv->pending_queue, list) {
 		if (push_vblank_pending->vblank_sent) {
-			/* FIXME: make this DRM_DEBUG */
-			DRM_INFO("push complete crtc_id=%d, time=%lu ms\n",
-				 push_vblank_pending->radeon_crtc->crtc_id,
-				 (push_vblank_pending->end_jiffies-
+			DRM_DEBUG("push complete crtc_id=%d, time=%lu ms\n",
+				  push_vblank_pending->radeon_crtc->crtc_id,
+				  (push_vblank_pending->end_jiffies-
 				  push_vblank_pending->start_jiffies)*1000/HZ);
 			list_del(&push_vblank_pending->list);
 			WARN_ON(!push_vblank_pending->radeon_fence->signaled);
