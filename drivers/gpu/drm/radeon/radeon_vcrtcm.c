@@ -190,9 +190,9 @@ static void radeon_sync_callback(struct drm_crtc *crtc)
 	struct radeon_device *rdev;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
+	DRM_DEBUG("crtc_id %d\n", radeon_crtc->crtc_id);
 	ddev = radeon_crtc->base.dev;
 	rdev = ddev->dev_private;
-	DRM_INFO("in radeon_sync_callback, crtc_id %d\n", radeon_crtc->crtc_id);
 	radeon_fence_wait_last(rdev);
 }
 
@@ -533,14 +533,14 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 	int op_code = radeon_vcrtcm_ctl_descriptor->op_code;
 	struct radeon_crtc *radeon_crtc;
 
-	DRM_INFO("in radeon_vcrtcm_ioctl, display_index %d\n", display_index);
+	DRM_DEBUG("display_index %d\n", display_index);
 	if (!ASIC_IS_VCRTC_CAPABLE(rdev)) {
-		DRM_INFO("GPU too old for VCRTCM\n");
+		DRM_ERROR("GPU too old for VCRTCM\n");
 		return -ENOTSUPP;
 	}
 	/* validate the display index */
 	if (display_index >= rdev->num_crtc + rdev->num_virtual_crtc) {
-		DRM_INFO("bad display index\n");
+		DRM_ERROR("bad display index\n");
 		return -EINVAL;
 	}
 
@@ -553,17 +553,17 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 	switch (op_code) {
 
 	case RADEON_VCRTCM_CTL_OP_CODE_NOP:
-		DRM_INFO("+-> nop\n");
+		DRM_DEBUG("nop\n");
 		return 0;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_SET_RATE:
-		DRM_INFO("+-> set fps\n");
+		DRM_DEBUG("set fps\n");
 		return radeon_vcrtcm_set_fps(radeon_crtc,
 					     radeon_vcrtcm_ctl_descriptor->arg1.
 					     fps);
 
 	case RADEON_VCRTCM_CTL_OP_CODE_ATTACH:
-		DRM_INFO("+-> attach\n");
+		DRM_DEBUG("attach\n");
 		return radeon_vcrtcm_attach(radeon_crtc,
 					    radeon_vcrtcm_ctl_descriptor->arg1.
 					    major,
@@ -573,15 +573,15 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 					    flow);
 
 	case RADEON_VCRTCM_CTL_OP_CODE_DETACH:
-		DRM_INFO("+-> detach\n");
+		DRM_DEBUG("detach\n");
 		return radeon_vcrtcm_detach(radeon_crtc);
 
 	case RADEON_VCRTCM_CTL_OP_CODE_XMIT:
-		DRM_INFO("+-> force\n");
+		DRM_DEBUG("force\n");
 		return radeon_vcrtcm_force(radeon_crtc);
 
 	default:
-		DRM_INFO("+-> invalid op code\n");
+		DRM_ERROR("invalid op code\n");
 		return -EINVAL;
 	}
 
