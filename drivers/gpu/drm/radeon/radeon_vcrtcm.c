@@ -297,8 +297,9 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
 			num_pages++;
 		if (num_pages) {
-			DRM_INFO("pushing cursor: %d pages from %llx to %llx\n",
-				 num_pages, saddr, daddr);
+			DRM_DEBUG("pushing cursor: %d pages "
+				  "from %llx to %llx\n",
+				  num_pages, saddr, daddr);
 			radeon_copy(rdev, saddr, daddr, num_pages, NULL);
 		}
 	}
@@ -341,8 +342,8 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
 		num_pages++;
 
-	DRM_INFO("pushing framebuffer: %d pages from %llx to %llx\n",
-		 num_pages, saddr, daddr);
+	DRM_DEBUG("pushing framebuffer: %d pages from %llx to %llx\n",
+		  num_pages, saddr, daddr);
 	if (radeon_vbl_emu_async)
 		radeon_copy(rdev, saddr, daddr, num_pages, fence);
 	else
