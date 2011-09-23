@@ -654,10 +654,10 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	 */
 
 	if (udlctd_info->udlctd_vcrtcm_hal_descriptor && udlctd_info->cursor) {
-		struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor =
+		struct udlctd_vcrtcm_hal_descriptor *uvhd =
 					udlctd_info->udlctd_vcrtcm_hal_descriptor;
 		struct vcrtcm_cursor *vcrtcm_cursor =
-					&udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor;
+					&uvhd->vcrtcm_cursor;
 		int line_num = byte_offset / udlctd_info->current_video_mode->xres / 4;
 
 
