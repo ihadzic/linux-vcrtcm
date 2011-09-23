@@ -36,7 +36,7 @@ extern int debug;
 	printk(KERN_WARNING "[" KBUILD_MODNAME "]: " fmt, ## args)
 #define PR_DEBUG(fmt, args...) \
 	do { \
-		if (debug > 0) \
+		if (unlikely(debug > 0)) \
 			printk(KERN_INFO "[" KBUILD_MODNAME "]: " \
 					fmt, ## args); \
 	} while (0)
