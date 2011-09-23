@@ -23,9 +23,7 @@
 #include "vcrtcm/vcrtcm_ctd.h"
 
 static void udlctd_free_pb(struct udlctd_info *udlctd_info,
-		struct udlctd_vcrtcm_hal_descriptor
-			*udlctd_vcrtcm_hal_descriptor,
-		int flag)
+		struct udlctd_vcrtcm_hal_descriptor *uvhd, int flag)
 {
 	int i;
 
@@ -34,30 +32,24 @@ static void udlctd_free_pb(struct udlctd_info *udlctd_info,
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
-			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_fb[i];
-			pb_mapped_ram =
-				udlctd_vcrtcm_hal_descriptor->pb_fb[i];
+			pbd = &uvhd->pbd_fb[i];
+			pb_mapped_ram = uvhd->pb_fb[i];
 		} else {
-			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_cursor[i];
-			pb_mapped_ram =
-				udlctd_vcrtcm_hal_descriptor->pb_cursor[i];
+			pbd = &uvhd->pbd_cursor[i];
+			pb_mapped_ram = uvhd->pb_cursor[i];
 		}
 
 		if (pbd->num_pages) {
 			BUG_ON(!pbd->gpu_private);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_push_buffer_free(\
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					pbd);
+			vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal, pbd);
 		}
 	}
 }
 
 static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
-		struct udlctd_vcrtcm_hal_descriptor
-			*udlctd_vcrtcm_hal_descriptor,
-		int requested_num_pages,
-		int flag)
+		struct udlctd_vcrtcm_hal_descriptor *uvhd,
+		int requested_num_pages, int flag)
 {
 	int i;
 	int r = 0;
@@ -65,13 +57,12 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLCTD_ALLOC_PB_FLAG_FB)
-			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_fb[i];
+			pbd = &uvhd->pbd_fb[i];
 		else
-			pbd = &udlctd_vcrtcm_hal_descriptor->pbd_cursor[i];
+			pbd = &uvhd->pbd_cursor[i];
 
 		pbd->num_pages = requested_num_pages;
-		r = vcrtcm_push_buffer_alloc(
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal, pbd);
+		r = vcrtcm_push_buffer_alloc(uvhd->vcrtcm_dev_hal, pbd);
 		if (r) {
 			PR_ERR("%s[%d]: push buffer alloc_failed\n",
 					UDLCTD_ALLOC_PB_STRING(flag), i);
@@ -83,16 +74,14 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 		if (pbd->num_pages != requested_num_pages) {
 			PR_ERR("%s[%d]: incorrect size allocated\n",
 					UDLCTD_ALLOC_PB_STRING(flag), i);
-			vcrtcm_push_buffer_free(
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-					pbd);
+			vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal, pbd);
 			/* incorrect size in most cases means too few pages */
 			/* so it makes sense to return ENOMEM here */
 			r = -ENOMEM;
 			break;
 		}
 
-		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
+		uvhd->pb_needs_xmit[i] = 0;
 		PR_DEBUG("%s[%d]: allocated %lu pages, last_lomem=%ld, "
 				"first_himem=%ld\n",
 				UDLCTD_ALLOC_PB_STRING(flag),
@@ -104,41 +93,31 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 		/* we have the buffer, now we need to map it */
 		/* (and that can fail too) */
 		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
-			udlctd_vcrtcm_hal_descriptor->pb_fb[i] =
-				vm_map_ram(udlctd_vcrtcm_hal_descriptor->
-							pbd_fb->pages,
-					udlctd_vcrtcm_hal_descriptor->
-							pbd_fb->num_pages,
+			uvhd->pb_fb[i] =
+				vm_map_ram(uvhd->pbd_fb->pages,
+					uvhd->pbd_fb->num_pages,
 					0, PAGE_KERNEL);
 
-			if (udlctd_vcrtcm_hal_descriptor->pb_fb[i] == NULL) {
+			if (uvhd->pb_fb[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_push_buffer_free(
-					udlctd_vcrtcm_hal_descriptor->
-						vcrtcm_dev_hal,
-					udlctd_vcrtcm_hal_descriptor->pbd_fb);
+				vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
+							uvhd->pbd_fb);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
 			}
 		} else {
-			udlctd_vcrtcm_hal_descriptor->pb_cursor[i] =
-				vm_map_ram(udlctd_vcrtcm_hal_descriptor->
-							pbd_cursor->pages,
-					udlctd_vcrtcm_hal_descriptor->
-							pbd_cursor->num_pages,
+			uvhd->pb_cursor[i] =
+				vm_map_ram(uvhd->pbd_cursor->pages,
+					uvhd->pbd_cursor->num_pages,
 					0, PAGE_KERNEL);
 
-			if (udlctd_vcrtcm_hal_descriptor
-					->pb_cursor[i] == NULL) {
+			if (uvhd->pb_cursor[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_push_buffer_free(
-						udlctd_vcrtcm_hal_descriptor->
-								vcrtcm_dev_hal,
-						udlctd_vcrtcm_hal_descriptor->
-								pbd_cursor);
+				vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
+							uvhd->pbd_cursor);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
@@ -151,22 +130,15 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 		/* of the loop, we must release the buffer */
 		/* allocated in the first one before returning*/
 		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
-			vm_unmap_ram(udlctd_vcrtcm_hal_descriptor->
-							pbd_fb[0].pages,
-				udlctd_vcrtcm_hal_descriptor->
-							pbd_fb[0].num_pages);
-			vcrtcm_push_buffer_free(
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-				&udlctd_vcrtcm_hal_descriptor->pbd_fb[0]);
+			vm_unmap_ram(uvhd->pbd_fb[0].pages,
+				uvhd->pbd_fb[0].num_pages);
+			vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
+						&uvhd->pbd_fb[0]);
 		} else {
-			vm_unmap_ram(
-				udlctd_vcrtcm_hal_descriptor->
-						pbd_cursor[0].pages,
-				udlctd_vcrtcm_hal_descriptor->
-						pbd_cursor[0].num_pages);
-			vcrtcm_push_buffer_free(
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-				&udlctd_vcrtcm_hal_descriptor->pbd_cursor[0]);
+			vm_unmap_ram(uvhd->pbd_cursor[0].pages,
+					uvhd->pbd_cursor[0].num_pages);
+			vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
+						&uvhd->pbd_cursor[0]);
 		}
 	}
 
@@ -189,45 +161,44 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		return -EBUSY;
 	} else {
 		struct udlctd_vcrtcm_hal_descriptor
-			*udlctd_vcrtcm_hal_descriptor =
-			udlctd_kzalloc(udlctd_info,
+			*uvhd = udlctd_kzalloc(udlctd_info,
 				sizeof(struct udlctd_vcrtcm_hal_descriptor),
 				GFP_KERNEL);
-		if (udlctd_vcrtcm_hal_descriptor == NULL) {
+		if (uvhd == NULL) {
 			mutex_unlock(&udlctd_info->xmit_mutex);
 			PR_ERR("attach: no memory\n");
 			return -ENOMEM;
 		}
 
-		udlctd_vcrtcm_hal_descriptor->udlctd_info = udlctd_info;
-		udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal = vcrtcm_dev_hal;
-		udlctd_vcrtcm_hal_descriptor->fb_force_xmit = 0;
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_counter = 0;
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies = 0;
-		udlctd_vcrtcm_hal_descriptor->next_fb_xmit_jiffies = 0;
-		udlctd_vcrtcm_hal_descriptor->next_vblank_jiffies = 0;
-		udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr = 0x0;
-		udlctd_vcrtcm_hal_descriptor->push_buffer_index = 0;
-		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[0] = 0;
-		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[1] = 0;
-		memset(&udlctd_vcrtcm_hal_descriptor->pbd_fb, 0,
+		uvhd->udlctd_info = udlctd_info;
+		uvhd->vcrtcm_dev_hal = vcrtcm_dev_hal;
+		uvhd->fb_force_xmit = 0;
+		uvhd->fb_xmit_counter = 0;
+		uvhd->fb_xmit_period_jiffies = 0;
+		uvhd->next_fb_xmit_jiffies = 0;
+		uvhd->next_vblank_jiffies = 0;
+		uvhd->pending_pflip_ioaddr = 0x0;
+		uvhd->push_buffer_index = 0;
+		uvhd->pb_needs_xmit[0] = 0;
+		uvhd->pb_needs_xmit[1] = 0;
+		memset(&uvhd->pbd_fb, 0,
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		memset(&udlctd_vcrtcm_hal_descriptor->pbd_cursor, 0,
+		memset(&uvhd->pbd_cursor, 0,
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		udlctd_vcrtcm_hal_descriptor->pb_fb[0] = 0;
-		udlctd_vcrtcm_hal_descriptor->pb_fb[1] = 0;
-		udlctd_vcrtcm_hal_descriptor->pb_cursor[0] = 0;
-		udlctd_vcrtcm_hal_descriptor->pb_cursor[1] = 0;
+		uvhd->pb_fb[0] = 0;
+		uvhd->pb_fb[1] = 0;
+		uvhd->pb_cursor[0] = 0;
+		uvhd->pb_cursor[1] = 0;
 
-		udlctd_vcrtcm_hal_descriptor->hw_fb_ptr = 0;
-		udlctd_vcrtcm_hal_descriptor->hw_fb_prev_ptr = 0;
-		udlctd_vcrtcm_hal_descriptor->ioaddr_prev = 0;
+		uvhd->hw_fb_ptr = 0;
+		uvhd->hw_fb_prev_ptr = 0;
+		uvhd->ioaddr_prev = 0;
 
-		udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor.flag =
+		uvhd->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
 
 		udlctd_info->udlctd_vcrtcm_hal_descriptor =
-			udlctd_vcrtcm_hal_descriptor;
+			uvhd;
 
 		mutex_unlock(&udlctd_info->xmit_mutex);
 
@@ -242,30 +213,25 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_INFO("Detaching udlctd %d from HAL %p\n",
 		udlctd_info->minor, vcrtcm_dev_hal);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
 
-	udlctd_vcrtcm_hal_descriptor =
-		udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
 
-	if (udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal == vcrtcm_dev_hal) {
+	if (uvhd->vcrtcm_dev_hal == vcrtcm_dev_hal) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		udlctd_free_pb(udlctd_info,
-				udlctd_vcrtcm_hal_descriptor,
-				UDLCTD_ALLOC_PB_FLAG_FB);
-		udlctd_free_pb(udlctd_info,
-				udlctd_vcrtcm_hal_descriptor,
-				UDLCTD_ALLOC_PB_FLAG_CURSOR);
+		udlctd_free_pb(udlctd_info, uvhd, UDLCTD_ALLOC_PB_FLAG_FB);
+		udlctd_free_pb(udlctd_info, uvhd, UDLCTD_ALLOC_PB_FLAG_CURSOR);
 
 		udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
-		udlctd_kfree(udlctd_info, udlctd_vcrtcm_hal_descriptor);
+		udlctd_kfree(udlctd_info, uvhd);
 		if (udlctd_info->local_cursor)
 			udlctd_vfree(udlctd_info, udlctd_info->local_cursor);
 
@@ -282,7 +248,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 			int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 	struct udlctd_video_mode *udlctd_video_mode;
 	int found_mode = 0;
 	int r = 0;
@@ -290,18 +256,16 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	PR_DEBUG("In udlctd_set_fb, minor %d.\n", udlctd_info->minor);
 	/*mutex_lock(&udlctd_info->xmit_mutex);*/
 
-	udlctd_vcrtcm_hal_descriptor =
-		udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	/* TODO: Do we need this? */
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
 
-	memcpy(&udlctd_vcrtcm_hal_descriptor->vcrtcm_fb,
-		vcrtcm_fb, sizeof(struct vcrtcm_fb));
+	memcpy(&uvhd->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
 	/* Find a matching video mode and switch the DL device to that mode */
 	list_for_each_entry(udlctd_video_mode,
@@ -330,23 +294,20 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH) {
 		int size_in_bytes, requested_num_pages;
 
-		size_in_bytes = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch *
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
+		size_in_bytes = uvhd->vcrtcm_fb.pitch *
+				uvhd->vcrtcm_fb.vdisplay;
 
 		requested_num_pages = size_in_bytes / PAGE_SIZE;
 		if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-		BUG_ON(udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages !=
-			udlctd_vcrtcm_hal_descriptor->pbd_fb[1].num_pages);
+		BUG_ON(uvhd->pbd_fb[0].num_pages != uvhd->pbd_fb[1].num_pages);
 
 		if (!requested_num_pages) {
 			PR_DEBUG("framebuffer: zero size requested\n");
-			udlctd_free_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			udlctd_free_pb(udlctd_info, uvhd,
 					UDLCTD_ALLOC_PB_FLAG_FB);
-		} else if (udlctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages ==
-				requested_num_pages) {
+		} else if (uvhd->pbd_fb[0].num_pages == requested_num_pages) {
 			/* we can safely check index 0 num_pages against */
 			/* index 1 num_pages because we checked that they */
 			/* are equal above. */
@@ -358,12 +319,10 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 			PR_INFO("framebuffer: allocating push buffer, "
 					"size=%d, num_pages=%d\n",
 					size_in_bytes, requested_num_pages);
-			udlctd_free_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			udlctd_free_pb(udlctd_info, uvhd,
 					UDLCTD_ALLOC_PB_FLAG_FB);
 
-			r = udlctd_alloc_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			r = udlctd_alloc_pb(udlctd_info, uvhd,
 					requested_num_pages,
 					UDLCTD_ALLOC_PB_FLAG_FB);
 		}
@@ -377,18 +336,17 @@ int udlctd_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 			int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("In udlctd_get_fb, minor %d.\n", udlctd_info->minor);
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
-	memcpy(vcrtcm_fb, &udlctd_vcrtcm_hal_descriptor->vcrtcm_fb,
-		sizeof(struct vcrtcm_fb));
+	memcpy(vcrtcm_fb, &uvhd->vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
 	return 0;
 }
@@ -396,7 +354,7 @@ int udlctd_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 int udlctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlctd_xmit_fb, minor %d\n", udlctd_info->minor);
 
@@ -405,10 +363,10 @@ int udlctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 	 */
 
 	mutex_lock(&udlctd_info->xmit_mutex);
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (udlctd_vcrtcm_hal_descriptor)
-		udlctd_vcrtcm_hal_descriptor->fb_force_xmit = 1;
+	if (uvhd)
+		uvhd->fb_force_xmit = 1;
 	mutex_unlock(&udlctd_info->xmit_mutex);
 
 	return 0;
@@ -440,15 +398,15 @@ int udlctd_get_fb_status(struct drm_crtc *drm_crtc,
 int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 	unsigned long jiffies_snapshot;
 
 	PR_DEBUG("udlctd_set_fps, fps %d.\n", fps);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
@@ -461,24 +419,19 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 	}
 
 	if (fps <= 0) {
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies = 0;
+		uvhd->fb_xmit_period_jiffies = 0;
 		jiffies_snapshot = jiffies;
-
-		udlctd_vcrtcm_hal_descriptor->next_fb_xmit_jiffies =
-			jiffies_snapshot;
+		uvhd->next_fb_xmit_jiffies = jiffies_snapshot;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Transmission disabled by request (negative or zero fps)\n");
 	} else {
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies =
-			HZ / fps;
+		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
-		udlctd_vcrtcm_hal_descriptor->next_vblank_jiffies =
-			jiffies_snapshot +
-			udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies;
-		udlctd_vcrtcm_hal_descriptor->next_fb_xmit_jiffies =
-			jiffies_snapshot +
-			udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies;
+		uvhd->next_vblank_jiffies =
+			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
+		uvhd->next_fb_xmit_jiffies =
+			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 
 		PR_INFO("Frame transmission period set to %d jiffies\n",
@@ -495,28 +448,27 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 int udlctd_get_fps(int *fps, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("udlctd_get_fps.\n");
 
 	mutex_lock(&udlctd_info->xmit_mutex);
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
 	}
 
-	if (udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies <= 0) {
+	if (uvhd->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Zero or negative frame rate, transmission disabled\n");
 		return 0;
 	} else {
-		*fps = HZ /
-			udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies;
+		*fps = HZ / uvhd->fb_xmit_period_jiffies;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		return 0;
 	}
@@ -525,12 +477,11 @@ int udlctd_get_fps(int *fps, void *hw_drv_info, int flow)
 int udlctd_page_flip(u32 ioaddr, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
-	udlctd_vcrtcm_hal_descriptor =
-		udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
@@ -540,15 +491,15 @@ int udlctd_page_flip(u32 ioaddr, void *hw_drv_info, int flow)
 	if (udlctd_info->xfer_in_progress) {
 		/* there is a transfer in progress, we can't page flip now */
 		/* return deferred-completion status */
-		udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr = ioaddr;
+		uvhd->pending_pflip_ioaddr = ioaddr;
 		return VCRTCM_PFLIP_DEFERRED;
 	} else {
 		/* we can safely page flip */
 		/*udlctd_map_new_hw_fb_addr(udlctd_info,
-				&udlctd_vcrtcm_hal_descriptor->vcrtcm_fb,
+				&uvhd->vcrtcm_fb,
 				ioaddr);
 */
-		udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.ioaddr = ioaddr;
+		uvhd->vcrtcm_fb.ioaddr = ioaddr;
 		return 0;
 	}
 }
@@ -582,7 +533,7 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 	int cursor_len;
 	int r = 0;
 
@@ -590,17 +541,16 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	/*mutex_lock(&udlctd_info->xmit_mutex);*/
 
-	udlctd_vcrtcm_hal_descriptor =
-		udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
 
-	memcpy(&udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor,
-		vcrtcm_cursor, sizeof(struct vcrtcm_cursor));
+	memcpy(&uvhd->vcrtcm_cursor, vcrtcm_cursor,
+			sizeof(struct vcrtcm_cursor));
 
 	if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PULL) {
 		cursor_len = udlctd_info->bpp/8 * vcrtcm_cursor->height
@@ -622,9 +572,9 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 		/* calculate the push buffer size for cursor */
 		size_in_bytes =
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor.height *
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor.width *
-				(udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor.bpp >> 3);
+				uvhd->vcrtcm_cursor.height *
+				uvhd->vcrtcm_cursor.width *
+				(uvhd->vcrtcm_cursor.bpp >> 3);
 
 		udlctd_info->cursor_len = size_in_bytes;
 
@@ -632,16 +582,14 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 		if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-		BUG_ON(udlctd_vcrtcm_hal_descriptor->pbd_cursor[0].num_pages !=
-			udlctd_vcrtcm_hal_descriptor->pbd_cursor[1].num_pages);
+		BUG_ON(uvhd->pbd_cursor[0].num_pages !=
+				uvhd->pbd_cursor[1].num_pages);
 
 		if (!requested_num_pages) {
 			PR_DEBUG("cursor: zero size requested\n");
-			udlctd_free_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			udlctd_free_pb(udlctd_info, uvhd,
 					UDLCTD_ALLOC_PB_FLAG_CURSOR);
-		} else if (udlctd_vcrtcm_hal_descriptor->
-				pbd_cursor[0].num_pages ==
+		} else if (uvhd->pbd_cursor[0].num_pages ==
 						requested_num_pages) {
 			PR_DEBUG("cursor : reusing existing push buffer\n");
 		} else {
@@ -652,12 +600,10 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 					"num_pages=%d\n",
 					size_in_bytes, requested_num_pages);
 
-			udlctd_free_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			udlctd_free_pb(udlctd_info, uvhd,
 					UDLCTD_ALLOC_PB_FLAG_CURSOR);
 
-			r = udlctd_alloc_pb(udlctd_info,
-					udlctd_vcrtcm_hal_descriptor,
+			r = udlctd_alloc_pb(udlctd_info, uvhd,
 					requested_num_pages,
 					UDLCTD_ALLOC_PB_FLAG_CURSOR);
 		}
@@ -671,22 +617,21 @@ int udlctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("In udlctd_set_cursor, minor %d\n", udlctd_info->minor);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
 
-	udlctd_vcrtcm_hal_descriptor =
-		udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
 	}
 
-	memcpy(vcrtcm_cursor, &udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor,
+	memcpy(vcrtcm_cursor, &uvhd->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
 
 	mutex_unlock(&udlctd_info->xmit_mutex);
@@ -697,19 +642,19 @@ int udlctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int udlctd_set_dpms(int state, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlctd_set_dpms, minor %d, state %d\n",
 			udlctd_info->minor, state);
 
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
-	udlctd_vcrtcm_hal_descriptor->dpms_state = state;
+	uvhd->dpms_state = state;
 
 	if (state == VCRTCM_DPMS_STATE_ON) {
 		udlctd_dpms_wakeup(udlctd_info);
@@ -723,19 +668,19 @@ int udlctd_set_dpms(int state, void *hw_drv_info, int flow)
 int udlctd_get_dpms(int *state, void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlctd_get_dpms, minor %d\n",
 			udlctd_info->minor);
 
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
-	*state = udlctd_vcrtcm_hal_descriptor->dpms_state;
+	*state = uvhd->dpms_state;
 
 	return 0;
 }
@@ -746,7 +691,7 @@ void udlctd_fake_vblank(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct udlctd_info *udlctd_info =
 		container_of(delayed_work, struct udlctd_info, fake_vblank_work);
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
 	/*static long last_snapshot = 0;*/
 
 	unsigned long jiffies_snapshot = 0;
@@ -765,30 +710,28 @@ void udlctd_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	udlctd_vcrtcm_hal_descriptor = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
-	if (!udlctd_vcrtcm_hal_descriptor) {
+	if (!uvhd) {
 		PR_ERR("udlctd_fake_vblank: Cannot find HAL descriptor\n");
 		return;
 	}
 
 	jiffies_snapshot = jiffies;
 
-	if (udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies > 0) {
+	if (uvhd->fb_xmit_period_jiffies > 0) {
 		if (time_after_eq(jiffies_snapshot + udlctd_fake_vblank_slack_sane,
-				udlctd_vcrtcm_hal_descriptor->next_vblank_jiffies)) {
-			udlctd_vcrtcm_hal_descriptor->next_vblank_jiffies +=
-					udlctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies;
+				uvhd->next_vblank_jiffies)) {
+			uvhd->next_vblank_jiffies +=
+					uvhd->fb_xmit_period_jiffies;
 
 			if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH)
-				udlctd_do_xmit_fb_push(udlctd_vcrtcm_hal_descriptor);
+				udlctd_do_xmit_fb_push(uvhd);
 			else if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PULL)
-				udlctd_do_xmit_fb_pull(udlctd_vcrtcm_hal_descriptor);
+				udlctd_do_xmit_fb_pull(uvhd);
 		}
 
-		next_vblank_jiffies =
-			udlctd_vcrtcm_hal_descriptor->
-					next_vblank_jiffies;
+		next_vblank_jiffies = uvhd->next_vblank_jiffies;
 		next_vblank_jiffies_valid = 1;
 
 	}
@@ -851,10 +794,9 @@ int udlctd_wait_idle_core(struct udlctd_info *udlctd_info)
 	return r;
 }
 
-int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor
-		*udlctd_vcrtcm_hal_descriptor)
+int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 {
-	struct udlctd_info *udlctd_info = udlctd_vcrtcm_hal_descriptor->udlctd_info;
+	struct udlctd_info *udlctd_info = uvhd->udlctd_info;
 	u32 fb_ioaddr, fb_offset;
 	u32 *hw_fb_ptr, *hw_fb_ptr_work;
 	u32 *sw_fb_ptr;
@@ -870,54 +812,52 @@ int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor
 	jiffies_snapshot = jiffies;
 	udlctd_wait_idle_core(udlctd_info);
 
-	if ((udlctd_vcrtcm_hal_descriptor->fb_force_xmit) ||
+	if ((uvhd->fb_force_xmit) ||
 			time_after(jiffies_snapshot,
-				udlctd_vcrtcm_hal_descriptor->last_xmit_jiffies +
+				uvhd->last_xmit_jiffies +
 				UDLCTD_XMIT_HARD_HEADLINE)) {
 
 		udlctd_info->xfer_in_progress = 1;
 
-		udlctd_vcrtcm_hal_descriptor->fb_force_xmit = 0;
-		udlctd_vcrtcm_hal_descriptor->last_xmit_jiffies = jiffies;
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_counter++;
+		uvhd->fb_force_xmit = 0;
+		uvhd->last_xmit_jiffies = jiffies;
+		uvhd->fb_xmit_counter++;
 
 		PR_DEBUG("udlctd_do_xmit_fb_pull: framebuffer "
 			"pitch %d width %d height %d bpp %d\n",
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.width,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.height,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.bpp);
+			uvhd->vcrtcm_fb.pitch,
+			uvhd->vcrtcm_fb.width,
+			uvhd->vcrtcm_fb.height,
+			uvhd->vcrtcm_fb.bpp);
 
 		PR_DEBUG("udlctd_do_xmit_fb_pull: "
 			"crtc x %d y %d hdisplay %d vdisplay %d\n",
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_x,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_y,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay,
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay);
+			uvhd->vcrtcm_fb.viewport_x,
+			uvhd->vcrtcm_fb.viewport_y,
+			uvhd->vcrtcm_fb.hdisplay,
+			uvhd->vcrtcm_fb.vdisplay);
 
 		/* Adjust the address for CRTC viewport offset */
 		fb_offset =
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch *
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_y +
-			(udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.bpp >> 3) *
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_x;
+			uvhd->vcrtcm_fb.pitch *
+			uvhd->vcrtcm_fb.viewport_y +
+			(uvhd->vcrtcm_fb.bpp >> 3) *
+			uvhd->vcrtcm_fb.viewport_x;
 
-		fb_ioaddr = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.ioaddr;
+		fb_ioaddr = uvhd->vcrtcm_fb.ioaddr;
 		fb_ioaddr += fb_offset;
 
 		PR_DEBUG("udlctd_do_xmit_fb_pull: fb start I/O address 0x%08x, "
 			"fb_xmit I/O address 0x%08x\n",
-			(unsigned int) udlctd_vcrtcm_hal_descriptor->
+			(unsigned int) uvhd->
 			vcrtcm_fb.ioaddr, (unsigned int) fb_ioaddr);
 
 
 		/* get pixels from video card */
-		copy_len =
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch *
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
+		copy_len = uvhd->vcrtcm_fb.pitch * uvhd->vcrtcm_fb.vdisplay;
 
-		hw_fb_ptr = ioremap(udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.ioaddr + fb_offset,
-				copy_len);
+		hw_fb_ptr = ioremap(uvhd->vcrtcm_fb.ioaddr + fb_offset,
+					copy_len);
 		hw_fb_ptr_work = hw_fb_ptr;
 
 		if (!hw_fb_ptr) {
@@ -929,9 +869,9 @@ int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor
 		sw_fb_ptr = (void *)udlctd_info->local_fb;
 
 		jiffies_tmp = jiffies;
-		hpixels = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay;
-		vpixels = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
-		pitch = udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch;
+		hpixels = uvhd->vcrtcm_fb.hdisplay;
+		vpixels = uvhd->vcrtcm_fb.vdisplay;
+		pitch = uvhd->vcrtcm_fb.pitch;
 
 		jiffies_tmp = jiffies;
 		for (i = 1; i <= vpixels; i++)
@@ -954,17 +894,16 @@ int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor
 		udlctd_transmit_framebuffer(udlctd_info);
 	}
 
-	vcrtcm_emulate_vblank(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal);
+	vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
 
-	if (udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr) {
+	if (uvhd->pending_pflip_ioaddr) {
 		PR_DEBUG("udlctd_do_xmit_fb_pull: deferred page flip handled, "
 			"old %08x, new %08x\n",
-			udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.ioaddr,
-			udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr);
+			uvhd->vcrtcm_fb.ioaddr,
+			uvhd->pending_pflip_ioaddr);
 
-		udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.ioaddr =
-				udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr;
-		udlctd_vcrtcm_hal_descriptor->pending_pflip_ioaddr = 0x0;
+		uvhd->vcrtcm_fb.ioaddr = uvhd->pending_pflip_ioaddr;
+		uvhd->pending_pflip_ioaddr = 0x0;
 	}
 
 	PR_DEBUG("Entire xmit took %d ms.", jiffies_to_msecs(jiffies-jiffies_snapshot));
@@ -974,9 +913,9 @@ int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor
 	return 0;
 }
 
-int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor)
+int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 {
-	struct udlctd_info *udlctd_info = udlctd_vcrtcm_hal_descriptor->udlctd_info;
+	struct udlctd_info *udlctd_info = uvhd->udlctd_info;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
@@ -984,9 +923,9 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_ha
 	PR_DEBUG("in udlctd_do_xmit_fb_push, minor %d\n", udlctd_info->minor);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
-	push_buffer_index = udlctd_vcrtcm_hal_descriptor->push_buffer_index;
+	push_buffer_index = uvhd->push_buffer_index;
 
-	if (udlctd_vcrtcm_hal_descriptor->pbd_fb[push_buffer_index].num_pages) {
+	if (uvhd->pbd_fb[push_buffer_index].num_pages) {
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
@@ -997,41 +936,43 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_ha
 	jiffies_snapshot = jiffies;
 
 	/* TODO: Fix this */
-	if (1 || (((udlctd_vcrtcm_hal_descriptor->fb_force_xmit) ||
-			time_after(jiffies_snapshot, udlctd_vcrtcm_hal_descriptor->last_xmit_jiffies +
-					UDLCTD_XMIT_HARD_HEADLINE)) && have_push_buffer)) {
+	if (1 ||
+		(((uvhd->fb_force_xmit) ||
+			time_after(jiffies_snapshot, uvhd->last_xmit_jiffies +
+				UDLCTD_XMIT_HARD_HEADLINE))
+				&& have_push_buffer)) {
 		/* someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
 		 * should transmit for real.
 		 */
 
 		PR_DEBUG("transmission happening...\n");
-		udlctd_vcrtcm_hal_descriptor->fb_force_xmit = 0;
-		udlctd_vcrtcm_hal_descriptor->last_xmit_jiffies = jiffies;
-		udlctd_vcrtcm_hal_descriptor->fb_xmit_counter++;
+		uvhd->fb_force_xmit = 0;
+		uvhd->last_xmit_jiffies = jiffies;
+		uvhd->fb_xmit_counter++;
 
 		PR_DEBUG("udlctd_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.width,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.height,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.bpp);
+				uvhd->vcrtcm_fb.pitch,
+				uvhd->vcrtcm_fb.width,
+				uvhd->vcrtcm_fb.height,
+				uvhd->vcrtcm_fb.bpp);
 
 		PR_DEBUG("udlctd_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_x,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_y,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay,
-				udlctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay);
+				uvhd->vcrtcm_fb.viewport_x,
+				uvhd->vcrtcm_fb.viewport_y,
+				uvhd->vcrtcm_fb.hdisplay,
+				uvhd->vcrtcm_fb.vdisplay);
 
-		r = vcrtcm_push(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
-				&udlctd_vcrtcm_hal_descriptor->pbd_fb[push_buffer_index],
-				&udlctd_vcrtcm_hal_descriptor->pbd_cursor[push_buffer_index]);
+		r = vcrtcm_push(uvhd->vcrtcm_dev_hal,
+				&uvhd->pbd_fb[push_buffer_index],
+				&uvhd->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_emulate_vblank(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal);
+			vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for USB transmission in the next
@@ -1046,29 +987,29 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_ha
 			 * look at it until push is complete.
 			 */
 
-			udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[push_buffer_index] = 1;
+			uvhd->pb_needs_xmit[push_buffer_index] = 1;
 			push_buffer_index = (push_buffer_index + 1) & 0x1;
-			udlctd_vcrtcm_hal_descriptor->push_buffer_index = push_buffer_index;
+			uvhd->push_buffer_index = push_buffer_index;
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		vcrtcm_emulate_vblank(udlctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal);
+		vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
 		PR_DEBUG("transmission not happening\n");
 	}
 
-	if (udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[push_buffer_index]) {
+	if (uvhd->pb_needs_xmit[push_buffer_index]) {
 		unsigned long jiffies_snapshot;
 		PR_DEBUG("udlctd_do_xmit_fb_push[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
-		udlctd_info->main_buffer = udlctd_vcrtcm_hal_descriptor->pb_fb[push_buffer_index];
-		udlctd_info->cursor = udlctd_vcrtcm_hal_descriptor->pb_cursor[push_buffer_index];
+		udlctd_info->main_buffer = uvhd->pb_fb[push_buffer_index];
+		udlctd_info->cursor = uvhd->pb_cursor[push_buffer_index];
 
 		jiffies_snapshot = jiffies;
 		udlctd_transmit_framebuffer(udlctd_info);
 		PR_DEBUG("transmit over USB took %u ms\n", jiffies_to_msecs(jiffies - jiffies_snapshot));
 
-		udlctd_vcrtcm_hal_descriptor->pb_needs_xmit[push_buffer_index] = 0;
+		uvhd->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
 	mutex_unlock(&udlctd_info->xmit_mutex);
