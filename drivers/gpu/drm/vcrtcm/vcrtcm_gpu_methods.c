@@ -163,6 +163,7 @@ int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_hal->funcs.set_fb) {
 		VCRTCM_DEBUG("calling set_fb backend, HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -178,6 +179,7 @@ int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_fb);
@@ -193,6 +195,7 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
 
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
 	if (vcrtcm_dev_hal->funcs.get_fb) {
 		VCRTCM_DEBUG("calling get_fb backend, HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -208,6 +211,7 @@ int vcrtcm_get_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_fb);
