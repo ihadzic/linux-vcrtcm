@@ -18,8 +18,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "v4l2ctd.h"
 #include "v4l2ctd_vcrtcm.h"
 #include "v4l2ctd_utils.h"
@@ -30,14 +28,14 @@ int v4l2ctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 {
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 
-	pr_info("Attaching v4l2ctd %d to HAL %p\n",
+	V4L2CTD_DEBUG(1, "Attaching v4l2ctd %d to HAL %p\n",
 		v4l2ctd_info->minor, vcrtcm_dev_hal);
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
 
 	if (v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor) {
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_err("attach: minor already served\n");
+		V4L2CTD_ERROR("minor already served\n");
 		return -EBUSY;
 	} else {
 		struct v4l2ctd_vcrtcm_hal_descriptor
@@ -47,7 +45,7 @@ int v4l2ctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 					GFP_KERNEL);
 		if (v4l2ctd_vcrtcm_hal_descriptor == NULL) {
 			mutex_unlock(&v4l2ctd_info->xmit_mutex);
-			pr_err("attach: no memory\n");
+			V4L2CTD_ERROR("no memory\n");
 			return -ENOMEM;
 		}
 
@@ -79,7 +77,7 @@ int v4l2ctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
 
-		pr_info("v4l2ctd %d now serves HAL %p\n", v4l2ctd_info->minor,
+		V4L2CTD_DEBUG(1, "v4l2ctd %d now serves HAL %p\n", v4l2ctd_info->minor,
 			vcrtcm_dev_hal);
 
 		return 0;
@@ -92,7 +90,7 @@ void v4l2ctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("Detaching v4l2ctd %d from HAL %p\n",
+	V4L2CTD_DEBUG(1, "Detaching v4l2ctd %d from HAL %p\n",
 		v4l2ctd_info->minor, vcrtcm_dev_hal);
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
@@ -104,7 +102,7 @@ void v4l2ctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 
 	/* TODO: Do we need this if? */
 	if (v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal == vcrtcm_dev_hal) {
-		pr_info("Found descriptor that should be removed.\n");
+		V4L2CTD_DEBUG(1, "Found descriptor that should be removed.\n");
 
 		if (v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[0].num_pages) {
 			BUG_ON(!v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[0].gpu_private);
@@ -170,14 +168,14 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	uint32_t w, h;
 	int r = 0;
 
-	pr_info("In v4l2ctd_set_fb, minor %d.\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(2, "minor %d.\n", v4l2ctd_info->minor);
 
 	v4l2ctd_vcrtcm_hal_descriptor =
 		v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	/* TODO: Do we need this? */
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
@@ -196,7 +194,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 
 		for (i = 0; i < 2; i++) {
 			if (!requested_num_pages) {
-				pr_debug("framebuffer[%d]: zero size requested\n", i);
+				V4L2CTD_DEBUG(1, "framebuffer[%d]: zero size requested\n", i);
 				/* free old buffer if there is one */
 				if (v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages) {
 					BUG_ON(!v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].gpu_private);
@@ -209,7 +207,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i]);
 				}
 			} else if (v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages == requested_num_pages) {
-				pr_debug("framebuffer[%d]: reusing existing push buffer\n", i);
+				V4L2CTD_DEBUG(1, "framebuffer[%d]: reusing existing push buffer\n", i);
 			} else {
 				/* if we have got here, then we either don't have the push buffer */
 				/* or we have one of the wrong size (i.e. mode has changed) */
@@ -227,7 +225,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 					return -ENOMEM;
 				mutex_unlock(&v4l2ctd_info->mlock);
 
-				pr_info("framebuffer[%d]: allocating push buffer, size=%d, "
+				V4L2CTD_DEBUG(1, "framebuffer[%d]: allocating push buffer, size=%d, "
 						"num_pages=%d\n", i, size_in_bytes, requested_num_pages);
 
 				/* free old buffer */
@@ -251,14 +249,14 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				/* sanity check */
 
 				if (r) {
-					pr_err("framebuffer[%d]: push buffer alloc failed\n", i);
+					V4L2CTD_ERROR("framebuffer[%d]: push buffer alloc failed\n", i);
 					memset(&v4l2ctd_vcrtcm_hal_descriptor->pbd_fb, 0,
 							sizeof(struct vcrtcm_push_buffer_descriptor));
 					return -ENOMEM;
 				}
 
 				if (v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages < requested_num_pages) {
-					pr_err("framebuffer[%d]: not enough pages allocated\n", i);
+					V4L2CTD_ERROR("framebuffer[%d]: not enough pages allocated\n", i);
 					vcrtcm_push_buffer_free(v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i]);
 					return -ENOMEM;
@@ -271,7 +269,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 								0, PAGE_KERNEL);
 
 				if (!v4l2ctd_vcrtcm_hal_descriptor->pb_fb[i]) {
-					pr_err("framebuffer[%d]: could not do vmap\n", i);
+					V4L2CTD_ERROR("framebuffer[%d]: could not do vmap\n", i);
 					vcrtcm_push_buffer_free(v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i]);
 					/*mutex_unlock(&v4l2ctd_info->xmit_mutex);*/
@@ -279,17 +277,17 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				}
 
 				v4l2ctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
-				pr_debug("framebuffer[%d]: allocated %lu pages, last_lomem=%ld, "
+				V4L2CTD_DEBUG(2, "framebuffer[%d]: allocated %lu pages, last_lomem=%ld, "
 						"first_himem=%ld\n", i,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].last_lomem_page,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].first_himem_page);
 
 				for (j = 0; j < v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].num_pages; j++)
-					pr_debug("framebuffer[%d]: page [%d]=%p\n", i, j,
+					V4L2CTD_DEBUG(2, "framebuffer[%d]: page [%d]=%p\n", i, j,
 							v4l2ctd_vcrtcm_hal_descriptor->pbd_fb[i].pages[j]);
 
-				pr_debug("framebuffer[%d]: vmap=%p\n", i, v4l2ctd_vcrtcm_hal_descriptor->pb_fb[i]);
+				V4L2CTD_DEBUG(2, "framebuffer[%d]: vmap=%p\n", i, v4l2ctd_vcrtcm_hal_descriptor->pb_fb[i]);
 			}
 		}
 	}
@@ -303,11 +301,11 @@ int v4l2ctd_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("In v4l2ctd_get_fb, minor %d.\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(2, "minor %d.\n", v4l2ctd_info->minor);
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
@@ -322,7 +320,7 @@ int v4l2ctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("in v4l2ctd_xmit_fb minor %d\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(2, "minor %d\n", v4l2ctd_info->minor);
 
 	/* just mark the "force flag", v4l2ctd_do_xmit_fb_pull
 	 * does the rest (when called).	 *
@@ -371,20 +369,20 @@ int v4l2ctd_set_fps(int fps, void *hw_drv_info, int flow)
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 	unsigned long jiffies_snapshot;
 
-	pr_info("v4l2ctd_set_fps, fps %d.\n", fps);
+	V4L2CTD_DEBUG(1, "fps %d.\n", fps);
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
 	if (fps > V4L2CTD_FPS_HARD_LIMIT) {
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_err("Frame rate above the hard limit\n");
+		V4L2CTD_ERROR("Frame rate above the hard limit\n");
 		return -EINVAL;
 	}
 
@@ -395,8 +393,8 @@ int v4l2ctd_set_fps(int fps, void *hw_drv_info, int flow)
 		v4l2ctd_vcrtcm_hal_descriptor->next_fb_xmit_jiffies =
 			jiffies_snapshot;
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_info
-		("Transmission disabled by request (negative or zero fps)\n");
+		V4L2CTD_DEBUG
+			(1, "Transmission disabled by request\n");
 	} else {
 		v4l2ctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies =
 			HZ / fps;
@@ -409,7 +407,7 @@ int v4l2ctd_set_fps(int fps, void *hw_drv_info, int flow)
 			v4l2ctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies;
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
 
-		pr_info("Frame transmission period set to %d jiffies\n",
+		V4L2CTD_DEBUG(1, "Frame transmission period set to %d jiffies\n",
 			HZ / fps);
 	}
 
@@ -425,22 +423,21 @@ int v4l2ctd_get_fps(int *fps, void *hw_drv_info, int flow)
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("v4l2ctd_get_fps.\n");
+	V4L2CTD_DEBUG(2, "\n");
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
 	if (v4l2ctd_vcrtcm_hal_descriptor->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_info
-		("Zero or negative frame rate, transmission disabled\n");
+		V4L2CTD_DEBUG(1, "Zero or negative frame rate, transmission disabled\n");
 		return 0;
 	} else {
 		*fps = HZ /
@@ -459,11 +456,11 @@ int v4l2ctd_page_flip(u32 ioaddr, void *hw_drv_info, int flow)
 		v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
-	pr_info("In page flip\n");
+	V4L2CTD_DEBUG(2, "\n");
 
 	if (v4l2ctd_info->xfer_in_progress) {
 		/* there is a transfer in progress, we can't page flip now */
@@ -485,7 +482,7 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 	int r = 0;
 
-	pr_info("In v4l2ctd_set_cursor, minor %d\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(2, "minor %d\n", v4l2ctd_info->minor);
 
 	/*mutex_lock(&v4l2ctd_info->xmit_mutex);*/
 
@@ -494,13 +491,13 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
 		/*mutex_unlock(&v4l2ctd_info->xmit_mutex);*/
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
 	if (!vcrtcm_cursor) {
 		/*mutex_unlock(&v4l2ctd_info->xmit_mutex);*/
-		pr_err("NULL cursor\n");
+		V4L2CTD_ERROR("NULL cursor\n");
 		return -EINVAL;
 	}
 	/*pr_info("Setting cursor: height %d width %d cursor_len %d flag %d\n",*/
@@ -524,7 +521,7 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 		for (i = 0; i < 2; i++) {
 			if (!requested_num_pages) {
-				pr_debug("cursor[%d]: zero size requested, nothing allocated\n", i);
+				V4L2CTD_DEBUG(1, "cursor[%d]: zero size requested, nothing allocated\n", i);
 				/* free old buffer if there is one */
 				if (v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages) {
 					BUG_ON(!v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].gpu_private);
@@ -538,12 +535,12 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 				}
 			} else if (v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages == requested_num_pages) {
-				pr_debug("cursor[%d]: reusing existing push buffer\n", i);
+				V4L2CTD_DEBUG(1, "cursor[%d]: reusing existing push buffer\n", i);
 			} else {
 				/* if we got there, then we either dont have the push buffer
 				 * or we have one of the wrong size (i.e. mode has changed)
 				 */
-				pr_info("cursor[%d]: allocating push buffer size=%d, "
+				V4L2CTD_DEBUG(1, "cursor[%d]: allocating push buffer size=%d, "
 					"num_pages=%d\n", i, size_in_bytes, requested_num_pages);
 
 				/* free old buffer */
@@ -565,7 +562,7 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 				/* sanity check */
 				if (r) {
-					pr_err("cursor[%d]: push buffer alloc failed\n", i);
+					V4L2CTD_ERROR("cursor[%d]: push buffer alloc failed\n", i);
 					vcrtcm_push_buffer_free(v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
 					memset(&v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i], 0,
@@ -575,7 +572,7 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				}
 
 				if (v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages < requested_num_pages) {
-					pr_err("cursor[%d]: not enough pages allocated\n", i);
+					V4L2CTD_ERROR("cursor[%d]: not enough pages allocated\n", i);
 					vcrtcm_push_buffer_free(v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
 					/*mutex_unlock(&v4l2ctd_info->xmit_mutex);*/
@@ -589,7 +586,7 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 								0, PAGE_KERNEL);
 
 				if (!v4l2ctd_vcrtcm_hal_descriptor->pb_cursor[i]) {
-					pr_err("cursor[%d]: could not do vmap\n", i);
+					V4L2CTD_ERROR("cursor[%d]: could not do vmap\n", i);
 					vcrtcm_push_buffer_free(v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_dev_hal,
 							&v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i]);
 					/*mutex_unlock(&v4l2ctd_info->xmit_mutex);*/
@@ -597,17 +594,17 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				}
 
 				v4l2ctd_vcrtcm_hal_descriptor->pb_needs_xmit[i] = 0;
-				pr_debug("cursor[%d]: allocated %lu pages, last_lomem=%ld, "
+				V4L2CTD_DEBUG(2, "cursor[%d]: allocated %lu pages, last_lomem=%ld, "
 						"first_himem=%ld\n", i,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].last_lomem_page,
 						v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].first_himem_page);
 
 				for (j = 0; j < v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].num_pages; j++)
-					pr_debug("cursor[%d]: page[%d]=%p\n", i, j,
+					V4L2CTD_DEBUG(2, "cursor[%d]: page[%d]=%p\n", i, j,
 							v4l2ctd_vcrtcm_hal_descriptor->pbd_cursor[i].pages[j]);
 
-				pr_debug("cursor[%d]: vmap=%p\n", i, v4l2ctd_vcrtcm_hal_descriptor->pb_cursor[i]);
+				V4L2CTD_DEBUG(2, "cursor[%d]: vmap=%p\n", i, v4l2ctd_vcrtcm_hal_descriptor->pb_cursor[i]);
 			}
 		}
 	}
@@ -623,7 +620,7 @@ int v4l2ctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_debug("In v4l2ctd_get_cursor, minor %d\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(2, "minor %d\n", v4l2ctd_info->minor);
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
 
@@ -632,7 +629,7 @@ int v4l2ctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
 		mutex_unlock(&v4l2ctd_info->xmit_mutex);
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
@@ -649,13 +646,13 @@ int v4l2ctd_set_dpms(int state, void *hw_drv_info, int flow)
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("in v4l2ctd_set_dpms, minor %d, state %d\n",
+	V4L2CTD_DEBUG(2, "minor %d, state %d\n",
 			v4l2ctd_info->minor, state);
 
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
@@ -671,13 +668,13 @@ int v4l2ctd_get_dpms(int *state, void *hw_drv_info, int flow)
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
 
-	pr_info("in v4l2ctd_get_dpms, minor %d\n",
+	V4L2CTD_DEBUG(2, "minor %d\n",
 			v4l2ctd_info->minor);
 
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return -EINVAL;
 	}
 
@@ -700,19 +697,19 @@ void v4l2ctd_fake_vblank(struct work_struct *work)
 	int next_vblank_delay;
 	int v4l2ctd_fake_vblank_slack_sane = 0;
 
-	pr_debug("vblank fake, minor=%d\n", v4l2ctd_info->minor);
+	V4L2CTD_DEBUG(1, "minor=%d\n", v4l2ctd_info->minor);
 	v4l2ctd_fake_vblank_slack_sane =
 			(v4l2ctd_fake_vblank_slack_sane <= 0) ? 0 : v4l2ctd_fake_vblank_slack;
 
 	if (!v4l2ctd_info) {
-		pr_err("v4l2ctd_fake_vblank: Cannot find v4l2ctd_info\n");
+		V4L2CTD_ERROR("Cannot find v4l2ctd_info\n");
 		return;
 	}
 
 	v4l2ctd_vcrtcm_hal_descriptor = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
 
 	if (!v4l2ctd_vcrtcm_hal_descriptor) {
-		pr_err("v4l2ctd_fake_vblank: Cannot find HAL descriptor\n");
+		V4L2CTD_ERROR("Cannot find HAL descriptor\n");
 		return;
 	}
 
@@ -741,10 +738,9 @@ void v4l2ctd_fake_vblank(struct work_struct *work)
 			next_vblank_delay = 0;
 		if (!queue_delayed_work(v4l2ctd_info->workqueue,
 				&v4l2ctd_info->fake_vblank_work, next_vblank_delay))
-			pr_warn("dup fake vblank, minor %d\n",
-					v4l2ctd_info->minor);
+			V4L2CTD_DEBUG(1, "dup, minor %d\n", v4l2ctd_info->minor);
 	} else
-		pr_debug("Next fake blank not scheduled\n");
+		V4L2CTD_DEBUG(1, "Next fake blank not scheduled\n");
 
 	return;
 }
@@ -755,7 +751,7 @@ int v4l2ctd_wait_idle_core(struct v4l2ctd_info *v4l2ctd_info)
 	int j, r = 0;
 
 	if (v4l2ctd_info->xfer_in_progress) {
-		pr_info("v4l2ctd transmission in progress, "
+		V4L2CTD_DEBUG(1, "v4l2ctd transmission in progress, "
 				"work delayed, minor = %d\n",
 				v4l2ctd_info->minor);
 		jiffies_snapshot = jiffies;
@@ -771,7 +767,7 @@ int v4l2ctd_wait_idle_core(struct v4l2ctd_info *v4l2ctd_info)
 
 				if (j > V4L2CTD_XFER_MAX_TRY *
 						V4L2CTD_XFER_TIMEOUT) {
-					pr_info
+					V4L2CTD_ERROR
 					("Still busy after all this wait\n");
 					r = -EFAULT;
 					break;
@@ -780,13 +776,13 @@ int v4l2ctd_wait_idle_core(struct v4l2ctd_info *v4l2ctd_info)
 				/* There is no queue to wait on, this is
 				 * wrong.
 				 */
-				pr_info("error, no queue\n");
+				V4L2CTD_ERROR("error, no queue\n");
 				r = -EFAULT;
 				break;
 			}
 		}
 
-		pr_info("Time spend waiting for v4l2ctd %d ms\n", j * 1000 / HZ);
+		V4L2CTD_DEBUG(1, "Time spend waiting for v4l2ctd %d ms\n", j * 1000 / HZ);
 	}
 
 	return r;
@@ -802,7 +798,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 	int i, j;
 	int r = 0;
 
-	/* pr_debug("in v4l2ctd_do_xmit_fb_push, minor %d\n", v4l2ctd_info->minor); */
+	V4L2CTD_DEBUG(2, "minor %d\n", v4l2ctd_info->minor);
 
 	mutex_lock(&v4l2ctd_info->xmit_mutex);
 	push_buffer_index = v4l2ctd_vcrtcm_hal_descriptor->push_buffer_index;
@@ -811,7 +807,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
-		pr_warn("no push buffer[%d], transmission skipped\n",
+		V4L2CTD_WARNING("no push buffer[%d], transmission skipped\n",
 				push_buffer_index);
 	}
 
@@ -830,14 +826,14 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 		v4l2ctd_vcrtcm_hal_descriptor->last_xmit_jiffies = jiffies;
 		v4l2ctd_vcrtcm_hal_descriptor->fb_xmit_counter++;
 
-		pr_info("v4l2ctd_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
+		V4L2CTD_DEBUG(1, "%d: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.width,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.height,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.bpp);
 
-		pr_info("v4l2ctd_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
+		V4L2CTD_DEBUG(1, "%d: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_x,
 				v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_y,
@@ -877,7 +873,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 
 	if (v4l2ctd_vcrtcm_hal_descriptor->pb_needs_xmit[push_buffer_index]) {
 
-		pr_info("v4l2ctd_do_xmit_fb_push[%d]: initiating transfer\n",
+		V4L2CTD_DEBUG(1, "%d: initiating transfer\n",
 				push_buffer_index);
 		v4l2ctd_info->main_buffer = v4l2ctd_vcrtcm_hal_descriptor->pb_fb[push_buffer_index];
 		v4l2ctd_info->cursor = v4l2ctd_vcrtcm_hal_descriptor->pb_cursor[push_buffer_index];
@@ -912,7 +908,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 					}
 				}
 			}
-			pr_info("v4l: wrote mouse\n");
+			V4L2CTD_DEBUG(1, "wrote mouse\n");
 		}
 
 		/* shadowbuf */

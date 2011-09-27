@@ -47,4 +47,22 @@ inline void *v4l2ctd_vzalloc(struct v4l2ctd_info *v4l2ctd_info,
 inline void v4l2ctd_vfree(struct v4l2ctd_info *v4l2ctd_info,
 			void *ptr);
 
+extern int v4l2ctd_debug;
+
+#define V4L2CTD_INFO(fmt, args...) \
+	do { \
+		if (v4l2ctd_debug >= 0) \
+			printk(KERN_INFO "[" KBUILD_MODNAME "] " fmt, ## args); \
+	} while (0)
+
+#define V4L2CTD_ERROR(fmt, args...) printk(KERN_ERR "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args)
+#define V4L2CTD_WARNING(fmt, args...) printk(KERN_WARNING "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args)
+
+#define V4L2CTD_DEBUG(level, fmt, args...) \
+	do { \
+		if (unlikely(v4l2ctd_debug >= level)) \
+			printk(KERN_DEBUG "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args); \
+	} while (0)
+
+
 #endif
