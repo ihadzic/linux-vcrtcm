@@ -32,6 +32,8 @@
 /* main structure for keeping track of each CTD-CRTC relationship */
 struct vcrtcm_dev_info {
 	struct list_head list;
+	/* general lock for fields subject to concurrent access */
+	spinlock_t lock;
 	/* see VCRTCM_STATUS_HAL constants above for possible status bits */
 	int status;
 	/* identifies the driver/hardware that implements this HAL */
