@@ -193,6 +193,7 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	}
 	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
 	vcrtcm_dev_info->vblank_time_valid = 1;
+	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	if (vcrtcm_dev_info->gpu_callbacks.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -200,7 +201,6 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 			     vcrtcm_dev_info->hw_flow);
 		vcrtcm_dev_info->gpu_callbacks.vblank(vcrtcm_dev_info->drm_crtc);
 	}
-	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 }
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
 
