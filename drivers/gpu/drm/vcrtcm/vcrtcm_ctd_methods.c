@@ -63,6 +63,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 
 	/* populate the HAL structures (no need to hold the hal_mutex
 	   becuse noone else sees this structure yet) */
+	spin_lock_init(&vcrtcm_dev_info->lock);
 	mutex_init(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
 	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_funcs,
 	       sizeof(struct vcrtcm_funcs));
@@ -105,13 +106,17 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 		if ((vcrtcm_dev_info->hw_major == major) &&
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
+			unsigned long flags;
 			mutex_lock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
 			VCRTCM_INFO("found an existing HAL %d.%d.%d "
 				    "removing\n",
 				    vcrtcm_dev_info->hw_major,
 				    vcrtcm_dev_info->hw_minor,
 				    vcrtcm_dev_info->hw_flow);
+			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 			if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+						       flags);
 				VCRTCM_INFO("HAL in use by CRTC %p, "
 					    "forcing detach\n",
 					    vcrtcm_dev_info->drm_crtc);
@@ -125,6 +130,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 					vcrtcm_dev_info->
 						gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
 			}
+			spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 			list_del(&vcrtcm_dev_info->list);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
 				     hal_mutex);
@@ -177,11 +183,16 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
+	unsigned long flags;
 
-	/* REVISIT: we may need a spilock here */
+	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
+	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+		/* someone pulled the rug under our feet, bail out */
+		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+		return;
+	}
 	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
 	vcrtcm_dev_info->vblank_time_valid = 1;
-	/* REVISIT: release the spinlock here */
 	if (vcrtcm_dev_info->gpu_callbacks.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
@@ -189,6 +200,7 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 			     vcrtcm_dev_info->hw_flow);
 		vcrtcm_dev_info->gpu_callbacks.vblank(vcrtcm_dev_info->drm_crtc);
 	}
+	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 }
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
 

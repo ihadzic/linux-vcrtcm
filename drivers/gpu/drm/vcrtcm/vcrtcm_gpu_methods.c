@@ -46,8 +46,12 @@ int vcrtcm_attach(int major, int minor, int flow,
 		if ((vcrtcm_dev_info->hw_major == major) &&
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
+			unsigned long flags;
 			mutex_lock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
+			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 			if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+							flags);
 				VCRTCM_ERROR("HAL %d.%d.%d already attached "
 					     "to crtc_drm %p\n",
 					     major, minor, flow, drm_crtc);
@@ -56,6 +60,7 @@ int vcrtcm_attach(int major, int minor, int flow,
 				mutex_unlock(&vcrtcm_dev_list_mutex);
 				return -EBUSY;
 			}
+			spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 			/* if we got here, then we have found the HAL
 			   and it's free for us to attach to */
 
@@ -81,12 +86,16 @@ int vcrtcm_attach(int major, int minor, int flow,
 			vcrtcm_dev_info->hw_minor = minor;
 			vcrtcm_dev_info->hw_flow = flow;
 			vcrtcm_dev_info->drm_crtc = drm_crtc;
-			vcrtcm_dev_info->status |= VCRTCM_STATUS_HAL_IN_USE;
 			vcrtcm_dev_info->gpu_callbacks = *gpu_callbacks;
 
 			/* point the GPU driver to HAL we have just attached */
 			*vcrtcm_dev_hal = &vcrtcm_dev_info->vcrtcm_dev_hal;
 
+			/* very last thing to do: change the status */
+			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
+			vcrtcm_dev_info->status |= VCRTCM_STATUS_HAL_IN_USE;
+				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+							flags);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
 				     hal_mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
@@ -121,14 +130,18 @@ int vcrtcm_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
 			 vcrtcm_dev_hal);
+	unsigned long flags;
 
 	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 	if (!vcrtcm_dev_info->status) {
+		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 		VCRTCM_WARNING("HAL already detached\n");
 		mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
 		return -EINVAL;
 	}
 	vcrtcm_dev_info->status &= ~VCRTCM_STATUS_HAL_IN_USE;
+	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	if (vcrtcm_dev_info->vcrtcm_dev_hal.funcs.detach)
 		vcrtcm_dev_info->
 		    vcrtcm_dev_hal.funcs.detach(&vcrtcm_dev_info->
@@ -535,15 +548,19 @@ int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			   struct timeval *vblank_time)
 {
 	int r;
+	unsigned long flags;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_dev_hal,
 			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
 
-	if (vcrtcm_dev_info->vblank_time_valid) {
+	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
+	if ((vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) &&
+	    (vcrtcm_dev_info->vblank_time_valid)) {
 		*vblank_time = vcrtcm_dev_info->vblank_time;
 		r = 0;
 	} else
 		r = -EAGAIN;
+	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_vblank_time);
