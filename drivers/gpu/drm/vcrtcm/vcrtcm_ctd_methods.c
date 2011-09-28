@@ -115,6 +115,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 				    vcrtcm_dev_info->hw_flow);
 			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 			if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+				vcrtcm_dev_info->status &= ~VCRTCM_STATUS_HAL_IN_USE;
 				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 						       flags);
 				VCRTCM_INFO("HAL in use by CRTC %p, "
