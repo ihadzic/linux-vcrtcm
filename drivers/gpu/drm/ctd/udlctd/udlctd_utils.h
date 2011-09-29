@@ -41,6 +41,15 @@ extern int debug;
 					fmt, ## args); \
 	} while (0)
 
+int udlctd_alloc_multiple_pages(struct udlctd_info *udlctd_info,
+				gfp_t gfp_mask,
+				struct page **page_array,
+				unsigned int num_pages);
+
+void udlctd_free_multiple_pages(struct udlctd_info *udlctd_info,
+				struct page **page_array,
+				unsigned int num_pages);
+
 inline struct page *udlctd_alloc_page(struct udlctd_info *udlctd_info,
 				gfp_t gfp_mask);
 

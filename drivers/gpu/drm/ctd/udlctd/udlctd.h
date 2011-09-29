@@ -23,7 +23,6 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-/*#include <linux/string.h>*/
 #include "vcrtcm/vcrtcm_ctd.h"
 
 #define MAX_DL_DEVICES 10
@@ -32,13 +31,12 @@
 #define UDLCTD_XFER_MAX_TRY 20
 #define UDLCTD_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
 #define UDLCTD_XMIT_HARD_DEADLINE HZ
-#define UDLCTD_FB_PULL 0
-#define UDLCTD_FB_PUSH 1
-#define UDLCTD_FB_XFER_MODE UDLCTD_FB_PUSH
 
 #define UDLCTD_ALLOC_PB_FLAG_FB 0x0
 #define UDLCTD_ALLOC_PB_FLAG_CURSOR 0x1
 #define UDLCTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+
+#define UDLCTD_BLANK_COLOR 0x80c8
 
 /* Module options */
 extern int true32bpp;
@@ -80,6 +78,15 @@ struct udlctd_video_mode {
 	u32 vsync_len;
 };
 
+struct udlctd_scratch_memory_descriptor {
+	struct page **backing_buffer_pages;
+	struct page **hline_16_pages;
+	struct page **hline_8_pages;
+	unsigned int backing_buffer_num_pages;
+	unsigned int hline_16_num_pages;
+	unsigned int hline_8_num_pages;
+};
+
 struct udlctd_info {
 	/* vcrtcm stuff */
 	struct list_head list;
@@ -94,7 +101,6 @@ struct udlctd_info {
 	struct workqueue_struct *workqueue;
 
 	struct delayed_work fake_vblank_work;
-	struct work_struct copy_cursor_work;
 
 	/* displaylink specific stuff */
 	char *edid;
@@ -104,17 +110,12 @@ struct udlctd_info {
 	int base8;
 	char *main_buffer;
 	char *backing_buffer;
-	char *cursor;
-	int line_length;
-	int fb_len;
-	int cursor_len;
-	int bpp;
-
 	char *hline_16;
 	char *hline_8;
-	char *local_fb;
-	char *local_cursor;
+	char *cursor;
+	int bpp;
 
+	struct udlctd_scratch_memory_descriptor *scratch_memory;
 
 	/* supported fb modes */
 	struct udlctd_video_mode default_video_mode;
@@ -145,7 +146,6 @@ struct udlctd_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
-	u32 pending_pflip_ioaddr;
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long next_fb_xmit_jiffies;
 	unsigned long last_xmit_jiffies;
@@ -162,17 +162,13 @@ struct udlctd_vcrtcm_hal_descriptor {
 
 	int dpms_state;
 
-	void *hw_fb_ptr;
-	void *hw_fb_prev_ptr;
-	u32 ioaddr_prev;
-
 	struct udlctd_info *udlctd_info;
 };
 
 
 /* USB/HW functions that VCRTCM functions need access to */
 int udlctd_setup_screen(struct udlctd_info *udlctd_info,
-	struct udlctd_video_mode *mode, int bpp);
+	struct udlctd_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
 int udlctd_dpms_sleep(struct udlctd_info *udlctd_info);
 int udlctd_dpms_wakeup(struct udlctd_info *udlctd_info);
 int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info);

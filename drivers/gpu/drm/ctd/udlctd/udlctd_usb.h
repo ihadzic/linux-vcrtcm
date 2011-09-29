@@ -40,6 +40,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 				const char *front, char **urb_buf_ptr,
 				u32 byte_offset, u32 byte_width,
 				int *ident_ptr, int *sent_ptr);
+static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info);
 
 /* USB management functions */
 static int udlctd_usb_probe(struct usb_interface *interface,
@@ -58,11 +59,14 @@ static int udlctd_get_edid(struct udlctd_info *udlctd_info,
 static int udlctd_is_valid_mode(struct udlctd_info *udlctd_info,
 				int xres, int yres);
 static int udlctd_setup_modes(struct udlctd_info *udlctd_info);
-static int udlctd_alloc_framebuffer(struct udlctd_info *udlctd_info,
-					struct udlctd_video_mode *mode,
-					int bpp);
+
+static int udlctd_alloc_scratch_memory(struct udlctd_info *udlctd_info,
+					int line_bytes, int num_lines);
+static void udlctd_free_scratch_memory(struct udlctd_info *udlctd_info);
+static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info);
+static void udlctd_unmap_scratch_memory(struct udlctd_info *udlctd_info);
 static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
-				struct udlctd_video_mode *mode, int bpp);
+				struct udlctd_video_mode *mode);
 
 
 /* DisplayLink low level stuff */

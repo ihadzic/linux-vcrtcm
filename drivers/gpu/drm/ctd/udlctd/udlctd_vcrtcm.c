@@ -177,7 +177,6 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		uvhd->fb_xmit_period_jiffies = 0;
 		uvhd->next_fb_xmit_jiffies = 0;
 		uvhd->next_vblank_jiffies = 0;
-		uvhd->pending_pflip_ioaddr = 0x0;
 		uvhd->push_buffer_index = 0;
 		uvhd->pb_needs_xmit[0] = 0;
 		uvhd->pb_needs_xmit[1] = 0;
@@ -189,10 +188,6 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		uvhd->pb_fb[1] = 0;
 		uvhd->pb_cursor[0] = 0;
 		uvhd->pb_cursor[1] = 0;
-
-		uvhd->hw_fb_ptr = 0;
-		uvhd->hw_fb_prev_ptr = 0;
-		uvhd->ioaddr_prev = 0;
 
 		uvhd->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
@@ -232,13 +227,11 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 
 		udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
 		udlctd_kfree(udlctd_info, uvhd);
-		if (udlctd_info->local_cursor)
-			udlctd_vfree(udlctd_info, udlctd_info->local_cursor);
 
 		udlctd_info->main_buffer = NULL;
 		udlctd_info->cursor = NULL;
-		udlctd_info->local_fb = NULL;
-		udlctd_info->local_cursor = NULL;
+		udlctd_info->hline_16 = NULL;
+		udlctd_info->hline_8 = NULL;
 	}
 
 	mutex_unlock(&udlctd_info->xmit_mutex);
@@ -252,6 +245,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	struct udlctd_video_mode *udlctd_video_mode;
 	int found_mode = 0;
 	int r = 0;
+	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In udlctd_set_fb, minor %d.\n", udlctd_info->minor);
 	/*mutex_lock(&udlctd_info->xmit_mutex);*/
@@ -275,11 +269,9 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		PR_DEBUG("against %dx%d\n", vcrtcm_fb->hdisplay, vcrtcm_fb->vdisplay);
 		if (udlctd_video_mode->xres == vcrtcm_fb->hdisplay &&
 				udlctd_video_mode->yres == vcrtcm_fb->vdisplay) {
-			udlctd_info->current_video_mode = udlctd_video_mode;
 			udlctd_info->bpp = vcrtcm_fb->bpp;
 			udlctd_setup_screen(udlctd_info,
-					udlctd_info->current_video_mode,
-					udlctd_info->bpp);
+					udlctd_video_mode, vcrtcm_fb);
 			found_mode = 1;
 			break;
 		}
@@ -290,42 +282,37 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
+	size_in_bytes = uvhd->vcrtcm_fb.pitch *
+			uvhd->vcrtcm_fb.vdisplay;
 
-	if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH) {
-		int size_in_bytes, requested_num_pages;
+	requested_num_pages = size_in_bytes / PAGE_SIZE;
+	if (size_in_bytes % PAGE_SIZE)
+		requested_num_pages++;
 
-		size_in_bytes = uvhd->vcrtcm_fb.pitch *
-				uvhd->vcrtcm_fb.vdisplay;
+	BUG_ON(uvhd->pbd_fb[0].num_pages != uvhd->pbd_fb[1].num_pages);
 
-		requested_num_pages = size_in_bytes / PAGE_SIZE;
-		if (size_in_bytes % PAGE_SIZE)
-			requested_num_pages++;
+	if (!requested_num_pages) {
+		PR_DEBUG("framebuffer: zero size requested\n");
+		udlctd_free_pb(udlctd_info, uvhd,
+				UDLCTD_ALLOC_PB_FLAG_FB);
+	} else if (uvhd->pbd_fb[0].num_pages == requested_num_pages) {
+		/* we can safely check index 0 num_pages against */
+		/* index 1 num_pages because we checked that they */
+		/* are equal above. */
+		PR_DEBUG("framebuffer: "
+			"reusing existing push buffer\n");
+	} else {
+		/* if we are here, we either have no push buffer */
+		/* or we have the wrong size (i.e. mode changed) */
+		PR_INFO("framebuffer: allocating push buffer, "
+				"size=%d, num_pages=%d\n",
+				size_in_bytes, requested_num_pages);
+		udlctd_free_pb(udlctd_info, uvhd,
+				UDLCTD_ALLOC_PB_FLAG_FB);
 
-		BUG_ON(uvhd->pbd_fb[0].num_pages != uvhd->pbd_fb[1].num_pages);
-
-		if (!requested_num_pages) {
-			PR_DEBUG("framebuffer: zero size requested\n");
-			udlctd_free_pb(udlctd_info, uvhd,
-					UDLCTD_ALLOC_PB_FLAG_FB);
-		} else if (uvhd->pbd_fb[0].num_pages == requested_num_pages) {
-			/* we can safely check index 0 num_pages against */
-			/* index 1 num_pages because we checked that they */
-			/* are equal above. */
-			PR_DEBUG("framebuffer: "
-				"reusing existing push buffer\n");
-		} else {
-			/* if we are here, we either have no push buffer */
-			/* or we have the wrong size (i.e. mode changed) */
-			PR_INFO("framebuffer: allocating push buffer, "
-					"size=%d, num_pages=%d\n",
-					size_in_bytes, requested_num_pages);
-			udlctd_free_pb(udlctd_info, uvhd,
-					UDLCTD_ALLOC_PB_FLAG_FB);
-
-			r = udlctd_alloc_pb(udlctd_info, uvhd,
-					requested_num_pages,
-					UDLCTD_ALLOC_PB_FLAG_FB);
-		}
+		r = udlctd_alloc_pb(udlctd_info, uvhd,
+				requested_num_pages,
+				UDLCTD_ALLOC_PB_FLAG_FB);
 	}
 
 	/*mutex_unlock(&udlctd_info->xmit_mutex);*/
@@ -474,68 +461,13 @@ int udlctd_get_fps(int *fps, void *hw_drv_info, int flow)
 	}
 }
 
-int udlctd_page_flip(u32 ioaddr, void *hw_drv_info, int flow)
-{
-	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
-	struct udlctd_vcrtcm_hal_descriptor *uvhd;
-
-	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
-
-	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
-		return -EINVAL;
-	}
-
-	PR_DEBUG("In page flip\n");
-
-	if (udlctd_info->xfer_in_progress) {
-		/* there is a transfer in progress, we can't page flip now */
-		/* return deferred-completion status */
-		uvhd->pending_pflip_ioaddr = ioaddr;
-		return VCRTCM_PFLIP_DEFERRED;
-	} else {
-		/* we can safely page flip */
-		/*udlctd_map_new_hw_fb_addr(udlctd_info,
-				&uvhd->vcrtcm_fb,
-				ioaddr);
-*/
-		uvhd->vcrtcm_fb.ioaddr = ioaddr;
-		return 0;
-	}
-}
-
-void copy_cursor_work(struct work_struct *work)
-{
-	struct udlctd_info *udlctd_info =
-			container_of(work, struct udlctd_info, copy_cursor_work);
-	struct vcrtcm_cursor *vcrtcm_cursor = &udlctd_info->udlctd_vcrtcm_hal_descriptor->vcrtcm_cursor;
-
-	int cursor_len = udlctd_info->bpp/8 * vcrtcm_cursor->height * vcrtcm_cursor->width;
-
-	/*unsigned int start_jiffies = jiffies;*/
-	int i;
-
-	uint32_t *hw_addr = ioremap(vcrtcm_cursor->ioaddr, cursor_len);
-	uint32_t *sw_addr = (uint32_t *) udlctd_info->local_cursor;
-	uint32_t *hw_addr_start = hw_addr;
-
-	for (i = 0; i < cursor_len/4; i++) {
-		*sw_addr = ioread32(hw_addr);
-		sw_addr++;
-		hw_addr++;
-		schedule();
-	}
-	iounmap(hw_addr_start);
-	/*PR_DEBUG("Copied cursor in %u ms\n", jiffies_to_msecs(jiffies-start_jiffies));*/
-}
-
 int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	struct udlctd_vcrtcm_hal_descriptor *uvhd;
-	int cursor_len;
 	int r = 0;
+	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In udlctd_set_cursor, minor %d\n", udlctd_info->minor);
 
@@ -552,61 +484,40 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	memcpy(&uvhd->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 
-	if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PULL) {
-		cursor_len = udlctd_info->bpp/8 * vcrtcm_cursor->height
-					* vcrtcm_cursor->width;
+	/* calculate the push buffer size for cursor */
+	size_in_bytes =
+			uvhd->vcrtcm_cursor.height *
+			uvhd->vcrtcm_cursor.width *
+			(uvhd->vcrtcm_cursor.bpp >> 3);
 
-		if (cursor_len > udlctd_info->cursor_len) {
-			if (udlctd_info->local_cursor)
-				udlctd_vfree(udlctd_info, udlctd_info->local_cursor);
-			udlctd_info->local_cursor = udlctd_vmalloc(udlctd_info, cursor_len);
-			udlctd_info->cursor_len = cursor_len;
-			PR_DEBUG("allocated cursor\n");
-		}
-
-		cancel_work_sync(&udlctd_info->copy_cursor_work);
-		queue_work(udlctd_info->workqueue, &udlctd_info->copy_cursor_work);
-
-	} else if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH) {
-		int size_in_bytes, requested_num_pages;
-
-		/* calculate the push buffer size for cursor */
-		size_in_bytes =
-				uvhd->vcrtcm_cursor.height *
-				uvhd->vcrtcm_cursor.width *
-				(uvhd->vcrtcm_cursor.bpp >> 3);
-
-		udlctd_info->cursor_len = size_in_bytes;
-
-		requested_num_pages = size_in_bytes / PAGE_SIZE;
-		if (size_in_bytes % PAGE_SIZE)
+	requested_num_pages = size_in_bytes / PAGE_SIZE;
+	if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-		BUG_ON(uvhd->pbd_cursor[0].num_pages !=
-				uvhd->pbd_cursor[1].num_pages);
+	BUG_ON(uvhd->pbd_cursor[0].num_pages !=
+			uvhd->pbd_cursor[1].num_pages);
 
-		if (!requested_num_pages) {
-			PR_DEBUG("cursor: zero size requested\n");
-			udlctd_free_pb(udlctd_info, uvhd,
-					UDLCTD_ALLOC_PB_FLAG_CURSOR);
-		} else if (uvhd->pbd_cursor[0].num_pages ==
-						requested_num_pages) {
-			PR_DEBUG("cursor : reusing existing push buffer\n");
-		} else {
-			/* if we got here, then we either dont have the */
-			/* push buffer or we ahve one of the wrong size */
-			/* (i.e. cursor size changed) */
-			PR_INFO("cursor: allocating push buffer size=%d, "
-					"num_pages=%d\n",
-					size_in_bytes, requested_num_pages);
+	if (!requested_num_pages) {
+		PR_DEBUG("cursor: zero size requested\n");
+		udlctd_free_pb(udlctd_info, uvhd,
+				UDLCTD_ALLOC_PB_FLAG_CURSOR);
+	} else if (uvhd->pbd_cursor[0].num_pages ==
+					requested_num_pages) {
+		PR_DEBUG("cursor : reusing existing push buffer\n");
+	} else {
+		/* if we got here, then we either dont have the */
+		/* push buffer or we ahve one of the wrong size */
+		/* (i.e. cursor size changed) */
+		PR_INFO("cursor: allocating push buffer size=%d, "
+				"num_pages=%d\n",
+				size_in_bytes, requested_num_pages);
 
-			udlctd_free_pb(udlctd_info, uvhd,
-					UDLCTD_ALLOC_PB_FLAG_CURSOR);
+		udlctd_free_pb(udlctd_info, uvhd,
+				UDLCTD_ALLOC_PB_FLAG_CURSOR);
 
-			r = udlctd_alloc_pb(udlctd_info, uvhd,
-					requested_num_pages,
-					UDLCTD_ALLOC_PB_FLAG_CURSOR);
-		}
+		r = udlctd_alloc_pb(udlctd_info, uvhd,
+				requested_num_pages,
+				UDLCTD_ALLOC_PB_FLAG_CURSOR);
 	}
 
 	/*mutex_unlock(&udlctd_info->xmit_mutex);*/
@@ -704,7 +615,6 @@ void udlctd_fake_vblank(struct work_struct *work)
 	udlctd_fake_vblank_slack_sane =
 			(udlctd_fake_vblank_slack_sane <= 0) ? 0 : udlctd_fake_vblank_slack;
 
-
 	if (!udlctd_info) {
 		PR_ERR("udlctd_fake_vblank: Cannot find udlctd_info\n");
 		return;
@@ -725,10 +635,7 @@ void udlctd_fake_vblank(struct work_struct *work)
 			uvhd->next_vblank_jiffies +=
 					uvhd->fb_xmit_period_jiffies;
 
-			if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PUSH)
-				udlctd_do_xmit_fb_push(uvhd);
-			else if (UDLCTD_FB_XFER_MODE == UDLCTD_FB_PULL)
-				udlctd_do_xmit_fb_pull(uvhd);
+			udlctd_do_xmit_fb_push(uvhd);
 		}
 
 		next_vblank_jiffies = uvhd->next_vblank_jiffies;
@@ -792,125 +699,6 @@ int udlctd_wait_idle_core(struct udlctd_info *udlctd_info)
 	}
 
 	return r;
-}
-
-int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor *uvhd)
-{
-	struct udlctd_info *udlctd_info = uvhd->udlctd_info;
-	u32 fb_ioaddr, fb_offset;
-	u32 *hw_fb_ptr, *hw_fb_ptr_work;
-	u32 *sw_fb_ptr;
-	unsigned long jiffies_snapshot, jiffies_tmp;
-	unsigned int copy_len;
-	unsigned int hpixels, vpixels, pitch;
-	int i, j;
-
-	PR_DEBUG("In udlctd_do_xmit_fb_pull, minor %d\n", udlctd_info->minor);
-
-	mutex_lock(&udlctd_info->xmit_mutex);
-
-	jiffies_snapshot = jiffies;
-	udlctd_wait_idle_core(udlctd_info);
-
-	if ((uvhd->fb_force_xmit) ||
-			time_after(jiffies_snapshot,
-				uvhd->last_xmit_jiffies +
-				UDLCTD_XMIT_HARD_DEADLINE)) {
-
-		udlctd_info->xfer_in_progress = 1;
-
-		uvhd->fb_force_xmit = 0;
-		uvhd->last_xmit_jiffies = jiffies;
-		uvhd->fb_xmit_counter++;
-
-		PR_DEBUG("udlctd_do_xmit_fb_pull: framebuffer "
-			"pitch %d width %d height %d bpp %d\n",
-			uvhd->vcrtcm_fb.pitch,
-			uvhd->vcrtcm_fb.width,
-			uvhd->vcrtcm_fb.height,
-			uvhd->vcrtcm_fb.bpp);
-
-		PR_DEBUG("udlctd_do_xmit_fb_pull: "
-			"crtc x %d y %d hdisplay %d vdisplay %d\n",
-			uvhd->vcrtcm_fb.viewport_x,
-			uvhd->vcrtcm_fb.viewport_y,
-			uvhd->vcrtcm_fb.hdisplay,
-			uvhd->vcrtcm_fb.vdisplay);
-
-		/* Adjust the address for CRTC viewport offset */
-		fb_offset =
-			uvhd->vcrtcm_fb.pitch *
-			uvhd->vcrtcm_fb.viewport_y +
-			(uvhd->vcrtcm_fb.bpp >> 3) *
-			uvhd->vcrtcm_fb.viewport_x;
-
-		fb_ioaddr = uvhd->vcrtcm_fb.ioaddr;
-		fb_ioaddr += fb_offset;
-
-		PR_DEBUG("udlctd_do_xmit_fb_pull: fb start I/O address 0x%08x, "
-			"fb_xmit I/O address 0x%08x\n",
-			(unsigned int) uvhd->
-			vcrtcm_fb.ioaddr, (unsigned int) fb_ioaddr);
-
-
-		/* get pixels from video card */
-		copy_len = uvhd->vcrtcm_fb.pitch * uvhd->vcrtcm_fb.vdisplay;
-
-		hw_fb_ptr = ioremap(uvhd->vcrtcm_fb.ioaddr + fb_offset,
-					copy_len);
-		hw_fb_ptr_work = hw_fb_ptr;
-
-		if (!hw_fb_ptr) {
-			PR_ERR("could not map io memory");
-			mutex_unlock(&udlctd_info->xmit_mutex);
-			return -1;
-		}
-
-		sw_fb_ptr = (void *)udlctd_info->local_fb;
-
-		jiffies_tmp = jiffies;
-		hpixels = uvhd->vcrtcm_fb.hdisplay;
-		vpixels = uvhd->vcrtcm_fb.vdisplay;
-		pitch = uvhd->vcrtcm_fb.pitch;
-
-		jiffies_tmp = jiffies;
-		for (i = 1; i <= vpixels; i++)
-			for (j = 1; j <= hpixels; j++) {
-				*sw_fb_ptr = ioread32(hw_fb_ptr_work);
-				if (j == hpixels) {
-					hw_fb_ptr_work += 1 + (pitch/4) - hpixels;
-				} else
-					hw_fb_ptr_work++;
-				sw_fb_ptr++;
-		}
-
-		PR_DEBUG("FB copy took %d ms.", jiffies_to_msecs(jiffies-jiffies_tmp));
-		iounmap(hw_fb_ptr);
-
-		udlctd_info->main_buffer = udlctd_info->local_fb;
-		udlctd_info->cursor = udlctd_info->local_cursor;
-
-		/* Start the transmission to the DisplayLink device */
-		udlctd_transmit_framebuffer(udlctd_info);
-	}
-
-	vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
-
-	if (uvhd->pending_pflip_ioaddr) {
-		PR_DEBUG("udlctd_do_xmit_fb_pull: deferred page flip handled, "
-			"old %08x, new %08x\n",
-			uvhd->vcrtcm_fb.ioaddr,
-			uvhd->pending_pflip_ioaddr);
-
-		uvhd->vcrtcm_fb.ioaddr = uvhd->pending_pflip_ioaddr;
-		uvhd->pending_pflip_ioaddr = 0x0;
-	}
-
-	PR_DEBUG("Entire xmit took %d ms.", jiffies_to_msecs(jiffies-jiffies_snapshot));
-	udlctd_info->xfer_in_progress = 0;
-	mutex_unlock(&udlctd_info->xmit_mutex);
-
-	return 0;
 }
 
 int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)

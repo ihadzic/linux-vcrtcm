@@ -127,11 +127,10 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_info->workqueue = create_workqueue("udlctd_workers");
 
 	udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
+	udlctd_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlctd_info->fake_vblank_work, udlctd_fake_vblank);
 	udlctd_info->status = 0;
-
-	INIT_WORK(&udlctd_info->copy_cursor_work, copy_cursor_work);
 
 	INIT_LIST_HEAD(&udlctd_info->fb_mode_list);
 
@@ -144,7 +143,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 
 	atomic_set(&udlctd_info->usb_active, 1);
 	udlctd_select_std_channel(udlctd_info);
-	udlctd_setup_screen(udlctd_info, &udlctd_info->default_video_mode, UDLCTD_DEFAULT_PIXEL_DEPTH);
+	udlctd_set_video_mode(udlctd_info, &udlctd_info->default_video_mode);
 
 	PR_INFO("DisplayLink USB device attached.\n");
 	PR_INFO("successfully registered"
@@ -196,7 +195,6 @@ static void udlctd_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 
-	#ifndef DEBUG_NO_VCRTCM_KERNEL
 	/* unregister with VCRTCM */
 	PR_DEBUG("Calling vcrtcm_hw_del for "
 		"udlctd %p, major %d, minor %d\n",
@@ -204,7 +202,6 @@ static void udlctd_usb_disconnect(struct usb_interface *interface)
 
 	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
 	vcrtcm_hw_del(udlctd_major, udlctd_info->minor, 0);
-	#endif
 
 	/* release reference taken by kref_init in probe() */
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
@@ -227,27 +224,6 @@ void udlctd_free(struct kref *kref)
 	if (udlctd_info->urbs.count > 0)
 		udlctd_free_urb_list(udlctd_info);
 
-	PR_DEBUG("freeing backing buffer: %p\n", udlctd_info->backing_buffer);
-	if (udlctd_info->backing_buffer)
-		udlctd_vfree(udlctd_info,
-				udlctd_info->backing_buffer);
-
-	PR_DEBUG("freeing local_fb: %p, local_cursor %p, hline_16 %p, hline_8 %p\n",
-			udlctd_info->local_fb,
-			udlctd_info->local_cursor,
-			udlctd_info->hline_16,
-			udlctd_info->hline_8);
-
-	if (udlctd_info->local_fb)
-		udlctd_vfree(udlctd_info, udlctd_info->local_fb);
-	if (udlctd_info->local_cursor)
-		udlctd_vfree(udlctd_info, udlctd_info->local_cursor);
-	if (udlctd_info->hline_16)
-		udlctd_vfree(udlctd_info, udlctd_info->hline_16);
-	if (udlctd_info->hline_8)
-		udlctd_vfree(udlctd_info, udlctd_info->hline_8);
-
-
 	PR_DEBUG("freeing edid: %p\n", udlctd_info->edid);
 	udlctd_kfree(udlctd_info, udlctd_info->edid);
 
@@ -257,6 +233,9 @@ void udlctd_free(struct kref *kref)
 		list_del(&udlctd_video_mode->list);
 		udlctd_kfree(udlctd_info, udlctd_video_mode);
 	}
+
+	udlctd_unmap_scratch_memory(udlctd_info);
+	udlctd_free_scratch_memory(udlctd_info);
 
 	PR_WARN("freeing udlctd_info data %p\n", udlctd_info);
 	PR_DEBUG("page_track : %d\n", udlctd_info->page_track);
@@ -275,32 +254,34 @@ void udlctd_free(struct kref *kref)
 
  /* Sets the device mode and allocates framebuffers */
 int udlctd_setup_screen(struct udlctd_info *udlctd_info,
-	struct udlctd_video_mode *mode, int bpp)
+	struct udlctd_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb)
 {
 	int result;
-	u32 *pix_framebuffer;
-	int i;
-	result = udlctd_alloc_framebuffer(udlctd_info, mode, bpp);
-	udlctd_info->main_buffer = udlctd_info->local_fb;
 
-	if (result)
-		PR_ERR("Could not allocate framebuffer(s)\n");
+	udlctd_unmap_scratch_memory(udlctd_info);
+	udlctd_free_scratch_memory(udlctd_info);
 
-	udlctd_set_video_mode(udlctd_info, mode, bpp);
+	result = udlctd_alloc_scratch_memory(udlctd_info,
+			vcrtcm_fb->pitch, vcrtcm_fb->vdisplay);
+
+	if (result) {
+		PR_ERR("Could not alloc scratch memory.\n");
+		return 1;
+	}
+
+	result = udlctd_map_scratch_memory(udlctd_info);
+
+	if (result) {
+		PR_ERR("Could not map scratch memory.\n");
+		return 1;
+	}
+
+	udlctd_set_video_mode(udlctd_info, mode);
 
 	if (result)
 		PR_ERR("Could not set screen mode\n");
 
-	PR_DEBUG("Filling framebuffer with blue\n");
-
-	pix_framebuffer = (u32 *) udlctd_info->main_buffer;
-	for (i = 0; i < (udlctd_info->fb_len / 4); i++)
-		pix_framebuffer[i] = 0x80c8;
-
-	udlctd_info->current_video_mode = mode;
-
-	udlctd_transmit_framebuffer(udlctd_info);
-
+	PR_DEBUG("Done with setup_screen\n");
 	return 0;
 }
 
@@ -330,23 +311,13 @@ int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info)
 	int bytes_sent = 0;
 	int bytes_identical = 0;
 	struct urb *urb;
-	int x = 0;
-	int y = 0;
-	int width = udlctd_info->current_video_mode->xres;
-	int height = udlctd_info->current_video_mode->yres;
-	int aligned_x;
+	int xres = udlctd_info->current_video_mode->xres;
+	int yres = udlctd_info->current_video_mode->yres;
 	int bytes_per_pixel = udlctd_info->bpp / 8;
+	struct vcrtcm_fb *vcrtcm_fb =
+			&udlctd_info->udlctd_vcrtcm_hal_descriptor->vcrtcm_fb;
 
 	start_cycles = get_cycles();
-
-	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
-	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
-	x = aligned_x;
-
-	if ((width <= 0) ||
-		(x + width > udlctd_info->current_video_mode->xres) ||
-		(y + height > udlctd_info->current_video_mode->yres))
-		return -EINVAL;
 
 	if (!atomic_read(&udlctd_info->usb_active))
 		return 0;
@@ -357,13 +328,12 @@ int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info)
 
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i < y + height; i++) {
-		const int line_offset = udlctd_info->line_length * i;
-		const int byte_offset = line_offset + (x * bytes_per_pixel);
+	for (i = 0; i < yres; i++) {
+		const int byte_offset = vcrtcm_fb->pitch * i;
 
 		if (udlctd_render_hline(udlctd_info, &urb,
 				(char *) udlctd_info->main_buffer,
-				&cmd, byte_offset, width * bytes_per_pixel,
+				&cmd, byte_offset, xres * bytes_per_pixel,
 				&bytes_identical, &bytes_sent))
 			goto error;
 	}
@@ -378,7 +348,7 @@ int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info)
 error:
 	atomic_add(bytes_sent, &udlctd_info->bytes_sent);
 	atomic_add(bytes_identical, &udlctd_info->bytes_identical);
-	atomic_add(width*height*2, &udlctd_info->bytes_rendered);
+	atomic_add(xres*yres*2, &udlctd_info->bytes_rendered);
 	end_cycles = get_cycles();
 	atomic_add(((unsigned int) ((end_cycles - start_cycles) >> 10)),
 			&udlctd_info->cpu_kcycles_used);
@@ -632,7 +602,20 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	u32 dev_addr16 = 0, dev_addr8 = 0;
 	struct urb *urb = *urb_ptr;
 	u8 *cmd = *urb_buf_ptr;
-	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
+	u8 *cmd_end = (u8 *) urb->transfer_buffer +
+				urb->transfer_buffer_length;
+
+	struct udlctd_vcrtcm_hal_descriptor *uvhd =
+			udlctd_info->udlctd_vcrtcm_hal_descriptor;
+	struct vcrtcm_cursor *vcrtcm_cursor = &uvhd->vcrtcm_cursor;
+	struct vcrtcm_fb *vcrtcm_fb = &uvhd->vcrtcm_fb;
+
+	/* We need line_num for the dev_offset and to do the cursor overlay */
+	int line_num = byte_offset / vcrtcm_fb->pitch;
+
+	/* We need to recalculate the offset in the device framebuffer */
+	/* because our byte_offset uses pitch */
+	int dev_offset = line_num * udlctd_info->current_video_mode->xres * 4;
 
 	/* These are offsets in the source (virtual) frame buffer */
 	line_start = (u8 *) (front + byte_offset);
@@ -641,26 +624,19 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 
 	/* Calculate offsets in the device frame buffer */
 	if (udlctd_info->bpp == 32) {
-		dev_addr16 = udlctd_info->base16 + byte_offset / 2;
-		dev_addr8 = udlctd_info->base8 + byte_offset / 4;
+		dev_addr16 = udlctd_info->base16 + dev_offset / 2;
+		dev_addr8 = udlctd_info->base8 + dev_offset / 4;
 	} else if (udlctd_info->bpp == 16) {
-		dev_addr16 = udlctd_info->base16 + byte_offset;
+		dev_addr16 = udlctd_info->base16 + dev_offset;
 		dev_addr8 = 0;
 	}
-	/* TODO: Support 24 bit? */
 
 	/*
 	 * Overlay the cursor
 	 */
 
+
 	if (udlctd_info->udlctd_vcrtcm_hal_descriptor && udlctd_info->cursor) {
-		struct udlctd_vcrtcm_hal_descriptor *uvhd =
-					udlctd_info->udlctd_vcrtcm_hal_descriptor;
-		struct vcrtcm_cursor *vcrtcm_cursor =
-					&uvhd->vcrtcm_cursor;
-		int line_num = byte_offset / udlctd_info->current_video_mode->xres / 4;
-
-
 		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE && line_num >= vcrtcm_cursor->location_y &&
 			line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
 			int i;
@@ -671,7 +647,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 			cursor_pixel +=	(line_num-vcrtcm_cursor->location_y)*vcrtcm_cursor->width;
 
 			for (i = 0; i < vcrtcm_cursor->width; i++) {
-				if (hline_pixel >= (uint32_t *)line_end)
+				if (hline_pixel >= (uint32_t *) line_end)
 					continue;
 
 				alpha_overlay_argb32(hline_pixel, cursor_pixel);
@@ -684,6 +660,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	/* Find out what part of the line has changed.
 	 * We only transmit the changed part.
 	 */
+
 	if (udlctd_info->backing_buffer) {
 		int offset;
 		const u8 *back_start = (u8 *) (udlctd_info->backing_buffer
@@ -695,15 +672,14 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 		line_end = next_pixel + byte_width;
 
 		if (udlctd_info->bpp == 32) {
-			dev_addr16 += offset/2;
-			dev_addr8 += offset/4;
+			dev_addr16 += offset / 2;
+			dev_addr8 += offset / 4;
 		} else if (udlctd_info->bpp == 16) {
 			dev_addr16 += offset;
 		}
 
 		back_start += offset;
 		line_start += offset;
-
 		memcpy((char *)back_start, (char *) line_start, byte_width);
 	}
 
@@ -751,31 +727,12 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 
 	else if (true32bpp) {
 		while (next_pixel16 < line_end16 || next_pixel8 < line_end8) {
-			uint8_t *cmd_before = cmd;
-			int cmd_len = 0;
 			udlctd_compress_hline_16(
 					(const uint16_t **) &next_pixel16,
 					(const uint16_t *) line_end16,
 					&dev_addr16,
 					(u8 **) &cmd, (u8 *) cmd_end);
-			cmd_len = (uint8_t *)cmd - cmd_before;
-			/*PR_DEBUG("Len %d\n", cmd_len); */
-	/*
-			if (cmd + 1024 >= cmd_end)
-			{
-				int len = cmd - (u8 *) urb->transfer_buffer;
-				if (udlctd_submit_urb(udlctd_info, urb, len))
-					return 1;
 
-				*sent_ptr += len;
-				urb = udlctd_get_urb(udlctd_info);
-				if(!urb)
-					return 1;
-				*urb_ptr = urb;
-				cmd = urb->transfer_buffer;
-				cmd_end = &cmd[urb->transfer_buffer_length];
-			}
-	*/
 			udlctd_compress_hline_8(
 					(const uint8_t **) &next_pixel8,
 					(const uint8_t *) line_end8,
@@ -802,6 +759,102 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 
 	return 0;
 }
+
+static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info)
+{
+	u32 dev_addr16, dev_addr8;
+	uint16_t *line_start16, *line_end16;
+	uint8_t *line_start8, *line_end8;
+
+	uint16_t *hline_16;
+	uint8_t *hline_8;
+
+	u32 blank_color32 = UDLCTD_BLANK_COLOR;
+	u16 blank_color16;
+	u8 blank_color8;
+
+	int i;
+	int xres = udlctd_info->current_video_mode->xres;
+	int yres = udlctd_info->current_video_mode->yres;
+
+	struct urb *urb;
+	u8 *cmd, *cmd_end;
+
+	if (!atomic_read(&udlctd_info->usb_active))
+		return 0;
+
+	urb = udlctd_get_urb(udlctd_info);
+
+	if (!urb)
+		return 0;
+
+	cmd = (u8 *) urb->transfer_buffer;
+	cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
+
+	hline_16 = udlctd_kmalloc(udlctd_info,
+				sizeof(uint16_t) * xres, GFP_KERNEL);
+	hline_8 = udlctd_kmalloc(udlctd_info,
+				sizeof(uint8_t) * xres, GFP_KERNEL);
+
+	split_pixel_argb32(&blank_color32, &blank_color16, &blank_color8);
+
+	for (i = 0; i < xres; i++) {
+		hline_16[i] = blank_color16;
+		hline_8[i] = blank_color8;
+	}
+
+	line_end16 = hline_16 + xres;
+	line_end8 = hline_8 + xres;
+
+	for (i = 0; i < yres; i++) {
+		line_start16 = hline_16;
+		line_start8 = hline_8;
+		dev_addr16 = udlctd_info->base16 + xres * i * 2;
+		dev_addr8 = udlctd_info->base8 + xres * i;
+
+		while (line_start16 < line_end16 ||
+				(true32bpp && (line_start8 < line_end8))) {
+			udlctd_compress_hline_16(
+				(const uint16_t **) &line_start16,
+				(const uint16_t *) line_end16,
+				&dev_addr16,
+				(u8 **) &cmd, (u8 *) cmd_end);
+
+			if (true32bpp)
+				udlctd_compress_hline_8(
+					(const uint8_t **) &line_start8,
+					(const uint8_t *) line_end8,
+					&dev_addr8,
+					(u8 **) &cmd, (u8 *) cmd_end);
+
+			if (cmd >= cmd_end) {
+				int len = cmd - (u8 *) urb->transfer_buffer;
+				if (udlctd_submit_urb(udlctd_info, urb, len))
+					return 1;
+
+				urb = udlctd_get_urb(udlctd_info);
+				if (!urb)
+					return 1;
+
+				cmd = urb->transfer_buffer;
+				cmd_end = &cmd[urb->transfer_buffer_length];
+			}
+		}
+	}
+
+	if (cmd > (u8 *) urb->transfer_buffer) {
+		int len = cmd - (u8 *) urb->transfer_buffer;
+		udlctd_submit_urb(udlctd_info, urb, len);
+	} else {
+		udlctd_urb_completion(urb);
+	}
+
+	udlctd_kfree(udlctd_info, hline_16);
+	udlctd_kfree(udlctd_info, hline_8);
+
+	return 0;
+}
+
 
 /*
  * This is necessary before we can communicate with the display controller.
@@ -1107,78 +1160,262 @@ error:
 	return result;
 }
 
-/* TODO: Clean this up */
-static int udlctd_alloc_framebuffer(struct udlctd_info *udlctd_info,
-					struct udlctd_video_mode *mode,
-					int bpp)
+static int udlctd_alloc_scratch_memory(struct udlctd_info *udlctd_info,
+					int line_bytes, int num_lines)
 {
-	int retval = -ENOMEM;
-	/* int old_len = udlctd_info->fb_len; */
-	int new_len;
+	int result;
 
-	/* unsigned char *old_fb = udlctd_info->main_buffer; */
-	unsigned char *new_fb, *new_hline_16, *new_hline_8;
-	unsigned char *new_back;
+	struct udlctd_scratch_memory_descriptor *scratch_memory;
 
-	int bytes_per_pixel = bpp / 8;
+	struct page **bb_pages;
+	struct page **hline_16_pages;
+	struct page **hline_8_pages;
 
-	PR_WARN("(Re)allocating framebuffer at %dx%d@%dbpp\n", mode->xres, mode->yres, bpp);
-	new_len = mode->xres * bytes_per_pixel * mode->yres;
+	unsigned int bb_num_pages;
+	unsigned int hline_16_num_pages;
+	unsigned int hline_8_num_pages;
 
-	/*if (PAGE_ALIGN(new_len) > old_len) {*/
+	/* allocate the backing buffer */
+	bb_num_pages = line_bytes * num_lines / PAGE_SIZE;
 
-		/*
-		 * Alloc system memory for virtual framebuffer
-		 */
+	if (line_bytes * num_lines % PAGE_SIZE > 0)
+		bb_num_pages++;
 
-	new_fb = udlctd_vmalloc(udlctd_info, new_len);
-	new_hline_16 = udlctd_vmalloc(udlctd_info, mode->xres * 2);
-	new_hline_8 = udlctd_vmalloc(udlctd_info, mode->xres * 1);
+	bb_pages = udlctd_kmalloc(udlctd_info,
+				sizeof(struct page *) * bb_num_pages,
+				GFP_KERNEL);
 
-	if (!new_fb || !new_hline_16 || !new_hline_8) {
-		PR_ERR("Virtual framebuffer alloc failed.\n");
-		goto error;
+	if (!bb_pages)
+		goto bb_err;
+
+	result = udlctd_alloc_multiple_pages(udlctd_info,
+						GFP_KERNEL,
+						bb_pages, bb_num_pages);
+
+	if (result > 0)
+		goto bb_err;
+
+
+	/* allocate the hline_16 buffer */
+	hline_16_num_pages = (line_bytes / 2) / PAGE_SIZE;
+
+	if ((line_bytes / 2) % PAGE_SIZE > 0)
+		hline_16_num_pages++;
+
+	hline_16_pages = udlctd_kmalloc(udlctd_info,
+				sizeof(struct page *) * hline_16_num_pages,
+				GFP_KERNEL);
+
+	if (!hline_16_pages)
+		goto hline_16_err;
+
+	result = udlctd_alloc_multiple_pages(udlctd_info,
+						GFP_KERNEL,
+						hline_16_pages,
+						hline_16_num_pages);
+
+	if (result > 0)
+		goto hline_16_err;
+
+	/* allocate the hline_8 buffer */
+	hline_8_num_pages = (line_bytes / 4) / PAGE_SIZE;
+
+	if ((line_bytes / 4) % PAGE_SIZE > 0)
+		hline_8_num_pages++;
+
+	hline_8_pages = udlctd_kmalloc(udlctd_info,
+				sizeof(struct page *) * hline_8_num_pages,
+				GFP_KERNEL);
+
+	if (!hline_8_pages)
+		goto hline_8_err;
+
+	result = udlctd_alloc_multiple_pages(udlctd_info,
+						GFP_KERNEL,
+						hline_8_pages,
+						hline_8_num_pages);
+
+	if (result > 0)
+		goto hline_8_err;
+
+
+	goto success;
+
+
+	/* If any error conditions are triggered, we only need to clean */
+	/* up whatever was allocated successfully before. */
+	/* The allocation that failed will be cleaned up inside the */
+	/* allocator itself. */
+
+hline_8_err:
+	if (hline_8_pages)
+		udlctd_kfree(udlctd_info, hline_8_pages);
+
+	udlctd_free_multiple_pages(udlctd_info,
+					hline_16_pages,
+					hline_16_num_pages);
+	PR_ERR("Error during hline_8 scratch memory allocation\n");
+hline_16_err:
+	if (hline_16_pages)
+		udlctd_kfree(udlctd_info, hline_16_pages);
+
+	udlctd_free_multiple_pages(udlctd_info, bb_pages, bb_num_pages);
+
+	PR_ERR("Error during hline_16 scratch memory allocation\n");
+
+bb_err:
+	if (bb_pages)
+		udlctd_kfree(udlctd_info, bb_pages);
+
+	PR_ERR("Error during backing buffer scratch memory allocation\n");
+	return -ENOMEM;
+
+success:
+
+	scratch_memory = udlctd_kzalloc(udlctd_info,
+			sizeof(struct udlctd_scratch_memory_descriptor),
+			GFP_KERNEL);
+
+	scratch_memory->backing_buffer_pages = bb_pages;
+	scratch_memory->backing_buffer_num_pages = bb_num_pages;
+	scratch_memory->hline_16_pages = hline_16_pages;
+	scratch_memory->hline_16_num_pages = hline_16_num_pages;
+	scratch_memory->hline_8_pages = hline_8_pages;
+	scratch_memory->hline_8_num_pages = hline_8_num_pages;
+
+	udlctd_info->scratch_memory = scratch_memory;
+
+	PR_DEBUG("Allocated backing buffer: %u pages\n", bb_num_pages);
+	PR_DEBUG("Allocated hline_16 buffer: %u pages\n", hline_16_num_pages);
+	PR_DEBUG("Allocated hline_8 buffer: %u pages\n", hline_8_num_pages);
+
+	return 0;
+}
+
+static void udlctd_free_scratch_memory(struct udlctd_info *udlctd_info)
+{
+	struct udlctd_scratch_memory_descriptor *scratch_memory =
+			udlctd_info->scratch_memory;
+
+	if (!scratch_memory)
+		return;
+
+	if (scratch_memory->backing_buffer_pages) {
+		udlctd_free_multiple_pages(udlctd_info,
+				scratch_memory->backing_buffer_pages,
+				scratch_memory->backing_buffer_num_pages);
+		udlctd_kfree(udlctd_info,
+				scratch_memory->backing_buffer_pages);
 	}
 
-	if (udlctd_info->local_fb) {
-		/*memcpy(new_fb, old_fb, old_len); */
-		udlctd_vfree(udlctd_info, udlctd_info->local_fb);
-		udlctd_vfree(udlctd_info, udlctd_info->hline_16);
-		udlctd_vfree(udlctd_info, udlctd_info->hline_8);
+	if (scratch_memory->hline_16_pages) {
+		udlctd_free_multiple_pages(udlctd_info,
+				scratch_memory->hline_16_pages,
+				scratch_memory->hline_16_num_pages);
+		udlctd_kfree(udlctd_info,
+				scratch_memory->hline_16_pages);
+	}
+	if (scratch_memory->hline_8_pages) {
+		udlctd_free_multiple_pages(udlctd_info,
+				scratch_memory->hline_8_pages,
+				scratch_memory->hline_8_num_pages);
+		udlctd_kfree(udlctd_info,
+				scratch_memory->hline_8_pages);
 	}
 
-	udlctd_info->local_fb = new_fb;
-	udlctd_info->hline_16 = new_hline_16;
-	udlctd_info->hline_8 = new_hline_8;
+	udlctd_kfree(udlctd_info, scratch_memory);
 
-	udlctd_info->fb_len = PAGE_ALIGN(new_len);
-	udlctd_info->line_length = mode->xres * bytes_per_pixel;
+	return;
+}
 
-	udlctd_info->bpp = bpp;
-	udlctd_info->current_video_mode = mode;
+static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info)
+{
+	struct udlctd_scratch_memory_descriptor *scratch_memory =
+			udlctd_info->scratch_memory;
 
-	/*
-	 * Second framebuffer copy to mirror the framebuffer state
-	 * on the physical USB device. We can function without this.
-	 * But with imperfect damage info we may send pixels over USB
-	 * that were, in fact, unchanged - wasting limited USB bandwidth
-	 */
+	if (!scratch_memory)
+		return 1;
 
-	new_back = udlctd_vzalloc(udlctd_info, new_len);
+	udlctd_info->backing_buffer = vm_map_ram(
+					scratch_memory->
+						backing_buffer_pages,
+					scratch_memory->
+						backing_buffer_num_pages,
+					0, PAGE_KERNEL);
 
-	if (!new_back)
-		PR_INFO("No shadow/backing buffer allocated\n");
-	else {
-		if (udlctd_info->backing_buffer)
-			udlctd_vfree(udlctd_info, udlctd_info->backing_buffer);
-		udlctd_info->backing_buffer = new_back;
-	}
-	/* } */
+	memset(udlctd_info->backing_buffer, 0,
+			scratch_memory->backing_buffer_num_pages * PAGE_SIZE);
+	PR_DEBUG("Mapped backing buffer pages, starting at: %p\n",
+				udlctd_info->backing_buffer);
 
-	retval = 0;
+	if (!udlctd_info->backing_buffer)
+		goto bb_err;
 
-error:
-	return retval;
+	udlctd_info->hline_16 = vm_map_ram(
+					scratch_memory->hline_16_pages,
+					scratch_memory->hline_16_num_pages,
+					0, PAGE_KERNEL);
+
+	memset(udlctd_info->hline_16, 0,
+			scratch_memory->hline_16_num_pages * PAGE_SIZE);
+	PR_DEBUG("Mapped hline_16 pages, starting at: %p\n",
+				udlctd_info->hline_16);
+
+	if (!udlctd_info->hline_16)
+		goto hline_16_err;
+
+
+	udlctd_info->hline_8 = vm_map_ram(
+					scratch_memory->hline_8_pages,
+					scratch_memory->hline_8_num_pages,
+					0, PAGE_KERNEL);
+
+	memset(udlctd_info->hline_8, 0,
+			scratch_memory->hline_8_num_pages * PAGE_SIZE);
+	PR_DEBUG("Mapped hline_8 pages, starting at: %p\n",
+				udlctd_info->hline_8);
+
+	if (!udlctd_info->hline_8)
+		goto hline_8_err;
+
+	goto success;
+
+hline_8_err:
+
+	vm_unmap_ram(udlctd_info->hline_16,
+			scratch_memory->hline_16_num_pages);
+hline_16_err:
+	vm_unmap_ram(udlctd_info->backing_buffer,
+			scratch_memory->backing_buffer_num_pages);
+bb_err:
+
+	return -ENOMEM;
+
+success:
+	return 0;
+}
+
+static void udlctd_unmap_scratch_memory(struct udlctd_info *udlctd_info)
+{
+	struct udlctd_scratch_memory_descriptor *scratch_memory =
+			udlctd_info->scratch_memory;
+
+	if (!scratch_memory)
+		return;
+
+	if (udlctd_info->backing_buffer)
+		vm_unmap_ram(udlctd_info->backing_buffer,
+				scratch_memory->backing_buffer_num_pages);
+
+	if (udlctd_info->hline_16)
+		vm_unmap_ram(udlctd_info->hline_16,
+				scratch_memory->hline_16_num_pages);
+
+	if (udlctd_info->hline_8)
+		vm_unmap_ram(udlctd_info->hline_8,
+				scratch_memory->hline_8_num_pages);
+
+	return;
 }
 
 /*
@@ -1186,7 +1423,7 @@ error:
  * display controller to set the video mode.
  */
 static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
-				struct udlctd_video_mode *mode, int bpp)
+				struct udlctd_video_mode *mode)
 {
 	char *buf;
 	char *wrptr;
@@ -1221,9 +1458,8 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 	wrptr = udlctd_set_base16bpp(wrptr, 0);
 	udlctd_info->base16 = 0;
 	/* set base for 8bpp segment to end of fb */
-	/* TODO: Check this */
-	wrptr = udlctd_set_base8bpp(wrptr, udlctd_info->fb_len/2);
-	udlctd_info->base8 = udlctd_info->fb_len/2;
+	wrptr = udlctd_set_base8bpp(wrptr, mode->xres * mode->yres * 2);
+	udlctd_info->base8 = mode->xres * mode->yres * 2;
 
 	wrptr = udlctd_set_vid_cmds(wrptr, mode);
 	wrptr = udlctd_enable_hvsync(wrptr, true);
@@ -1232,6 +1468,15 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 	writesize = wrptr - buf;
 
 	retval = udlctd_submit_urb(udlctd_info, urb, writesize);
+
+	if (retval) {
+		PR_ERR("Error setting hardware mode.\n");
+		return 1;
+	}
+
+	udlctd_info->current_video_mode = mode;
+
+	retval = udlctd_blank_hw_fb(udlctd_info);
 
 	return retval;
 }

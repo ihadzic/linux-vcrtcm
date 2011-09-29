@@ -20,6 +20,37 @@
 #include "udlctd.h"
 #include "udlctd_utils.h"
 
+int udlctd_alloc_multiple_pages(struct udlctd_info *udlctd_info,
+				gfp_t gfp_mask,
+				struct page **page_array,
+				unsigned int num_pages)
+{
+	struct page *current_page;
+	int i;
+
+	for (i = 0; i < num_pages; i++) {
+		current_page = udlctd_alloc_page(udlctd_info, gfp_mask);
+		if (current_page) {
+			page_array[i] = current_page;
+		} else {
+			udlctd_free_multiple_pages(udlctd_info, page_array, i);
+			return 1;
+		}
+	}
+	return 0;
+}
+void udlctd_free_multiple_pages(struct udlctd_info *udlctd_info,
+				struct page **page_array,
+				unsigned int num_pages)
+{
+	int i;
+
+	for (i = 0; i < num_pages; i++)
+		udlctd_free_page(udlctd_info, page_array[i]);
+
+	return;
+}
+
 inline struct page *udlctd_alloc_page(struct udlctd_info *udlctd_info,
 				gfp_t gfp_mask)
 {
