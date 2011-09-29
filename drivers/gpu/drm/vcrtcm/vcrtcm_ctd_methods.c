@@ -130,8 +130,9 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 				if (vcrtcm_dev_info->gpu_callbacks.detach)
 					vcrtcm_dev_info->
 						gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
-			}
-			spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+			} else
+				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+						       flags);
 			list_del(&vcrtcm_dev_info->list);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
 				     hal_mutex);

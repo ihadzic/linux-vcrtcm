@@ -94,8 +94,8 @@ int vcrtcm_attach(int major, int minor, int flow,
 			/* very last thing to do: change the status */
 			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 			vcrtcm_dev_info->status |= VCRTCM_STATUS_HAL_IN_USE;
-				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
-							flags);
+			spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+					       flags);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
 				     hal_mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
