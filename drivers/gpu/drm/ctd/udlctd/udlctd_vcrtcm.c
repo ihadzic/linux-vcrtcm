@@ -815,7 +815,7 @@ int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 	if ((uvhd->fb_force_xmit) ||
 			time_after(jiffies_snapshot,
 				uvhd->last_xmit_jiffies +
-				UDLCTD_XMIT_HARD_HEADLINE)) {
+				UDLCTD_XMIT_HARD_DEADLINE)) {
 
 		udlctd_info->xfer_in_progress = 1;
 
@@ -939,7 +939,7 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 	if (1 ||
 		(((uvhd->fb_force_xmit) ||
 			time_after(jiffies_snapshot, uvhd->last_xmit_jiffies +
-				UDLCTD_XMIT_HARD_HEADLINE))
+				UDLCTD_XMIT_HARD_DEADLINE))
 				&& have_push_buffer)) {
 		/* someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
