@@ -102,7 +102,7 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
 				vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
-							uvhd->pbd_fb);
+							&uvhd->pbd_fb[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
@@ -117,7 +117,7 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
 				vcrtcm_push_buffer_free(uvhd->vcrtcm_dev_hal,
-							uvhd->pbd_cursor);
+							&uvhd->pbd_cursor[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
