@@ -54,7 +54,6 @@ struct vcrtcm_funcs udlctd_vcrtcm_funcs = {
 	.get_fb_status = udlctd_get_fb_status,
 	.set_fps = udlctd_set_fps,
 	.get_fps = udlctd_get_fps,
-	.page_flip = udlctd_page_flip,
 	.set_cursor = udlctd_set_cursor,
 	.get_cursor = udlctd_get_cursor,
 	.set_dpms = udlctd_set_dpms,
