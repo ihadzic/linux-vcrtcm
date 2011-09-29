@@ -241,7 +241,7 @@ void udlctd_free(struct kref *kref)
 	if (udlctd_info->local_fb)
 		udlctd_vfree(udlctd_info, udlctd_info->local_fb);
 	if (udlctd_info->local_cursor)
-		udlctd_vfree(udlctd_info, udlctd_info->cursor);
+		udlctd_vfree(udlctd_info, udlctd_info->local_cursor);
 	if (udlctd_info->hline_16)
 		udlctd_vfree(udlctd_info, udlctd_info->hline_16);
 	if (udlctd_info->hline_8)
