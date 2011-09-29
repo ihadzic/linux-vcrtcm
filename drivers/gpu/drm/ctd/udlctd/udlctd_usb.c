@@ -202,7 +202,7 @@ static void udlctd_usb_disconnect(struct usb_interface *interface)
 		"udlctd %p, major %d, minor %d\n",
 		udlctd_info, udlctd_major, udlctd_info->minor);
 
-
+	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
 	vcrtcm_hw_del(udlctd_major, udlctd_info->minor, 0);
 	#endif
 
