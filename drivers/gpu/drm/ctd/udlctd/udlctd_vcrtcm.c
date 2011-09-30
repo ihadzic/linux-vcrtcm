@@ -219,7 +219,7 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		udlctd_info->minor, vcrtcm_dev_hal);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
-
+	vcrtcm_gpu_sync(vcrtcm_dev_hal);
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
