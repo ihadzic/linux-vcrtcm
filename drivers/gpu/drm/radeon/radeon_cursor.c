@@ -197,14 +197,8 @@ unpin:
 	}
 
 	radeon_crtc->cursor_bo = obj;
-	if (radeon_crtc->vcrtcm_dev_hal) {
-		struct radeon_device *rdev = crtc->dev->dev_private;
-		if (radeon_crtc->enabled) {
-			mutex_lock(&rdev->cs_mutex);
-			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
-			mutex_unlock(&rdev->cs_mutex);
-		}
-	}
+	if (radeon_crtc->vcrtcm_dev_hal && radeon_crtc->enabled)
+		vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
