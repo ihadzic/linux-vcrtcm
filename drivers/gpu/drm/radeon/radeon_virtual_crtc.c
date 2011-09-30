@@ -779,7 +779,6 @@ static const struct drm_crtc_helper_funcs virtual_helper_funcs = {
 int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct radeon_device *rdev = crtc->dev->dev_private;
 	int r = 0;
 
 	DRM_DEBUG("x %d y %d crtc %d\n", x, y, radeon_crtc->crtc_id);
@@ -800,11 +799,8 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 		vcrtcm_cursor.location_y = y;
 		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_dev_hal,
 				      &vcrtcm_cursor);
-		if (radeon_crtc->enabled) {
-			mutex_lock(&rdev->cs_mutex);
+		if (radeon_crtc->enabled)
 			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
-			mutex_unlock(&rdev->cs_mutex);
-		}
 	}
 
 	return r;
@@ -932,14 +928,8 @@ unpin:
 	}
 
 	radeon_crtc->cursor_bo = obj;
-	if (radeon_crtc->vcrtcm_dev_hal) {
-		struct radeon_device *rdev = crtc->dev->dev_private;
-		if (radeon_crtc->enabled) {
-			mutex_lock(&rdev->cs_mutex);
-			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
-			mutex_unlock(&rdev->cs_mutex);
-		}
-	}
+	if (radeon_crtc->vcrtcm_dev_hal && radeon_crtc->enabled)
+		vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
