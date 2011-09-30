@@ -527,11 +527,12 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)
 {
 
-	radeon_vcrtcm_ctl_descriptor_t *radeon_vcrtcm_ctl_descriptor = data;
+	radeon_vcrtcm_ctl_descriptor_t *rvcd = data;
 	struct radeon_device *rdev = dev->dev_private;
-	int display_index = radeon_vcrtcm_ctl_descriptor->display_index;
-	int op_code = radeon_vcrtcm_ctl_descriptor->op_code;
+	int display_index = rvcd->display_index;
+	int op_code = rvcd->op_code;
 	struct radeon_crtc *radeon_crtc;
+	int r;
 
 	DRM_DEBUG("display_index %d\n", display_index);
 	if (!ASIC_IS_VCRTC_CAPABLE(rdev)) {
@@ -550,39 +551,43 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	mutex_lock(&rdev->cs_mutex);
 	switch (op_code) {
 
 	case RADEON_VCRTCM_CTL_OP_CODE_NOP:
 		DRM_DEBUG("nop\n");
-		return 0;
+		r = 0;
+		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_SET_RATE:
 		DRM_DEBUG("set fps\n");
-		return radeon_vcrtcm_set_fps(radeon_crtc,
-					     radeon_vcrtcm_ctl_descriptor->arg1.
-					     fps);
+		r = radeon_vcrtcm_set_fps(radeon_crtc,
+					  rvcd->arg1.fps);
+		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_ATTACH:
 		DRM_DEBUG("attach\n");
-		return radeon_vcrtcm_attach(radeon_crtc,
-					    radeon_vcrtcm_ctl_descriptor->arg1.
-					    major,
-					    radeon_vcrtcm_ctl_descriptor->arg2.
-					    minor,
-					    radeon_vcrtcm_ctl_descriptor->arg3.
-					    flow);
+		r = radeon_vcrtcm_attach(radeon_crtc,
+					 rvcd->arg1.major,
+					 rvcd->arg2.minor,
+					 rvcd->arg3.flow);
+		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_DETACH:
 		DRM_DEBUG("detach\n");
-		return radeon_vcrtcm_detach(radeon_crtc);
+		r = radeon_vcrtcm_detach(radeon_crtc);
+		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_XMIT:
 		DRM_DEBUG("force\n");
-		return radeon_vcrtcm_force(radeon_crtc);
+		r = radeon_vcrtcm_force(radeon_crtc);
+		break;
 
 	default:
 		DRM_ERROR("invalid op code\n");
-		return -EINVAL;
+		r = -EINVAL;
+		break;
 	}
-
+	mutex_unlock(&rdev->cs_mutex);
+	return r;
 }
