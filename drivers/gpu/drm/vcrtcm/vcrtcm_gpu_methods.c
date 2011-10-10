@@ -564,3 +564,26 @@ int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_vblank_time);
+
+/* set new (fake) vblank time; used when vblank emulation */
+/* is generated internally by the GPU without involving the CTD */
+/* (typically after a successful push) */
+void vcrtcm_set_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+{
+	unsigned long flags;
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal,
+			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
+
+	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
+	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+		/* someone pulled the rug under our feet, bail out */
+		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+		return;
+	}
+	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
+	vcrtcm_dev_info->vblank_time_valid = 1;
+	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+	return;
+}
+EXPORT_SYMBOL(vcrtcm_set_vblank_time);

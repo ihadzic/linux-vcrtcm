@@ -58,4 +58,5 @@ int vcrtcm_set_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int state);
 int vcrtcm_get_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *state);
 int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			   struct timeval *vblank_time);
+void vcrtcm_set_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 #endif
