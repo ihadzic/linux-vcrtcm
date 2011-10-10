@@ -40,6 +40,7 @@
 #include "radeon.h"
 #include "radeon_trace.h"
 #include "radeon_virtual_crtc.h"
+#include "radeon_vcrtcm_kernel.h"
 
 static void radeon_fence_write(struct radeon_device *rdev, u32 seq)
 {
@@ -159,6 +160,9 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 			    list) {
 		if (push_vblank_pending->radeon_fence->signaled) {
 			push_vblank_pending->end_jiffies = jiffies;
+			if (push_vblank_pending->radeon_crtc->vcrtcm_dev_hal)
+				vcrtcm_set_vblank_time(push_vblank_pending->
+					radeon_crtc->vcrtcm_dev_hal);
 			radeon_emulate_vblank_locked(rdev,
 				push_vblank_pending->radeon_crtc);
 			push_vblank_pending->vblank_sent = 1;

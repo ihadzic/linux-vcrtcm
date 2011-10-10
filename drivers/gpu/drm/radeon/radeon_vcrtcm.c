@@ -378,6 +378,8 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		/* to vbl_emu_drv.pending_queue, nobody will look */
 		/* at it, ISR is safe without checking the */
 		/* radeon_vbl_emu_async parameter */
+		if (srcrtc->vcrtcm_dev_hal)
+			vcrtcm_set_vblank_time(srcrtc->vcrtcm_dev_hal);
 		radeon_emulate_vblank(scrtc);
 	}
 	return 0;
