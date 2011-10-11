@@ -29,11 +29,12 @@
 #include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <linux/prefetch.h>
+#include <vcrtcm/vcrtcm_ctd.h>
 
 #include "udlctd.h"
 #include "udlctd_vcrtcm.h"
 #include "udlctd_utils.h"
-#include "vcrtcm/vcrtcm_ctd.h"
+
 
 /* Module option(s) */
 int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
