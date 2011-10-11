@@ -21,13 +21,15 @@
 #include <linux/delay.h>
 #include <linux/usb.h>
 #include <linux/prefetch.h>
+#include <vcrtcm/vcrtcm_ctd.h>
+#include <edid.h>
 
 #include "udlctd.h"
 #include "udlctd_vcrtcm.h"
 #include "udlctd_usb.h"
 #include "udlctd_utils.h"
-#include "edid.h"
-#include "vcrtcm/vcrtcm_ctd.h"
+
+
 
 /*
  * There are many DisplayLink-based graphics products, all with unique PIDs.
