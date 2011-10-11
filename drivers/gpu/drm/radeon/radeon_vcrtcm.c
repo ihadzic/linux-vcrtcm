@@ -153,12 +153,12 @@ void radeon_emulate_vblank_locked(struct radeon_device *rdev,
 {
 	struct drm_device *ddev = rdev->ddev;
 
+	radeon_crtc->emulated_vblank_counter++;
 	if (radeon_crtc->vblank_emulation_enabled) {
 		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
 			  radeon_crtc->crtc_id);
 		drm_handle_vblank(ddev, radeon_crtc->crtc_id);
 		rdev->pm.vblank_sync = true;
-		radeon_crtc->emulated_vblank_counter++;
 		wake_up(&rdev->irq.vblank_queue);
 	} else
 		DRM_DEBUG("vblank emulation for virtual crtc %d disabled\n",
