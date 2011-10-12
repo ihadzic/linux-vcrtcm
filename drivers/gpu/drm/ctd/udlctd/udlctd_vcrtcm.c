@@ -651,8 +651,11 @@ void udlctd_fake_vblank(struct work_struct *work)
 		if (next_vblank_delay <= udlctd_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
 		/* TODO: Set next_blank_jiffies */
-		if (!queue_delayed_work(udlctd_info->workqueue, &udlctd_info->fake_vblank_work, next_vblank_delay-5))
-			PR_WARN("dup fake vblank, minor %d\n", udlctd_info->minor);
+		if (!queue_delayed_work(udlctd_info->workqueue,
+					&udlctd_info->fake_vblank_work,
+					next_vblank_delay))
+			PR_WARN("dup fake vblank, minor %d\n",
+				udlctd_info->minor);
 	} else
 		PR_DEBUG("Next fake vblank not scheduled\n");
 
