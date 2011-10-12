@@ -177,7 +177,6 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		uvhd->fb_force_xmit = 0;
 		uvhd->fb_xmit_counter = 0;
 		uvhd->fb_xmit_period_jiffies = 0;
-		uvhd->next_fb_xmit_jiffies = 0;
 		uvhd->next_vblank_jiffies = 0;
 		uvhd->push_buffer_index = 0;
 		uvhd->pb_needs_xmit[0] = 0;
@@ -410,7 +409,6 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 	if (fps <= 0) {
 		uvhd->fb_xmit_period_jiffies = 0;
 		jiffies_snapshot = jiffies;
-		uvhd->next_fb_xmit_jiffies = jiffies_snapshot;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Transmission disabled by request (negative or zero fps)\n");
@@ -418,8 +416,6 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
 		uvhd->next_vblank_jiffies =
-			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
-		uvhd->next_fb_xmit_jiffies =
 			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 

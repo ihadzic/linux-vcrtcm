@@ -147,7 +147,6 @@ struct udlctd_vcrtcm_hal_descriptor {
 	int fb_xmit_counter;
 	int fb_force_xmit;
 	unsigned long fb_xmit_period_jiffies;
-	unsigned long next_fb_xmit_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
 	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
