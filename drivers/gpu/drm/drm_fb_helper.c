@@ -466,9 +466,17 @@ int drm_fb_helper_init(struct drm_device *dev,
 
 	i = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (i >= crtc_count) {
+			DRM_DEBUG("crtc count set by the gpu reached\n");
+			break;
+		}
 		fb_helper->crtc_info[i].crtc_id = crtc->base.id;
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
+	}
+	if (i < fb_helper->crtc_count) {
+		DRM_DEBUG("crtc count known by the drm reached\n");
+		fb_helper->crtc_count = i;
 	}
 	fb_helper->conn_limit = max_conn_count;
 	return 0;
