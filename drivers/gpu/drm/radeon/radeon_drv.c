@@ -120,6 +120,7 @@ int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
 int radeon_num_virt_crtcs;
 int radeon_vbl_emu_async;
+int radeon_fb_virt_crtc;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -171,6 +172,9 @@ module_param_named(num_virt_crtcs, radeon_num_virt_crtcs, int, 0644);
 
 MODULE_PARM_DESC(vbl_emu_async, "Use asynchronous vblank emulation (0 = disable)");
 module_param_named(vbl_emu_async, radeon_vbl_emu_async, int, 0644);
+
+MODULE_PARM_DESC(fb_virt_crtc, "Use virtual CRTCs fb (0 = disable)");
+module_param_named(fb_virt_crtc, radeon_fb_virt_crtc, int, 0644);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {

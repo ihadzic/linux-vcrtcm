@@ -95,6 +95,7 @@ extern int radeon_hw_i2c;
 extern int radeon_pcie_gen2;
 extern int radeon_num_virt_crtcs;
 extern int radeon_vbl_emu_async;
+extern int radeon_fb_virt_crtc;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
