@@ -1333,6 +1333,11 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		modeset = &fb_crtc->mode_set;
 
 		if (mode && fb_crtc) {
+			if (modeset->num_connectors >= fb_helper->conn_limit) {
+				DRM_DEBUG("max number of connectors reached for crtc %d\n",
+					  fb_crtc->crtc_id);
+				break;
+			}
 			DRM_DEBUG_KMS("desired mode %s set on crtc %d\n",
 				      mode->name, fb_crtc->mode_set.crtc->base.id);
 			fb_crtc->desired_mode = mode;
