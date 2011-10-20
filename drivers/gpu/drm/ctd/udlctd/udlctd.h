@@ -38,7 +38,8 @@
 #define UDLCTD_ALLOC_PB_FLAG_CURSOR 0x1
 #define UDLCTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
-#define UDLCTD_BLANK_COLOR 0x80c8
+#define UDLCTD_BLANK_COLOR 0x0080c8
+#define UDLCTD_ERROR_COLOR 0xFF0000
 
 /* Module options */
 extern int true32bpp;
@@ -147,6 +148,7 @@ struct udlctd_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
+	int fb_xmit_allowed;
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
@@ -169,6 +171,7 @@ struct udlctd_vcrtcm_hal_descriptor {
 /* USB/HW functions that VCRTCM functions need access to */
 int udlctd_setup_screen(struct udlctd_info *udlctd_info,
 	struct udlctd_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
+int udlctd_error_screen(struct udlctd_info *udlctd_info);
 int udlctd_dpms_sleep(struct udlctd_info *udlctd_info);
 int udlctd_dpms_wakeup(struct udlctd_info *udlctd_info);
 int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info);
