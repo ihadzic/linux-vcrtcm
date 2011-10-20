@@ -40,7 +40,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 				const char *front, char **urb_buf_ptr,
 				u32 byte_offset, u32 byte_width,
 				int *ident_ptr, int *sent_ptr);
-static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info);
+static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info, unsigned color);
 
 /* USB management functions */
 static int udlctd_usb_probe(struct usb_interface *interface,

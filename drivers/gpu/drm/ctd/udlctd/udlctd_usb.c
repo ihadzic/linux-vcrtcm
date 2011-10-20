@@ -150,6 +150,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	atomic_set(&udlctd_info->usb_active, 1);
 	udlctd_select_std_channel(udlctd_info);
 	udlctd_set_video_mode(udlctd_info, &udlctd_info->default_video_mode);
+	udlctd_blank_hw_fb(udlctd_info, UDLCTD_BLANK_COLOR);
 
 	PR_INFO("DisplayLink USB device attached.\n");
 	PR_INFO("successfully registered"
@@ -282,12 +283,29 @@ int udlctd_setup_screen(struct udlctd_info *udlctd_info,
 		return 1;
 	}
 
-	udlctd_set_video_mode(udlctd_info, mode);
+	result = udlctd_set_video_mode(udlctd_info, mode);
 
-	if (result)
+	if (result) {
 		PR_ERR("Could not set screen mode\n");
+		return 1;
+	}
+
+	result = udlctd_blank_hw_fb(udlctd_info, UDLCTD_BLANK_COLOR);
+
+	if (result) {
+		PR_ERR("Could not blank HW framebuffer\n");
+		return 1;
+	}
 
 	PR_DEBUG("Done with setup_screen\n");
+	return 0;
+}
+
+int udlctd_error_screen(struct udlctd_info *udlctd_info)
+{
+	udlctd_set_video_mode(udlctd_info, &udlctd_info->default_video_mode);
+	udlctd_blank_hw_fb(udlctd_info, UDLCTD_ERROR_COLOR);
+
 	return 0;
 }
 
@@ -766,7 +784,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	return 0;
 }
 
-static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info)
+static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info, unsigned color)
 {
 	u32 dev_addr16, dev_addr8;
 	uint16_t *line_start16, *line_end16;
@@ -775,7 +793,7 @@ static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info)
 	uint16_t *hline_16;
 	uint8_t *hline_8;
 
-	u32 blank_color32 = UDLCTD_BLANK_COLOR;
+	u32 blank_color32 = color;
 	u16 blank_color16;
 	u8 blank_color8;
 
@@ -860,7 +878,6 @@ static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info)
 
 	return 0;
 }
-
 
 /*
  * This is necessary before we can communicate with the display controller.
@@ -1477,8 +1494,6 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 	}
 
 	udlctd_info->current_video_mode = mode;
-
-	retval = udlctd_blank_hw_fb(udlctd_info);
 
 	return retval;
 }

@@ -171,6 +171,7 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		uvhd->udlctd_info = udlctd_info;
 		uvhd->vcrtcm_dev_hal = vcrtcm_dev_hal;
 		uvhd->fb_force_xmit = 0;
+		uvhd->fb_xmit_allowed = 0;
 		uvhd->fb_xmit_counter = 0;
 		uvhd->fb_xmit_period_jiffies = 0;
 		uvhd->next_vblank_jiffies = 0;
@@ -263,14 +264,19 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 			udlctd_setup_screen(udlctd_info,
 					udlctd_video_mode, vcrtcm_fb);
 			found_mode = 1;
+			uvhd->fb_xmit_allowed = 1;
 			break;
 		}
 	}
 
 	if (!found_mode) {
 		PR_ERR("could not find matching mode...\n");
-		return -EINVAL;
+		udlctd_error_screen(udlctd_info);
+		udlctd_set_fps(0, udlctd_info, 0);
+		uvhd->fb_xmit_allowed = 0;
+		return 0;
 	}
+
 	size_in_bytes = uvhd->vcrtcm_fb.pitch *
 			uvhd->vcrtcm_fb.vdisplay;
 
@@ -390,10 +396,11 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 		return -EINVAL;
 	}
 
-	if (fps <= 0) {
+	if (fps <= 0 || !uvhd->fb_xmit_allowed) {
 		uvhd->fb_xmit_period_jiffies = 0;
 		PR_INFO
-		("Transmission disabled by request (negative or zero fps)\n");
+		("Transmission disabled, either by request "
+			"(negative or zero fps), or invalid mode.\n");
 	} else {
 		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
