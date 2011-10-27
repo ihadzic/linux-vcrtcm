@@ -59,7 +59,5 @@ void udlctd_fake_vblank(struct work_struct *work);
 void copy_cursor_work(struct work_struct *work);
 int udlctd_do_xmit_fb_pull(struct udlctd_vcrtcm_hal_descriptor *uvhd);
 int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd);
-int udlctd_wait_idle_core(struct udlctd_info *udlctd_info);
-
 
 #endif

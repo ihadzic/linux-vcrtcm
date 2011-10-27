@@ -362,20 +362,19 @@ int udlctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 
 int udlctd_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 {
-	return udlctd_wait_idle_core((struct udlctd_info *) hw_drv_info);
+	return 0;
 }
 
 int udlctd_get_fb_status(struct drm_crtc *drm_crtc,
 		void *hw_drv_info, int flow, u32 *status)
 {
-	u32 tmp_status = 0;
+	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 
-	/* we are transmitting if udlctd is busy */
-	if (udlctd_info->xfer_in_progress)
+	PR_DEBUG("Queried for status\n");
+
+	if (udlctd_info->status & UDLCTD_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	else
-		tmp_status |= VCRTCM_FB_STATUS_IDLE;
 
 	*status = tmp_status;
 
@@ -664,50 +663,6 @@ void udlctd_fake_vblank(struct work_struct *work)
 	return;
 }
 
-int udlctd_wait_idle_core(struct udlctd_info *udlctd_info)
-{
-	unsigned long jiffies_snapshot, jiffies_snapshot_2;
-	int j, r = 0;
-
-	if (udlctd_info->xfer_in_progress) {
-		PR_DEBUG("udlctd transmission in progress, "
-				"work delayed, minor = %d\n",
-				udlctd_info->minor);
-		jiffies_snapshot = jiffies;
-		j = 0;
-
-		while (udlctd_info->xfer_in_progress) {
-			if (udlctd_info->enabled_queue) {
-				wait_event_timeout(udlctd_info->xmit_sync_queue,
-						!udlctd_info->xfer_in_progress,
-						UDLCTD_XFER_TIMEOUT);
-				jiffies_snapshot_2 = jiffies;
-				j = (int) jiffies_snapshot_2 -
-					(int) jiffies_snapshot;
-
-				if (j > UDLCTD_XFER_MAX_TRY *
-						UDLCTD_XFER_TIMEOUT) {
-					PR_DEBUG
-					("Still busy after all this wait\n");
-					r = -EFAULT;
-					break;
-				}
-			} else {
-				/* There is no queue to wait on, this is
-				 * wrong.
-				 */
-				PR_DEBUG("error, no queue\n");
-				r = -EFAULT;
-				break;
-			}
-		}
-
-		PR_DEBUG("Time spent waiting for udlctd %d ms\n", j * 1000 / HZ);
-	}
-
-	return r;
-}
-
 int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 {
 	struct udlctd_info *udlctd_info = uvhd->udlctd_info;
@@ -718,6 +673,8 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 	PR_DEBUG("in udlctd_do_xmit_fb_push, minor %d\n", udlctd_info->minor);
 
 	mutex_lock(&udlctd_info->xmit_mutex);
+
+	udlctd_info->status |= UDLCTD_IN_DO_XMIT;
 	push_buffer_index = uvhd->push_buffer_index;
 
 	if (uvhd->pbd_fb[push_buffer_index].num_pages) {
@@ -757,6 +714,8 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 				uvhd->vcrtcm_fb.hdisplay,
 				uvhd->vcrtcm_fb.vdisplay);
 
+		udlctd_info->status &= ~UDLCTD_IN_DO_XMIT;
+
 		r = vcrtcm_push(uvhd->vcrtcm_dev_hal,
 				&uvhd->pbd_fb[push_buffer_index],
 				&uvhd->pbd_cursor[push_buffer_index]);
@@ -785,6 +744,7 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
+		udlctd_info->status &= ~UDLCTD_IN_DO_XMIT;
 		vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
 		PR_DEBUG("transmission not happening\n");
 	}
