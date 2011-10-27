@@ -32,6 +32,8 @@
 #define UDLCTD_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
 #define UDLCTD_XMIT_HARD_DEADLINE HZ
 
+#define UDLCTD_IN_DO_XMIT 0x1
+
 #define UDLCTD_ALLOC_PB_FLAG_FB 0x0
 #define UDLCTD_ALLOC_PB_FLAG_CURSOR 0x1
 #define UDLCTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
@@ -93,9 +95,8 @@ struct udlctd_info {
 	int minor;
 	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
 	struct mutex xmit_mutex;
-	int xfer_in_progress;
 	int enabled_queue;
-	int status;
+	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
 
 	struct workqueue_struct *workqueue;
