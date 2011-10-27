@@ -408,13 +408,14 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 
 	if (fps <= 0) {
 		uvhd->fb_xmit_period_jiffies = 0;
-		jiffies_snapshot = jiffies;
 		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Transmission disabled by request (negative or zero fps)\n");
 	} else {
 		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
+		uvhd->last_xmit_jiffies = jiffies_snapshot;
+		uvhd->fb_force_xmit = 1;
 		uvhd->next_vblank_jiffies =
 			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
 		mutex_unlock(&udlctd_info->xmit_mutex);
@@ -636,9 +637,15 @@ void udlctd_fake_vblank(struct work_struct *work)
 			udlctd_do_xmit_fb_push(uvhd);
 		}
 
-		next_vblank_jiffies = uvhd->next_vblank_jiffies;
-		next_vblank_jiffies_valid = 1;
-
+		if (!next_vblank_jiffies_valid) {
+			next_vblank_jiffies = uvhd->next_vblank_jiffies;
+			next_vblank_jiffies_valid = 1;
+		} else {
+			if (time_after_eq(next_vblank_jiffies,
+					uvhd->next_vblank_jiffies)) {
+				next_vblank_jiffies = uvhd->next_vblank_jiffies;
+			}
+		}
 	}
 
 	if (next_vblank_jiffies_valid) {
@@ -646,7 +653,6 @@ void udlctd_fake_vblank(struct work_struct *work)
 			(int)next_vblank_jiffies - (int)jiffies_snapshot;
 		if (next_vblank_delay <= udlctd_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
-		/* TODO: Set next_blank_jiffies */
 		if (!queue_delayed_work(udlctd_info->workqueue,
 					&udlctd_info->fake_vblank_work,
 					next_vblank_delay))
