@@ -155,10 +155,7 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	PR_INFO("Attaching udlctd %d to HAL %p\n",
 		udlctd_info->minor, vcrtcm_dev_hal);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
-
 	if (udlctd_info->udlctd_vcrtcm_hal_descriptor) {
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
@@ -167,7 +164,6 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 				sizeof(struct udlctd_vcrtcm_hal_descriptor),
 				GFP_KERNEL);
 		if (uvhd == NULL) {
-			mutex_unlock(&udlctd_info->xmit_mutex);
 			PR_ERR("attach: no memory\n");
 			return -ENOMEM;
 		}
@@ -196,8 +192,6 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		udlctd_info->udlctd_vcrtcm_hal_descriptor =
 			uvhd;
 
-		mutex_unlock(&udlctd_info->xmit_mutex);
-
 		PR_INFO("udlctd %d now serves HAL %p\n", udlctd_info->minor,
 			vcrtcm_dev_hal);
 
@@ -214,7 +208,6 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	PR_INFO("Detaching udlctd %d from HAL %p\n",
 		udlctd_info->minor, vcrtcm_dev_hal);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
 	vcrtcm_gpu_sync(vcrtcm_dev_hal);
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
@@ -234,8 +227,6 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		udlctd_info->hline_16 = NULL;
 		udlctd_info->hline_8 = NULL;
 	}
-
-	mutex_unlock(&udlctd_info->xmit_mutex);
 }
 
 int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
@@ -249,14 +240,12 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In udlctd_set_fb, minor %d.\n", udlctd_info->minor);
-	/*mutex_lock(&udlctd_info->xmit_mutex);*/
 
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	/* TODO: Do we need this? */
 	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
-		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
 
@@ -280,7 +269,6 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 
 	if (!found_mode) {
 		PR_ERR("could not find matching mode...\n");
-		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
 	size_in_bytes = uvhd->vcrtcm_fb.pitch *
@@ -316,7 +304,6 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				UDLCTD_ALLOC_PB_FLAG_FB);
 	}
 
-	/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 	return r;
 }
 
@@ -350,12 +337,10 @@ int udlctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 	 * does the rest (when called).
 	 */
 
-	mutex_lock(&udlctd_info->xmit_mutex);
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	if (uvhd)
 		uvhd->fb_force_xmit = 1;
-	mutex_unlock(&udlctd_info->xmit_mutex);
 
 	return 0;
 }
@@ -370,11 +355,14 @@ int udlctd_get_fb_status(struct drm_crtc *drm_crtc,
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
+	unsigned long flags;
 
 	PR_DEBUG("Queried for status\n");
 
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	if (udlctd_info->status & UDLCTD_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 	*status = tmp_status;
 
@@ -390,24 +378,20 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 
 	PR_DEBUG("udlctd_set_fps, fps %d.\n", fps);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
 	}
 
 	if (fps > UDLCTD_FPS_HARD_LIMIT) {
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_ERR("Frame rate above the hard limit\n");
 		return -EINVAL;
 	}
 
 	if (fps <= 0) {
 		uvhd->fb_xmit_period_jiffies = 0;
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Transmission disabled by request (negative or zero fps)\n");
 	} else {
@@ -417,7 +401,6 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 		uvhd->fb_force_xmit = 1;
 		uvhd->next_vblank_jiffies =
 			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
-		mutex_unlock(&udlctd_info->xmit_mutex);
 
 		PR_INFO("Frame transmission period set to %d jiffies\n",
 			HZ / fps);
@@ -437,24 +420,20 @@ int udlctd_get_fps(int *fps, void *hw_drv_info, int flow)
 
 	PR_DEBUG("udlctd_get_fps.\n");
 
-	mutex_lock(&udlctd_info->xmit_mutex);
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
 	}
 
 	if (uvhd->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		PR_INFO
 		("Zero or negative frame rate, transmission disabled\n");
 		return 0;
 	} else {
 		*fps = HZ / uvhd->fb_xmit_period_jiffies;
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		return 0;
 	}
 }
@@ -469,13 +448,10 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	PR_DEBUG("In udlctd_set_cursor, minor %d\n", udlctd_info->minor);
 
-	/*mutex_lock(&udlctd_info->xmit_mutex);*/
-
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
-		/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 		return -EINVAL;
 	}
 
@@ -518,7 +494,6 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				UDLCTD_ALLOC_PB_FLAG_CURSOR);
 	}
 
-	/*mutex_unlock(&udlctd_info->xmit_mutex);*/
 	return r;
 }
 
@@ -530,20 +505,15 @@ int udlctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	PR_DEBUG("In udlctd_set_cursor, minor %d\n", udlctd_info->minor);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
-
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find HAL descriptor\n");
-		mutex_unlock(&udlctd_info->xmit_mutex);
 		return -EINVAL;
 	}
 
 	memcpy(vcrtcm_cursor, &uvhd->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
-
-	mutex_unlock(&udlctd_info->xmit_mutex);
 
 	return 0;
 }
@@ -669,12 +639,14 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
+	unsigned long flags;
 
 	PR_DEBUG("in udlctd_do_xmit_fb_push, minor %d\n", udlctd_info->minor);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
-
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	udlctd_info->status |= UDLCTD_IN_DO_XMIT;
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
 	push_buffer_index = uvhd->push_buffer_index;
 
 	if (uvhd->pbd_fb[push_buffer_index].num_pages) {
@@ -714,7 +686,9 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 				uvhd->vcrtcm_fb.hdisplay,
 				uvhd->vcrtcm_fb.vdisplay);
 
+		spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 		udlctd_info->status &= ~UDLCTD_IN_DO_XMIT;
+		spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 		r = vcrtcm_push(uvhd->vcrtcm_dev_hal,
 				&uvhd->pbd_fb[push_buffer_index],
@@ -744,7 +718,10 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
+		spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 		udlctd_info->status &= ~UDLCTD_IN_DO_XMIT;
+		spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
 		vcrtcm_emulate_vblank(uvhd->vcrtcm_dev_hal);
 		PR_DEBUG("transmission not happening\n");
 	}
@@ -764,6 +741,5 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 		uvhd->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
-	mutex_unlock(&udlctd_info->xmit_mutex);
 	return r;
 }
