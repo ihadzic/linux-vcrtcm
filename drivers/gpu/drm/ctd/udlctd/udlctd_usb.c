@@ -76,6 +76,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	struct udlctd_info *udlctd_info;
 
 	int retval = -ENOMEM;
+	unsigned long flags;
 
 	/* usb initialization */
 	usbdev = interface_to_usbdev(interface);
@@ -121,7 +122,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 
 	udlctd_info->minor = udlctd_num_minors++;
 
-	mutex_init(&udlctd_info->xmit_mutex);
+	spin_lock_init(&udlctd_info->udlctd_lock);
 
 	init_waitqueue_head(&udlctd_info->xmit_sync_queue);
 	udlctd_info->enabled_queue = 1;
@@ -132,7 +133,10 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlctd_info->fake_vblank_work, udlctd_fake_vblank);
+
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	udlctd_info->status = 0;
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 	INIT_LIST_HEAD(&udlctd_info->fb_mode_list);
 
@@ -1011,8 +1015,6 @@ static int udlctd_setup_modes(struct udlctd_info *udlctd_info)
 
 	INIT_LIST_HEAD(&modelist);
 
-	mutex_lock(&udlctd_info->xmit_mutex);
-
 	edid = udlctd_kmalloc(udlctd_info, EDID_LENGTH, GFP_KERNEL);
 
 	if (!edid) {
@@ -1156,8 +1158,6 @@ static int udlctd_setup_modes(struct udlctd_info *udlctd_info)
 error:
 	if (edid && (udlctd_info->edid != edid))
 		udlctd_kfree(udlctd_info, edid);
-
-	mutex_unlock(&udlctd_info->xmit_mutex);
 
 	return result;
 }
