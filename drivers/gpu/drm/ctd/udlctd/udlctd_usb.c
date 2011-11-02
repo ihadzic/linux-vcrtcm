@@ -353,7 +353,9 @@ int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info)
 	cmd = urb->transfer_buffer;
 
 	for (i = 0; i < yres; i++) {
-		const int byte_offset = vcrtcm_fb->pitch * i;
+		const int byte_offset =
+			vcrtcm_fb->pitch * i +
+			vcrtcm_fb->viewport_x * (vcrtcm_fb->bpp >> 3);
 
 		if (udlctd_render_hline(udlctd_info, &urb,
 				(char *) udlctd_info->main_buffer,
