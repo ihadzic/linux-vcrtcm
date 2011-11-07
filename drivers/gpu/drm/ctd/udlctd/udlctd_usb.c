@@ -1353,9 +1353,14 @@ static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info)
 {
 	struct udlctd_scratch_memory_descriptor *scratch_memory =
 			udlctd_info->scratch_memory;
+	uint32_t blank_pixel_32 = UDLCTD_BLANK_COLOR;
+	uint16_t blank_pixel_16;
+	uint8_t blank_pixel_8;
 
 	if (!scratch_memory)
 		return 1;
+
+	split_pixel_argb32(&blank_pixel_32, &blank_pixel_16, &blank_pixel_8);
 
 	udlctd_info->backing_buffer = vm_map_ram(
 					scratch_memory->
@@ -1364,7 +1369,7 @@ static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info)
 						backing_buffer_num_pages,
 					0, PAGE_KERNEL);
 
-	memset(udlctd_info->backing_buffer, 0,
+	memset(udlctd_info->backing_buffer, blank_pixel_32,
 			scratch_memory->backing_buffer_num_pages * PAGE_SIZE);
 	PR_DEBUG("Mapped backing buffer pages, starting at: %p\n",
 				udlctd_info->backing_buffer);
@@ -1377,7 +1382,7 @@ static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info)
 					scratch_memory->hline_16_num_pages,
 					0, PAGE_KERNEL);
 
-	memset(udlctd_info->hline_16, 0,
+	memset(udlctd_info->hline_16, blank_pixel_16,
 			scratch_memory->hline_16_num_pages * PAGE_SIZE);
 	PR_DEBUG("Mapped hline_16 pages, starting at: %p\n",
 				udlctd_info->hline_16);
@@ -1391,7 +1396,7 @@ static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info)
 					scratch_memory->hline_8_num_pages,
 					0, PAGE_KERNEL);
 
-	memset(udlctd_info->hline_8, 0,
+	memset(udlctd_info->hline_8, blank_pixel_8,
 			scratch_memory->hline_8_num_pages * PAGE_SIZE);
 	PR_DEBUG("Mapped hline_8 pages, starting at: %p\n",
 				udlctd_info->hline_8);
