@@ -122,6 +122,7 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 
 	udlctd_info->minor = udlctd_num_minors++;
 
+	mutex_init(&udlctd_info->buffer_mutex);
 	spin_lock_init(&udlctd_info->udlctd_lock);
 
 	init_waitqueue_head(&udlctd_info->xmit_sync_queue);

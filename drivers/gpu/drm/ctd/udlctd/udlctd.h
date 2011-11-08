@@ -95,6 +95,7 @@ struct udlctd_info {
 	struct list_head list;
 	int minor;
 	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct mutex buffer_mutex;
 	spinlock_t udlctd_lock;
 	int enabled_queue;
 	unsigned long status;
