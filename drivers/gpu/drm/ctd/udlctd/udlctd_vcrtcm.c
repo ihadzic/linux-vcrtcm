@@ -250,6 +250,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		return -EINVAL;
 	}
 
+	mutex_lock(&udlctd_info->buffer_mutex);
 	memcpy(&uvhd->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
 	/* Find a matching video mode and switch the DL device to that mode */
@@ -270,6 +271,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	}
 
 	if (!found_mode) {
+		mutex_unlock(&udlctd_info->buffer_mutex);
 		PR_ERR("could not find matching mode...\n");
 		udlctd_error_screen(udlctd_info);
 		udlctd_set_fps(0, udlctd_info, 0);
@@ -309,7 +311,7 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				requested_num_pages,
 				UDLCTD_ALLOC_PB_FLAG_FB);
 	}
-
+	mutex_unlock(&udlctd_info->buffer_mutex);
 	return r;
 }
 
@@ -462,6 +464,7 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 		return -EINVAL;
 	}
 
+	mutex_lock(&udlctd_info->buffer_mutex);
 	memcpy(&uvhd->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 
@@ -500,7 +503,7 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				requested_num_pages,
 				UDLCTD_ALLOC_PB_FLAG_CURSOR);
 	}
-
+	mutex_unlock(&udlctd_info->buffer_mutex);
 	return r;
 }
 
@@ -610,7 +613,9 @@ void udlctd_fake_vblank(struct work_struct *work)
 			uvhd->next_vblank_jiffies +=
 					uvhd->fb_xmit_period_jiffies;
 
+			mutex_lock(&udlctd_info->buffer_mutex);
 			udlctd_do_xmit_fb_push(uvhd);
+			mutex_unlock(&udlctd_info->buffer_mutex);
 		}
 
 		if (!next_vblank_jiffies_valid) {
