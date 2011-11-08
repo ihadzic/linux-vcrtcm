@@ -398,11 +398,12 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 		return -EINVAL;
 	}
 
-	if (fps <= 0 || !uvhd->fb_xmit_allowed) {
+	if (fps <= 0) {
 		uvhd->fb_xmit_period_jiffies = 0;
-		PR_INFO
-		("Transmission disabled, either by request "
-			"(negative or zero fps), or invalid mode.\n");
+		PR_INFO("Transmission disabled, (negative or zero fps).\n");
+	} else if (!uvhd->fb_xmit_allowed) {
+		uvhd->fb_xmit_period_jiffies = 0;
+		PR_INFO("Transmission disabled, (invalid mode).\n");
 	} else {
 		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
