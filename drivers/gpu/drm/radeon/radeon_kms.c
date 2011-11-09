@@ -403,7 +403,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 		struct virtual_crtc *virtual_crtc;
 		int r;
 		u32 vblank_status;
-		DRM_DEBUG("radeon_get_vblank_timestamp_kms called on virtual crtc, %d\n", crtc);
+		DRM_DEBUG("crtc %d is virtual\n", crtc);
 		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
 				if (virtual_crtc->radeon_crtc->vcrtcm_dev_hal) {
@@ -429,7 +429,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 						return DRM_VBLANKTIME_INVBL;
 					}
 				} else {
-					DRM_DEBUG("radeon_get_vblank_timestamp_kms: no hal on crtc %d\n", crtc);
+					DRM_DEBUG("no hal on crtc %d\n", crtc);
 					return -ENOTSUPP;
 				}
 			}
