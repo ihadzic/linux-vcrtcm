@@ -794,9 +794,11 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 	struct vcrtcm_cursor *vcrtcm_cursor;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
+	unsigned int vp_offset, hlen, p, vpx, vpy, Bpp;
 	unsigned int hpixels, vpixels;
 	int i, j;
 	int r = 0;
+	char *mb, *sb;
 
 	V4L2CTD_DEBUG(2, "minor %d\n", v4l2ctd_info->minor);
 
@@ -880,22 +882,34 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 
 		hpixels = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay;
 		vpixels = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
+		p = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.pitch;
+		vpx = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_x;
+		vpy = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.viewport_y;
+		Bpp = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.bpp >> 3;
+		vp_offset = p * vpy + vpx * Bpp;
+		hlen = hpixels * Bpp;
 
 		if (v4l2ctd_info->main_buffer && v4l2ctd_info->cursor) {
 			/* Overlay the cursor on the framebuffer */
 			vcrtcm_cursor = &v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_cursor;
 			if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE) {
+				uint32_t *fb_end;
+				mb = v4l2ctd_info->main_buffer + vp_offset;
+				fb_end = (uint32_t *) (mb + p * (vpixels - 1));
+				fb_end += hpixels;
 				/* loop for each line of the framebuffer. */
-				for (i = vcrtcm_cursor->location_y;
-					i < vcrtcm_cursor->location_y + vcrtcm_cursor->height; i++) {
-					uint32_t *cursor_pixel = (uint32_t *) v4l2ctd_info->cursor;
-					uint32_t *fb_pixel = (uint32_t *) v4l2ctd_info->main_buffer;
-					uint32_t *fb_line_end = fb_pixel;
-					uint32_t *fb_end = fb_pixel + hpixels * vpixels;
+				for (i = 0; i < vcrtcm_cursor->height; i++) {
+					uint32_t *cursor_pixel;
+					uint32_t *fb_pixel;
+					uint32_t *fb_line_end;
 
-					fb_pixel += hpixels * i + vcrtcm_cursor->location_x;
-					fb_line_end += hpixels * (i+1);
-					cursor_pixel += (i-vcrtcm_cursor->location_y)*vcrtcm_cursor->width;
+					cursor_pixel = (uint32_t *) v4l2ctd_info->cursor;
+					cursor_pixel += i * vcrtcm_cursor->width;
+
+					fb_pixel = (uint32_t *) (mb + p * (vcrtcm_cursor->location_y + i));
+					fb_line_end = fb_pixel + hpixels;
+					fb_pixel += vcrtcm_cursor->location_x;
+
 					for (j = 0; j < vcrtcm_cursor->width; j++) {
 						if (fb_pixel >= fb_end || fb_pixel >= fb_line_end)
 							continue;
@@ -903,8 +917,8 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 						if (*cursor_pixel >> 24 > 0)
 							*fb_pixel = *cursor_pixel;
 
-						fb_pixel++;
 						cursor_pixel++;
+						fb_pixel++;
 					}
 				}
 			}
@@ -916,10 +930,13 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 		/*mutex_lock(&v4l2ctd_info->mlock);*/
 		if (v4l2ctd_info->shadowbuf) {
 			v4l2ctd_info->jshadowbuf = jiffies;
-			/* shadowbuffer to prevent tearing */
-			memcpy(v4l2ctd_info->shadowbuf,
-				v4l2ctd_info->main_buffer,
-				v4l2ctd_info->shadowbufsize);
+			mb = v4l2ctd_info->main_buffer + vp_offset;
+			sb = v4l2ctd_info->shadowbuf;
+			for (i = 0; i < vpixels; i++) {
+				memcpy(sb, mb, hlen);
+				mb += p;
+				sb += hlen;
+			}
 		}
 		/*mutex_unlock(&v4l2ctd_info->mlock);*/
 		/*pr_info("v4l2ctd: unlock\n");*/
