@@ -448,6 +448,21 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	u64 base;
 	int r;
 
+	if (!radeon_crtc->vcrtcm_dev_hal) {
+		struct timeval now;
+		int crtc_id = radeon_crtc->crtc_id;
+		DRM_DEBUG("no hal on crtc %d, pflip faked out\n", crtc_id);
+		crtc->fb = fb;
+		event->event.sequence =
+			drm_vblank_count_and_time(dev, crtc_id, &now);
+		event->event.tv_sec = now.tv_sec;
+		event->event.tv_usec = now.tv_usec;
+		list_add_tail(&event->base.link,
+			      &event->base.file_priv->event_list);
+		wake_up_interruptible(&event->base.file_priv->event_wait);
+		return 0;
+	}
+
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
