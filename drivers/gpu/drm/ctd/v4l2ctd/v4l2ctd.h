@@ -85,6 +85,8 @@ struct v4l2ctd_info {
 	/* v4l2ctd */
 	uint8_t *shadowbuf;
 	uint32_t shadowbufsize;
+	struct page **shadowbuf_pages;
+	unsigned int shadowbuf_num_pages;
 	unsigned long jshadowbuf;
 	struct video_device *vfd;
 	struct v4l2_device v4l2_dev;
@@ -130,5 +132,9 @@ struct v4l2ctd_vcrtcm_hal_descriptor {
 
 	struct v4l2ctd_info *v4l2ctd_info;
 };
+
+int v4l2ctd_alloc_shadowbuf(struct v4l2ctd_info *v4l2ctd_info,
+				unsigned long size);
+void v4l2ctd_free_shadowbuf(struct v4l2ctd_info *v4l2ctd_info);
 
 #endif

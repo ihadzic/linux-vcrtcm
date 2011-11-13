@@ -718,6 +718,80 @@ vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 }
 
 /************************************************************************/
+/* shadowbuf alloc/free                                                 */
+/************************************************************************/
+
+int v4l2ctd_alloc_shadowbuf(struct v4l2ctd_info *v4l2ctd_info,
+				unsigned long size)
+{
+	struct page **pages;
+	unsigned int num_pages;
+	uint8_t *shadowbuf;
+	int result;
+
+	if (!v4l2ctd_info)
+		return -EINVAL;
+
+	v4l2ctd_free_shadowbuf(v4l2ctd_info);
+
+	num_pages = size / PAGE_SIZE;
+	if (size % PAGE_SIZE > 0)
+		num_pages++;
+
+	pages = v4l2ctd_kmalloc(v4l2ctd_info,
+				sizeof(struct page *) * num_pages,
+				GFP_KERNEL);
+	if (!pages)
+		goto sb_alloc_err;
+	result = v4l2ctd_alloc_multiple_pages(v4l2ctd_info, GFP_KERNEL,
+						pages, num_pages);
+	if (result != 0)
+		goto sb_alloc_mpages_err;
+	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
+	if (!shadowbuf)
+		goto sb_alloc_map_err;
+	memset(shadowbuf, 0, size);
+
+	v4l2ctd_info->shadowbuf = shadowbuf;
+	v4l2ctd_info->shadowbufsize = size;
+	v4l2ctd_info->shadowbuf_pages = pages;
+	v4l2ctd_info->shadowbuf_num_pages = num_pages;
+
+	return 0;
+
+sb_alloc_map_err:
+	v4l2ctd_free_multiple_pages(v4l2ctd_info, pages, num_pages);
+sb_alloc_mpages_err:
+	if (pages)
+		v4l2ctd_kfree(v4l2ctd_info, pages);
+sb_alloc_err:
+
+	return -ENOMEM;
+}
+
+void v4l2ctd_free_shadowbuf(struct v4l2ctd_info *v4l2ctd_info)
+{
+	if (!v4l2ctd_info)
+		return;
+	if (!v4l2ctd_info->shadowbuf)
+		return;
+
+	vm_unmap_ram(v4l2ctd_info->shadowbuf,
+			v4l2ctd_info->shadowbuf_num_pages);
+	v4l2ctd_free_multiple_pages(v4l2ctd_info,
+					v4l2ctd_info->shadowbuf_pages,
+					v4l2ctd_info->shadowbuf_num_pages);
+	v4l2ctd_kfree(v4l2ctd_info, v4l2ctd_info->shadowbuf_pages);
+
+	v4l2ctd_info->shadowbuf = NULL;
+	v4l2ctd_info->shadowbufsize = 0;
+	v4l2ctd_info->shadowbuf_pages = NULL;
+	v4l2ctd_info->shadowbuf_num_pages = 0;
+
+	return;
+}
+
+/************************************************************************/
 /* funcs                                                                */
 /************************************************************************/
 
@@ -822,6 +896,8 @@ static int __init v4l2ctd_init(void)
 
 	v4l2ctd_info->shadowbuf = NULL;
 	v4l2ctd_info->shadowbufsize = 0;
+	v4l2ctd_info->shadowbuf_pages = NULL;
+	v4l2ctd_info->shadowbuf_num_pages = 0;
 
 	ret = v4l2_device_register(NULL, &v4l2ctd_info->v4l2_dev);
 	if (ret)
@@ -885,9 +961,7 @@ static void __exit v4l2ctd_exit(void)
 			video_unregister_device(v4l2ctd_info->vfd);
 			v4l2_device_unregister(&v4l2ctd_info->v4l2_dev);
 			if (v4l2ctd_info->shadowbuf) {
-				vfree(v4l2ctd_info->shadowbuf);
-				v4l2ctd_info->shadowbuf = NULL;
-				v4l2ctd_info->shadowbufsize = 0;
+				v4l2ctd_free_shadowbuf(v4l2ctd_info);
 			}
 			unregister_chrdev_region(MKDEV(v4l2ctd_major, 0),
 							V4L2CTD_NUM_MINORS);

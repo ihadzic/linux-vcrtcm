@@ -21,6 +21,15 @@
 #ifndef __v4l2ctd_UTILS_H__
 #define __v4l2ctd_UTILS_H__
 
+int v4l2ctd_alloc_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+					gfp_t gfp_mask,
+					struct page **page_array,
+					unsigned int num_pages);
+
+void v4l2ctd_free_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+					struct page **page_array,
+					unsigned int num_pages);
+
 inline struct page *v4l2ctd_alloc_page(struct v4l2ctd_info *v4l2ctd_info,
 				gfp_t gfp_mask);
 

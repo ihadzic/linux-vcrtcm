@@ -21,6 +21,38 @@
 #include "v4l2ctd.h"
 #include "v4l2ctd_utils.h"
 
+int v4l2ctd_alloc_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+				gfp_t gfp_mask,
+				struct page **page_array,
+				unsigned int num_pages)
+{
+	struct page *current_page;
+	int i;
+
+	for (i = 0; i < num_pages; i++) {
+		current_page = v4l2ctd_alloc_page(v4l2ctd_info, gfp_mask);
+		if (current_page) {
+			page_array[i] = current_page;
+		} else {
+			v4l2ctd_free_multiple_pages(v4l2ctd_info,
+							page_array, i);
+			return 1;
+		}
+	}
+	return 0;
+}
+void v4l2ctd_free_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+				struct page **page_array,
+				unsigned int num_pages)
+{
+	int i;
+
+	for (i = 0; i < num_pages; i++)
+		v4l2ctd_free_page(v4l2ctd_info, page_array[i]);
+
+	return;
+}
+
 inline struct page *v4l2ctd_alloc_page(struct v4l2ctd_info *v4l2ctd_info,
 				gfp_t gfp_mask)
 {

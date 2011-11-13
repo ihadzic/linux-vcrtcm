@@ -165,7 +165,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 {
 	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *) hw_drv_info;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
-	uint32_t w, h;
+	uint32_t w, h, sb_size;
 	int r = 0;
 
 	V4L2CTD_DEBUG(2, "minor %d.\n", v4l2ctd_info->minor);
@@ -216,11 +216,9 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				/* this should get freed later */
 				w = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay;
 				h = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
+				sb_size = w * h * (V4L2CTD_BPP / 8);
 				mutex_lock(&v4l2ctd_info->mlock);
-				v4l2ctd_info->shadowbufsize = w * h * (V4L2CTD_BPP / 8);
-				if (v4l2ctd_info->shadowbuf)
-					vfree(v4l2ctd_info->shadowbuf);
-				v4l2ctd_info->shadowbuf = vmalloc(v4l2ctd_info->shadowbufsize);
+				v4l2ctd_alloc_shadowbuf(v4l2ctd_info, sb_size);
 				if (!v4l2ctd_info->shadowbuf)
 					return -ENOMEM;
 				mutex_unlock(&v4l2ctd_info->mlock);
