@@ -495,6 +495,22 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 
 }
 
+int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
+{
+	if (radeon_crtc->vcrtcm_dev_hal)
+		return vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
+	else
+		return -EINVAL;
+}
+
+static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
+{
+	if (radeon_crtc->vcrtcm_dev_hal)
+		return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
+	else
+		return -EINVAL;
+}
+
 static struct radeon_crtc
 *display_index_to_radeon_crtc(struct radeon_device *rdev, int display_index)
 {

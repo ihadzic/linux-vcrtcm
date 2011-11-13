@@ -28,22 +28,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "radeon_vcrtcm.h"
 
-static inline int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
-{
-	if (radeon_crtc->vcrtcm_dev_hal)
-		return vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
-	else
-		return -EINVAL;
-}
-
-static inline int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
-{
-	if (radeon_crtc->vcrtcm_dev_hal)
-		return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_dev_hal);
-	else
-		return -EINVAL;
-}
-
+int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc);
 int radeon_vcrtcm_wait(struct radeon_device *rdev);
 void radeon_vcrtcm_xmit(struct radeon_device *rdev);
 int radeon_vcrtcm_ioctl(struct drm_device *dev,
