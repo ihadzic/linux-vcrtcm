@@ -273,10 +273,8 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 			   &radeon_virtual_connector_funcs, connector_type);
 	drm_connector_helper_add(&radeon_connector->base,
 				 &radeon_virtual_connector_helper_funcs);
-
-	/* REVISIT: for now we will make the system poll for connection and fake out */
-	/* "always connected", can we get away with this ? */
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+		DRM_CONNECTOR_POLL_DISCONNECT;
 	connector->display_info.subpixel_order = subpixel_order;
 
 	drm_connector_attach_property(&radeon_connector->base,
