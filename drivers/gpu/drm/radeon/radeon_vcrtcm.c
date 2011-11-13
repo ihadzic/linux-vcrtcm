@@ -491,16 +491,27 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 	else
 		vcrtcm_set_dpms(radeon_crtc->vcrtcm_dev_hal,
 				VCRTCM_DPMS_STATE_OFF);
+
+	if (radeon_crtc->crtc_id >= rdev->num_crtc)
+		schedule_work(&rdev->hotplug_work);
+
 	return r;
 
 }
 
 int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 {
-	if (radeon_crtc->vcrtcm_dev_hal)
-		return vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
-	else
-		return -EINVAL;
+	struct drm_crtc *crtc = &radeon_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int r = -EINVAL;
+
+	if (radeon_crtc->vcrtcm_dev_hal) {
+		r = vcrtcm_detach(radeon_crtc->vcrtcm_dev_hal);
+		if (radeon_crtc->crtc_id >= rdev->num_crtc)
+			schedule_work(&rdev->hotplug_work);
+	}
+	return r;
 }
 
 static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
