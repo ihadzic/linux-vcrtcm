@@ -587,3 +587,37 @@ void vcrtcm_set_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_set_vblank_time);
+
+/* check if the attached ctd is in the connected state
+ * some CTDs can be always connected (typically software
+ * emulators), but some can feed real display devices
+ * and may want to query the device they are driving for status
+ */
+int vcrtcm_hal_connected(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *status)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal,
+			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
+	int r;
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_hal->funcs.connected) {
+		VCRTCM_DEBUG("calling connected backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+		r = vcrtcm_dev_hal->funcs.connected(vcrtcm_dev_info->hw_drv_info,
+						    status);
+	} else {
+		VCRTCM_WARNING("missing connected backend, HAL %d.%d.%d\n",
+			       vcrtcm_dev_info->hw_major,
+			       vcrtcm_dev_info->hw_minor,
+			       vcrtcm_dev_info->hw_flow);
+		*status = VCRTCM_HAL_CONNECTED;
+		r = 0;
+	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_hal_connected);
