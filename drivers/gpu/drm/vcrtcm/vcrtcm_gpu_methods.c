@@ -621,3 +621,95 @@ int vcrtcm_hal_connected(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *status)
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_hal_connected);
+
+static struct vcrtcm_mode common_modes[17] = {
+	{640, 480, 60},
+	{720, 480, 60},
+	{800, 600, 60},
+	{848, 480, 60},
+	{1024, 768, 60},
+	{1152, 768, 60},
+	{1280, 720, 60},
+	{1280, 800, 60},
+	{1280, 854, 60},
+	{1280, 960, 60},
+	{1280, 1024, 60},
+	{1440, 900, 60},
+	{1400, 1050, 60},
+	{1680, 1050, 60},
+	{1600, 1200, 60},
+	{1920, 1080, 60},
+	{1920, 1200, 60}
+};
+
+/* get the list of modes that the attached CTD supports
+ * if CTD does not implement the backend function, assume
+ * that it can support anything and use a list of common modes
+ */
+int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		     struct vcrtcm_mode **modes, int *count)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal,
+			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
+	int r;
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_hal->funcs.get_modes) {
+		VCRTCM_DEBUG("calling get_modes backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+		r = vcrtcm_dev_hal->funcs.get_modes(vcrtcm_dev_info->hw_drv_info,
+						    modes,
+						    count);
+	} else {
+		VCRTCM_WARNING("missing get_modes backend, HAL %d.%d.%d\n",
+			       vcrtcm_dev_info->hw_major,
+			       vcrtcm_dev_info->hw_minor,
+			       vcrtcm_dev_info->hw_flow);
+		*count = sizeof(common_modes) / sizeof(struct vcrtcm_mode);
+		*modes = common_modes;
+		r = 0;
+	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_get_modes);
+
+
+/* check if the mode is acceprable by the attached CTD
+ * if backed function is not implemented, assume the CTD
+ * driver accepts everything and the mode is OK
+ */
+int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+		      struct vcrtcm_mode *mode, int *status)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal,
+			     struct vcrtcm_dev_info, vcrtcm_dev_hal);
+	int r;
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+	if (vcrtcm_dev_hal->funcs.check_mode) {
+		VCRTCM_DEBUG("calling check_mode backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+		r = vcrtcm_dev_hal->funcs.check_mode(vcrtcm_dev_info->hw_drv_info,
+						     mode,
+						     status);
+	} else {
+		VCRTCM_WARNING("missing check_mode backend, HAL %d.%d.%d\n",
+			       vcrtcm_dev_info->hw_major,
+			       vcrtcm_dev_info->hw_minor,
+			       vcrtcm_dev_info->hw_flow);
+		*status = VCRTCM_MODE_OK;
+		r = 0;
+	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_check_mode);

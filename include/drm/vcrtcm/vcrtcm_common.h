@@ -55,6 +55,12 @@ struct vcrtcm_cursor {
 	unsigned int flag;
 };
 
+struct vcrtcm_mode {
+	int w;
+	int h;
+	int refresh;
+};
+
 #define VCRTCM_DPMS_STATE_ON  0x1
 #define VCRTCM_DPMS_STATE_OFF 0x0
 
@@ -65,6 +71,9 @@ struct vcrtcm_cursor {
 
 #define VCRTCM_HAL_DISCONNECTED 0
 #define VCRTCM_HAL_CONNECTED    1
+
+#define VCRTCM_MODE_OK  0
+#define VCRTCM_MODE_BAD 1
 
 struct vcrtcm_dev_hal;
 
@@ -94,6 +103,10 @@ struct vcrtcm_funcs {
 	int (*set_dpms) (int state, void *hw_drv_info, int flow);
 	int (*get_dpms) (int *state, void *hw_drv_info, int flow);
 	int (*connected) (void *hw_drv_info, int *status);
+	int (*get_modes) (void *hw_drv_info, struct vcrtcm_mode **modes,
+			  int *count);
+	int (*check_mode) (void *hw_drv_info, struct vcrtcm_mode *mode,
+			   int *status);
 };
 
 /* Abstracted hadrware of a generic Virtual CRTC
