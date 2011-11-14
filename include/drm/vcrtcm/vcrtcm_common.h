@@ -63,6 +63,9 @@ struct vcrtcm_cursor {
 
 #define VCRTCM_PFLIP_DEFERRED 1
 
+#define VCRTCM_HAL_DISCONNECTED 0
+#define VCRTCM_HAL_CONNECTED    1
+
 struct vcrtcm_dev_hal;
 
 /* hardware-specific back-end for each HAL function */
@@ -90,6 +93,7 @@ struct vcrtcm_funcs {
 			   void *hw_drv_info, int flow);
 	int (*set_dpms) (int state, void *hw_drv_info, int flow);
 	int (*get_dpms) (int *state, void *hw_drv_info, int flow);
+	int (*connected) (void *hw_drv_info, int *status);
 };
 
 /* Abstracted hadrware of a generic Virtual CRTC
