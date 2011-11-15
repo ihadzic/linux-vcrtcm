@@ -17,13 +17,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
-/*
-   TODO:
-   * VCRTCM functions for hotplug probe and mode
-     query so that GPU can ask the CTD driver what it can support
-*/
-
 #include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
