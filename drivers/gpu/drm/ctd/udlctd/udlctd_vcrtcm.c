@@ -96,8 +96,8 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 		/* (and that can fail too) */
 		if (flag == UDLCTD_ALLOC_PB_FLAG_FB) {
 			uvhd->pb_fb[i] =
-				vm_map_ram(uvhd->pbd_fb->pages,
-					uvhd->pbd_fb->num_pages,
+				vm_map_ram(uvhd->pbd_fb[i].pages,
+					uvhd->pbd_fb[i].num_pages,
 					0, PAGE_KERNEL);
 
 			if (uvhd->pb_fb[i] == NULL) {
@@ -111,8 +111,8 @@ static int udlctd_alloc_pb(struct udlctd_info *udlctd_info,
 			}
 		} else {
 			uvhd->pb_cursor[i] =
-				vm_map_ram(uvhd->pbd_cursor->pages,
-					uvhd->pbd_cursor->num_pages,
+				vm_map_ram(uvhd->pbd_cursor[i].pages,
+					uvhd->pbd_cursor[i].num_pages,
 					0, PAGE_KERNEL);
 
 			if (uvhd->pb_cursor[i] == NULL) {
