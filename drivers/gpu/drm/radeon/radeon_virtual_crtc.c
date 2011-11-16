@@ -39,66 +39,179 @@
 struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector);
 void radeon_connector_destroy(struct drm_connector *connector);
 
+/* utility function for finding a virtual CRTC given a virtual connector
+ * mapping between virtual crtcs and connectors must be 1:1:1, which
+ * is always true for virtual CRTCs
+ */
+static struct radeon_crtc
+*virtual_connector_to_crtc(struct drm_connector *connector)
+{
+	int encoder_id, crtc;
+	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct virtual_crtc *virtual_crtc;
+	uint32_t pc;
+
+	/* we can do this because encoder-connector mapping is 1-to-1 */
+	encoder_id = connector->encoder_ids[0];
+	if (!encoder_id) {
+		WARN_ON(1);
+		return NULL;
+	}
+	obj = drm_mode_object_find(dev, encoder_id, DRM_MODE_OBJECT_ENCODER);
+	if (!obj) {
+		WARN_ON(1);
+		return NULL;
+	}
+	encoder = obj_to_encoder(obj);
+	pc = 0x1;
+	crtc = 0;
+	/* first bit in possible_crtcs mask is ours becaus of 1:1 mapping */
+	for (crtc = 0; crtc < 32 && !(pc & encoder->possible_crtcs); crtc++)
+		pc <<= 1;
+	if (crtc < rdev->num_crtc ||
+	    crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
+		WARN_ON(1);
+		return NULL;
+	}
+	list_for_each_entry(virtual_crtc,
+			    &rdev->mode_info.virtual_crtcs, list) {
+		if (virtual_crtc->radeon_crtc->crtc_id == crtc)
+			return virtual_crtc->radeon_crtc;
+	}
+	return NULL;
+}
+
 static int radeon_virtual_crtc_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode = NULL;
-	struct mode_size {
-		int w;
-		int h;
-	} common_modes[17] = {
-		{640, 480},
-		{720, 480},
-		{800, 600},
-		{848, 480},
-		{1024, 768},
-		{1152, 768},
-		{1280, 720},
-		{1280, 800},
-		{1280, 854},
-		{1280, 960},
-		{1280, 1024},
-		{1440, 900},
-		{1400, 1050},
-		{1680, 1050},
-		{1600, 1200},
-		{1920, 1080},
-		{1920, 1200}
-	};
-	int i;
+	struct radeon_crtc *radeon_crtc;
+	struct vcrtcm_mode *probed_modes;
+	int i, probed_modes_count, r;
 
-	/* REVISIT: for now we simply add all common modes just as radeon_add_common_modes */
-	/* would do, but without any checks if the encoder supports it (because for virtual */
-	/* connector, encoder is transparent). Later this function should evolve into */
-	/* querying the vcrtcm module (which would in turn query the CTD device driver, which */
-	/* could in turn send a message to the remote display hardware) what */
-	/* it can do and add modes based on the response */
-	for (i = 0; i < 17; i++) {
-		mode =
-		    drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60,
-				 false, false, false);
-		drm_mode_probed_add(connector, mode);
+	/* if we are always connected, make up some common modes */
+	if (radeon_conn_virt_crtc) {
+		struct vcrtcm_mode common_modes[17] = {
+			{640, 480, 60},
+			{720, 480, 60},
+			{800, 600, 60},
+			{848, 480, 60},
+			{1024, 768, 60},
+			{1152, 768, 60},
+			{1280, 720, 60},
+			{1280, 800, 60},
+			{1280, 854, 60},
+			{1280, 960, 60},
+			{1280, 1024, 60},
+			{1440, 900, 60},
+			{1400, 1050, 60},
+			{1680, 1050, 60},
+			{1600, 1200, 60},
+			{1920, 1080, 60},
+			{1920, 1200, 60}
+		};
+
+		for (i = 0; i < 17; i++) {
+			mode = drm_cvt_mode(dev,
+					    common_modes[i].w,
+					    common_modes[i].h,
+					    common_modes[i].refresh,
+					    false, false, false);
+			drm_mode_probed_add(connector, mode);
+		}
+		return 1;
 	}
 
+	/* find the CRTC associated with this connector */
+	radeon_crtc = virtual_connector_to_crtc(connector);
+	if (!radeon_crtc)
+		return 0;
+
+	/* if we have no CTD attached, then we have no modes to add */
+	if (!radeon_crtc->vcrtcm_dev_hal)
+		return 0;
+
+	/* found an attached CTD, ask it */
+	r = vcrtcm_get_modes(radeon_crtc->vcrtcm_dev_hal,
+			     &probed_modes, &probed_modes_count);
+	if (r)
+		return 0;
+	for (i = 0; i < probed_modes_count; i++) {
+		mode = drm_cvt_mode(dev,
+				    probed_modes[i].w,
+				    probed_modes[i].h,
+				    probed_modes[i].refresh,
+				    false, false, false);
+		drm_mode_probed_add(connector, mode);
+	}
 	return 1;
 }
 
 static int radeon_virtual_crtc_mode_valid(struct drm_connector *connector,
 					  struct drm_display_mode *mode)
 {
+	int mode_status, r;
+	struct vcrtcm_mode vcrtcm_mode;
+	struct radeon_crtc *radeon_crtc;
 
-	/* REVISIT: all modes are OK for now; in reality, we should ask vcrtcm module */
-	/* about that */
-	return MODE_OK;
+	/* if we are always connected, then any mode is fine */
+	if (radeon_conn_virt_crtc)
+		return MODE_OK;
+
+	radeon_crtc = virtual_connector_to_crtc(connector);
+
+	/* if nothing is attached or there is no crtc, then no mode is good */
+	if (!radeon_crtc)
+		return MODE_ERROR;
+	if (!radeon_crtc->vcrtcm_dev_hal)
+		return MODE_ERROR;
+
+	/* otherwise, we ask VCRTCM */
+	vcrtcm_mode.w = drm_mode_width(mode);
+	vcrtcm_mode.h = drm_mode_height(mode);
+	vcrtcm_mode.refresh = drm_mode_vrefresh(mode);
+	r = vcrtcm_check_mode(radeon_crtc->vcrtcm_dev_hal,
+			      &vcrtcm_mode,
+			      &mode_status);
+	if (r)
+		return MODE_ERROR;
+	if (mode_status == VCRTCM_MODE_OK)
+		return MODE_OK;
+	else
+		return MODE_NOMODE;
 }
 
 /* virtual connector is always connected */
-static enum drm_connector_status radeon_virtual_connector_detect(struct
-								 drm_connector
-								 *connector,
-								 bool force)
+static enum drm_connector_status
+radeon_virtual_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_connected;
+	struct radeon_crtc *radeon_crtc;
+	int r, connected_status;
+
+	/* told by the parameter that we are always connected */
+	if (radeon_conn_virt_crtc)
+		return connector_status_connected;
+
+	radeon_crtc = virtual_connector_to_crtc(connector);
+	if (!radeon_crtc)
+		return connector_status_unknown;
+
+	/* we are not connected if nothing is attached or there is no crtc */
+	if (!radeon_crtc->vcrtcm_dev_hal)
+		return connector_status_disconnected;
+
+	/* otherwise ask VCRTCM */
+	r = vcrtcm_hal_connected(radeon_crtc->vcrtcm_dev_hal,
+				 &connected_status);
+	if (r)
+		return connector_status_unknown;
+	if (connected_status == VCRTCM_HAL_CONNECTED)
+		return connector_status_connected;
+	else
+		return connector_status_disconnected;
 }
 
 static int radeon_virtual_connector_set_property(struct drm_connector
