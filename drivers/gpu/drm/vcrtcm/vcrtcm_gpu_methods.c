@@ -277,10 +277,10 @@ int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing xmit_fb backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing xmit_fb backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -309,10 +309,10 @@ int vcrtcm_wait_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing wait_fb backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing wait_fb backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -434,10 +434,10 @@ int vcrtcm_set_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 						     hw_drv_info,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing set_cursor backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing set_cursor backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -467,10 +467,10 @@ int vcrtcm_get_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 						     hw_drv_info,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing get_fb backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing get_fb backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -496,10 +496,10 @@ int vcrtcm_set_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int state)
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing set_dpms backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing set_dpms backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -525,10 +525,10 @@ int vcrtcm_get_dpms(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *state)
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing get_dpms backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing get_dpms backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
@@ -602,10 +602,10 @@ int vcrtcm_hal_connected(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *status)
 		r = vcrtcm_dev_hal->funcs.connected(vcrtcm_dev_info->hw_drv_info,
 						    status);
 	} else {
-		VCRTCM_WARNING("missing connected backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing connected backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		*status = VCRTCM_HAL_CONNECTED;
 		r = 0;
 	}
@@ -657,10 +657,10 @@ int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 						    modes,
 						    count);
 	} else {
-		VCRTCM_WARNING("missing get_modes backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing get_modes backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		*count = sizeof(common_modes) / sizeof(struct vcrtcm_mode);
 		*modes = common_modes;
 		r = 0;
@@ -694,10 +694,10 @@ int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 						     mode,
 						     status);
 	} else {
-		VCRTCM_WARNING("missing check_mode backend, HAL %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+		VCRTCM_DEBUG("missing check_mode backend, HAL %d.%d.%d\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
 		*status = VCRTCM_MODE_OK;
 		r = 0;
 	}
