@@ -42,7 +42,8 @@ int debug; /* Enable the printing of debugging information */
 
 struct list_head udlctd_info_list;
 int udlctd_major = -1;
-int udlctd_num_minors;
+int udlctd_num_minors = -1;
+int udlctd_max_minor = -1;
 int udlctd_fake_vblank_slack = 1;
 
 struct vcrtcm_funcs udlctd_vcrtcm_funcs = {
@@ -73,7 +74,7 @@ static int __init udlctd_init(void)
 	INIT_LIST_HEAD(&udlctd_info_list);
 
 	PR_INFO("Allocating/registering dynamic major number");
-	ret = alloc_chrdev_region(&dev, 0, MAX_DL_DEVICES, "udlctd");
+	ret = alloc_chrdev_region(&dev, 0, UDLCTD_MAX_DEVICES, "udlctd");
 	udlctd_major = MAJOR(dev);
 
 	if (ret) {
@@ -84,6 +85,7 @@ static int __init udlctd_init(void)
 		PR_INFO("Using major device number %d\n", udlctd_major);
 	}
 
+	udlctd_num_minors = 0;
 	ret = usb_register(&udlctd_driver);
 
 	if (ret) {
@@ -102,8 +104,8 @@ static void __exit udlctd_exit(void)
 	if (udlctd_major >= -1) {
 		PR_INFO
 		("Deallocating major device number %d, count %d\n",
-			udlctd_major, MAX_DL_DEVICES);
-		unregister_chrdev_region(MKDEV(udlctd_major, 0), MAX_DL_DEVICES);
+			udlctd_major, UDLCTD_MAX_DEVICES);
+		unregister_chrdev_region(MKDEV(udlctd_major, 0), UDLCTD_MAX_DEVICES);
 	}
 
 	return;
