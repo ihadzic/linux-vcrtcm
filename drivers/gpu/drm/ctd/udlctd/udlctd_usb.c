@@ -120,7 +120,47 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	/* Do non-USB/VCRTCM driver setup */
 	INIT_LIST_HEAD(&udlctd_info->list);
 
-	udlctd_info->minor = udlctd_num_minors++;
+	/* Assign a minor number */
+	if (udlctd_num_minors <= udlctd_max_minor) {
+		/* This case occurs if one or more minor that is less than */
+		/* the maximum minor currently assigned becomes available. */
+		/* In this case we want to reuse the lower number(s). */
+		/* Note that this implementation will only work as long as */
+		/* the total number of minors is less than 64. For this */
+		/* reason we set UDLCTD_MAX_DEVICES to 64 in udlctd.h */
+		int new_minor = -1;
+		uint64_t used_minors = 0;
+		struct udlctd_info *ptr;
+		int i;
+
+		list_for_each_entry(ptr, &udlctd_info_list, list) {
+			used_minors |= (1 << ptr->minor);
+		}
+
+		for (i = 0; i < udlctd_max_minor; i++) {
+			if (!(used_minors & (1 << i))) {
+				new_minor = i;
+				break;
+			}
+		}
+		BUG_ON(new_minor < 0);
+		udlctd_info->minor = new_minor;
+		udlctd_num_minors++;
+
+	} else {
+		/* This handles the trivial case where there are no earlier */
+		/* minors that have gone away. */
+
+		/* If we ready have too many minors, error out. */
+		if (udlctd_num_minors == UDLCTD_MAX_DEVICES) {
+			PR_ERR("Maximum number of minors already assigned. "
+				"Device will be unusable.\n");
+			goto error;
+		}
+
+		udlctd_info->minor = udlctd_num_minors++;
+		udlctd_max_minor++;
+	}
 
 	mutex_init(&udlctd_info->buffer_mutex);
 	spin_lock_init(&udlctd_info->udlctd_lock);
@@ -251,8 +291,13 @@ void udlctd_free(struct kref *kref)
 	PR_DEBUG("vmalloc_track: %d\n", udlctd_info->vmalloc_track);
 
 	list_del(&udlctd_info->list);
-	kfree(udlctd_info);
+
+	if (udlctd_max_minor == udlctd_info->minor)
+		udlctd_max_minor--;
+
 	udlctd_num_minors--;
+
+	kfree(udlctd_info);
 }
 
 /******************************************************************************

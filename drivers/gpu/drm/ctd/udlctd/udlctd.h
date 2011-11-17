@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <vcrtcm/vcrtcm_ctd.h>
 
-#define MAX_DL_DEVICES 10
+#define UDLCTD_MAX_DEVICES 64 /* This is currently a hard limitation. */
 #define UDLCTD_FPS_HARD_LIMIT 100
 #define UDLCTD_DEFAULT_PIXEL_DEPTH 32
 #define UDLCTD_XFER_MAX_TRY 20
@@ -49,6 +49,7 @@ extern struct usb_driver udlctd_driver;
 extern struct list_head udlctd_info_list;
 extern int udlctd_major;
 extern int udlctd_num_minors;
+extern int udlctd_max_minor;
 extern int udlctd_fake_vblank_slack;
 extern struct vcrtcm_funcs udlctd_vcrtcm_funcs;
 
