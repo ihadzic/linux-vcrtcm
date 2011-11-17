@@ -282,3 +282,24 @@ int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		return -ENOTSUPP;
 }
 EXPORT_SYMBOL(vcrtcm_push);
+
+/* called by the CTD driver to signal hotplug event on a CRTC
+ * attached to the specified HAL
+ */
+void vcrtcm_hotplug(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
+			     vcrtcm_dev_hal);
+	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
+
+	if (vcrtcm_dev_info->gpu_callbacks.hotplug) {
+		vcrtcm_dev_info->gpu_callbacks.hotplug(crtc);
+		VCRTCM_DEBUG("HAL %d.%d.%d hotplug\n",
+			     vcrtcm_dev_info->hw_major,
+			     vcrtcm_dev_info->hw_minor,
+			     vcrtcm_dev_info->hw_flow);
+
+	}
+}
+EXPORT_SYMBOL(vcrtcm_hotplug);

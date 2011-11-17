@@ -164,7 +164,8 @@ struct vcrtcm_gpu_callbacks {
 	int (*push) (struct drm_crtc *scrtc,
 		     struct drm_gem_object *dbuf_fb,
 		     struct drm_gem_object *dbuf_cursor);
-
+	/* CTD signals a hotplug event to GPU */
+	void (*hotplug) (struct drm_crtc *crtc);
 };
 
 #endif
