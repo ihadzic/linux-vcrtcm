@@ -46,4 +46,5 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd);
+void vcrtcm_hotplug(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 #endif
