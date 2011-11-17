@@ -385,13 +385,21 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	return 0;
 }
 
+static void radeon_vcrtcm_hotplug(struct drm_crtc *crtc)
+{
+	struct radeon_device *rdev =
+		(struct radeon_device *)crtc->dev->dev_private;
+	schedule_work(&rdev->hotplug_work);
+}
+
 struct vcrtcm_gpu_callbacks physical_crtc_gpu_callbacks = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.sync = radeon_sync_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
 	.pb_free = radeon_vcrtcm_push_buffer_free,
-	.push = radeon_vcrtcm_push
+	.push = radeon_vcrtcm_push,
+	.hotplug = NULL /* real CRTC has its own hotplug */
 };
 
 struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
@@ -400,7 +408,8 @@ struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
 	.sync = radeon_sync_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
 	.pb_free = radeon_vcrtcm_push_buffer_free,
-	.push = radeon_vcrtcm_push
+	.push = radeon_vcrtcm_push,
+	.hotplug = radeon_vcrtcm_hotplug
 };
 
 static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
