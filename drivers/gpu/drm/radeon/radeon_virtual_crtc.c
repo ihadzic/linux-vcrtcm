@@ -909,11 +909,6 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	DRM_DEBUG("x %d y %d crtc %d\n", x, y, radeon_crtc->crtc_id);
 
-	if (x < 0)
-		x = 0;
-	if (y < 0)
-		y = 0;
-
 	if (radeon_crtc->vcrtcm_dev_hal) {
 		struct vcrtcm_cursor vcrtcm_cursor;
 
