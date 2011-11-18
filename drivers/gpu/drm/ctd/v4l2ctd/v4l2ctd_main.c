@@ -43,7 +43,7 @@
 
 
 #define V4L2CTD_MAJOR_VERSION 0
-#define V4L2CTD_MINOR_VERSION 1
+#define V4L2CTD_MINOR_VERSION 2
 #define V4L2CTD_RELEASE 0
 #define V4L2CTD_VERSION \
 	KERNEL_VERSION(V4L2CTD_MAJOR_VERSION, V4L2CTD_MINOR_VERSION, V4L2CTD_RELEASE)
@@ -53,7 +53,7 @@ int v4l2ctd_major = -1;
 int v4l2ctd_num_minors;
 int v4l2ctd_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
-int v4l2ctd_debug;
+int debug; /* Enable the printing of debugging information */
 
 /* NOTE: applications will set their preferred format.  That does not mean it
  *	 is our preferred format.  We would like applications to use bgr32 but
@@ -851,7 +851,6 @@ struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs = {
 	.get_fb_status = v4l2ctd_get_fb_status,
 	.set_fps = v4l2ctd_set_fps,
 	.get_fps = v4l2ctd_get_fps,
-	.page_flip = v4l2ctd_page_flip,
 	.set_cursor = v4l2ctd_set_cursor,
 	.get_cursor = v4l2ctd_get_cursor,
 	.set_dpms = v4l2ctd_set_dpms,
@@ -863,35 +862,35 @@ static int __init v4l2ctd_init(void)
 	struct v4l2ctd_info *v4l2ctd_info;
 	struct video_device *vfd;
 	dev_t dev;
+	unsigned long flags;
 	int ret;
 
 	v4l2ctd_info = NULL;
 	vfd = NULL;
 
-	V4L2CTD_INFO("v4l2ctd CTD Driver, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
+	PR_INFO("v4l2ctd CTD Driver, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 
 	INIT_LIST_HEAD(&v4l2ctd_info_list);
-	V4L2CTD_INFO("Allocating/registering dynamic major number");
+	PR_INFO("Allocating/registering dynamic major number");
 	ret = alloc_chrdev_region(&dev, 0, V4L2CTD_NUM_MINORS, "v4l2ctd");
 	v4l2ctd_major = MAJOR(dev);
 
 	if (ret) {
-		V4L2CTD_ERROR("Can't get major device number, driver unusable\n");
+		PR_ERR("Can't get major device number, driver unusable\n");
 		v4l2ctd_major = -1;
 		v4l2ctd_num_minors = 0;
 	} else {
-		V4L2CTD_INFO("Using major device number %d\n", v4l2ctd_major);
+		PR_INFO("Using major device number %d\n", v4l2ctd_major);
 	}
 
 	v4l2ctd_info = kzalloc(sizeof(struct v4l2ctd_info), GFP_KERNEL);
 	if (!v4l2ctd_info) {
-		V4L2CTD_ERROR("failed alloc of v4l2ctd_info\n");
+		PR_ERR("failed alloc of v4l2ctd_info\n");
 		return -ENOMEM;
 	}
 
 	mutex_init(&v4l2ctd_info->mlock);
 	spin_lock_init(&v4l2ctd_info->slock);
-
 	snprintf(v4l2ctd_info->v4l2_dev.name,
 		 sizeof(v4l2ctd_info->v4l2_dev.name), "v4l2ctd %d.%d.%d",
 		 V4L2CTD_MAJOR_VERSION, V4L2CTD_MINOR_VERSION, V4L2CTD_RELEASE);
@@ -926,23 +925,37 @@ static int __init v4l2ctd_init(void)
 	v4l2ctd_info->fmt = &formats[0];
 
 	INIT_LIST_HEAD(&v4l2ctd_info->list);
+
 	v4l2ctd_info->minor = v4l2ctd_num_minors++;
-	mutex_init(&v4l2ctd_info->xmit_mutex);
+
+	mutex_init(&v4l2ctd_info->buffer_mutex);
+	spin_lock_init(&v4l2ctd_info->v4l2ctd_lock);
+
 	init_waitqueue_head(&v4l2ctd_info->xmit_sync_queue);
 	v4l2ctd_info->enabled_queue = 1;
+
 	v4l2ctd_info->workqueue = create_workqueue("v4l2ctd_workers");
+
 	v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor = NULL;
+
 	INIT_DELAYED_WORK(&v4l2ctd_info->fake_vblank_work, v4l2ctd_fake_vblank);
+
+	spin_lock_irqsave(&v4l2ctd_info->v4l2ctd_lock, flags);
 	v4l2ctd_info->status = 0;
-	V4L2CTD_INFO("v4l2 CTD Driver Loaded\n");
-	V4L2CTD_INFO("successfully registered minor %d\n", v4l2ctd_info->minor);
-	V4L2CTD_DEBUG(1, "Calling vcrtcm_hw_add for v4l2ctd %p major %d minor %d\n",
+	spin_unlock_irqrestore(&v4l2ctd_info->v4l2ctd_lock, flags);
+
+	PR_INFO("v4l2 CTD Driver Loaded\n");
+	PR_INFO("successfully registered minor %d\n", v4l2ctd_info->minor);
+
+	PR_DEBUG("Calling vcrtcm_hw_add for v4l2ctd %p major %d minor %d\n",
 			v4l2ctd_info, v4l2ctd_major, v4l2ctd_info->minor);
 	if (vcrtcm_hw_add(&v4l2ctd_vcrtcm_funcs, v4l2ctd_major,
 			v4l2ctd_info->minor, 0, v4l2ctd_info)) {
-		V4L2CTD_WARNING("vcrtcm_hw_add failed, v4l2ctd major %d, minor %d, "
+
+		PR_WARN("vcrtcm_hw_add failed, v4l2ctd major %d, minor %d, "
 			"won't work\n", v4l2ctd_major, v4l2ctd_info->minor);
 	}
+
 	list_add(&v4l2ctd_info->list, &v4l2ctd_info_list);
 	return 0;
 
@@ -958,7 +971,7 @@ free_info:
 static void __exit v4l2ctd_exit(void)
 {
 	struct v4l2ctd_info *v4l2ctd_info, *tmp;
-	V4L2CTD_INFO("Cleaning up v4l2ctd\n");
+	PR_INFO("Cleaning up v4l2ctd\n");
 	list_for_each_entry_safe(v4l2ctd_info, tmp, &v4l2ctd_info_list, list) {
 		if (v4l2ctd_major >= -1) {
 			video_unregister_device(v4l2ctd_info->vfd);
@@ -970,23 +983,24 @@ static void __exit v4l2ctd_exit(void)
 							V4L2CTD_NUM_MINORS);
 
 			/* unregister with VCRTCM */
-			V4L2CTD_DEBUG(1, "Calling vcrtcm_hw_del for "
+			PR_DEBUG("Calling vcrtcm_hw_del for "
 				"v4l2ctd %p, major %d, minor %d\n",
 				v4l2ctd_info, v4l2ctd_major,
 				v4l2ctd_info->minor);
 
-			vcrtcm_hw_del(v4l2ctd_major, v4l2ctd_info->minor, 0);
 			cancel_delayed_work_sync(&v4l2ctd_info->fake_vblank_work);
-			V4L2CTD_DEBUG(1, "freeing main buffer: %p, cursor %p\n",
+			vcrtcm_hw_del(v4l2ctd_major, v4l2ctd_info->minor, 0);
+
+			PR_DEBUG("freeing main buffer: %p, cursor %p\n",
 					v4l2ctd_info->main_buffer,
 					v4l2ctd_info->cursor);
-			V4L2CTD_DEBUG(1, "freeing v4l2ctd_info data %p\n",
+			PR_DEBUG("freeing v4l2ctd_info data %p\n",
 				v4l2ctd_info);
-			V4L2CTD_DEBUG(1, "page_track : %d\n",
+			PR_DEBUG("page_track : %d\n",
 				v4l2ctd_info->page_track);
-			V4L2CTD_DEBUG(1, "kmalloc_track: %d\n",
+			PR_DEBUG("kmalloc_track: %d\n",
 				v4l2ctd_info->kmalloc_track);
-			V4L2CTD_DEBUG(1, "vmalloc_track: %d\n",
+			PR_DEBUG("vmalloc_track: %d\n",
 				v4l2ctd_info->vmalloc_track);
 
 			list_del(&v4l2ctd_info->list);
@@ -1001,10 +1015,10 @@ static void __exit v4l2ctd_exit(void)
 module_init(v4l2ctd_init);
 module_exit(v4l2ctd_exit);
 
+module_param(debug, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(debug, "Enable debugging information.");
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("v4l2 CTD Driver");
-MODULE_AUTHOR("William Katsak (william.katsak@alcatel-lucent.com)");
 MODULE_AUTHOR("Hans Christian Woithe (hans.woithe@alcatel-lucent.com)");
-
-MODULE_PARM_DESC(debug, "Debug level (default=0)");
-module_param_named(debug, v4l2ctd_debug, int, 0644);
+MODULE_AUTHOR("William Katsak (william.katsak@alcatel-lucent.com)");

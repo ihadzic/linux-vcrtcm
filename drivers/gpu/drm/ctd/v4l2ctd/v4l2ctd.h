@@ -36,25 +36,22 @@
 #include "vcrtcm/vcrtcm_ctd.h"
 
 #define V4L2CTD_NUM_MINORS 1
-#define V4L2CTD_BPP 32
-#define V4L2CTD_FPS_HARD_LIMIT 60
-#define V4L2CTD_DEFAULT_PIXEL_DEPTH 32
-#define V4L2CTD_XFER_MAX_TRY 20
-#define V4L2CTD_XFER_TIMEOUT (300*HZ/1000)
-#define V4L2CTD_XMIT_HARD_DEADLINE HZ
-#define V4L2CTD_FB_PULL 0
-#define V4L2CTD_FB_PUSH 1
-#define V4L2CTD_FB_XFER_MODE V4L2CTD_FB_PUSH
+#define V4L2CTD_FPS_HARD_LIMIT 100
+#define V4L2CTD_XMIT_HARD_DEADLINE (HZ/10)
 
-/*#define DEBUG_NO_VCRTCM_KERNEL */
+#define V4L2CTD_IN_DO_XMIT 0x1
+
+#define V4L2CTD_ALLOC_PB_FLAG_FB 0x0
+#define V4L2CTD_ALLOC_PB_FLAG_CURSOR 0x1
+#define V4L2CTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+
+extern int debug;
 
 extern struct list_head v4l2ctd_info_list;
 extern int v4l2ctd_major;
 extern int v4l2ctd_num_minors;
 extern int v4l2ctd_fake_vblank_slack;
 extern struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs;
-
-
 
 struct v4l2ctd_fmt {
 	char  *name;
@@ -67,10 +64,10 @@ struct v4l2ctd_info {
 	struct list_head list;
 	int minor;
 	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
-	struct mutex xmit_mutex;
-	int xfer_in_progress;
+	struct mutex buffer_mutex;
+	spinlock_t v4l2ctd_lock;
 	int enabled_queue;
-	int status;
+	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
 
 	struct workqueue_struct *workqueue;
@@ -79,8 +76,6 @@ struct v4l2ctd_info {
 
 	char *main_buffer;
 	char *cursor;
-	int fb_len;
-	int cursor_len;
 
 	/* v4l2ctd */
 	uint8_t *shadowbuf;
@@ -89,6 +84,7 @@ struct v4l2ctd_info {
 	struct page **shadowbuf_pages;
 	unsigned int shadowbuf_num_pages;
 	unsigned long jshadowbuf;
+
 	struct video_device *vfd;
 	struct v4l2_device v4l2_dev;
 	struct mutex mlock;
@@ -98,7 +94,6 @@ struct v4l2ctd_info {
 	unsigned long generating;
 	struct task_struct *kthread;
 	struct v4l2ctd_fmt *fmt;
-
 
 	/* debug stuff */
 	int page_track;
@@ -110,9 +105,7 @@ struct v4l2ctd_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
-	u32 pending_pflip_ioaddr;
 	unsigned long fb_xmit_period_jiffies;
-	unsigned long next_fb_xmit_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
 	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
@@ -126,10 +119,6 @@ struct v4l2ctd_vcrtcm_hal_descriptor {
 	int push_buffer_index;
 
 	int dpms_state;
-
-	void *hw_fb_ptr;
-	void *hw_fb_prev_ptr;
-	u32 ioaddr_prev;
 
 	struct v4l2ctd_info *v4l2ctd_info;
 };
