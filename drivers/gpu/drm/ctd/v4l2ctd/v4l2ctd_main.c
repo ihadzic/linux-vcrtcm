@@ -139,6 +139,7 @@ v4l2ctd_fillbuff(struct v4l2ctd_info *v4l2ctd_info, struct videobuf_buffer *vb)
 	h = vhd->vcrtcm_fb.vdisplay;
 	d = v4l2ctd_info->fmt->depth;
 
+	mutex_lock(&v4l2ctd_info->sb_lock);
 	switch (v4l2ctd_info->fmt->fourcc) {
 	case V4L2_PIX_FMT_BGR32:
 		/* native format so just copy */
@@ -201,6 +202,7 @@ v4l2ctd_fillbuff(struct v4l2ctd_info *v4l2ctd_info, struct videobuf_buffer *vb)
 		d = 0;
 		break;
 	}
+	mutex_unlock(&v4l2ctd_info->sb_lock);
 
 	vb->size = w * h * (d / 8);
 	vb->field_count++;
@@ -896,6 +898,7 @@ static int __init v4l2ctd_init(void)
 
 	v4l2ctd_info->shadowbuf = NULL;
 	v4l2ctd_info->shadowbufsize = 0;
+	mutex_init(&v4l2ctd_info->sb_lock);
 	v4l2ctd_info->shadowbuf_pages = NULL;
 	v4l2ctd_info->shadowbuf_num_pages = 0;
 

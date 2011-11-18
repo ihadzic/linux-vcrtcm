@@ -85,6 +85,7 @@ struct v4l2ctd_info {
 	/* v4l2ctd */
 	uint8_t *shadowbuf;
 	uint32_t shadowbufsize;
+	struct mutex sb_lock;
 	struct page **shadowbuf_pages;
 	unsigned int shadowbuf_num_pages;
 	unsigned long jshadowbuf;

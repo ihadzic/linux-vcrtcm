@@ -217,11 +217,11 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 				w = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.hdisplay;
 				h = v4l2ctd_vcrtcm_hal_descriptor->vcrtcm_fb.vdisplay;
 				sb_size = w * h * (V4L2CTD_BPP / 8);
-				mutex_lock(&v4l2ctd_info->mlock);
+				mutex_lock(&v4l2ctd_info->sb_lock);
 				v4l2ctd_alloc_shadowbuf(v4l2ctd_info, sb_size);
 				if (!v4l2ctd_info->shadowbuf)
 					return -ENOMEM;
-				mutex_unlock(&v4l2ctd_info->mlock);
+				mutex_unlock(&v4l2ctd_info->sb_lock);
 
 				V4L2CTD_DEBUG(1, "framebuffer[%d]: allocating push buffer, size=%d, "
 						"num_pages=%d\n", i, size_in_bytes, requested_num_pages);
@@ -924,8 +924,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 		}
 
 		/* shadowbuf */
-		/*pr_info("v4l2ctd: lock\n");*/
-		/*mutex_lock(&v4l2ctd_info->mlock);*/
+		mutex_lock(&v4l2ctd_info->sb_lock);
 		if (v4l2ctd_info->shadowbuf) {
 			v4l2ctd_info->jshadowbuf = jiffies;
 			mb = v4l2ctd_info->main_buffer + vp_offset;
@@ -936,8 +935,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm
 				sb += hlen;
 			}
 		}
-		/*mutex_unlock(&v4l2ctd_info->mlock);*/
-		/*pr_info("v4l2ctd: unlock\n");*/
+		mutex_unlock(&v4l2ctd_info->sb_lock);
 
 		v4l2ctd_info->main_buffer = NULL;
 		v4l2ctd_info->cursor = NULL;
