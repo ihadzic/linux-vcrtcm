@@ -661,19 +661,20 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 	/*
 	 * Overlay the cursor
 	 */
-
-
 	if (udlctd_info->udlctd_vcrtcm_hal_descriptor && udlctd_info->cursor) {
-		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE && line_num >= vcrtcm_cursor->location_y &&
-			line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
-			int i;
-			uint32_t *hline_pixel = (uint32_t *) line_start;
+		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
+		    line_num >= vcrtcm_cursor->location_y &&
+		    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
+			int i, clip = 0;
+			uint32_t *hline_pixel = (uint32_t *)line_start;
 			uint32_t *cursor_pixel = (uint32_t *)udlctd_info->cursor;
-
-			hline_pixel += vcrtcm_cursor->location_x;
 			cursor_pixel +=	(line_num-vcrtcm_cursor->location_y)*vcrtcm_cursor->width;
-
-			for (i = 0; i < vcrtcm_cursor->width; i++) {
+			if (vcrtcm_cursor->location_x >= 0)
+				hline_pixel += vcrtcm_cursor->location_x;
+			else
+				clip = -vcrtcm_cursor->location_x;
+			cursor_pixel += clip;
+			for (i = 0; i < vcrtcm_cursor->width - clip; i++) {
 				if (hline_pixel >= (uint32_t *) line_end)
 					break;
 
