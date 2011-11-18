@@ -21,6 +21,24 @@
 #ifndef __v4l2ctd_UTILS_H__
 #define __v4l2ctd_UTILS_H__
 
+extern int debug;
+
+#define PR_INFO(fmt, args...) \
+	do { \
+		printk(KERN_INFO "[" KBUILD_MODNAME "]: " fmt, ## args); \
+	} while (0)
+
+#define PR_ERR(fmt, args...) \
+	printk(KERN_ERR "[" KBUILD_MODNAME "]: " fmt, ## args)
+#define PR_WARN(fmt, args...) \
+	printk(KERN_WARNING "[" KBUILD_MODNAME "]: " fmt, ## args)
+#define PR_DEBUG(fmt, args...) \
+	do { \
+		if (unlikely(debug > 0)) \
+			printk(KERN_INFO "[" KBUILD_MODNAME "]: " \
+					fmt, ## args); \
+	} while (0)
+
 int v4l2ctd_alloc_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
 					gfp_t gfp_mask,
 					struct page **page_array,
@@ -55,23 +73,4 @@ inline void *v4l2ctd_vzalloc(struct v4l2ctd_info *v4l2ctd_info,
 
 inline void v4l2ctd_vfree(struct v4l2ctd_info *v4l2ctd_info,
 			void *ptr);
-
-extern int v4l2ctd_debug;
-
-#define V4L2CTD_INFO(fmt, args...) \
-	do { \
-		if (v4l2ctd_debug >= 0) \
-			printk(KERN_INFO "[" KBUILD_MODNAME "] " fmt, ## args); \
-	} while (0)
-
-#define V4L2CTD_ERROR(fmt, args...) printk(KERN_ERR "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args)
-#define V4L2CTD_WARNING(fmt, args...) printk(KERN_WARNING "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args)
-
-#define V4L2CTD_DEBUG(level, fmt, args...) \
-	do { \
-		if (unlikely(v4l2ctd_debug >= level)) \
-			printk(KERN_DEBUG "[" KBUILD_MODNAME ":%s] " fmt, __func__, ## args); \
-	} while (0)
-
-
 #endif

@@ -29,17 +29,13 @@ int v4l2ctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 void v4l2ctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			void *hw_drv_info, int flow);
 
-int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
-			int flow);
+int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow);
 
-int v4l2ctd_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
-			int flow);
+int v4l2ctd_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow);
 
 int v4l2ctd_set_fps(int fps, void *hw_drv_info, int flow);
 
 int v4l2ctd_get_fps(int *fps, void *hw_drv_info, int flow);
-
-int v4l2ctd_page_flip(u32 ioaddr, void *hw_drv_info, int flow);
 
 int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow);
@@ -57,9 +53,8 @@ int v4l2ctd_get_dpms(int *state, void *hw_drv_info, int flow);
 
 /* Scheduled/delayed work functions */
 void v4l2ctd_fake_vblank(struct work_struct *work);
-int v4l2ctd_wait_idle_core(struct v4l2ctd_info *v4l2ctd_info);
-int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor
-		*v4l2ctd_vcrtcm_hal_descriptor);
-
+void copy_cursor_work(struct work_struct *work);
+int v4l2ctd_do_xmit_fb_pull(struct v4l2ctd_vcrtcm_hal_descriptor *vhd);
+int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *vhd);
 
 #endif
