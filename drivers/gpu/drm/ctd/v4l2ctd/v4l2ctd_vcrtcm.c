@@ -725,23 +725,30 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *vhd)
 		cursor = &vhd->vcrtcm_cursor;
 		if (cursor->flag != VCRTCM_CURSOR_FLAG_HIDE) {
 			uint32_t *fb_end;
+			int clip_y = 0;
 			mb = v4l2ctd_info->main_buffer + vp_offset;
 			fb_end = (uint32_t *) (mb + p * (vpixels - 1));
 			fb_end += hpixels;
+			if (cursor->location_y < 0)
+				clip_y = -cursor->location_y;
 			/* loop for each line of the framebuffer. */
-			for (i = 0; i < cursor->height; i++) {
+			for (i = 0; i < cursor->height - clip_y; i++) {
 				uint32_t *cursor_pixel;
 				uint32_t *fb_pixel;
 				uint32_t *fb_line_end;
+				int clip_x = 0;
 
+				if (cursor->location_x < 0)
+					clip_x = -cursor->location_x;
 				cursor_pixel = (uint32_t *) v4l2ctd_info->cursor;
 				cursor_pixel += i * cursor->width;
+				cursor_pixel += clip_y * cursor->width + clip_x;
 
 				fb_pixel = (uint32_t *) (mb + p * (cursor->location_y + i));
 				fb_line_end = fb_pixel + hpixels;
 				fb_pixel += cursor->location_x;
 
-				for (j = 0; j < cursor->width; j++) {
+				for (j = 0; j < cursor->width - clip_x; j++) {
 					if (fb_pixel >= fb_end || fb_pixel >= fb_line_end)
 						break;
 
