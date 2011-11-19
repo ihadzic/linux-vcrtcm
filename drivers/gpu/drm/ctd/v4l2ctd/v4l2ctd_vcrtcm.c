@@ -743,7 +743,7 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *vhd)
 
 				for (j = 0; j < cursor->width; j++) {
 					if (fb_pixel >= fb_end || fb_pixel >= fb_line_end)
-						continue;
+						break;
 
 					if (*cursor_pixel >> 24 > 0)
 						*fb_pixel = *cursor_pixel;
