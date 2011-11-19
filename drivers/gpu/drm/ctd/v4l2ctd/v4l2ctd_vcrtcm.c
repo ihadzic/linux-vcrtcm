@@ -110,8 +110,8 @@ static int v4l2ctd_alloc_pb(struct v4l2ctd_info *v4l2ctd_info,
 			}
 		} else {
 			vhd->pb_cursor[i] =
-				vm_map_ram(vhd->pbd_cursor->pages,
-					vhd->pbd_cursor->num_pages,
+				vm_map_ram(vhd->pbd_cursor[i].pages,
+					vhd->pbd_cursor[i].num_pages,
 					0, PAGE_KERNEL);
 
 			if (vhd->pb_cursor[i] == NULL) {
