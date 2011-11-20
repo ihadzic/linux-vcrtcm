@@ -51,7 +51,6 @@ extern struct list_head v4l2ctd_info_list;
 extern int v4l2ctd_major;
 extern int v4l2ctd_num_minors;
 extern int v4l2ctd_fake_vblank_slack;
-extern struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs;
 
 struct v4l2ctd_fmt {
 	char  *name;
