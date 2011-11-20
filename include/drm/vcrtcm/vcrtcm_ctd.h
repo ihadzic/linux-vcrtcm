@@ -33,6 +33,7 @@
 
 /* setup/config functions for CTD driver's use */
 int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
+		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info);
 void vcrtcm_hw_del(int major, int minor, int flow);
 
