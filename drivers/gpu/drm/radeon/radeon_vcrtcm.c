@@ -57,6 +57,8 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 	unsigned int tmp;
 
 	if (radeon_crtc->vcrtcm_dev_hal) {
+		struct vcrtcm_hw_props *hw_props =
+			&radeon_crtc->vcrtcm_dev_hal->hw_props;
 		DRM_INFO("crtc %d has vcrtcm HAL, calling vcrtcm_set_fb\n",
 			 radeon_crtc->crtc_id);
 		/* tell the vcrtcm HAL the address and geometry of the */
@@ -68,7 +70,17 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 		vcrtcm_fb.pitch = crtc->fb->pitch;
 		vcrtcm_fb.height = crtc->fb->height;
 		vcrtcm_fb.viewport_x = x;
-		vcrtcm_fb.viewport_y = y;
+		/* in pull mode, clipping is done by CTD, in push mode
+		 * GPU does the clipping along Y axis, so viewport_y
+		 * is zero (REVISIT: this will change when we cut our
+		 * own blit function that does the full clipping
+		 * it also may change when we start doing tiling and if
+		 * we need to align to the tile boundary
+		 */
+		if (hw_props->xfer_mode == VCRTCM_PEER_PULL)
+			vcrtcm_fb.viewport_y = y;
+		else
+			vcrtcm_fb.viewport_y = 0;
 		vcrtcm_fb.hdisplay = crtc->mode.hdisplay;
 		vcrtcm_fb.vdisplay = crtc->mode.vdisplay;
 		return vcrtcm_set_fb(radeon_crtc->vcrtcm_dev_hal, &vcrtcm_fb);
