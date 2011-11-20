@@ -52,6 +52,7 @@ extern int udlctd_num_minors;
 extern int udlctd_max_minor;
 extern int udlctd_fake_vblank_slack;
 extern struct vcrtcm_funcs udlctd_vcrtcm_funcs;
+extern struct vcrtcm_hw_props udlctd_vcrtcm_hw_props;
 
 struct urb_node {
 	struct list_head entry;

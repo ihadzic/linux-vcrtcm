@@ -26,6 +26,7 @@
    pointers to back-end functions (functions that get called after
    generic HAL function is executed) */
 int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
+		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
@@ -47,6 +48,8 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 				       vcrtcm_dev_info->hw_flow);
 			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs,
 			       vcrtcm_funcs, sizeof(struct vcrtcm_funcs));
+			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props,
+			       vcrtcm_hw_props, sizeof(struct vcrtcm_hw_props));
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
 				     hal_mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
@@ -67,6 +70,8 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 	mutex_init(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
 	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_funcs,
 	       sizeof(struct vcrtcm_funcs));
+	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props, vcrtcm_hw_props,
+	       sizeof(struct vcrtcm_hw_props));
 
 	/* populate the info structure and link it to the HAL structure */
 	vcrtcm_dev_info->status = 0;

@@ -62,6 +62,11 @@ struct vcrtcm_funcs udlctd_vcrtcm_funcs = {
 	.get_dpms = udlctd_get_dpms
 };
 
+
+struct vcrtcm_hw_props udlctd_vcrtcm_hw_props = {
+	.xfer_mode = VCRTCM_PUSH_PULL
+};
+
 static int __init udlctd_init(void)
 {
 	int ret;

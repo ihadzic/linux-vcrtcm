@@ -857,6 +857,10 @@ static struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs = {
 	.get_dpms = v4l2ctd_get_dpms
 };
 
+static struct vcrtcm_hw_props v4l2ctd_vcrtcm_hw_props = {
+	.xfer_mode = VCRTCM_PUSH_PULL
+};
+
 static int __init v4l2ctd_init(void)
 {
 	struct v4l2ctd_info *v4l2ctd_info;
@@ -949,12 +953,10 @@ static int __init v4l2ctd_init(void)
 
 	PR_DEBUG("Calling vcrtcm_hw_add for v4l2ctd %p major %d minor %d\n",
 			v4l2ctd_info, v4l2ctd_major, v4l2ctd_info->minor);
-	if (vcrtcm_hw_add(&v4l2ctd_vcrtcm_funcs, v4l2ctd_major,
-			v4l2ctd_info->minor, 0, v4l2ctd_info)) {
-
+	if (vcrtcm_hw_add(&v4l2ctd_vcrtcm_funcs, &v4l2ctd_vcrtcm_hw_props,
+			  v4l2ctd_major, v4l2ctd_info->minor, 0, v4l2ctd_info))
 		PR_WARN("vcrtcm_hw_add failed, v4l2ctd major %d, minor %d, "
 			"won't work\n", v4l2ctd_major, v4l2ctd_info->minor);
-	}
 
 	list_add(&v4l2ctd_info->list, &v4l2ctd_info_list);
 	return 0;

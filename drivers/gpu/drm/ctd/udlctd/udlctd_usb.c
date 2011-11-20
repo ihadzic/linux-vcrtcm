@@ -200,13 +200,10 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 
 	PR_DEBUG("Calling vcrtcm_hw_add for udlctd %p major %d minor %d\n",
 		udlctd_info, udlctd_major, udlctd_info->minor);
-	if (vcrtcm_hw_add(&udlctd_vcrtcm_funcs, udlctd_major,
-			udlctd_info->minor, 0, udlctd_info)) {
-
+	if (vcrtcm_hw_add(&udlctd_vcrtcm_funcs, &udlctd_vcrtcm_hw_props,
+			  udlctd_major, udlctd_info->minor, 0, udlctd_info))
 		PR_WARN("vcrtcm_hw_add failed, udlctd major %d, minor %d,"
-			" won't work\n",
-			udlctd_major, udlctd_info->minor);
-	}
+			" won't work\n", udlctd_major, udlctd_info->minor);
 
 	list_add(&udlctd_info->list, &udlctd_info_list);
 
