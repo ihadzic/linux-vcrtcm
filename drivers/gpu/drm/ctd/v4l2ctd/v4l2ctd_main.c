@@ -841,7 +841,7 @@ static struct video_device v4l2ctd_template = {
 	.current_norm   = V4L2_STD_UNKNOWN,
 };
 
-struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs = {
+static struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs = {
 	.attach = v4l2ctd_attach,
 	.detach = v4l2ctd_detach,
 	.set_fb = v4l2ctd_set_fb,
