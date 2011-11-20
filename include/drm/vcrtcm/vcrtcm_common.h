@@ -109,6 +109,18 @@ struct vcrtcm_funcs {
 			   int *status);
 };
 
+enum vcrtcm_xfer_mode {
+	VCRTCM_PEER_PULL,
+	VCRTCM_PEER_PUSH,
+	VCRTCM_PUSH_PULL
+};
+
+/* describes properties of the attached CTD HAL */
+/* that GPU needs to know about */
+struct vcrtcm_hw_props {
+	enum vcrtcm_xfer_mode xfer_mode;
+};
+
 /* Abstracted hadrware of a generic Virtual CRTC
    (independent of actual hardware implementation)
 
@@ -122,6 +134,8 @@ struct vcrtcm_dev_hal {
 	struct mutex hal_mutex;
 	/* function pointers into HAL implementation */
 	struct vcrtcm_funcs funcs;
+	/* harware properties that GPU driver needs to know */
+	struct vcrtcm_hw_props hw_props;
 };
 
 /* descriptor for push buffer; when push-method is used */
