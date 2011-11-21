@@ -60,6 +60,18 @@ struct usb_driver udlctd_driver = {
 	.id_table = id_table,
 };
 
+static struct udlctd_video_mode fallback_mode = {
+		.xres = 640,
+		.yres = 480,
+		.pixclock = 39682,
+		.left_margin = 48,
+		.right_margin = 16,
+		.upper_margin = 33,
+		.lower_margin = 10,
+		.hsync_len = 92,
+		.vsync_len = 2
+};
+
 /******************************************************************************
  * USB/device setup
  * These functions setup the driver for each attached device
@@ -175,19 +187,18 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	udlctd_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlctd_info->fake_vblank_work, udlctd_fake_vblank);
+	INIT_DELAYED_WORK(&udlctd_info->query_edid_work, udlctd_query_edid);
 
 	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	udlctd_info->status = 0;
+	udlctd_info->monitor_connected = 0;
+	udlctd_info->edid = NULL;
 	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
-	INIT_LIST_HEAD(&udlctd_info->fb_mode_list);
+	udlctd_info->last_vcrtcm_mode_list = NULL;
 
-	retval = udlctd_setup_modes(udlctd_info);
-
-	if (retval != 0) {
-		PR_ERR("Unable to find common mode for display and adapter.\n");
-		goto error;
-	}
+	memcpy(&udlctd_info->default_video_mode,
+			&fallback_mode, sizeof(struct udlctd_video_mode));
 
 	atomic_set(&udlctd_info->usb_active, 1);
 	udlctd_select_std_channel(udlctd_info);
@@ -197,7 +208,6 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	PR_INFO("DisplayLink USB device attached.\n");
 	PR_INFO("successfully registered"
 		" minor %d\n", udlctd_info->minor);
-
 
 	PR_DEBUG("Calling vcrtcm_hw_add for udlctd %p major %d minor %d\n",
 		udlctd_info, udlctd_major, udlctd_info->minor);
@@ -262,7 +272,6 @@ void udlctd_free(struct kref *kref)
 {
 	struct udlctd_info *udlctd_info =
 		container_of(kref, struct udlctd_info, kref);
-	struct udlctd_video_mode *udlctd_video_mode, *tmp;
 
 	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
 
@@ -271,14 +280,11 @@ void udlctd_free(struct kref *kref)
 		udlctd_free_urb_list(udlctd_info);
 
 	PR_DEBUG("freeing edid: %p\n", udlctd_info->edid);
-	udlctd_kfree(udlctd_info, udlctd_info->edid);
+	if (udlctd_info->edid)
+		udlctd_kfree(udlctd_info, udlctd_info->edid);
 
-	PR_DEBUG("freeing mode list");
-	list_for_each_entry_safe(udlctd_video_mode,
-				tmp, &udlctd_info->fb_mode_list, list) {
-		list_del(&udlctd_video_mode->list);
-		udlctd_kfree(udlctd_info, udlctd_video_mode);
-	}
+	if (udlctd_info->last_vcrtcm_mode_list)
+		udlctd_kfree(udlctd_info, udlctd_info->last_vcrtcm_mode_list);
 
 	udlctd_unmap_scratch_memory(udlctd_info);
 	udlctd_free_scratch_memory(udlctd_info);
@@ -424,6 +430,184 @@ error:
 			&udlctd_info->cpu_kcycles_used);
 
 	return 0;
+}
+
+int udlctd_build_modelist(struct udlctd_info *udlctd_info,
+			struct udlctd_video_mode **modes, int *mode_count)
+{
+	int i;
+	struct fb_monspecs monspecs;
+	struct fb_modelist *fb_modelist_ptr;
+	struct list_head modelist;
+	struct udlctd_video_mode *udlctd_video_modes;
+	int num_modes = 0;
+	INIT_LIST_HEAD(&modelist);
+	memset(&monspecs, 0, sizeof(monspecs));
+
+	PR_DEBUG("In build_modelist\n");
+
+	/* If we have a new EDID, parse it */
+	fb_edid_to_monspecs(udlctd_info->edid, &monspecs);
+
+	/* If the EDID parsed ok (we expect it to), extract the modes */
+	if (monspecs.modedb_len > 0) {
+		for (i = 0; i < monspecs.modedb_len; i++) {
+			if (udlctd_is_valid_mode(
+					udlctd_info,
+					monspecs.modedb[i].xres,
+					monspecs.modedb[i].yres)) {
+
+				fb_add_videomode(&monspecs.modedb[i],
+						&modelist);
+			}
+		}
+		num_modes = monspecs.modedb_len;
+	} else if (enable_default_modes) {
+		/*
+		 * Add the standard VESA modes to our modelist
+		 * Since we don't have EDID, there may be modes that
+		 * overspec monitor and/or are incorrect aspect ratio, etc.
+		 * But at least the user has a chance to choose
+		 */
+		for (i = 0; i < VESA_MODEDB_SIZE; i++) {
+			if (udlctd_is_valid_mode(udlctd_info,
+				((struct fb_videomode *)
+						&vesa_modes[i])->xres,
+				((struct fb_videomode *)
+						&vesa_modes[i])->yres)) {
+
+				fb_add_videomode(&vesa_modes[i],
+						&modelist);
+				num_modes++;
+			}
+		}
+		num_modes = VESA_MODEDB_SIZE;
+	}
+
+	udlctd_video_modes = udlctd_kmalloc(udlctd_info,
+			sizeof(struct udlctd_video_mode) * num_modes,
+			GFP_KERNEL);
+	PR_DEBUG("Size of modelist %d\n", num_modes);
+
+	if (!udlctd_video_modes) {
+		PR_ERR("Could not allocate memory for modelist\n");
+		goto error;
+	}
+
+	/* Now we can build the modelist to return. */
+
+	/* Build the udlctd modelist from the fbdev modelist */
+	i = 0;
+	list_for_each_entry(fb_modelist_ptr, &modelist, list) {
+		udlctd_video_modes[i].xres = fb_modelist_ptr->mode.xres;
+		udlctd_video_modes[i].yres = fb_modelist_ptr->mode.yres;
+		udlctd_video_modes[i].pixclock = fb_modelist_ptr->mode.pixclock;
+		udlctd_video_modes[i].left_margin =
+			fb_modelist_ptr->mode.left_margin;
+		udlctd_video_modes[i].right_margin =
+			fb_modelist_ptr->mode.right_margin;
+		udlctd_video_modes[i].upper_margin =
+			fb_modelist_ptr->mode.upper_margin;
+		udlctd_video_modes[i].lower_margin =
+			fb_modelist_ptr->mode.lower_margin;
+		udlctd_video_modes[i].hsync_len =
+			fb_modelist_ptr->mode.hsync_len;
+		udlctd_video_modes[i].vsync_len =
+			fb_modelist_ptr->mode.vsync_len;
+		udlctd_video_modes[i].refresh = fb_modelist_ptr->mode.refresh;
+		i++;
+	}
+
+	/* Destroy the temporary fbdev modelist. */
+	fb_destroy_modelist(&modelist);
+
+	*modes = udlctd_video_modes;
+	*mode_count = i;
+	return 0;
+
+error:
+	fb_destroy_modelist(&modelist);
+	*modes = NULL;
+	*mode_count = 0;
+	return -ENOMEM;
+}
+
+int udlctd_free_modelist(struct udlctd_info *udlctd_info,
+		struct udlctd_video_mode *modes)
+{
+	if (modes)
+		udlctd_kfree(udlctd_info, modes);
+
+	return 0;
+}
+
+/* Do an EDID query. This is normally called inside a delayed_work, */
+/* but is also called once by attach */
+void udlctd_query_edid_core(struct udlctd_info *udlctd_info)
+{
+	struct udlctd_vcrtcm_hal_descriptor *uvhd;
+	struct fb_monspecs monspecs;
+	char *new_edid, *old_edid;
+	int new_edid_valid = 0;
+	int tries = UDLCTD_EDID_QUERY_TRIES;
+	int i;
+	unsigned long flags;
+
+	PR_DEBUG("In udlctd_query_edid\n");
+
+	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
+
+	new_edid = udlctd_kmalloc(udlctd_info, EDID_LENGTH, GFP_KERNEL);
+
+	if (!new_edid) {
+		PR_ERR("Could not allocate memory for EDID query.\n");
+		return;
+	}
+
+	memset(&monspecs, 0, sizeof(monspecs));
+
+	/*
+	 * Try to (re)read EDID from hardware first
+	 * EDID data may return, but not parse as valid
+	 * Try again a few times, in case of e.g. analog cable noise
+	 */
+	while (tries--) {
+		i = udlctd_get_edid(udlctd_info, new_edid, EDID_LENGTH);
+
+		/* If we got an incomplete EDID. */
+		if (i < EDID_LENGTH)
+			continue;
+
+		/* Otherwise, we try to parse it. */
+		fb_edid_to_monspecs(new_edid, &monspecs);
+
+		/* If it parses, it is valid. */
+		if (monspecs.modedb_len > 0) {
+			new_edid_valid = 1;
+			break;
+		}
+	}
+
+	if (!new_edid_valid) {
+		udlctd_kfree(udlctd_info, new_edid);
+		new_edid = NULL;
+	}
+
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
+	old_edid = udlctd_info->edid;
+	udlctd_info->edid = new_edid;
+	udlctd_info->monitor_connected = new_edid ? 1 : 0;
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
+	if (uvhd && ((!old_edid && !new_edid) ||
+		(old_edid && new_edid &&
+			memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
+		PR_DEBUG("Calling hotplug.\n");
+		vcrtcm_hotplug(uvhd->vcrtcm_dev_hal);
+	}
+
+	if (old_edid)
+		udlctd_kfree(udlctd_info, old_edid);
 }
 
 /******************************************************************************
@@ -1059,171 +1243,9 @@ static int udlctd_is_valid_mode(struct udlctd_info *udlctd_info,
 		return 0;
 	}
 
-	PR_INFO("%dx%d valid mode\n", xres, yres);
+	PR_DEBUG("%dx%d valid mode\n", xres, yres);
 
 	return 1;
-}
-
-static int udlctd_setup_modes(struct udlctd_info *udlctd_info)
-{
-	int i;
-	const struct fb_videomode *default_vmode = NULL;
-	struct fb_monspecs monspecs;
-	struct fb_modelist *fb_modelist_ptr;
-	struct list_head modelist;
-	struct udlctd_video_mode *udlctd_video_mode, *tmp;
-
-	int result = 0;
-	char *edid;
-	int tries = 3;
-
-	INIT_LIST_HEAD(&modelist);
-
-	edid = udlctd_kmalloc(udlctd_info, EDID_LENGTH, GFP_KERNEL);
-
-	if (!edid) {
-		result = -ENOMEM;
-		goto error;
-	}
-
-	list_for_each_entry_safe(udlctd_video_mode, tmp,
-				&udlctd_info->fb_mode_list, list) {
-		list_del(&udlctd_video_mode->list);
-		udlctd_kfree(udlctd_info, udlctd_video_mode);
-	}
-
-	fb_destroy_modelist(&modelist);
-	memset(&monspecs, 0, sizeof(monspecs));
-
-	/*
-	 * Try to (re)read EDID from hardware first
-	 * EDID data may return, but not parse as valid
-	 * Try again a few times, in case of e.g. analog cable noise
-	 */
-	while (tries--) {
-
-		i = udlctd_get_edid(udlctd_info, edid, EDID_LENGTH);
-
-		if (i >= EDID_LENGTH)
-			fb_edid_to_monspecs(edid, &monspecs);
-
-		if (monspecs.modedb_len > 0) {
-			udlctd_info->edid = edid;
-			udlctd_info->edid_size = i;
-			break;
-		}
-	}
-
-	/* If we've got modes, lets pick a best default mode */
-	if (monspecs.modedb_len > 0) {
-		for (i = 0; i < monspecs.modedb_len; i++) {
-			if (udlctd_is_valid_mode(
-				udlctd_info,
-				monspecs.modedb[i].xres,
-				monspecs.modedb[i].yres)) {
-
-				fb_add_videomode(&monspecs.modedb[i],
-					&modelist);
-			} else {
-				if (i == 0)
-					/* if we've removed top/best mode */
-					monspecs.misc &= ~FB_MISC_1ST_DETAIL;
-			}
-		}
-
-		default_vmode = fb_find_best_display(&monspecs, &modelist);
-	}
-
-	/* If everything else has failed, fall back to safe default mode */
-	if (default_vmode == NULL) {
-		struct fb_videomode fb_vmode = {0};
-
-		/*
-		 * Add the standard VESA modes to our modelist
-		 * Since we don't have EDID, there may be modes that
-		 * overspec monitor and/or are incorrect aspect ratio, etc.
-		 * But at least the user has a chance to choose
-		 */
-		for (i = 0; i < VESA_MODEDB_SIZE; i++) {
-			if (udlctd_is_valid_mode(udlctd_info,
-				((struct fb_videomode *)&vesa_modes[i])->xres,
-				((struct fb_videomode *)&vesa_modes[i])->yres))
-
-				fb_add_videomode(&vesa_modes[i],
-					&modelist);
-		}
-
-		/*
-		 * default to resolution safe for projectors
-		 * (since they are most common case without EDID)
-		 */
-		fb_vmode.xres = 800;
-		fb_vmode.yres = 600;
-		fb_vmode.refresh = 60;
-		default_vmode = fb_find_nearest_mode(&fb_vmode, &modelist);
-	}
-
-	/* Erase our old modelist */
-	list_for_each_entry_safe(udlctd_video_mode, tmp,
-				&udlctd_info->fb_mode_list, list) {
-		udlctd_kfree(udlctd_info, udlctd_video_mode);
-		list_del(&udlctd_video_mode->list);
-	}
-
-	/* Build our modelist from the fbdev modelist */
-	list_for_each_entry(fb_modelist_ptr, &modelist, list) {
-		udlctd_video_mode = udlctd_kmalloc(
-			udlctd_info,
-			sizeof(struct udlctd_video_mode),
-			GFP_KERNEL);
-
-		udlctd_video_mode->xres = fb_modelist_ptr->mode.xres;
-		udlctd_video_mode->yres = fb_modelist_ptr->mode.yres;
-		udlctd_video_mode->pixclock = fb_modelist_ptr->mode.pixclock;
-		udlctd_video_mode->left_margin =
-			fb_modelist_ptr->mode.left_margin;
-		udlctd_video_mode->right_margin =
-			fb_modelist_ptr->mode.right_margin;
-		udlctd_video_mode->upper_margin =
-			fb_modelist_ptr->mode.upper_margin;
-		udlctd_video_mode->lower_margin =
-			fb_modelist_ptr->mode.lower_margin;
-		udlctd_video_mode->hsync_len =
-			fb_modelist_ptr->mode.hsync_len;
-		udlctd_video_mode->vsync_len =
-			fb_modelist_ptr->mode.vsync_len;
-
-		list_add(&udlctd_video_mode->list,
-			&udlctd_info->fb_mode_list);
-	}
-
-	fb_destroy_modelist(&modelist);
-
-	if (default_vmode != NULL) {
-		udlctd_info->default_video_mode.xres = default_vmode->xres;
-		udlctd_info->default_video_mode.yres = default_vmode->yres;
-		udlctd_info->default_video_mode.pixclock =
-			default_vmode->pixclock;
-		udlctd_info->default_video_mode.left_margin =
-			default_vmode->left_margin;
-		udlctd_info->default_video_mode.right_margin =
-			default_vmode->right_margin;
-		udlctd_info->default_video_mode.upper_margin =
-			default_vmode->upper_margin;
-		udlctd_info->default_video_mode.lower_margin =
-			default_vmode->lower_margin;
-		udlctd_info->default_video_mode.hsync_len =
-			default_vmode->hsync_len;
-		udlctd_info->default_video_mode.vsync_len =
-			default_vmode->vsync_len;
-	} else
-		result = -EINVAL;
-
-error:
-	if (edid && (udlctd_info->edid != edid))
-		udlctd_kfree(udlctd_info, edid);
-
-	return result;
 }
 
 static int udlctd_alloc_scratch_memory(struct udlctd_info *udlctd_info,
@@ -1549,6 +1571,20 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 			mode, sizeof(struct udlctd_video_mode));
 
 	return retval;
+}
+
+/* Delayed work which runs periodically to query the monitor's EDID. */
+static void udlctd_query_edid(struct work_struct *work)
+{
+	struct delayed_work *delayed_work =
+		container_of(work, struct delayed_work, work);
+	struct udlctd_info *udlctd_info =
+		container_of(delayed_work, struct udlctd_info, query_edid_work);
+
+	udlctd_query_edid_core(udlctd_info);
+
+	queue_delayed_work(udlctd_info->workqueue,
+			&udlctd_info->query_edid_work, UDLCTD_EDID_QUERY_TIME);
 }
 
 /* The following are all low-level DisplayLink manipulation functions */

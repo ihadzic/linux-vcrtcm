@@ -41,9 +41,13 @@
 #define UDLCTD_BLANK_COLOR 0x0080c8
 #define UDLCTD_ERROR_COLOR 0xFF0000
 
+#define UDLCTD_EDID_QUERY_TIME HZ
+#define UDLCTD_EDID_QUERY_TRIES 3
+
 /* Module options */
 extern int true32bpp;
 extern int debug;
+extern int enable_default_modes;
 
 extern struct usb_driver udlctd_driver;
 extern struct list_head udlctd_info_list;
@@ -81,6 +85,7 @@ struct udlctd_video_mode {
 	u32 lower_margin;
 	u32 hsync_len;
 	u32 vsync_len;
+	u32 refresh;
 };
 
 struct udlctd_scratch_memory_descriptor {
@@ -106,6 +111,7 @@ struct udlctd_info {
 	struct workqueue_struct *workqueue;
 
 	struct delayed_work fake_vblank_work;
+	struct delayed_work query_edid_work;
 
 	/* displaylink specific stuff */
 	char *edid;
@@ -125,7 +131,8 @@ struct udlctd_info {
 	/* supported fb modes */
 	struct udlctd_video_mode default_video_mode;
 	struct udlctd_video_mode current_video_mode;
-	struct list_head fb_mode_list;
+	struct vcrtcm_mode *last_vcrtcm_mode_list;
+	int monitor_connected;
 
 	/* usb stuff */
 	struct usb_device *udev;
@@ -178,5 +185,10 @@ int udlctd_error_screen(struct udlctd_info *udlctd_info);
 int udlctd_dpms_sleep(struct udlctd_info *udlctd_info);
 int udlctd_dpms_wakeup(struct udlctd_info *udlctd_info);
 int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info);
+int udlctd_build_modelist(struct udlctd_info *udlctd_info,
+			struct udlctd_video_mode **modes, int *mode_count);
+int udlctd_free_modelist(struct udlctd_info *udlctd_info,
+			struct udlctd_video_mode *modes);
+void udlctd_query_edid_core(struct udlctd_info *udlctd_info);
 
 #endif
