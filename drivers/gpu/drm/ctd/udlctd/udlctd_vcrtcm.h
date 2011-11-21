@@ -53,6 +53,11 @@ int udlctd_get_fb_status(struct drm_crtc *drm_crtc,
 		void *hw_drv_info, int flow, u32 *status);
 int udlctd_set_dpms(int state, void *hw_drv_info, int flow);
 int udlctd_get_dpms(int *state, void *hw_drv_info, int flow);
+int udlctd_connected(void *hw_drv_info, int *status);
+int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes,
+			int *count);
+int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode,
+			int *status);
 
 /* Scheduled/delayed work functions */
 void udlctd_fake_vblank(struct work_struct *work);

@@ -193,6 +193,13 @@ int udlctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		udlctd_info->udlctd_vcrtcm_hal_descriptor =
 			uvhd;
 
+		/* Do an initial query of the EDID */
+		udlctd_query_edid_core(udlctd_info);
+
+		/* Start the EDID query thread */
+		queue_delayed_work(udlctd_info->workqueue,
+					&udlctd_info->query_edid_work, 0);
+
 		PR_INFO("udlctd %d now serves HAL %p\n", udlctd_info->minor,
 			vcrtcm_dev_hal);
 
@@ -213,6 +220,7 @@ void udlctd_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	uvhd = udlctd_info->udlctd_vcrtcm_hal_descriptor;
 
 	cancel_delayed_work_sync(&udlctd_info->fake_vblank_work);
+	cancel_delayed_work_sync(&udlctd_info->query_edid_work);
 
 	if (uvhd->vcrtcm_dev_hal == vcrtcm_dev_hal) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
@@ -235,10 +243,13 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	struct udlctd_vcrtcm_hal_descriptor *uvhd;
-	struct udlctd_video_mode *udlctd_video_mode;
+	struct udlctd_video_mode *udlctd_video_modes;
+	int udlctd_mode_count = 0;
 	int found_mode = 0;
 	int r = 0;
+	int i = 0;
 	int size_in_bytes, requested_num_pages;
+	unsigned long flags;
 
 	PR_DEBUG("In udlctd_set_fb, minor %d.\n", udlctd_info->minor);
 
@@ -253,22 +264,31 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	mutex_lock(&udlctd_info->buffer_mutex);
 	memcpy(&uvhd->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
+	udlctd_build_modelist(udlctd_info,
+			&udlctd_video_modes, &udlctd_mode_count);
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
 	/* Find a matching video mode and switch the DL device to that mode */
-	list_for_each_entry(udlctd_video_mode,
-			&udlctd_info->fb_mode_list, list) {
-		PR_DEBUG("checking %dx%d\n",
-				udlctd_video_mode->xres, udlctd_video_mode->yres);
-		PR_DEBUG("against %dx%d\n", vcrtcm_fb->hdisplay, vcrtcm_fb->vdisplay);
-		if (udlctd_video_mode->xres == vcrtcm_fb->hdisplay &&
-				udlctd_video_mode->yres == vcrtcm_fb->vdisplay) {
+	for (i = 0; i < udlctd_mode_count; i++) {
+		PR_DEBUG("set_fb checking %dx%d\n",
+				udlctd_video_modes[i].xres,
+				udlctd_video_modes[i].yres);
+		PR_DEBUG("against %dx%d\n",
+				vcrtcm_fb->hdisplay, vcrtcm_fb->vdisplay);
+		if (udlctd_video_modes[i].xres == vcrtcm_fb->hdisplay &&
+			udlctd_video_modes[i].yres == vcrtcm_fb->vdisplay) {
+			/* If the modes match */
 			udlctd_info->bpp = vcrtcm_fb->bpp;
 			udlctd_setup_screen(udlctd_info,
-					udlctd_video_mode, vcrtcm_fb);
+					&udlctd_video_modes[i], vcrtcm_fb);
 			found_mode = 1;
 			uvhd->fb_xmit_allowed = 1;
 			break;
 		}
 	}
+
+	udlctd_free_modelist(udlctd_info, udlctd_video_modes);
 
 	if (!found_mode) {
 		mutex_unlock(&udlctd_info->buffer_mutex);
@@ -575,6 +595,123 @@ int udlctd_get_dpms(int *state, void *hw_drv_info, int flow)
 	return 0;
 }
 
+int udlctd_connected(void *hw_drv_info, int *status)
+{
+	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
+	PR_DEBUG("connected: udlctd_info %p\n", udlctd_info);
+
+	if (udlctd_info->monitor_connected) {
+		PR_DEBUG("...connected\n");
+		*status = VCRTCM_HAL_CONNECTED;
+	} else {
+		PR_DEBUG("...not connected\n");
+		*status = VCRTCM_HAL_DISCONNECTED;
+	}
+	return 0;
+}
+
+int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes, int *count)
+{
+	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
+	struct udlctd_video_mode *udlctd_video_modes;
+	struct vcrtcm_mode *vcrtcm_mode_list =
+			udlctd_info->last_vcrtcm_mode_list;
+	int udlctd_mode_count = 0;
+	int vcrtcm_mode_count = 0;
+	int retval = 0;
+	int i = 0;
+	unsigned long flags;
+
+	*modes = NULL;
+	*count = 0;
+
+	PR_DEBUG("In udlctd_get_modes\n");
+
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
+	retval = udlctd_build_modelist(udlctd_info,
+			&udlctd_video_modes, &udlctd_mode_count);
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
+	if (retval < 0)
+		return retval;
+
+	if (udlctd_mode_count == 0)
+		return 0;
+
+	/* If we get this far, we can return modes. */
+
+	/* Erase our old VCRTCM modelist. */
+	if (vcrtcm_mode_list) {
+		udlctd_kfree(udlctd_info, vcrtcm_mode_list);
+		vcrtcm_mode_list = NULL;
+		vcrtcm_mode_count = 0;
+	}
+
+	/* Build the new vcrtcm_mode list. */
+	vcrtcm_mode_list = udlctd_kmalloc(udlctd_info,
+				sizeof(struct vcrtcm_mode) * udlctd_mode_count,
+				GFP_KERNEL);
+
+	/* Copy the udlctd_video_mode list to the vcrtcm_mode list. */
+	for (i = 0; i < udlctd_mode_count; i++) {
+		vcrtcm_mode_list[i].w = udlctd_video_modes[i].xres;
+		vcrtcm_mode_list[i].h = udlctd_video_modes[i].yres;
+		vcrtcm_mode_list[i].refresh = udlctd_video_modes[i].refresh;
+	}
+
+	vcrtcm_mode_count = udlctd_mode_count;
+	udlctd_info->last_vcrtcm_mode_list = vcrtcm_mode_list;
+
+	*modes = vcrtcm_mode_list;
+	*count = vcrtcm_mode_count;
+
+	udlctd_free_modelist(udlctd_info, udlctd_video_modes);
+
+	return 0;
+}
+
+int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
+{
+	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
+	struct udlctd_video_mode *udlctd_video_modes;
+	int udlctd_mode_count = 0;
+	int retval;
+	int i;
+	unsigned long flags;
+
+	PR_DEBUG("In udlctd_check_mode\n");
+
+	*status = VCRTCM_MODE_BAD;
+
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
+	retval = udlctd_build_modelist(udlctd_info,
+			&udlctd_video_modes, &udlctd_mode_count);
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
+	if (retval < 0)
+		return retval;
+
+	if (udlctd_mode_count == 0)
+		return 0;
+
+	PR_DEBUG("udlctd_check_mode: checking %dx%d@%d\n",
+			mode->w, mode->h, mode->refresh);
+	for (i = 0; i < udlctd_mode_count; i++) {
+		struct udlctd_video_mode *current_mode;
+		current_mode = &udlctd_video_modes[i];
+		if (current_mode->xres == mode->w &&
+			current_mode->yres == mode->h &&
+			current_mode->refresh == mode->refresh) {
+			*status = VCRTCM_MODE_OK;
+			break;
+		}
+	}
+
+	udlctd_free_modelist(udlctd_info, udlctd_video_modes);
+
+	return 0;
+}
+
 void udlctd_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
@@ -674,7 +811,8 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 
 	if ((uvhd->fb_force_xmit ||
 	     time_after(jiffies_snapshot, uvhd->last_xmit_jiffies +
-			UDLCTD_XMIT_HARD_DEADLINE)) && have_push_buffer) {
+			UDLCTD_XMIT_HARD_DEADLINE)) &&
+			have_push_buffer && udlctd_info->monitor_connected) {
 		/* someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
 		 * should transmit for real.

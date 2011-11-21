@@ -39,6 +39,7 @@
 /* Module option(s) */
 int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
 int debug; /* Enable the printing of debugging information */
+int enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
 
 struct list_head udlctd_info_list;
 int udlctd_major = -1;
@@ -59,7 +60,10 @@ struct vcrtcm_funcs udlctd_vcrtcm_funcs = {
 	.set_cursor = udlctd_set_cursor,
 	.get_cursor = udlctd_get_cursor,
 	.set_dpms = udlctd_set_dpms,
-	.get_dpms = udlctd_get_dpms
+	.get_dpms = udlctd_get_dpms,
+	.connected = udlctd_connected,
+	.get_modes = udlctd_get_modes,
+	.check_mode = udlctd_check_mode
 };
 
 
@@ -124,6 +128,10 @@ MODULE_PARM_DESC(true32bpp, "Enable support for true 32bpp color. *Experimental 
 
 module_param(debug, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(debug, "Enable debugging information.");
+
+module_param(enable_default_modes, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(enable_default_modes,
+	"Support standard VESA modes if the monitor doesn't provide any.");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DisplayLink USB CTD Driver");
