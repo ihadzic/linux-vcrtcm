@@ -124,7 +124,7 @@ struct udlctd_info {
 
 	/* supported fb modes */
 	struct udlctd_video_mode default_video_mode;
-	struct udlctd_video_mode *current_video_mode;
+	struct udlctd_video_mode current_video_mode;
 	struct list_head fb_mode_list;
 
 	/* usb stuff */

@@ -379,8 +379,8 @@ int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info)
 	int bytes_sent = 0;
 	int bytes_identical = 0;
 	struct urb *urb;
-	int xres = udlctd_info->current_video_mode->xres;
-	int yres = udlctd_info->current_video_mode->yres;
+	int xres = udlctd_info->current_video_mode.xres;
+	int yres = udlctd_info->current_video_mode.yres;
 	int bytes_per_pixel = udlctd_info->bpp / 8;
 	struct vcrtcm_fb *vcrtcm_fb =
 			&udlctd_info->udlctd_vcrtcm_hal_descriptor->vcrtcm_fb;
@@ -685,7 +685,7 @@ static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb
 
 	/* We need to recalculate the offset in the device framebuffer */
 	/* because our byte_offset uses pitch */
-	int dev_offset = line_num * udlctd_info->current_video_mode->xres * 4;
+	int dev_offset = line_num * udlctd_info->current_video_mode.xres * 4;
 
 	/* These are offsets in the source (virtual) frame buffer */
 	line_start = (u8 *) (front + byte_offset);
@@ -845,8 +845,8 @@ static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info, unsigned color)
 	u8 blank_color8;
 
 	int i;
-	int xres = udlctd_info->current_video_mode->xres;
-	int yres = udlctd_info->current_video_mode->yres;
+	int xres = udlctd_info->current_video_mode.xres;
+	int yres = udlctd_info->current_video_mode.yres;
 
 	struct urb *urb;
 	u8 *cmd, *cmd_end;
@@ -1545,7 +1545,8 @@ static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
 		return 1;
 	}
 
-	udlctd_info->current_video_mode = mode;
+	memcpy(&udlctd_info->current_video_mode,
+			mode, sizeof(struct udlctd_video_mode));
 
 	return retval;
 }
