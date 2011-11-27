@@ -18,6 +18,7 @@
 */
 
 
+#include <linux/module.h>
 #include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
