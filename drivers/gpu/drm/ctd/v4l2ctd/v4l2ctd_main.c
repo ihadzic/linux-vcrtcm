@@ -1005,20 +1005,22 @@ static void __exit v4l2ctd_exit(void)
 		if (v4l2ctd_major >= -1) {
 			video_unregister_device(v4l2ctd_info->vfd);
 			v4l2_device_unregister(&v4l2ctd_info->v4l2_dev);
-			if (v4l2ctd_info->shadowbuf) {
-				v4l2ctd_free_shadowbuf(v4l2ctd_info);
-			}
-			unregister_chrdev_region(MKDEV(v4l2ctd_major, 0),
-							v4l2ctd_num_minors);
 
 			/* unregister with VCRTCM */
 			PR_DEBUG("Calling vcrtcm_hw_del for "
 				"v4l2ctd %p, major %d, minor %d\n",
 				v4l2ctd_info, v4l2ctd_major,
 				v4l2ctd_info->minor);
-
 			cancel_delayed_work_sync(&v4l2ctd_info->fake_vblank_work);
 			vcrtcm_hw_del(v4l2ctd_major, v4l2ctd_info->minor, 0);
+
+			mutex_lock(&v4l2ctd_info->sb_lock);
+			if (v4l2ctd_info->shadowbuf)
+				v4l2ctd_free_shadowbuf(v4l2ctd_info);
+			mutex_unlock(&v4l2ctd_info->sb_lock);
+
+			unregister_chrdev_region(MKDEV(v4l2ctd_major, 0),
+							v4l2ctd_num_minors);
 
 			PR_DEBUG("freeing main buffer: %p, cursor %p\n",
 					v4l2ctd_info->main_buffer,
