@@ -204,7 +204,7 @@ v4l2ctd_fillbuff(struct v4l2ctd_info *v4l2ctd_info, struct videobuf_buffer *vb)
 	}
 	mutex_unlock(&v4l2ctd_info->sb_lock);
 
-	vb->size = w * h * (d / 8);
+	vb->size = w * h * (d >> 3);
 	vb->field_count++;
 	do_gettimeofday(&ts);
 	vb->ts = ts;
@@ -444,7 +444,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.height       = vhd->vcrtcm_fb.vdisplay;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
 	f->fmt.pix.pixelformat  = fmt->fourcc;
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth);
+	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
 	return 0;
@@ -483,7 +483,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.field        = field;
 	f->fmt.pix.width        = vhd->vcrtcm_fb.hdisplay;
 	f->fmt.pix.height       = vhd->vcrtcm_fb.vdisplay;
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth);
+	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
 
