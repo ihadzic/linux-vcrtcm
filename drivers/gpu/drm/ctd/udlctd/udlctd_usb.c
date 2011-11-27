@@ -181,7 +181,8 @@ static int udlctd_usb_probe(struct usb_interface *interface,
 	init_waitqueue_head(&udlctd_info->xmit_sync_queue);
 	udlctd_info->enabled_queue = 1;
 
-	udlctd_info->workqueue = create_workqueue("udlctd_workers");
+	udlctd_info->workqueue =
+			alloc_workqueue("udlctd_workers", WQ_MEM_RECLAIM, 5);
 
 	udlctd_info->udlctd_vcrtcm_hal_descriptor = NULL;
 	udlctd_info->scratch_memory = NULL;
