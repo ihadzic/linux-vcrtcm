@@ -21,7 +21,7 @@
 #ifndef __VCRTCM_PRIVATE_H__
 #define __VCRTCM_PRIVATE_H__
 
-#include "vcrtcm/vcrtcm_common.h"
+#include <vcrtcm/vcrtcm_common.h>
 
 /* Private data structures for Virtual CRTC Manager and modules
    that use it: GPU driver and compression/transmission/display
