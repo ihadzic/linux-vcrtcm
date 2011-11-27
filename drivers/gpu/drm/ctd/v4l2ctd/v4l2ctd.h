@@ -35,7 +35,8 @@
 
 #include "vcrtcm/vcrtcm_ctd.h"
 
-#define V4L2CTD_NUM_MINORS 1
+#define V4L2CTD_MAX_MINOR 255
+
 #define V4L2CTD_FPS_HARD_LIMIT 100
 #define V4L2CTD_XMIT_HARD_DEADLINE (HZ/10)
 
