@@ -31,6 +31,7 @@
 #include <linux/sysrq.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/module.h>
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_fb_helper.h"
@@ -254,6 +255,13 @@ bool drm_fb_helper_force_kernel_mode(void)
 int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
+	/*
+	 * It's a waste of time and effort to switch back to text console
+	 * if the kernel should reboot before panic messages can be seen.
+	 */
+	if (panic_timeout < 0)
+		return 0;
+
 	printk(KERN_ERR "panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 }

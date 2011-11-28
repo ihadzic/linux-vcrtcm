@@ -35,8 +35,6 @@
 #include "drm_crtc_helper.h"
 #include "drm_edid.h"
 
-static int radeon_ddc_dump(struct drm_connector *connector);
-
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -683,7 +681,6 @@ static void radeon_print_display_setup(struct drm_device *dev)
 static bool radeon_setup_enc_conn(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	struct drm_connector *drm_connector;
 	bool ret = false;
 	int i;
 
@@ -709,8 +706,6 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 	if (ret) {
 		radeon_setup_encoder_clones(dev);
 		radeon_print_display_setup(dev);
-		list_for_each_entry(drm_connector, &dev->mode_config.connector_list, head)
-			radeon_ddc_dump(drm_connector);
 	}
 
 	return ret;
@@ -728,7 +723,8 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) ||
-	    radeon_connector_encoder_is_dp_bridge(&radeon_connector->base)) {
+	    (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
+	     ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
@@ -761,34 +757,6 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
 	return 0;
-}
-
-static int radeon_ddc_dump(struct drm_connector *connector)
-{
-	struct edid *edid;
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	int ret = 0;
-
-	/* on hw with routers, select right port */
-	if (radeon_connector->router.ddc_valid)
-		radeon_router_select_ddc_port(radeon_connector);
-
-	if (!radeon_connector->ddc_bus)
-		return -1;
-	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
-	/* Log EDID retrieval status here. In particular with regard to
-	 * connectors with requires_extended_probe flag set, that will prevent
-	 * function radeon_dvi_detect() to fetch EDID on this connector,
-	 * as long as there is no valid EDID header found */
-	if (edid) {
-		DRM_INFO("Radeon display connector %s: Found valid EDID",
-				drm_get_connector_name(connector));
-		kfree(edid);
-	} else {
-		DRM_INFO("Radeon display connector %s: No monitor connected or invalid EDID",
-				drm_get_connector_name(connector));
-	}
-	return ret;
 }
 
 /* avivo */
@@ -1133,7 +1101,7 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 void
 radeon_framebuffer_init(struct drm_device *dev,
 			struct radeon_framebuffer *rfb,
-			struct drm_mode_fb_cmd *mode_cmd,
+			struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	rfb->obj = obj;
@@ -1144,15 +1112,15 @@ radeon_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 radeon_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
-			       struct drm_mode_fb_cmd *mode_cmd)
+			       struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct radeon_framebuffer *radeon_fb;
 
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
+	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
-			"can't create framebuffer\n", mode_cmd->handle);
+			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
 

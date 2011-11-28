@@ -447,9 +447,6 @@ struct radeon_connector {
 	struct radeon_i2c_chan *ddc_bus;
 	/* some systems have an hdmi and vga port with a shared ddc line */
 	bool shared_ddc;
-	/* for some Radeon chip families we apply an additional EDID header
-	   check as part of the DDC probe */
-	bool requires_extended_probe;
 	bool use_digital;
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */
@@ -468,6 +465,8 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+#define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
+				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
@@ -477,8 +476,8 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev);
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);
 
-extern bool radeon_encoder_is_dp_bridge(struct drm_encoder *encoder);
-extern bool radeon_connector_encoder_is_dp_bridge(struct drm_connector *connector);
+extern u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
+extern u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector);
 extern bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector);
 extern bool radeon_connector_is_dp12_capable(struct drm_connector *connector);
 
@@ -498,7 +497,7 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   int action, uint8_t lane_num,
 					   uint8_t lane_set);
 extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
-extern struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder);
+extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				u8 write_byte, u8 *read_byte);
 
@@ -528,8 +527,7 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 				u8 val);
 extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector);
 extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
-extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector,
-			bool requires_extended_probe);
+extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
 extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
@@ -654,7 +652,7 @@ extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green
 				     u16 *blue, int regno);
 void radeon_framebuffer_init(struct drm_device *dev,
 			     struct radeon_framebuffer *rfb,
-			     struct drm_mode_fb_cmd *mode_cmd,
+			     struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);

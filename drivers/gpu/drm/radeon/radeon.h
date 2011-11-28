@@ -93,6 +93,7 @@ extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
 extern int radeon_pcie_gen2;
+extern int radeon_msi;
 extern int radeon_num_virt_crtcs;
 extern int radeon_vbl_emu_async;
 extern int radeon_fb_virt_crtc;
@@ -310,30 +311,17 @@ int radeon_mode_dumb_destroy(struct drm_file *file_priv,
  */
 struct radeon_mc;
 
-struct radeon_gart_table_ram {
-	volatile uint32_t		*ptr;
-};
-
-struct radeon_gart_table_vram {
-	struct radeon_bo		*robj;
-	volatile uint32_t		*ptr;
-};
-
-union radeon_gart_table {
-	struct radeon_gart_table_ram	ram;
-	struct radeon_gart_table_vram	vram;
-};
-
 #define RADEON_GPU_PAGE_SIZE 4096
 #define RADEON_GPU_PAGE_MASK (RADEON_GPU_PAGE_SIZE - 1)
 #define RADEON_GPU_PAGE_SHIFT 12
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
+	struct radeon_bo		*robj;
+	void				*ptr;
 	unsigned			num_gpu_pages;
 	unsigned			num_cpu_pages;
 	unsigned			table_size;
-	union radeon_gart_table		table;
 	struct page			**pages;
 	dma_addr_t			*pages_addr;
 	bool				*ttm_alloced;
@@ -344,6 +332,8 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev);
 void radeon_gart_table_ram_free(struct radeon_device *rdev);
 int radeon_gart_table_vram_alloc(struct radeon_device *rdev);
 void radeon_gart_table_vram_free(struct radeon_device *rdev);
+int radeon_gart_table_vram_pin(struct radeon_device *rdev);
+void radeon_gart_table_vram_unpin(struct radeon_device *rdev);
 int radeon_gart_init(struct radeon_device *rdev);
 void radeon_gart_fini(struct radeon_device *rdev);
 void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
@@ -351,6 +341,7 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		     int pages, struct page **pagelist,
 		     dma_addr_t *dma_addr);
+void radeon_gart_restore(struct radeon_device *rdev);
 
 
 /*
@@ -538,7 +529,7 @@ struct r600_blit_cp_primitives {
 	void (*set_vtx_resource)(struct radeon_device *rdev, u64 gpu_addr);
 	void (*set_tex_resource)(struct radeon_device *rdev,
 				 int format, int w, int h, int pitch,
-				 u64 gpu_addr);
+				 u64 gpu_addr, u32 size);
 	void (*set_scissors)(struct radeon_device *rdev, int x1, int y1,
 			     int x2, int y2);
 	void (*draw_auto)(struct radeon_device *rdev);
@@ -1148,10 +1139,11 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
-/* VRAM scratch page for HDP bug */
-struct r700_vram_scratch {
+/* VRAM scratch page for HDP bug, default vram page */
+struct r600_vram_scratch {
 	struct radeon_bo		*robj;
 	volatile uint32_t		*ptr;
+	u64				gpu_addr;
 };
 
 /* vblank emulation for virtual CRTCs */
@@ -1233,7 +1225,7 @@ struct radeon_device {
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	struct r600_blit r600_blit;
-	struct r700_vram_scratch vram_scratch;
+	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct work_struct hotplug_work;
@@ -1461,8 +1453,6 @@ void radeon_ring_write(struct radeon_device *rdev, uint32_t v);
 /* AGP */
 extern int radeon_gpu_reset(struct radeon_device *rdev);
 extern void radeon_agp_disable(struct radeon_device *rdev);
-extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
-extern void radeon_gart_restore(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
@@ -1484,6 +1474,12 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
+
+/*
+ * R600 vram scratch functions
+ */
+int r600_vram_scratch_init(struct radeon_device *rdev);
+void r600_vram_scratch_fini(struct radeon_device *rdev);
 
 /*
  * r600 functions used by radeon_encoder.c

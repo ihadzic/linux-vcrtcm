@@ -37,6 +37,7 @@
 #include "drmP.h"
 #include <linux/poll.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 /* from BKL pushdown: note that nothing else serializes idr_find() */
 DEFINE_MUTEX(drm_global_mutex);
@@ -181,7 +182,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 		goto out;
 
 	old_fops = filp->f_op;
-	filp->f_op = fops_get(&dev->driver->fops);
+	filp->f_op = fops_get(dev->driver->fops);
 	if (filp->f_op == NULL) {
 		filp->f_op = old_fops;
 		goto out;

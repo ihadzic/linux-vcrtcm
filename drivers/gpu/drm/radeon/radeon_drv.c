@@ -36,6 +36,7 @@
 
 #include "drm_pciids.h"
 #include <linux/console.h>
+#include <linux/module.h>
 
 
 /*
@@ -118,6 +119,7 @@ int radeon_audio = 0;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
+int radeon_msi = -1;
 int radeon_num_virt_crtcs;
 int radeon_vbl_emu_async;
 int radeon_fb_virt_crtc;
@@ -168,6 +170,9 @@ module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
 MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (1 = enable)");
 module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
+MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(msi, radeon_msi, int, 0444);
+
 MODULE_PARM_DESC(num_virt_crtcs, "Number of virtual crtcs to allocate");
 module_param_named(num_virt_crtcs, radeon_num_virt_crtcs, int, 0644);
 
@@ -216,6 +221,21 @@ static struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
+static const struct file_operations radeon_driver_old_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.mmap = drm_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = radeon_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
+};
+
 static struct drm_driver driver_old = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -242,21 +262,7 @@ static struct drm_driver driver_old = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = radeon_ioctls,
 	.dma_ioctl = radeon_cp_buffers,
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = drm_ioctl,
-		 .mmap = drm_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
-		 .read = drm_read,
-#ifdef CONFIG_COMPAT
-		 .compat_ioctl = radeon_compat_ioctl,
-#endif
-		 .llseek = noop_llseek,
-	},
-
+	.fops = &radeon_driver_old_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -314,6 +320,20 @@ radeon_pci_resume(struct pci_dev *pdev)
 	return radeon_resume_kms(dev);
 }
 
+static const struct file_operations radeon_driver_kms_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.mmap = radeon_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = radeon_kms_compat_ioctl,
+#endif
+};
+
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -349,20 +369,7 @@ static struct drm_driver kms_driver = {
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
 	.dumb_destroy = radeon_mode_dumb_destroy,
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = drm_ioctl,
-		 .mmap = radeon_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
-		 .read = drm_read,
-#ifdef CONFIG_COMPAT
-		 .compat_ioctl = radeon_kms_compat_ioctl,
-#endif
-	},
-
+	.fops = &radeon_driver_kms_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
