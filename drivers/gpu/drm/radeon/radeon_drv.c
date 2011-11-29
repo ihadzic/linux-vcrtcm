@@ -122,8 +122,8 @@ int radeon_pcie_gen2 = 0;
 int radeon_msi = -1;
 int radeon_num_virt_crtcs;
 int radeon_vbl_emu_async;
-int radeon_fb_virt_crtc;
-int radeon_conn_virt_crtc = 1;
+int radeon_fb_virt_crtc = 1;
+int radeon_conn_virt_crtc;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
