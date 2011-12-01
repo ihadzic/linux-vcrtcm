@@ -522,7 +522,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
-	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);

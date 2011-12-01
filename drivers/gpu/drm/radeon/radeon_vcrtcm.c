@@ -47,7 +47,9 @@ int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 }
 
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
-			 int x, int y, uint64_t fb_location)
+			 int x, int y,
+			 struct drm_framebuffer *fb,
+			 uint64_t fb_location)
 {
 	struct drm_crtc *crtc = &radeon_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -65,10 +67,12 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 		/* frame buffer associated with this CRTC */
 		tmp = fb_location - rdev->mc.vram_start;
 		vcrtcm_fb.ioaddr = rdev->mc.aper_base + tmp;
-		vcrtcm_fb.bpp = crtc->fb->bits_per_pixel;
-		vcrtcm_fb.width = crtc->fb->width;
-		vcrtcm_fb.pitch = crtc->fb->pitch;
-		vcrtcm_fb.height = crtc->fb->height;
+		DRM_INFO("frame buffer I/O address 0x%08x\n",
+			 (unsigned int)vcrtcm_fb.ioaddr);
+		vcrtcm_fb.bpp = fb->bits_per_pixel;
+		vcrtcm_fb.width = fb->width;
+		vcrtcm_fb.pitch = fb->pitch;
+		vcrtcm_fb.height = fb->height;
 		vcrtcm_fb.viewport_x = x;
 		/* in pull mode, clipping is done by CTD, in push mode
 		 * GPU does the clipping along Y axis, so viewport_y

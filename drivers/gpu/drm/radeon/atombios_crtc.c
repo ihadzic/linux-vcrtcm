@@ -1179,7 +1179,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
@@ -1349,7 +1349,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_location);
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_location);
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
