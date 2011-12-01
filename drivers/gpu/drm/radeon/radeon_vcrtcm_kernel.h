@@ -35,6 +35,7 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 int x, int y,
+			 struct drm_framebuffer *fb,
 			 uint64_t fb_location);
 int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 			    u64 base);

@@ -757,15 +757,12 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
 				    int x, int y, int atomic)
 {
-	struct radeon_device *rdev = crtc->dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *radeon_fb;
 	struct drm_framebuffer *target_fb;
 	struct radeon_bo *rbo;
 	int r = 0;
-	unsigned long tmp;
 	u64 fb_gpuaddr;
-	u32 fb_ioaddr;
 
 	DRM_DEBUG("crtc=%d, x=%d, y=%d, atomic=%d\n",
 		  radeon_crtc->crtc_id, x, y, atomic);
@@ -810,11 +807,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 	radeon_bo_unreserve(rbo);
 
-	tmp = fb_gpuaddr - rdev->mc.vram_start;
-	fb_ioaddr = rdev->mc.aper_base + tmp;
-	DRM_INFO("frame buffer I/O address 0x%08x\n", (unsigned int)fb_ioaddr);
-
-	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, fb_gpuaddr);
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_gpuaddr);
 	if (!atomic && fb && fb != crtc->fb) {
 		DRM_DEBUG("found old framebuffer, unpinning\n");
 		radeon_fb = to_radeon_framebuffer(fb);
