@@ -264,10 +264,8 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	mutex_lock(&udlctd_info->buffer_mutex);
 	memcpy(&uvhd->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
-	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	udlctd_build_modelist(udlctd_info,
 			&udlctd_video_modes, &udlctd_mode_count);
-	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 	/* Find a matching video mode and switch the DL device to that mode */
 	for (i = 0; i < udlctd_mode_count; i++) {
@@ -627,10 +625,8 @@ int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes, int *count)
 
 	PR_DEBUG("In udlctd_get_modes\n");
 
-	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	retval = udlctd_build_modelist(udlctd_info,
 			&udlctd_video_modes, &udlctd_mode_count);
-	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 	if (retval < 0)
 		return retval;
@@ -683,10 +679,8 @@ int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
 
 	*status = VCRTCM_MODE_BAD;
 
-	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
 	retval = udlctd_build_modelist(udlctd_info,
 			&udlctd_video_modes, &udlctd_mode_count);
-	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
 	if (retval < 0)
 		return retval;
