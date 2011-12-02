@@ -485,6 +485,12 @@ int udlctd_build_modelist(struct udlctd_info *udlctd_info,
 		num_modes = VESA_MODEDB_SIZE;
 	}
 
+	/* Destroy the modedb inside the monspecs */
+	/* fb_edid_to_monspecs() kallocs memory for the modedb */
+	/* and it needs to be freed. */
+	if (monspecs.modedb)
+		fb_destroy_modedb(monspecs.modedb);
+
 	udlctd_video_modes = udlctd_kmalloc(udlctd_info,
 			sizeof(struct udlctd_video_mode) * num_modes,
 			GFP_KERNEL);
@@ -572,7 +578,7 @@ void udlctd_query_edid_core(struct udlctd_info *udlctd_info)
 	 * EDID data may return, but not parse as valid
 	 * Try again a few times, in case of e.g. analog cable noise
 	 */
-	while (tries--) {
+	while (tries-- && !new_edid_valid) {
 		i = udlctd_get_edid(udlctd_info, new_edid, EDID_LENGTH);
 
 		/* If we got an incomplete EDID. */
@@ -583,10 +589,14 @@ void udlctd_query_edid_core(struct udlctd_info *udlctd_info)
 		fb_edid_to_monspecs(new_edid, &monspecs);
 
 		/* If it parses, it is valid. */
-		if (monspecs.modedb_len > 0) {
+		if (monspecs.modedb_len > 0)
 			new_edid_valid = 1;
-			break;
-		}
+
+		/* Destroy the modedb inside the monspecs */
+		/* fb_edid_to_monspecs() kallocs memory for the modedb */
+		/* and it needs to be freed. */
+		if (monspecs.modedb)
+			fb_destroy_modedb(monspecs.modedb);
 	}
 
 	if (!new_edid_valid) {
