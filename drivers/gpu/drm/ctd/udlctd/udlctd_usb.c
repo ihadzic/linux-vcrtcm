@@ -442,13 +442,26 @@ int udlctd_build_modelist(struct udlctd_info *udlctd_info,
 	struct list_head modelist;
 	struct udlctd_video_mode *udlctd_video_modes;
 	int num_modes = 0;
+	char *edid_copy = NULL;
+	unsigned long flags;
 	INIT_LIST_HEAD(&modelist);
 	memset(&monspecs, 0, sizeof(monspecs));
 
 	PR_DEBUG("In build_modelist\n");
 
-	/* If we have a new EDID, parse it */
-	fb_edid_to_monspecs(udlctd_info->edid, &monspecs);
+	/* Allocate a buffer for a local copy of the EDID */
+	edid_copy = udlctd_kmalloc(udlctd_info, EDID_LENGTH, GFP_KERNEL);
+	if (!edid_copy)
+		goto error;
+
+	/* Get the spinlock and copy the EDID into our local buffer */
+	spin_lock_irqsave(&udlctd_info->udlctd_lock, flags);
+	if (udlctd_info->edid)
+		memcpy(edid_copy, udlctd_info->edid, EDID_LENGTH);
+	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
+
+	/* If we have an EDID, parse it */
+	fb_edid_to_monspecs(edid_copy, &monspecs);
 
 	/* If the EDID parsed ok (we expect it to), extract the modes */
 	if (monspecs.modedb_len > 0) {
@@ -528,12 +541,17 @@ int udlctd_build_modelist(struct udlctd_info *udlctd_info,
 	/* Destroy the temporary fbdev modelist. */
 	fb_destroy_modelist(&modelist);
 
+	/* Free the local EDID buffer */
+	udlctd_kfree(udlctd_info, edid_copy);
+
 	*modes = udlctd_video_modes;
 	*mode_count = i;
 	return 0;
 
 error:
 	fb_destroy_modelist(&modelist);
+	if (edid_copy)
+		udlctd_kfree(udlctd_info, edid_copy);
 	*modes = NULL;
 	*mode_count = 0;
 	return -ENOMEM;
