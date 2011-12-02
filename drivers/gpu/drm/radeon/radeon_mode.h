@@ -291,6 +291,7 @@ struct radeon_crtc {
 	bool pflip_emulation_enabled;
 	int emulated_vblank_counter;
 	int emulated_pflip_counter;
+	struct drm_framebuffer *vcrtcm_push_fb;
 	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
 };
 
