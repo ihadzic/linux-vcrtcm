@@ -249,7 +249,6 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	int r = 0;
 	int i = 0;
 	int size_in_bytes, requested_num_pages;
-	unsigned long flags;
 
 	PR_DEBUG("In udlctd_set_fb, minor %d.\n", udlctd_info->minor);
 
@@ -618,7 +617,6 @@ int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes, int *count)
 	int vcrtcm_mode_count = 0;
 	int retval = 0;
 	int i = 0;
-	unsigned long flags;
 
 	*modes = NULL;
 	*count = 0;
@@ -673,7 +671,6 @@ int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
 	int udlctd_mode_count = 0;
 	int retval;
 	int i;
-	unsigned long flags;
 
 	PR_DEBUG("In udlctd_check_mode\n");
 
