@@ -633,6 +633,8 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* update crtc fb */
+	if (crtc->fb == radeon_crtc->vcrtcm_push_fb)
+		radeon_crtc->vcrtcm_push_fb = fb;
 	crtc->fb = fb;
 
 	r = drm_vblank_get(dev, radeon_crtc->crtc_id);
@@ -1118,6 +1120,7 @@ void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 	radeon_crtc->emulated_pflip_counter = 0;
 	radeon_crtc->pflip_emulation_enabled = false;
 	radeon_crtc->vcrtcm_dev_hal = NULL;
+	radeon_crtc->vcrtcm_push_fb = NULL;
 }
 
 void radeon_virtual_crtc_init(struct drm_device *dev, int index)

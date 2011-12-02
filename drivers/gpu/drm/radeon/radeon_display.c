@@ -451,6 +451,8 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* update crtc fb */
+	if (crtc->fb == radeon_crtc->vcrtcm_push_fb)
+		radeon_crtc->vcrtcm_push_fb = fb;
 	crtc->fb = fb;
 
 	r = drm_vblank_get(dev, radeon_crtc->crtc_id);

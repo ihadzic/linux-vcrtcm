@@ -63,6 +63,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			&radeon_crtc->vcrtcm_dev_hal->hw_props;
 		DRM_INFO("crtc %d has vcrtcm HAL, calling vcrtcm_set_fb\n",
 			 radeon_crtc->crtc_id);
+		radeon_crtc->vcrtcm_push_fb = fb;
 		/* tell the vcrtcm HAL the address and geometry of the */
 		/* frame buffer associated with this CRTC */
 		tmp = fb_location - rdev->mc.vram_start;
@@ -279,10 +280,10 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_fb,
 			      struct drm_gem_object *dbuf_cursor)
 {
-	struct drm_framebuffer *sfb = scrtc->fb;
 	struct radeon_device *rdev = scrtc->dev->dev_private;
 	struct radeon_fence *fence = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
+	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
 	struct push_vblank_pending *push_vblank_pending = NULL;
 	struct drm_gem_object *sfbbo;
