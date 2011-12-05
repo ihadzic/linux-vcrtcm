@@ -886,6 +886,9 @@ static struct v4l2ctd_info *v4l2ctd_create_minor(int minor)
 	v4l2ctd_info->shadowbuf_pages = NULL;
 	v4l2ctd_info->shadowbuf_num_pages = 0;
 
+	snprintf(v4l2ctd_info->v4l2_dev.name,
+			sizeof(v4l2ctd_info->v4l2_dev.name),
+			"v4l2ctd-%03d", minor);
 	ret = v4l2_device_register(NULL, &v4l2ctd_info->v4l2_dev);
 	if (ret)
 		goto free_info;
