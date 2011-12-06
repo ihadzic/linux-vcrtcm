@@ -517,6 +517,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	v4l2ctd_info->fmt = fmt;
 	f->fmt.pix.width        = vhd->vcrtcm_fb.hdisplay;
 	f->fmt.pix.height       = vhd->vcrtcm_fb.vdisplay;
+	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
+	f->fmt.pix.sizeimage =
+		f->fmt.pix.height * f->fmt.pix.bytesperline;
 	v4l2ctd_info->vb_vidq.field = f->fmt.pix.field;
 
 	return 0;
