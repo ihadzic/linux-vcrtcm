@@ -609,7 +609,7 @@ static int v4l2ctd_mmap(struct file *file, struct vm_area_struct *vma)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
 {
-	if (inp->index > 1)
+	if (inp->index > 0)
 		return -EINVAL;
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = V4L2_STD_UNKNOWN;
@@ -619,12 +619,13 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
+	*i = 0;
 	return 0;
 }
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i > 1)
+	if (i > 0)
 		return -EINVAL;
 	return 0;
 }
