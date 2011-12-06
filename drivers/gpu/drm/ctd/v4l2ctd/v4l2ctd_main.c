@@ -722,6 +722,62 @@ vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	/* return -EINVAL; */
 }
 
+static int vidioc_enum_framesizes(struct file *file, void *fh,
+					struct v4l2_frmsizeenum *fsize)
+{
+	struct v4l2ctd_info *v4l2ctd_info;
+	struct v4l2ctd_vcrtcm_hal_descriptor *vhd;
+	uint32_t i;
+
+	v4l2ctd_info = video_drvdata(file);
+	vhd = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
+	if (!vhd)
+		return -EINVAL;
+
+	if (fsize->index != 0)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(formats); i++)
+		if (fsize->pixel_format == formats[i].fourcc) {
+			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fsize->discrete.width = vhd->vcrtcm_fb.hdisplay;
+			fsize->discrete.height = vhd->vcrtcm_fb.vdisplay;
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+static int vidioc_enum_frameintervals(struct file *file, void *fh,
+					struct v4l2_frmivalenum *fival)
+{
+	struct v4l2ctd_info *v4l2ctd_info;
+	struct v4l2ctd_vcrtcm_hal_descriptor *vhd;
+	uint32_t i;
+	int fps;
+
+	v4l2ctd_info = video_drvdata(file);
+	vhd = v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
+	if (!vhd)
+		return -EINVAL;
+
+	if (fival->index != 0)
+		return -EINVAL;
+	if (fival->width != vhd->vcrtcm_fb.hdisplay &&
+			fival->height != vhd->vcrtcm_fb.hdisplay)
+		return -EINVAL;
+
+	fps = HZ / vhd->fb_xmit_period_jiffies;
+	for (i = 0; i < ARRAY_SIZE(formats); i++)
+		if (fival->pixel_format == formats[i].fourcc) {
+			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+			fival->discrete.numerator = 1001;
+			fival->discrete.denominator = fps * 1000;
+			return 0;
+		}
+	return -EINVAL;
+}
+
 /************************************************************************/
 /* shadowbuf alloc/free                                                 */
 /************************************************************************/
@@ -817,22 +873,24 @@ static struct videobuf_queue_ops v4l2ctd_video_qops = {
 };
 
 static const struct v4l2_ioctl_ops v4l2ctd_ioctl_ops = {
-	.vidioc_querycap          = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
-	.vidioc_enum_input        = vidioc_enum_input,
-	.vidioc_g_input           = vidioc_g_input,
-	.vidioc_s_input           = vidioc_s_input,
-	.vidioc_reqbufs           = vidioc_reqbufs,
-	.vidioc_querybuf          = vidioc_querybuf,
-	.vidioc_qbuf              = vidioc_qbuf,
-	.vidioc_dqbuf             = vidioc_dqbuf,
-	.vidioc_streamon          = vidioc_streamon,
-	.vidioc_streamoff         = vidioc_streamoff,
-	.vidioc_g_parm            = vidioc_g_parm,
-	.vidioc_s_parm            = vidioc_s_parm,
+	.vidioc_querycap		= vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		= vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		= vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		= vidioc_s_fmt_vid_cap,
+	.vidioc_enum_input		= vidioc_enum_input,
+	.vidioc_g_input			= vidioc_g_input,
+	.vidioc_s_input			= vidioc_s_input,
+	.vidioc_reqbufs			= vidioc_reqbufs,
+	.vidioc_querybuf		= vidioc_querybuf,
+	.vidioc_qbuf			= vidioc_qbuf,
+	.vidioc_dqbuf			= vidioc_dqbuf,
+	.vidioc_streamon		= vidioc_streamon,
+	.vidioc_streamoff		= vidioc_streamoff,
+	.vidioc_g_parm			= vidioc_g_parm,
+	.vidioc_s_parm			= vidioc_s_parm,
+	.vidioc_enum_framesizes		= vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals	= vidioc_enum_frameintervals,
 };
 
 static struct video_device v4l2ctd_template = {
