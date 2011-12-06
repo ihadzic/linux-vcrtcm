@@ -57,6 +57,7 @@ struct v4l2ctd_fmt {
 	char  *name;
 	uint32_t  fourcc;
 	int   depth;
+	enum v4l2_colorspace colorspace;
 };
 
 struct v4l2ctd_info {

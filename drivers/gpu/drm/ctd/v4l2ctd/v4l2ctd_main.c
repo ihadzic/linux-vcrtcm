@@ -62,35 +62,41 @@ int debug; /* Enable the printing of debugging information */
  */
 static struct v4l2ctd_fmt formats[] = {
 	{
-		.name     = "BGR-8-8-8-8",
-		.fourcc   = V4L2_PIX_FMT_BGR32,
-		.depth    = 32,
+		.name		= "BGR-8-8-8-8",
+		.fourcc		= V4L2_PIX_FMT_BGR32,
+		.depth		= 32,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 /*
 	{
-		.name     = "RGB-8-8-8-8",
-		.fourcc   = V4L2_PIX_FMT_RGB32,
-		.depth    = 32,
+		.name		= "RGB-8-8-8-8",
+		.fourcc		= V4L2_PIX_FMT_RGB32,
+		.depth		= 32,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 	{
-		.name     = "BGR-8-8-8",
-		.fourcc   = V4L2_PIX_FMT_BGR24,
-		.depth    = 24,
+		.name		= "BGR-8-8-8",
+		.fourcc		= V4L2_PIX_FMT_BGR24,
+		.depth		= 24,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 	{
-		.name     = "RGB-8-8-8",
-		.fourcc   = V4L2_PIX_FMT_RGB24,
-		.depth    = 24,
+		.name		= "RGB-8-8-8",
+		.fourcc		= V4L2_PIX_FMT_RGB24,
+		.depth		= 24,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 	{
-		.name     = "RGB-5-6-5",
-		.fourcc   = V4L2_PIX_FMT_RGB565,
-		.depth    = 16,
+		.name		= "RGB-5-6-5",
+		.fourcc		= V4L2_PIX_FMT_RGB565,
+		.depth		= 16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 	{
-		.name     = "RGB-5-5-5",
-		.fourcc   = V4L2_PIX_FMT_RGB555,
-		.depth    = 16,
+		.name		= "RGB-5-5-5",
+		.fourcc		= V4L2_PIX_FMT_RGB555,
+		.depth		= 16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
 */
 };
@@ -447,6 +453,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = fmt->colorspace;
+
 	return 0;
 }
 
@@ -486,6 +494,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = fmt->colorspace;
 
 	return 0;
 }
@@ -520,6 +529,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = fmt->colorspace;
 	v4l2ctd_info->vb_vidq.field = f->fmt.pix.field;
 
 	return 0;
