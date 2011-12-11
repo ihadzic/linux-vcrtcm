@@ -83,13 +83,9 @@ static int v4l2ctd_alloc_pb(struct v4l2ctd_info *v4l2ctd_info,
 		}
 
 		vhd->pb_needs_xmit[i] = 0;
-		PR_DEBUG("%s[%d]: allocated %lu pages, last_lomem=%ld, "
-				"first_himem=%ld\n",
+		PR_DEBUG("%s[%d]: allocated %lu pages\n",
 				V4L2CTD_ALLOC_PB_STRING(flag),
-				i,
-				pbd->num_pages,
-				pbd->last_lomem_page,
-				pbd->first_himem_page);
+				i, pbd->num_pages);
 
 		/* we have the buffer, now we need to map it */
 		/* (and that can fail too) */
