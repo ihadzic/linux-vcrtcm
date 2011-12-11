@@ -259,8 +259,6 @@ radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
 	pbd->gpu_private = &rbo->gem_base;
 	pbd->num_pages = ttm->num_pages;
 	pbd->pages = ttm->pages;
-	pbd->first_himem_page = ttm->first_himem_page;
-	pbd->last_lomem_page = ttm->last_lomem_page;
 
 	return 0;
 }
