@@ -1877,10 +1877,8 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if (!req->flags) {
-		DRM_ERROR("no operation set\n");
+	if (!req->flags)
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
@@ -1893,7 +1891,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set) {
-			DRM_ERROR("crtc does not support cursor\n");
 			ret = -ENXIO;
 			goto out;
 		}
@@ -1906,7 +1903,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 		if (crtc->funcs->cursor_move) {
 			ret = crtc->funcs->cursor_move(crtc, req->x, req->y);
 		} else {
-			DRM_ERROR("crtc does not support cursor\n");
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1923,28 +1919,28 @@ uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 
 	switch (bpp) {
 	case 8:
-		fmt = DRM_FOURCC_RGB332;
+		fmt = DRM_FORMAT_RGB332;
 		break;
 	case 16:
 		if (depth == 15)
-			fmt = DRM_FOURCC_RGB555;
+			fmt = DRM_FORMAT_XRGB1555;
 		else
-			fmt = DRM_FOURCC_RGB565;
+			fmt = DRM_FORMAT_RGB565;
 		break;
 	case 24:
-		fmt = DRM_FOURCC_RGB24;
+		fmt = DRM_FORMAT_RGB888;
 		break;
 	case 32:
 		if (depth == 24)
-			fmt = DRM_FOURCC_RGB24;
+			fmt = DRM_FORMAT_XRGB8888;
 		else if (depth == 30)
-			fmt = DRM_INTEL_RGB30;
+			fmt = DRM_FORMAT_XRGB2101010;
 		else
-			fmt = DRM_FOURCC_RGB32;
+			fmt = DRM_FORMAT_ARGB8888;
 		break;
 	default:
-		DRM_ERROR("bad bpp, assuming RGB24 pixel format\n");
-		fmt = DRM_FOURCC_RGB24;
+		DRM_ERROR("bad bpp, assuming x8r8g8b8 pixel format\n");
+		fmt = DRM_FORMAT_XRGB8888;
 		break;
 	}
 
@@ -1989,14 +1985,11 @@ int drm_mode_addfb(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if ((config->min_width > r.width) || (r.width > config->max_width)) {
-		DRM_ERROR("mode new framebuffer width not within limits\n");
+	if ((config->min_width > r.width) || (r.width > config->max_width))
 		return -EINVAL;
-	}
-	if ((config->min_height > r.height) || (r.height > config->max_height)) {
-		DRM_ERROR("mode new framebuffer height not within limits\n");
+
+	if ((config->min_height > r.height) || (r.height > config->max_height))
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -2110,7 +2103,6 @@ int drm_mode_rmfb(struct drm_device *dev,
 	obj = drm_mode_object_find(dev, *id, DRM_MODE_OBJECT_FB);
 	/* TODO check that we really get a framebuffer back. */
 	if (!obj) {
-		DRM_ERROR("mode invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2121,7 +2113,6 @@ int drm_mode_rmfb(struct drm_device *dev,
 			found = 1;
 
 	if (!found) {
-		DRM_ERROR("tried to remove a fb that we didn't own\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2168,7 +2159,6 @@ int drm_mode_getfb(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
-		DRM_ERROR("invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2204,7 +2194,6 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
-		DRM_ERROR("invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out_err1;
 	}
@@ -3136,3 +3125,71 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 
 	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
 }
+
+/*
+ * Just need to support RGB formats here for compat with code that doesn't
+ * use pixel formats directly yet.
+ */
+void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
+			  int *bpp)
+{
+	switch (format) {
+	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_BGR233:
+		*depth = 8;
+		*bpp = 8;
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XBGR1555:
+	case DRM_FORMAT_RGBX5551:
+	case DRM_FORMAT_BGRX5551:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
+		*depth = 15;
+		*bpp = 16;
+		break;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		*depth = 16;
+		*bpp = 16;
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		*depth = 24;
+		*bpp = 24;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+		*depth = 24;
+		*bpp = 32;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_RGBX1010102:
+	case DRM_FORMAT_BGRX1010102:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+		*depth = 30;
+		*bpp = 32;
+		break;
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+		*depth = 32;
+		*bpp = 32;
+		break;
+	default:
+		DRM_DEBUG_KMS("unsupported pixel format\n");
+		*depth = 0;
+		*bpp = 0;
+		break;
+	}
+}
+EXPORT_SYMBOL(drm_fb_get_bpp_depth);
