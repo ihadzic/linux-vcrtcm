@@ -785,7 +785,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 
 	DRM_INFO("set base (vcrtc): new framebuffer info\n");
 	DRM_INFO("frame buffer pitch %d width %d height %d bpp %d\n",
-		 (unsigned int)(target_fb->pitch),
+		 (unsigned int)(target_fb->pitches[0]),
 		 (unsigned int)(target_fb->width),
 		 (unsigned int)(target_fb->height),
 		 (unsigned int)(target_fb->bits_per_pixel));
