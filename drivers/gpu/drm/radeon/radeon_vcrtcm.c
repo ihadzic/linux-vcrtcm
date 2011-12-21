@@ -206,11 +206,13 @@ static void radeon_sync_callback(struct drm_crtc *crtc)
 	struct drm_device *ddev;
 	struct radeon_device *rdev;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	int i;
 
 	DRM_DEBUG("crtc_id %d\n", radeon_crtc->crtc_id);
 	ddev = radeon_crtc->base.dev;
 	rdev = ddev->dev_private;
-	radeon_fence_wait_last(rdev);
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		radeon_fence_wait_last(rdev, i);
 }
 
 static int
@@ -326,7 +328,8 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			kmalloc(sizeof(struct push_vblank_pending), GFP_KERNEL);
 		if (!push_vblank_pending)
 			return -ENOMEM;
-		r = radeon_fence_create(rdev, &fence);
+		r = radeon_fence_create(rdev, &fence,
+					RADEON_RING_TYPE_GFX_INDEX);
 		if (r) {
 			kfree(push_vblank_pending);
 			return r;
