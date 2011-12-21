@@ -72,7 +72,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 (unsigned int)vcrtcm_fb.ioaddr);
 		vcrtcm_fb.bpp = fb->bits_per_pixel;
 		vcrtcm_fb.width = fb->width;
-		vcrtcm_fb.pitch = fb->pitch;
+		vcrtcm_fb.pitch = fb->pitches[0];
 		vcrtcm_fb.height = fb->height;
 		vcrtcm_fb.viewport_x = x;
 		/* in pull mode, clipping is done by CTD, in push mode
@@ -348,11 +348,11 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	/* adjustment probably doesn't work for tiled buffers */
 	src_rbo = gem_to_radeon_bo(sfbbo);
 	saddr = radeon_bo_gpu_offset(src_rbo);
-	saddr += sfb->pitch * scrtc->y;
+	saddr += sfb->pitches[0] * scrtc->y;
 
 	/* calculate number of pages we need to transfer */
 	/* FIXME: this will also change once we cut our own blit copy */
-	size_in_bytes = sfb->pitch * scrtc->mode.vdisplay;
+	size_in_bytes = sfb->pitches[0] * scrtc->mode.vdisplay;
 	num_pages = size_in_bytes / RADEON_GPU_PAGE_SIZE;
 	if (size_in_bytes % RADEON_GPU_PAGE_SIZE)
 		num_pages++;
