@@ -500,7 +500,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
 				sizes->fb_width, sizes->fb_height);
 
@@ -747,13 +747,13 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		struct psb_intel_output *psb_intel_output =
-		    to_psb_intel_output(connector);
-		struct drm_encoder *encoder = &psb_intel_output->enc;
+		struct psb_intel_encoder *psb_intel_encoder =
+			psb_intel_attached_encoder(connector);
+		struct drm_encoder *encoder = &psb_intel_encoder->base;
 		int crtc_mask = 0, clone_mask = 0;
 
 		/* valid crtcs */
-		switch (psb_intel_output->type) {
+		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_ANALOG:
 			crtc_mask = (1 << 0);
 			clone_mask = (1 << INTEL_OUTPUT_ANALOG);

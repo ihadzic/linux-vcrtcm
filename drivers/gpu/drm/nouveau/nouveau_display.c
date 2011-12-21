@@ -107,14 +107,14 @@ nouveau_framebuffer_init(struct drm_device *dev,
 
 		if (!tile_flags) {
 			if (dev_priv->card_type < NV_D0)
-				nv_fb->r_pitch = 0x00100000 | fb->pitch;
+				nv_fb->r_pitch = 0x00100000 | fb->pitches[0];
 			else
-				nv_fb->r_pitch = 0x01000000 | fb->pitch;
+				nv_fb->r_pitch = 0x01000000 | fb->pitches[0];
 		} else {
 			u32 mode = nvbo->tile_mode;
 			if (dev_priv->card_type >= NV_C0)
 				mode >>= 4;
-			nv_fb->r_pitch = ((fb->pitch / 4) << 4) | mode;
+			nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
 		}
 	}
 
@@ -294,7 +294,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
 		{ { }, event, nouveau_crtc(crtc)->index,
-		  fb->bits_per_pixel, fb->pitch, crtc->x, crtc->y,
+		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
 	/* Choose the channel the flip will be handled in */
@@ -368,4 +368,49 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	return 0;
+}
+
+int
+nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
+			    struct drm_mode_create_dumb *args)
+{
+	struct nouveau_bo *bo;
+	int ret;
+
+	args->pitch = roundup(args->width * (args->bpp / 8), 256);
+	args->size = args->pitch * args->height;
+	args->size = roundup(args->size, PAGE_SIZE);
+
+	ret = nouveau_gem_new(dev, args->size, 0, TTM_PL_FLAG_VRAM, 0, 0, &bo);
+	if (ret)
+		return ret;
+
+	ret = drm_gem_handle_create(file_priv, bo->gem, &args->handle);
+	drm_gem_object_unreference_unlocked(bo->gem);
+	return ret;
+}
+
+int
+nouveau_display_dumb_destroy(struct drm_file *file_priv, struct drm_device *dev,
+			     uint32_t handle)
+{
+	return drm_gem_handle_delete(file_priv, handle);
+}
+
+int
+nouveau_display_dumb_map_offset(struct drm_file *file_priv,
+				struct drm_device *dev,
+				uint32_t handle, uint64_t *poffset)
+{
+	struct drm_gem_object *gem;
+
+	gem = drm_gem_object_lookup(dev, file_priv, handle);
+	if (gem) {
+		struct nouveau_bo *bo = gem->driver_private;
+		*poffset = bo->bo.addr_space_offset;
+		drm_gem_object_unreference_unlocked(gem);
+		return 0;
+	}
+
+	return -ENOENT;
 }

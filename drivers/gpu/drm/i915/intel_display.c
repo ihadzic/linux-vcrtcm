@@ -38,8 +38,8 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "drm_dp_helper.h"
-
 #include "drm_crtc_helper.h"
+#include <linux/dma_remapping.h>
 
 #define HAS_eDP (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
 
@@ -1511,8 +1511,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	u32 fbc_ctl, fbc_ctl2;
 
 	cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
-	if (fb->pitch < cfb_pitch)
-		cfb_pitch = fb->pitch;
+	if (fb->pitches[0] < cfb_pitch)
+		cfb_pitch = fb->pitches[0];
 
 	/* FBC_CTL wants 64B units */
 	cfb_pitch = (cfb_pitch / 64) - 1;
@@ -2073,11 +2073,11 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	I915_WRITE(reg, dspcntr);
 
 	Start = obj->gtt_offset;
-	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitch);
-	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
+		      Start, Offset, x, y, fb->pitches[0]);
+	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPSURF(plane), Start);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -2154,11 +2154,11 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(reg, dspcntr);
 
 	Start = obj->gtt_offset;
-	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitch);
-	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
+		      Start, Offset, x, y, fb->pitches[0]);
+	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_WRITE(DSPSURF(plane), Start);
 	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 	I915_WRITE(DSPADDR(plane), Offset);
@@ -2933,7 +2933,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) >> 5;
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
@@ -4669,6 +4670,7 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 /**
  * intel_choose_pipe_bpp_dither - figure out what color depth the pipe should send
  * @crtc: CRTC structure
+ * @mode: requested mode
  *
  * A pipe may be connected to one or more outputs.  Based on the depth of the
  * attached framebuffer, choose a good color depth to use on the pipe.
@@ -4680,13 +4682,15 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
  *    HDMI supports only 8bpc or 12bpc, so clamp to 8bpc with dither for 10bpc
  *    Displays may support a restricted set as well, check EDID and clamp as
  *      appropriate.
+ *    DP may want to dither down to 6bpc to fit larger modes
  *
  * RETURNS:
  * Dithering requirement (i.e. false if display bpc and pipe bpc match,
  * true if they don't match).
  */
 static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
-					 unsigned int *pipe_bpp)
+					 unsigned int *pipe_bpp,
+					 struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4711,7 +4715,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 				lvds_bpc = 6;
 
 			if (lvds_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
 				display_bpc = lvds_bpc;
 			}
 			continue;
@@ -4722,7 +4726,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
 
 			if (edp_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
 				display_bpc = edp_bpc;
 			}
 			continue;
@@ -4737,7 +4741,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			/* Don't use an invalid EDID bpc value */
 			if (connector->display_info.bpc &&
 			    connector->display_info.bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
 				display_bpc = connector->display_info.bpc;
 			}
 		}
@@ -4748,13 +4752,18 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		 */
 		if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 			if (display_bpc > 8 && display_bpc < 12) {
-				DRM_DEBUG_DRIVER("forcing bpc to 12 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
 				display_bpc = 12;
 			} else {
-				DRM_DEBUG_DRIVER("forcing bpc to 8 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
 				display_bpc = 8;
 			}
 		}
+	}
+
+	if (mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+		DRM_DEBUG_KMS("Dithering DP to 6bpc\n");
+		display_bpc = 6;
 	}
 
 	/*
@@ -4789,8 +4798,8 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 
 	display_bpc = min(display_bpc, bpc);
 
-	DRM_DEBUG_DRIVER("setting pipe bpc to %d (max display bpc %d)\n",
-			 bpc, display_bpc);
+	DRM_DEBUG_KMS("setting pipe bpc to %d (max display bpc %d)\n",
+		      bpc, display_bpc);
 
 	*pipe_bpp = display_bpc * 3;
 
@@ -5018,6 +5027,16 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
+	/* default to 8bpc */
+	pipeconf &= ~(PIPECONF_BPP_MASK | PIPECONF_DITHER_EN);
+	if (is_dp) {
+		if (mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+			pipeconf |= PIPECONF_BPP_6 |
+				    PIPECONF_DITHER_EN |
+				    PIPECONF_DITHER_TYPE_SP;
+		}
+	}
+
 	dpll |= DPLL_VCO_ENABLE;
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
@@ -5136,7 +5155,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		adjusted_mode->crtc_vsync_end -= 1;
 		adjusted_mode->crtc_vsync_start -= 1;
 	} else
-		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
+		pipeconf &= ~PIPECONF_INTERLACE_MASK; /* progressive */
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -5479,7 +5498,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* determine panel color depth */
 	temp = I915_READ(PIPECONF(pipe));
 	temp &= ~PIPE_BPC_MASK;
-	dither = intel_choose_pipe_bpp_dither(crtc, &pipe_bpp);
+	dither = intel_choose_pipe_bpp_dither(crtc, &pipe_bpp, mode);
 	switch (pipe_bpp) {
 	case 18:
 		temp |= PIPE_6BPC;
@@ -5671,7 +5690,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
 	if ((is_lvds && dev_priv->lvds_dither) || dither) {
 		pipeconf |= PIPECONF_DITHER_EN;
-		pipeconf |= PIPECONF_DITHER_TYPE_ST1;
+		pipeconf |= PIPECONF_DITHER_TYPE_SP;
 	}
 	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
@@ -6353,11 +6372,11 @@ mode_fits_in_fbdev(struct drm_device *dev,
 		return NULL;
 
 	fb = &dev_priv->fbdev->ifb.base;
-	if (fb->pitch < intel_framebuffer_pitch_for_width(mode->hdisplay,
-							  fb->bits_per_pixel))
+	if (fb->pitches[0] < intel_framebuffer_pitch_for_width(mode->hdisplay,
+							       fb->bits_per_pixel))
 		return NULL;
 
-	if (obj->base.size < mode->vdisplay * fb->pitch)
+	if (obj->base.size < mode->vdisplay * fb->pitches[0])
 		return NULL;
 
 	return fb;
@@ -6990,7 +7009,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 		goto out;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = BEGIN_LP_RING(6);
 	if (ret)
@@ -7007,7 +7026,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
 	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
@@ -7031,7 +7050,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 		goto out;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = BEGIN_LP_RING(6);
 	if (ret)
@@ -7045,7 +7064,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_DISPLAY_FLIP_I915 |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
 	OUT_RING(MI_NOOP);
 
@@ -7078,7 +7097,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	 */
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset | obj->tiling_mode);
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
@@ -7113,7 +7132,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch | obj->tiling_mode);
+	OUT_RING(fb->pitches[0] | obj->tiling_mode);
 	OUT_RING(obj->gtt_offset);
 
 	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
@@ -7149,7 +7168,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		goto out;
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
-	intel_ring_emit(ring, (fb->pitch | obj->tiling_mode));
+	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
 	intel_ring_emit(ring, (obj->gtt_offset));
 	intel_ring_emit(ring, (MI_NOOP));
 	intel_ring_advance(ring);
@@ -7188,11 +7207,16 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->old_fb_obj = intel_fb->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
+	ret = drm_vblank_get(dev, intel_crtc->pipe);
+	if (ret)
+		goto free_work;
+
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
+		drm_vblank_put(dev, intel_crtc->pipe);
 
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		return -EBUSY;
@@ -7210,10 +7234,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(&obj->base);
 
 	crtc->fb = fb;
-
-	ret = drm_vblank_get(dev, intel_crtc->pipe);
-	if (ret)
-		goto cleanup_objs;
 
 	work->pending_flip_obj = obj;
 
@@ -7237,7 +7257,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 cleanup_pending:
 	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
-cleanup_objs:
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
@@ -7246,6 +7265,8 @@ cleanup_objs:
 	intel_crtc->unpin_work = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	drm_vblank_put(dev, intel_crtc->pipe);
+free_work:
 	kfree(work);
 
 	return ret;
@@ -7891,6 +7912,33 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
+static bool intel_enable_rc6(struct drm_device *dev)
+{
+	/*
+	 * Respect the kernel parameter if it is set
+	 */
+	if (i915_enable_rc6 >= 0)
+		return i915_enable_rc6;
+
+	/*
+	 * Disable RC6 on Ironlake
+	 */
+	if (INTEL_INFO(dev)->gen == 5)
+		return 0;
+
+	/*
+	 * Enable rc6 on Sandybridge if DMA remapping is disabled
+	 */
+	if (INTEL_INFO(dev)->gen == 6) {
+		DRM_DEBUG_DRIVER("Sandybridge: intel_iommu_enabled %s -- RC6 %sabled\n",
+				 intel_iommu_enabled ? "true" : "false",
+				 !intel_iommu_enabled ? "en" : "dis");
+		return !intel_iommu_enabled;
+	}
+	DRM_DEBUG_DRIVER("RC6 enabled\n");
+	return 1;
+}
+
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -7927,7 +7975,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
-	if (i915_enable_rc6)
+	if (intel_enable_rc6(dev_priv->dev))
 		rc6_mask = GEN6_RC_CTL_RC6p_ENABLE |
 			GEN6_RC_CTL_RC6_ENABLE;
 
@@ -8153,6 +8201,20 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
+	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
+	 * gating disable must be set.  Failure to set it results in
+	 * flickering pixels due to Z write ordering failures after
+	 * some amount of runtime in the Mesa "fire" demo, and Unigine
+	 * Sanctuary and Tropics, and apparently anything else with
+	 * alpha test or pixel discard.
+	 *
+	 * According to the spec, bit 11 (RCCUNIT) must also be set,
+	 * but we didn't debug actual testcases to find it out.
+	 */
+	I915_WRITE(GEN6_UCGCTL2,
+		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
+		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
+
 	/*
 	 * According to the spec the following bits should be
 	 * set in order to enable memory self-refresh and fbc:
@@ -8362,7 +8424,7 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	/* rc6 disabled by default due to repeated reports of hanging during
 	 * boot and resume.
 	 */
-	if (!i915_enable_rc6)
+	if (!intel_enable_rc6(dev))
 		return;
 
 	mutex_lock(&dev->struct_mutex);
@@ -8481,6 +8543,28 @@ static void intel_init_display(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
+		dev_priv->display.force_wake_get = __gen6_gt_force_wake_get;
+		dev_priv->display.force_wake_put = __gen6_gt_force_wake_put;
+
+		/* IVB configs may use multi-threaded forcewake */
+		if (IS_IVYBRIDGE(dev)) {
+			u32	ecobus;
+
+			mutex_lock(&dev->struct_mutex);
+			__gen6_gt_force_wake_mt_get(dev_priv);
+			ecobus = I915_READ(ECOBUS);
+			__gen6_gt_force_wake_mt_put(dev_priv);
+			mutex_unlock(&dev->struct_mutex);
+
+			if (ecobus & FORCEWAKE_MT_ENABLE) {
+				DRM_DEBUG_KMS("Using MT version of forcewake\n");
+				dev_priv->display.force_wake_get =
+					__gen6_gt_force_wake_mt_get;
+				dev_priv->display.force_wake_put =
+					__gen6_gt_force_wake_mt_put;
+			}
+		}
+
 		if (HAS_PCH_IBX(dev))
 			dev_priv->display.init_pch_clock_gating = ibx_init_clock_gating;
 		else if (HAS_PCH_CPT(dev))

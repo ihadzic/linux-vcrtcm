@@ -554,7 +554,7 @@ EXPORT_SYMBOL(drm_encoder_cleanup);
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
-		   uint32_t *formats, uint32_t format_count)
+		   const uint32_t *formats, uint32_t format_count)
 {
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -566,6 +566,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
+		mutex_unlock(&dev->mode_config.mutex);
 		return -ENOMEM;
 	}
 
@@ -1440,7 +1441,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	 */
 	if ((out_resp->count_modes >= mode_count) && mode_count) {
 		copied = 0;
-		mode_ptr = (struct drm_mode_modeinfo *)(unsigned long)out_resp->modes_ptr;
+		mode_ptr = (struct drm_mode_modeinfo __user *)(unsigned long)out_resp->modes_ptr;
 		list_for_each_entry(mode, &connector->modes, head) {
 			drm_crtc_convert_to_umode(&u_mode, mode);
 			if (copy_to_user(mode_ptr + copied,
@@ -1455,8 +1456,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	if ((out_resp->count_props >= props_count) && props_count) {
 		copied = 0;
-		prop_ptr = (uint32_t *)(unsigned long)(out_resp->props_ptr);
-		prop_values = (uint64_t *)(unsigned long)(out_resp->prop_values_ptr);
+		prop_ptr = (uint32_t __user *)(unsigned long)(out_resp->props_ptr);
+		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
 		for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
 			if (connector->property_ids[i] != 0) {
 				if (put_user(connector->property_ids[i],
@@ -1478,7 +1479,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
-		encoder_ptr = (uint32_t *)(unsigned long)(out_resp->encoders_ptr);
+		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
 		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 			if (connector->encoder_ids[i] != 0) {
 				if (put_user(connector->encoder_ids[i],
@@ -1560,7 +1561,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	 */
 	if (config->num_plane &&
 	    (plane_resp->count_planes >= config->num_plane)) {
-		plane_ptr = (uint32_t *)(unsigned long)plane_resp->plane_id_ptr;
+		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
 
 		list_for_each_entry(plane, &config->plane_list, head) {
 			if (put_user(plane->base.id, plane_ptr + copied)) {
@@ -1627,7 +1628,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	 */
 	if (plane->format_count &&
 	    (plane_resp->count_format_types >= plane->format_count)) {
-		format_ptr = (uint32_t *)(unsigned long)plane_resp->format_type_ptr;
+		format_ptr = (uint32_t __user *)(unsigned long)plane_resp->format_type_ptr;
 		if (copy_to_user(format_ptr,
 				 plane->format_types,
 				 sizeof(uint32_t) * plane->format_count)) {
@@ -1660,6 +1661,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 	int ret = 0;
+	unsigned int fb_width, fb_height;
+	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1683,6 +1686,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	/* No fb means shut it down */
 	if (!plane_req->fb_id) {
 		plane->funcs->disable_plane(plane);
+		plane->crtc = NULL;
+		plane->fb = NULL;
 		goto out;
 	}
 
@@ -1705,6 +1710,50 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 	fb = obj_to_fb(obj);
+
+	/* Check whether this plane supports the fb pixel format. */
+	for (i = 0; i < plane->format_count; i++)
+		if (fb->pixel_format == plane->format_types[i])
+			break;
+	if (i == plane->format_count) {
+		DRM_DEBUG_KMS("Invalid pixel format 0x%08x\n", fb->pixel_format);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (plane_req->src_w > fb_width ||
+	    plane_req->src_x > fb_width - plane_req->src_w ||
+	    plane_req->src_h > fb_height ||
+	    plane_req->src_y > fb_height - plane_req->src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      plane_req->src_w >> 16,
+			      ((plane_req->src_w & 0xffff) * 15625) >> 10,
+			      plane_req->src_h >> 16,
+			      ((plane_req->src_h & 0xffff) * 15625) >> 10,
+			      plane_req->src_x >> 16,
+			      ((plane_req->src_x & 0xffff) * 15625) >> 10,
+			      plane_req->src_y >> 16,
+			      ((plane_req->src_y & 0xffff) * 15625) >> 10);
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (plane_req->crtc_w > INT_MAX ||
+	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
+	    plane_req->crtc_h > INT_MAX ||
+	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      plane_req->crtc_w, plane_req->crtc_h,
+			      plane_req->crtc_x, plane_req->crtc_y);
+		ret = -ERANGE;
+		goto out;
+	}
 
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 plane_req->crtc_x, plane_req->crtc_y,
@@ -1828,7 +1877,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 
 		for (i = 0; i < crtc_req->count_connectors; i++) {
-			set_connectors_ptr = (uint32_t *)(unsigned long)crtc_req->set_connectors_ptr;
+			set_connectors_ptr = (uint32_t __user *)(unsigned long)crtc_req->set_connectors_ptr;
 			if (get_user(out_id, &set_connectors_ptr[i])) {
 				ret = -EFAULT;
 				goto out;
@@ -2012,6 +2061,75 @@ out:
 	return ret;
 }
 
+static int format_check(struct drm_mode_fb_cmd2 *r)
+{
+	uint32_t format = r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN;
+
+	switch (format) {
+	case DRM_FORMAT_C8:
+	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_BGR233:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_XBGR4444:
+	case DRM_FORMAT_RGBX4444:
+	case DRM_FORMAT_BGRX4444:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_ABGR4444:
+	case DRM_FORMAT_RGBA4444:
+	case DRM_FORMAT_BGRA4444:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XBGR1555:
+	case DRM_FORMAT_RGBX5551:
+	case DRM_FORMAT_BGRX5551:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_RGBX1010102:
+	case DRM_FORMAT_BGRX1010102:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_AYUV:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_YUV410:
+	case DRM_FORMAT_YVU410:
+	case DRM_FORMAT_YUV411:
+	case DRM_FORMAT_YVU411:
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 /**
  * drm_mode_addfb2 - add an FB to the graphics configuration
  * @inode: inode from the ioctl
@@ -2049,6 +2167,12 @@ int drm_mode_addfb2(struct drm_device *dev,
 		DRM_ERROR("bad framebuffer height %d, should be >= %d && <= %d\n",
 			  r->height, config->min_height, config->max_height);
 		return -EINVAL;
+	}
+
+	ret = format_check(r);
+	if (ret) {
+		DRM_ERROR("bad framebuffer format 0x%08x\n", r->pixel_format);
+		return ret;
 	}
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -2168,7 +2292,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->width = fb->width;
 	r->depth = fb->depth;
 	r->bpp = fb->bits_per_pixel;
-	r->pitch = fb->pitch;
+	r->pitch = fb->pitches[0];
 	fb->funcs->create_handle(fb, file_priv, &r->handle);
 
 out:
@@ -2200,7 +2324,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	fb = obj_to_fb(obj);
 
 	num_clips = r->num_clips;
-	clips_ptr = (struct drm_clip_rect *)(unsigned long)r->clips_ptr;
+	clips_ptr = (struct drm_clip_rect __user *)(unsigned long)r->clips_ptr;
 
 	if (!num_clips != !clips_ptr) {
 		ret = -EINVAL;
@@ -2216,6 +2340,10 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (num_clips && clips_ptr) {
+		if (num_clips < 0 || num_clips > DRM_MODE_FB_DIRTY_MAX_CLIPS) {
+			ret = -EINVAL;
+			goto out_err1;
+		}
 		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
@@ -2461,8 +2589,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_blob_list);
 
-	if (name)
+	if (name) {
 		strncpy(property->name, name, DRM_PROP_NAME_LEN);
+		property->name[DRM_PROP_NAME_LEN-1] = '\0';
+	}
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;
@@ -2590,7 +2720,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	struct drm_property_enum *prop_enum;
 	struct drm_mode_property_enum __user *enum_ptr;
 	struct drm_property_blob *prop_blob;
-	uint32_t *blob_id_ptr;
+	uint32_t __user *blob_id_ptr;
 	uint64_t __user *values_ptr;
 	uint32_t __user *blob_length_ptr;
 
@@ -2620,7 +2750,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	out_resp->flags = property->flags;
 
 	if ((out_resp->count_values >= value_count) && value_count) {
-		values_ptr = (uint64_t *)(unsigned long)out_resp->values_ptr;
+		values_ptr = (uint64_t __user *)(unsigned long)out_resp->values_ptr;
 		for (i = 0; i < value_count; i++) {
 			if (copy_to_user(values_ptr + i, &property->values[i], sizeof(uint64_t))) {
 				ret = -EFAULT;
@@ -2633,7 +2763,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (property->flags & DRM_MODE_PROP_ENUM) {
 		if ((out_resp->count_enum_blobs >= enum_count) && enum_count) {
 			copied = 0;
-			enum_ptr = (struct drm_mode_property_enum *)(unsigned long)out_resp->enum_blob_ptr;
+			enum_ptr = (struct drm_mode_property_enum __user *)(unsigned long)out_resp->enum_blob_ptr;
 			list_for_each_entry(prop_enum, &property->enum_blob_list, head) {
 
 				if (copy_to_user(&enum_ptr[copied].value, &prop_enum->value, sizeof(uint64_t))) {
@@ -2655,8 +2785,8 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (property->flags & DRM_MODE_PROP_BLOB) {
 		if ((out_resp->count_enum_blobs >= blob_count) && blob_count) {
 			copied = 0;
-			blob_id_ptr = (uint32_t *)(unsigned long)out_resp->enum_blob_ptr;
-			blob_length_ptr = (uint32_t *)(unsigned long)out_resp->values_ptr;
+			blob_id_ptr = (uint32_t __user *)(unsigned long)out_resp->enum_blob_ptr;
+			blob_length_ptr = (uint32_t __user *)(unsigned long)out_resp->values_ptr;
 
 			list_for_each_entry(prop_blob, &property->enum_blob_list, head) {
 				if (put_user(prop_blob->base.id, blob_id_ptr + copied)) {
@@ -2717,7 +2847,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	struct drm_mode_get_blob *out_resp = data;
 	struct drm_property_blob *blob;
 	int ret = 0;
-	void *blob_ptr;
+	void __user *blob_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -2731,7 +2861,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	blob = obj_to_blob(obj);
 
 	if (out_resp->length == blob->length) {
-		blob_ptr = (void *)(unsigned long)out_resp->data;
+		blob_ptr = (void __user *)(unsigned long)out_resp->data;
 		if (copy_to_user(blob_ptr, blob->data, blob->length)){
 			ret = -EFAULT;
 			goto done;

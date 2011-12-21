@@ -268,7 +268,7 @@ struct drm_mode_fb_cmd {
 	__u32 handle;
 };
 
-#define DRM_MODE_FB_INTERLACED	(1<<0 /* for interlaced framebuffers */
+#define DRM_MODE_FB_INTERLACED	(1<<0) /* for interlaced framebuffers */
 
 struct drm_mode_fb_cmd2 {
 	__u32 fb_id;
@@ -298,6 +298,8 @@ struct drm_mode_fb_cmd2 {
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
 #define DRM_MODE_FB_DIRTY_ANNOTATE_FILL 0x02
 #define DRM_MODE_FB_DIRTY_FLAGS         0x03
+
+#define DRM_MODE_FB_DIRTY_MAX_CLIPS     256
 
 /*
  * Mark a region of a framebuffer as dirty.

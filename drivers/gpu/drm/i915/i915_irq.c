@@ -824,6 +824,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		for (i = 0; i < 16; i++)
 			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
@@ -1204,7 +1205,7 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	} else {
 		int dspaddr = DSPADDR(intel_crtc->plane);
 		stall_detected = I915_READ(dspaddr) == (obj->gtt_offset +
-							crtc->y * crtc->fb->pitch +
+							crtc->y * crtc->fb->pitches[0] +
 							crtc->x * crtc->fb->bits_per_pixel/8);
 	}
 

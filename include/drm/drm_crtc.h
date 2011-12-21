@@ -239,7 +239,8 @@ struct drm_framebuffer {
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
-	unsigned int pitch;
+	unsigned int pitches[4];
+	unsigned int offsets[4];
 	unsigned int width;
 	unsigned int height;
 	/* depth can be 15 or 16 */
@@ -828,7 +829,7 @@ extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
-			  uint32_t *formats, uint32_t format_count);
+			  const uint32_t *formats, uint32_t format_count);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);

@@ -39,6 +39,25 @@
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
 
+/* Intel Pipe Clone Bit */
+#define INTEL_HDMIB_CLONE_BIT 1
+#define INTEL_HDMIC_CLONE_BIT 2
+#define INTEL_HDMID_CLONE_BIT 3
+#define INTEL_HDMIE_CLONE_BIT 4
+#define INTEL_HDMIF_CLONE_BIT 5
+#define INTEL_SDVO_NON_TV_CLONE_BIT 6
+#define INTEL_SDVO_TV_CLONE_BIT 7
+#define INTEL_SDVO_LVDS_CLONE_BIT 8
+#define INTEL_ANALOG_CLONE_BIT 9
+#define INTEL_TV_CLONE_BIT 10
+#define INTEL_DP_B_CLONE_BIT 11
+#define INTEL_DP_C_CLONE_BIT 12
+#define INTEL_DP_D_CLONE_BIT 13
+#define INTEL_LVDS_CLONE_BIT 14
+#define INTEL_DVO_TMDS_CLONE_BIT 15
+#define INTEL_DVO_LVDS_CLONE_BIT 16
+#define INTEL_EDP_CLONE_BIT 17
+
 /* these are outputs from the chip - integrated only
  * external chips are via DVO or SDVO output */
 #define INTEL_OUTPUT_UNUSED 0
@@ -55,6 +74,25 @@
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
+
+#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
+#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
+
+static inline void
+psb_intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
+				int multiplier)
+{
+	mode->clock *= multiplier;
+	mode->private_flags |= multiplier;
+}
+
+static inline int
+psb_intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
+{
+	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK)
+	       >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
+}
+
 
 /*
  * Hold information useally put on the device driver privates here,
@@ -93,19 +131,24 @@ struct psb_intel_i2c_chan {
 	u8 slave_addr;
 };
 
-struct psb_intel_output {
-	struct drm_connector base;
-
-	struct drm_encoder enc;
+struct psb_intel_encoder {
+	struct drm_encoder base;
 	int type;
+	bool needs_tv_clock;
+	void (*hot_plug)(struct psb_intel_encoder *);
+	int crtc_mask;
+	int clone_mask;
+	void *dev_priv; /* For sdvo_priv, lvds_priv, etc... */
 
-	struct psb_intel_i2c_chan *i2c_bus;	/* for control functions */
-	struct psb_intel_i2c_chan *ddc_bus;	/* for DDC only stuff */
-	bool load_detect_temp;
-	void *dev_priv;
+	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
+	   own set of output privates */
+	struct psb_intel_i2c_chan *i2c_bus;
+	struct psb_intel_i2c_chan *ddc_bus;
+};
 
-	struct psb_intel_mode_device *mode_dev;
-	struct i2c_adapter *hdmi_i2c_adapter;	/* for control functions */
+struct psb_intel_connector {
+	struct drm_connector base;
+	struct psb_intel_encoder *encoder;
 };
 
 struct psb_intel_crtc_state {
@@ -156,23 +199,24 @@ struct psb_intel_crtc {
 
 #define to_psb_intel_crtc(x)	\
 		container_of(x, struct psb_intel_crtc, base)
-#define to_psb_intel_output(x)	\
-		container_of(x, struct psb_intel_output, base)
-#define enc_to_psb_intel_output(x)	\
-		container_of(x, struct psb_intel_output, enc)
+#define to_psb_intel_connector(x) \
+		container_of(x, struct psb_intel_connector, base)
+#define to_psb_intel_encoder(x)	\
+		container_of(x, struct psb_intel_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
 
 struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
 					const u32 reg, const char *name);
 void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan);
-int psb_intel_ddc_get_modes(struct psb_intel_output *psb_intel_output);
-extern bool psb_intel_ddc_probe(struct psb_intel_output *psb_intel_output);
+int psb_intel_ddc_get_modes(struct drm_connector *connector,
+			    struct i2c_adapter *adapter);
+extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
 
 extern void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 			    struct psb_intel_mode_device *mode_dev);
 extern void psb_intel_crt_init(struct drm_device *dev);
-extern void psb_intel_sdvo_init(struct drm_device *dev, int output_device);
+extern bool psb_intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void psb_intel_dvo_init(struct drm_device *dev);
 extern void psb_intel_tv_init(struct drm_device *dev);
 extern void psb_intel_lvds_init(struct drm_device *dev,
@@ -189,6 +233,17 @@ extern void mid_dsi_init(struct drm_device *dev,
 extern void psb_intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void psb_intel_encoder_prepare(struct drm_encoder *encoder);
 extern void psb_intel_encoder_commit(struct drm_encoder *encoder);
+extern void psb_intel_encoder_destroy(struct drm_encoder *encoder);
+
+static inline struct psb_intel_encoder *psb_intel_attached_encoder(
+						struct drm_connector *connector)
+{
+	return to_psb_intel_connector(connector)->encoder;
+}
+
+extern void psb_intel_connector_attach_encoder(
+					struct psb_intel_connector *connector,
+					struct psb_intel_encoder *encoder);
 
 extern struct drm_encoder *psb_intel_best_encoder(struct drm_connector
 					      *connector);
@@ -224,5 +279,11 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
 extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
 
+/* intel_gmbus.c */
+extern void gma_intel_i2c_reset(struct drm_device *dev);
+extern int gma_intel_setup_gmbus(struct drm_device *dev);
+extern void gma_intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
+extern void gma_intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
+extern void gma_intel_teardown_gmbus(struct drm_device *dev);
 
 #endif				/* __INTEL_DRV_H__ */

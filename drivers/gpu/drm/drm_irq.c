@@ -110,10 +110,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	/* Prevent vblank irq processing while disabling vblank irqs,
 	 * so no updates of timestamps or count can happen after we've
 	 * disabled. Needed to prevent races in case of delayed irq's.
-	 * Disable preemption, so vblank_time_lock is held as short as
-	 * possible, even under a kernel with PREEMPT_RT patches.
 	 */
-	preempt_disable();
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	dev->driver->disable_vblank(dev, crtc);
@@ -164,7 +161,6 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	clear_vblank_timestamps(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
-	preempt_enable();
 }
 
 static void vblank_disable_fn(unsigned long arg)
@@ -407,13 +403,16 @@ int drm_irq_uninstall(struct drm_device *dev)
 	/*
 	 * Wake up any waiters so they don't hang.
 	 */
-	spin_lock_irqsave(&dev->vbl_lock, irqflags);
-	for (i = 0; i < dev->num_crtcs; i++) {
-		DRM_WAKEUP(&dev->vbl_queue[i]);
-		dev->vblank_enabled[i] = 0;
-		dev->last_vblank[i] = dev->driver->get_vblank_counter(dev, i);
+	if (dev->num_crtcs) {
+		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		for (i = 0; i < dev->num_crtcs; i++) {
+			DRM_WAKEUP(&dev->vbl_queue[i]);
+			dev->vblank_enabled[i] = 0;
+			dev->last_vblank[i] =
+				dev->driver->get_vblank_counter(dev, i);
+		}
+		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	}
-	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 	if (!irq_enabled)
 		return -EINVAL;
@@ -886,10 +885,6 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
 	if (atomic_add_return(1, &dev->vblank_refcount[crtc]) == 1) {
-		/* Disable preemption while holding vblank_time_lock. Do
-		 * it explicitely to guard against PREEMPT_RT kernel.
-		 */
-		preempt_disable();
 		spin_lock_irqsave(&dev->vblank_time_lock, irqflags2);
 		if (!dev->vblank_enabled[crtc]) {
 			/* Enable vblank irqs under vblank_time_lock protection.
@@ -909,7 +904,6 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 			}
 		}
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags2);
-		preempt_enable();
 	} else {
 		if (!dev->vblank_enabled[crtc]) {
 			atomic_dec(&dev->vblank_refcount[crtc]);
