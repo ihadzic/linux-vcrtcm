@@ -604,7 +604,7 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&rdev->cs_mutex);
+	radeon_mutex_lock(&rdev->cs_mutex);
 	switch (op_code) {
 
 	case RADEON_VCRTCM_CTL_OP_CODE_NOP:
@@ -641,6 +641,6 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 		r = -EINVAL;
 		break;
 	}
-	mutex_unlock(&rdev->cs_mutex);
+	radeon_mutex_unlock(&rdev->cs_mutex);
 	return r;
 }
