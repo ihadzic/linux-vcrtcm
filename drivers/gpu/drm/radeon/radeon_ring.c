@@ -77,8 +77,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 /*
  * IB.
  */
-static bool radeon_ib_try_free(struct radeon_device *rdev,
-			       struct radeon_ib *ib)
+bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	bool done = false;
 
@@ -93,13 +92,16 @@ static bool radeon_ib_try_free(struct radeon_device *rdev,
 	return done;
 }
 
-int radeon_ib_get(struct radeon_device *rdev, int ring, struct radeon_ib **ib)
+int radeon_ib_get(struct radeon_device *rdev, int ring,
+		  struct radeon_ib **ib, unsigned size)
 {
 	struct radeon_fence *fence;
 	unsigned cretry = 0;
 	int r = 0, i, idx;
 
 	*ib = NULL;
+	/* align size on 256 bytes */
+	size = ALIGN(size, 256);
 
 	r = radeon_fence_create(rdev, &fence, ring);
 	if (r) {
@@ -122,7 +124,7 @@ retry:
 		if (rdev->ib_pool.ibs[idx].fence == NULL) {
 			r = radeon_sa_bo_new(rdev, &rdev->ib_pool.sa_manager,
 					     &rdev->ib_pool.ibs[idx].sa_bo,
-					     64*1024, 64);
+					     size, 256);
 			if (!r) {
 				*ib = &rdev->ib_pool.ibs[idx];
 				(*ib)->ptr = rdev->ib_pool.sa_manager.cpu_ptr;
@@ -130,6 +132,7 @@ retry:
 				(*ib)->gpu_addr = rdev->ib_pool.sa_manager.gpu_addr;
 				(*ib)->gpu_addr += (*ib)->sa_bo.offset;
 				(*ib)->fence = fence;
+				(*ib)->vm_id = 0;
 				/* ib are most likely to be allocated in a ring fashion
 				 * thus rdev->ib_pool.head_id should be the id of the
 				 * oldest ib
@@ -145,7 +148,7 @@ retry:
 	/* this should be rare event, ie all ib scheduled none signaled yet.
 	 */
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
-		if (rdev->ib_pool.ibs[idx].fence) {
+		if (rdev->ib_pool.ibs[idx].fence && rdev->ib_pool.ibs[idx].fence->emitted) {
 			r = radeon_fence_wait(rdev->ib_pool.ibs[idx].fence, false);
 			if (!r) {
 				goto retry;

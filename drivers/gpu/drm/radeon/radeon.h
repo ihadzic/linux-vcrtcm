@@ -122,6 +122,10 @@ extern int radeon_conn_virt_crtc;
 #define CAYMAN_RING_TYPE_CP1_INDEX 1
 #define CAYMAN_RING_TYPE_CP2_INDEX 2
 
+/* hardcode those limit for now */
+#define RADEON_VA_RESERVED_SIZE		(8 << 20)
+#define RADEON_IB_VM_MAX_SIZE		(64 << 10)
+
 /*
  * Errata workarounds.
  */
@@ -230,6 +234,7 @@ struct radeon_fence {
 	bool				signaled;
 	/* RB, DMA, etc. */
 	int				ring;
+	struct radeon_semaphore		*semaphore;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -245,32 +250,6 @@ int radeon_fence_wait_last(struct radeon_device *rdev, int ring);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 int radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
-
-/*
- * Semaphores.
- */
-struct radeon_ring;
-
-struct radeon_semaphore_driver {
-	rwlock_t		lock;
-	struct list_head	free;
-};
-
-struct radeon_semaphore {
-	struct radeon_bo	*robj;
-	struct list_head	list;
-	uint64_t		gpu_addr;
-};
-
-void radeon_semaphore_driver_fini(struct radeon_device *rdev);
-int radeon_semaphore_create(struct radeon_device *rdev,
-			    struct radeon_semaphore **semaphore);
-void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
-				  struct radeon_semaphore *semaphore);
-void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
-				struct radeon_semaphore *semaphore);
-void radeon_semaphore_free(struct radeon_device *rdev,
-			   struct radeon_semaphore *semaphore);
 
 /*
  * Tiling registers
@@ -292,6 +271,21 @@ struct radeon_mman {
 	bool				initialized;
 };
 
+/* bo virtual address in a specific vm */
+struct radeon_bo_va {
+	/* bo list is protected by bo being reserved */
+	struct list_head		bo_list;
+	/* vm list is protected by vm mutex */
+	struct list_head		vm_list;
+	/* constant after initialization */
+	struct radeon_vm		*vm;
+	struct radeon_bo		*bo;
+	uint64_t			soffset;
+	uint64_t			eoffset;
+	uint32_t			flags;
+	bool				valid;
+};
+
 struct radeon_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
@@ -305,6 +299,10 @@ struct radeon_bo {
 	u32				tiling_flags;
 	u32				pitch;
 	int				surface_reg;
+	/* list of all virtual address to which this bo
+	 * is associated to
+	 */
+	struct list_head		va;
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 	struct drm_gem_object		gem_base;
@@ -391,6 +389,46 @@ int radeon_mode_dumb_destroy(struct drm_file *file_priv,
 			     uint32_t handle);
 
 /*
+ * Semaphores.
+ */
+struct radeon_ring;
+
+#define	RADEON_SEMAPHORE_BO_SIZE	256
+
+struct radeon_semaphore_driver {
+	rwlock_t			lock;
+	struct list_head		bo;
+};
+
+struct radeon_semaphore_bo;
+
+/* everything here is constant */
+struct radeon_semaphore {
+	struct list_head		list;
+	uint64_t			gpu_addr;
+	uint32_t			*cpu_ptr;
+	struct radeon_semaphore_bo	*bo;
+};
+
+struct radeon_semaphore_bo {
+	struct list_head		list;
+	struct radeon_ib		*ib;
+	struct list_head		free;
+	struct radeon_semaphore		semaphores[RADEON_SEMAPHORE_BO_SIZE/8];
+	unsigned			nused;
+};
+
+void radeon_semaphore_driver_fini(struct radeon_device *rdev);
+int radeon_semaphore_create(struct radeon_device *rdev,
+			    struct radeon_semaphore **semaphore);
+void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
+				  struct radeon_semaphore *semaphore);
+void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
+				struct radeon_semaphore *semaphore);
+void radeon_semaphore_free(struct radeon_device *rdev,
+			   struct radeon_semaphore *semaphore);
+
+/*
  * GART structures, functions & helpers
  */
 struct radeon_mc;
@@ -398,6 +436,7 @@ struct radeon_mc;
 #define RADEON_GPU_PAGE_SIZE 4096
 #define RADEON_GPU_PAGE_MASK (RADEON_GPU_PAGE_SIZE - 1)
 #define RADEON_GPU_PAGE_SHIFT 12
+#define RADEON_GPU_PAGE_ALIGN(a) (((a) + RADEON_GPU_PAGE_MASK) & ~RADEON_GPU_PAGE_MASK)
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
@@ -555,6 +594,7 @@ struct radeon_ib {
 	uint64_t		gpu_addr;
 	uint32_t		*ptr;
 	struct radeon_fence	*fence;
+	unsigned		vm_id;
 };
 
 /*
@@ -589,6 +629,58 @@ struct radeon_ring {
 	u32			ptr_reg_shift;
 	u32			ptr_reg_mask;
 	u32			nop;
+};
+
+/*
+ * VM
+ */
+struct radeon_vm {
+	struct list_head		list;
+	struct list_head		va;
+	int				id;
+	unsigned			last_pfn;
+	u64				pt_gpu_addr;
+	u64				*pt;
+	struct radeon_sa_bo		sa_bo;
+	struct mutex			mutex;
+	/* last fence for cs using this vm */
+	struct radeon_fence		*fence;
+};
+
+struct radeon_vm_funcs {
+	int (*init)(struct radeon_device *rdev);
+	void (*fini)(struct radeon_device *rdev);
+	/* cs mutex must be lock for schedule_ib */
+	int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
+	void (*unbind)(struct radeon_device *rdev, struct radeon_vm *vm);
+	void (*tlb_flush)(struct radeon_device *rdev, struct radeon_vm *vm);
+	uint32_t (*page_flags)(struct radeon_device *rdev,
+			       struct radeon_vm *vm,
+			       uint32_t flags);
+	void (*set_page)(struct radeon_device *rdev, struct radeon_vm *vm,
+			unsigned pfn, uint64_t addr, uint32_t flags);
+};
+
+struct radeon_vm_manager {
+	struct list_head		lru_vm;
+	uint32_t			use_bitmap;
+	struct radeon_sa_manager	sa_manager;
+	uint32_t			max_pfn;
+	/* fields constant after init */
+	const struct radeon_vm_funcs	*funcs;
+	/* number of VMIDs */
+	unsigned			nvm;
+	/* vram base address for page table entry  */
+	u64				vram_base_offset;
+	/* is vm enabled? */
+	bool				enabled;
+};
+
+/*
+ * file private structure
+ */
+struct radeon_fpriv {
+	struct radeon_vm		vm;
 };
 
 /*
@@ -642,8 +734,10 @@ struct r600_blit {
 
 void r600_blit_suspend(struct radeon_device *rdev);
 
-int radeon_ib_get(struct radeon_device *rdev, int ring, struct radeon_ib **ib);
+int radeon_ib_get(struct radeon_device *rdev, int ring,
+		  struct radeon_ib **ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
+bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
@@ -679,12 +773,12 @@ struct radeon_cs_reloc {
 struct radeon_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
-	int kpage_idx[2];
-	uint32_t                *kpage[2];
+	int			kpage_idx[2];
+	uint32_t		*kpage[2];
 	uint32_t		*kdata;
-	void __user *user_ptr;
-	int last_copied_page;
-	int last_page_index;
+	void __user		*user_ptr;
+	int			last_copied_page;
+	int			last_page_index;
 };
 
 struct radeon_cs_parser {
@@ -702,14 +796,18 @@ struct radeon_cs_parser {
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
 	struct list_head	validated;
+	bool			sync_to_ring[RADEON_NUM_RINGS];
 	/* indices of various chunks */
 	int			chunk_ib_idx;
 	int			chunk_relocs_idx;
+	int			chunk_flags_idx;
 	struct radeon_ib	*ib;
 	void			*track;
 	unsigned		family;
 	int			parser_error;
-	bool			keep_tiling_flags;
+	u32			cs_flags;
+	u32			ring;
+	s32			priority;
 };
 
 extern int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx);
@@ -1006,6 +1104,7 @@ struct radeon_asic {
 
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
+		int (*ib_parse)(struct radeon_device *rdev, struct radeon_ib *ib);
 		void (*emit_fence)(struct radeon_device *rdev, struct radeon_fence *fence);
 		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 				       struct radeon_semaphore *semaphore, bool emit_wait);
@@ -1243,6 +1342,8 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
+int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *filp);
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
@@ -1404,6 +1505,10 @@ struct radeon_device {
 	/* virtual crtcs */
 	int num_virtual_crtc;
 	struct radeon_vblank_emu_driver vbl_emu_drv;
+	/* virtual memory */
+	struct radeon_vm_manager	vm_manager;
+	/* ring used for bo copies */
+	u32				copy_ring;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1569,6 +1674,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
 #define radeon_ring_test(rdev, cp) (rdev)->asic->ring_test((rdev), (cp))
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
+#define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
@@ -1626,6 +1732,33 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
+
+/*
+ * vm
+ */
+int radeon_vm_manager_init(struct radeon_device *rdev);
+void radeon_vm_manager_fini(struct radeon_device *rdev);
+int radeon_vm_manager_start(struct radeon_device *rdev);
+int radeon_vm_manager_suspend(struct radeon_device *rdev);
+int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
+void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
+int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm);
+void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
+int radeon_vm_bo_update_pte(struct radeon_device *rdev,
+			    struct radeon_vm *vm,
+			    struct radeon_bo *bo,
+			    struct ttm_mem_reg *mem);
+void radeon_vm_bo_invalidate(struct radeon_device *rdev,
+			     struct radeon_bo *bo);
+int radeon_vm_bo_add(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     struct radeon_bo *bo,
+		     uint64_t offset,
+		     uint32_t flags);
+int radeon_vm_bo_rmv(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     struct radeon_bo *bo);
+
 
 /*
  * R600 vram scratch functions

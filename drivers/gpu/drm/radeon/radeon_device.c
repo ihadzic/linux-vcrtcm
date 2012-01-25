@@ -224,8 +224,11 @@ int radeon_wb_init(struct radeon_device *rdev)
 	if (radeon_no_wb == 1)
 		rdev->wb.enabled = false;
 	else {
-		/* often unreliable on AGP */
 		if (rdev->flags & RADEON_IS_AGP) {
+			/* often unreliable on AGP */
+			rdev->wb.enabled = false;
+		} else if (rdev->family < CHIP_R300) {
+			/* often unreliable on pre-r300 */
 			rdev->wb.enabled = false;
 		} else {
 			rdev->wb.enabled = true;
@@ -731,7 +734,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
-	INIT_LIST_HEAD(&rdev->semaphore_drv.free);
+	INIT_LIST_HEAD(&rdev->semaphore_drv.bo);
+	/* initialize vm here */
+	rdev->vm_manager.use_bitmap = 1;
+	rdev->vm_manager.max_pfn = 1 << 20;
+	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
 	/* vblank emulation init */
 	INIT_LIST_HEAD(&rdev->vbl_emu_drv.pending_queue);

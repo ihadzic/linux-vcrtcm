@@ -384,7 +384,9 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 {
 	struct dma_page *d_page, *tmp;
 
-	if (npages && set_pages_array_wb(pages, npages))
+	/* Don't set WB on WB page pool. */
+	if (npages && !(pool->type & IS_CACHED) &&
+	    set_pages_array_wb(pages, npages))
 		pr_err(TTM_PFX "%s: Failed to set %d pages to wb!\n",
 			pool->dev_name, npages);
 
@@ -396,7 +398,8 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 
 static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
-	if (set_pages_array_wb(&d_page->p, 1))
+	/* Don't set WB on WB page pool. */
+	if (!(pool->type & IS_CACHED) && set_pages_array_wb(&d_page->p, 1))
 		pr_err(TTM_PFX "%s: Failed to set %d pages to wb!\n",
 			pool->dev_name, 1);
 
@@ -930,10 +933,8 @@ static int ttm_dma_pool_get_num_unused_pages(void)
 	unsigned total = 0;
 
 	mutex_lock(&_manager->lock);
-	list_for_each_entry(p, &_manager->pools, pools) {
-		if (p)
-			total += p->pool->npages_free;
-	}
+	list_for_each_entry(p, &_manager->pools, pools)
+		total += p->pool->npages_free;
 	mutex_unlock(&_manager->lock);
 	return total;
 }
@@ -946,7 +947,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	struct dma_page *d_page, *next;
 	enum pool_type type;
 	bool is_cached = false;
-	unsigned count = 0, i;
+	unsigned count = 0, i, npages = 0;
 	unsigned long irq_flags;
 
 	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
@@ -971,8 +972,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	} else {
 		pool->npages_free += count;
 		list_splice(&ttm_dma->pages_list, &pool->free_list);
+		npages = count;
 		if (pool->npages_free > _manager->options.max_size) {
-			count = pool->npages_free - _manager->options.max_size;
+			npages = pool->npages_free - _manager->options.max_size;
+			/* free at least NUM_PAGES_TO_ALLOC number of pages
+			 * to reduce calls to set_memory_wb */
+			if (npages < NUM_PAGES_TO_ALLOC)
+				npages = NUM_PAGES_TO_ALLOC;
 		}
 	}
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
@@ -996,9 +1002,9 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		ttm_dma->dma_address[i] = 0;
 	}
 
-	/* shrink pool if necessary */
-	if (count)
-		ttm_dma_page_pool_free(pool, count);
+	/* shrink pool if necessary (only on !is_cached pools)*/
+	if (npages)
+		ttm_dma_page_pool_free(pool, npages);
 	ttm->state = tt_unpopulated;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
@@ -1023,7 +1029,7 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
 	list_for_each_entry(p, &_manager->pools, pools) {
 		unsigned nr_free;
 
-		if (!p && !p->dev)
+		if (!p->dev)
 			continue;
 		if (shrink_pages == 0)
 			break;

@@ -915,8 +915,8 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe));
 }
 
-static void assert_pipe(struct drm_i915_private *dev_priv,
-			enum pipe pipe, bool state)
+void assert_pipe(struct drm_i915_private *dev_priv,
+		 enum pipe pipe, bool state)
 {
 	int reg;
 	u32 val;
@@ -929,8 +929,6 @@ static void assert_pipe(struct drm_i915_private *dev_priv,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
 }
-#define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
-#define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 
 static void assert_plane_enabled(struct drm_i915_private *dev_priv,
 				 enum plane plane)
@@ -1206,7 +1204,8 @@ static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
 				  enum pipe pipe)
 {
 	int reg;
-	u32 val;
+	u32 val, pll_mask = TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL,
+		pll_sel = TRANSC_DPLL_ENABLE;
 
 	if (pipe > 1)
 		return;
@@ -1216,6 +1215,15 @@ static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
 
 	/* Make sure transcoder isn't still depending on us */
 	assert_transcoder_disabled(dev_priv, pipe);
+
+	if (pipe == 0)
+		pll_sel |= TRANSC_DPLLA_SEL;
+	else if (pipe == 1)
+		pll_sel |= TRANSC_DPLLB_SEL;
+
+
+	if ((I915_READ(PCH_DPLL_SEL) & pll_mask) == pll_sel)
+		return;
 
 	reg = PCH_DPLL(pipe);
 	val = I915_READ(reg);
@@ -4509,7 +4517,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 	 */
 }
 
-static void sandybridge_update_wm(struct drm_device *dev)
+void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
@@ -4569,7 +4577,8 @@ static void sandybridge_update_wm(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	if (!single_plane_enabled(enabled))
+	if (!single_plane_enabled(enabled) ||
+	    dev_priv->sprite_scaling_enabled)
 		return;
 	enabled = ffs(enabled) - 1;
 
@@ -4619,6 +4628,149 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
+static bool
+sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
+			      uint32_t sprite_width, int pixel_size,
+			      const struct intel_watermark_params *display,
+			      int display_latency_ns, int *sprite_wm)
+{
+	struct drm_crtc *crtc;
+	int clock;
+	int entries, tlb_miss;
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	if (crtc->fb == NULL || !crtc->enabled) {
+		*sprite_wm = display->guard_size;
+		return false;
+	}
+
+	clock = crtc->mode.clock;
+
+	/* Use the small buffer method to calculate the sprite watermark */
+	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
+	tlb_miss = display->fifo_size*display->cacheline_size -
+		sprite_width * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
+	entries = DIV_ROUND_UP(entries, display->cacheline_size);
+	*sprite_wm = entries + display->guard_size;
+	if (*sprite_wm > (int)display->max_wm)
+		*sprite_wm = display->max_wm;
+
+	return true;
+}
+
+static bool
+sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
+				uint32_t sprite_width, int pixel_size,
+				const struct intel_watermark_params *display,
+				int latency_ns, int *sprite_wm)
+{
+	struct drm_crtc *crtc;
+	unsigned long line_time_us;
+	int clock;
+	int line_count, line_size;
+	int small, large;
+	int entries;
+
+	if (!latency_ns) {
+		*sprite_wm = 0;
+		return false;
+	}
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	clock = crtc->mode.clock;
+
+	line_time_us = (sprite_width * 1000) / clock;
+	line_count = (latency_ns / line_time_us + 1000) / 1000;
+	line_size = sprite_width * pixel_size;
+
+	/* Use the minimum of the small and large buffer method for primary */
+	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
+	large = line_count * line_size;
+
+	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
+	*sprite_wm = entries + display->guard_size;
+
+	return *sprite_wm > 0x3ff ? false : true;
+}
+
+static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
+					 uint32_t sprite_width, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	int sprite_wm, reg;
+	int ret;
+
+	switch (pipe) {
+	case 0:
+		reg = WM0_PIPEA_ILK;
+		break;
+	case 1:
+		reg = WM0_PIPEB_ILK;
+		break;
+	case 2:
+		reg = WM0_PIPEC_IVB;
+		break;
+	default:
+		return; /* bad pipe */
+	}
+
+	ret = sandybridge_compute_sprite_wm(dev, pipe, sprite_width, pixel_size,
+					    &sandybridge_display_wm_info,
+					    latency, &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite wm for pipe %d\n",
+			      pipe);
+		return;
+	}
+
+	I915_WRITE(reg, I915_READ(reg) | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
+	DRM_DEBUG_KMS("sprite watermarks For pipe %d - %d\n", pipe, sprite_wm);
+
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM1_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp1 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM1S_LP_ILK, sprite_wm);
+
+	/* Only IVB has two more LP watermarks for sprite */
+	if (!IS_IVYBRIDGE(dev))
+		return;
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM2_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp2 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM2S_LP_IVB, sprite_wm);
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM3_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp3 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM3S_LP_IVB, sprite_wm);
+}
+
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
  *
@@ -4657,6 +4809,16 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
+}
+
+void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
+				    uint32_t sprite_width, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.update_sprite_wm)
+		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
+						   pixel_size);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
@@ -5822,12 +5984,43 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
 					      x, y, old_fb);
-
 	drm_vblank_post_modeset(dev, pipe);
 
-	intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
+	if (ret)
+		intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
+	else
+		intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
 
 	return ret;
+}
+
+static bool intel_eld_uptodate(struct drm_connector *connector,
+			       int reg_eldv, uint32_t bits_eldv,
+			       int reg_elda, uint32_t bits_elda,
+			       int reg_edid)
+{
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	uint8_t *eld = connector->eld;
+	uint32_t i;
+
+	i = I915_READ(reg_eldv);
+	i &= bits_eldv;
+
+	if (!eld[0])
+		return !i;
+
+	if (!i)
+		return false;
+
+	i = I915_READ(reg_elda);
+	i &= ~bits_elda;
+	I915_WRITE(reg_elda, i);
+
+	for (i = 0; i < eld[2]; i++)
+		if (I915_READ(reg_edid) != *((uint32_t *)eld + i))
+			return false;
+
+	return true;
 }
 
 static void g4x_write_eld(struct drm_connector *connector,
@@ -5845,6 +6038,12 @@ static void g4x_write_eld(struct drm_connector *connector,
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
 	else
 		eldv = G4X_ELDV_DEVCTG;
+
+	if (intel_eld_uptodate(connector,
+			       G4X_AUD_CNTL_ST, eldv,
+			       G4X_AUD_CNTL_ST, G4X_ELD_ADDR,
+			       G4X_HDMIW_HDMIEDID))
+		return;
 
 	i = I915_READ(G4X_AUD_CNTL_ST);
 	i &= ~(eldv | G4X_ELD_ADDR);
@@ -5876,14 +6075,14 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	int aud_cntl_st;
 	int aud_cntrl_st2;
 
-	if (IS_IVYBRIDGE(connector->dev)) {
-		hdmiw_hdmiedid = GEN7_HDMIW_HDMIEDID_A;
-		aud_cntl_st = GEN7_AUD_CNTRL_ST_A;
-		aud_cntrl_st2 = GEN7_AUD_CNTRL_ST2;
+	if (HAS_PCH_IBX(connector->dev)) {
+		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
+		aud_cntl_st = IBX_AUD_CNTL_ST_A;
+		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
-		hdmiw_hdmiedid = GEN5_HDMIW_HDMIEDID_A;
-		aud_cntl_st = GEN5_AUD_CNTL_ST_A;
-		aud_cntrl_st2 = GEN5_AUD_CNTL_ST2;
+		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
+		aud_cntl_st = CPT_AUD_CNTL_ST_A;
+		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
 	i = to_intel_crtc(crtc)->pipe;
@@ -5897,13 +6096,24 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (!i) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */
-		eldv = GEN5_ELD_VALIDB;
-		eldv |= GEN5_ELD_VALIDB << 4;
-		eldv |= GEN5_ELD_VALIDB << 8;
+		eldv = IBX_ELD_VALIDB;
+		eldv |= IBX_ELD_VALIDB << 4;
+		eldv |= IBX_ELD_VALIDB << 8;
 	} else {
 		DRM_DEBUG_DRIVER("ELD on port %c\n", 'A' + i);
-		eldv = GEN5_ELD_VALIDB << ((i - 1) * 4);
+		eldv = IBX_ELD_VALIDB << ((i - 1) * 4);
 	}
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
+		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+	}
+
+	if (intel_eld_uptodate(connector,
+			       aud_cntrl_st2, eldv,
+			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       hdmiw_hdmiedid))
+		return;
 
 	i = I915_READ(aud_cntrl_st2);
 	i &= ~eldv;
@@ -5912,13 +6122,8 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (!eld[0])
 		return;
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
-		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
-	}
-
 	i = I915_READ(aud_cntl_st);
-	i &= ~GEN5_ELD_ADDRESS;
+	i &= ~IBX_ELD_ADDRESS;
 	I915_WRITE(aud_cntl_st, i);
 
 	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
@@ -8002,7 +8207,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_USE_NORMAL_FREQ |
+		   GEN6_RP_MEDIA_HW_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
@@ -8256,6 +8461,10 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM1_LP_ILK, 0);
 
 	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
+
+	I915_WRITE(IVB_CHICKEN3,
+		   CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE |
+		   CHICKEN3_DGMG_DONE_FIX_DISABLE);
 
 	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
@@ -8550,9 +8759,15 @@ static void intel_init_display(struct drm_device *dev)
 		if (IS_IVYBRIDGE(dev)) {
 			u32	ecobus;
 
+			/* A small trick here - if the bios hasn't configured MT forcewake,
+			 * and if the device is in RC6, then force_wake_mt_get will not wake
+			 * the device and the ECOBUS read will return zero. Which will be
+			 * (correctly) interpreted by the test below as MT forcewake being
+			 * disabled.
+			 */
 			mutex_lock(&dev->struct_mutex);
 			__gen6_gt_force_wake_mt_get(dev_priv);
-			ecobus = I915_READ(ECOBUS);
+			ecobus = I915_READ_NOTRACE(ECOBUS);
 			__gen6_gt_force_wake_mt_put(dev_priv);
 			mutex_unlock(&dev->struct_mutex);
 
@@ -8584,6 +8799,7 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_GEN6(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -8597,6 +8813,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -8780,7 +8997,7 @@ static void i915_disable_vga(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
+	int i, ret;
 
 	drm_mode_config_init(dev);
 
@@ -8810,6 +9027,12 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
+		if (HAS_PCH_SPLIT(dev)) {
+			ret = intel_plane_init(dev, i);
+			if (ret)
+				DRM_ERROR("plane %d init failed: %d\n",
+					  i, ret);
+		}
 	}
 
 	/* Just disable it once at startup */
