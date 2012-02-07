@@ -453,7 +453,7 @@ struct drm_encoder_funcs {
 #define DRM_CONNECTOR_MAX_UMODES 16
 #define DRM_CONNECTOR_MAX_PROPERTY 16
 #define DRM_CONNECTOR_LEN 32
-#define DRM_CONNECTOR_MAX_ENCODER 2
+#define DRM_CONNECTOR_MAX_ENCODER 3
 
 /**
  * drm_encoder - central DRM encoder structure
@@ -919,7 +919,7 @@ extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
 extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
-extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type);
