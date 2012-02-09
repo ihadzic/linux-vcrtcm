@@ -123,13 +123,14 @@ static void __exit udlctd_exit(void)
 module_init(udlctd_init);
 module_exit(udlctd_exit);
 
-module_param(true32bpp, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(true32bpp, "Enable support for true 32bpp color. *Experimental and buggy*");
+module_param(true32bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(true32bpp,
+	"Enable support for true 32bpp color. *Experimental and buggy*");
 
-module_param(debug, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(debug, "Enable debugging information.");
 
-module_param(enable_default_modes, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param(enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(enable_default_modes,
 	"Support standard VESA modes if the monitor doesn't provide any.");
 
