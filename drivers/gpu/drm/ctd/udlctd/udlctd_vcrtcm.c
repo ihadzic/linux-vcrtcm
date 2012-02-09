@@ -284,11 +284,10 @@ int udlctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	udlctd_free_modelist(udlctd_info, udlctd_video_modes);
 
 	if (!found_mode) {
-		mutex_unlock(&udlctd_info->buffer_mutex);
 		PR_ERR("could not find matching mode...\n");
-		udlctd_error_screen(udlctd_info);
-		udlctd_set_fps(0, udlctd_info, 0);
 		uvhd->fb_xmit_allowed = 0;
+		udlctd_error_screen(udlctd_info);
+		mutex_unlock(&udlctd_info->buffer_mutex);
 		return 0;
 	}
 
@@ -414,9 +413,6 @@ int udlctd_set_fps(int fps, void *hw_drv_info, int flow)
 	if (fps <= 0) {
 		uvhd->fb_xmit_period_jiffies = 0;
 		PR_INFO("Transmission disabled, (negative or zero fps).\n");
-	} else if (!uvhd->fb_xmit_allowed) {
-		uvhd->fb_xmit_period_jiffies = 0;
-		PR_INFO("Transmission disabled, (invalid mode).\n");
 	} else {
 		uvhd->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
@@ -799,10 +795,14 @@ int udlctd_do_xmit_fb_push(struct udlctd_vcrtcm_hal_descriptor *uvhd)
 	if ((uvhd->fb_force_xmit ||
 	     time_after(jiffies_snapshot, uvhd->last_xmit_jiffies +
 			UDLCTD_XMIT_HARD_DEADLINE)) &&
-			have_push_buffer && udlctd_info->monitor_connected) {
-		/* someone has either indicated that there has been rendering
+			have_push_buffer &&
+			udlctd_info->monitor_connected &&
+			uvhd->fb_xmit_allowed) {
+		/* Someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
 		 * should transmit for real.
+		 * We also check to see if we have a monitor connected, and if
+		 * we are allowed to transmit.
 		 */
 
 		PR_DEBUG("transmission happening...\n");
