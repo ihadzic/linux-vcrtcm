@@ -39,8 +39,6 @@
 #include "linux/fs.h"
 #include "linux/spinlock.h"
 
-struct ttm_backend;
-
 struct ttm_backend_func {
 	/**
 	 * struct ttm_backend_func member bind
@@ -117,7 +115,6 @@ struct ttm_tt {
 	uint32_t page_flags;
 	unsigned long num_pages;
 	struct ttm_bo_global *glob;
-	struct ttm_backend *be;
 	struct file *swap_storage;
 	enum ttm_caching_state caching_state;
 	enum {
