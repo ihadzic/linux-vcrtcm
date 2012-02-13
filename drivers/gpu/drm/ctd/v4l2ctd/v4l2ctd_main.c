@@ -1122,7 +1122,7 @@ module_init(v4l2ctd_init);
 module_exit(v4l2ctd_exit);
 
 MODULE_PARM_DESC(debug, "Enable debugging information.");
-module_param(debug, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(num_minors, "Number of minors (default=1)");
 module_param_named(num_minors, v4l2ctd_num_minors, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
