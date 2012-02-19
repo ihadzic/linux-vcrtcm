@@ -64,5 +64,6 @@ int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		     struct vcrtcm_mode **modes, int *count);
 int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		      struct vcrtcm_mode *mode, int *status);
+void vcrtcm_disable(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 
 #endif

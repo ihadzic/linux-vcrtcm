@@ -707,3 +707,30 @@ int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_check_mode);
+
+void vcrtcm_disable(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+{
+	struct vcrtcm_dev_info *vcrtcm_dev_info =
+			container_of(vcrtcm_dev_hal,
+				struct vcrtcm_dev_info, vcrtcm_dev_hal);
+
+	mutex_lock(&vcrtcm_dev_hal->hal_mutex);
+
+	if (vcrtcm_dev_hal->funcs.disable) {
+		VCRTCM_DEBUG("calling disable backend, HAL %d.%d.%d\n",
+			vcrtcm_dev_info->hw_major,
+			vcrtcm_dev_info->hw_minor,
+			vcrtcm_dev_info->hw_flow);
+
+		vcrtcm_dev_hal->funcs.disable(vcrtcm_dev_info->hw_drv_info);
+	} else {
+		VCRTCM_DEBUG("missing disable backend, HAL %d.%d.%d\n",
+			vcrtcm_dev_info->hw_major,
+			vcrtcm_dev_info->hw_minor,
+			vcrtcm_dev_info->hw_flow);
+	}
+	mutex_unlock(&vcrtcm_dev_hal->hal_mutex);
+
+	return;
+}
+EXPORT_SYMBOL(vcrtcm_disable);
