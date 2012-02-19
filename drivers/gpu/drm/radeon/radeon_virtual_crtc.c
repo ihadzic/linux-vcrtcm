@@ -857,8 +857,10 @@ static int radeon_virtual_crtc_mode_set(struct drm_crtc *crtc,
 
 static void radeon_virtual_crtc_disable(struct drm_crtc *crtc)
 {
-
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	DRM_DEBUG("\n");
+	if (radeon_crtc->vcrtcm_dev_hal)
+		vcrtcm_disable(radeon_crtc->vcrtcm_dev_hal);
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
