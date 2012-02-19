@@ -46,6 +46,8 @@ int udlctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int udlctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow);
 
+void udlctd_disable(void *hw_drv_info);
+
 /* VCRTCM functions that interact directly with HW */
 int udlctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
 int udlctd_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);

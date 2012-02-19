@@ -695,6 +695,19 @@ int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
 	return 0;
 }
 
+void udlctd_disable(void *hw_drv_info)
+{
+	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
+	struct udlctd_vcrtcm_hal_descriptor *uvhd =
+			udlctd_info->udlctd_vcrtcm_hal_descriptor;
+
+	mutex_lock(&udlctd_info->buffer_mutex);
+	uvhd->fb_xmit_allowed = 0;
+	mutex_unlock(&udlctd_info->buffer_mutex);
+
+	return;
+}
+
 void udlctd_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =

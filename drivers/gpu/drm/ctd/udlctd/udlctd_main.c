@@ -63,7 +63,8 @@ struct vcrtcm_funcs udlctd_vcrtcm_funcs = {
 	.get_dpms = udlctd_get_dpms,
 	.connected = udlctd_connected,
 	.get_modes = udlctd_get_modes,
-	.check_mode = udlctd_check_mode
+	.check_mode = udlctd_check_mode,
+	.disable = udlctd_disable
 };
 
 
