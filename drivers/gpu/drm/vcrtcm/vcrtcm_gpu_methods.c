@@ -708,6 +708,10 @@ int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 }
 EXPORT_SYMBOL(vcrtcm_check_mode);
 
+/* disable the transmission on specified HAL
+ * called when CRTC associated with the HAL is
+ * disabled from userland
+ */
 void vcrtcm_disable(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
