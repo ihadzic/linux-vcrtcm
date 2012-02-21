@@ -584,7 +584,7 @@ int udlctd_get_dpms(int *state, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int udlctd_connected(void *hw_drv_info, int *status)
+int udlctd_connected(void *hw_drv_info, int flow, int *status)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	PR_DEBUG("connected: udlctd_info %p\n", udlctd_info);
@@ -599,7 +599,8 @@ int udlctd_connected(void *hw_drv_info, int *status)
 	return 0;
 }
 
-int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes, int *count)
+int udlctd_get_modes(void *hw_drv_info, int flow, struct vcrtcm_mode **modes,
+		     int *count)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	struct udlctd_video_mode *udlctd_video_modes;
@@ -656,7 +657,8 @@ int udlctd_get_modes(void *hw_drv_info, struct vcrtcm_mode **modes, int *count)
 	return 0;
 }
 
-int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
+int udlctd_check_mode(void *hw_drv_info, int flow,
+		      struct vcrtcm_mode *mode, int *status)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	struct udlctd_video_mode *udlctd_video_modes;
