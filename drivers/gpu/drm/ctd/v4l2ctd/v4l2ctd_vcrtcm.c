@@ -536,6 +536,18 @@ int v4l2ctd_get_dpms(int *state, void *hw_drv_info, int flow)
 	return 0;
 }
 
+void v4l2ctd_disable(void *hw_drv_info, int flow)
+{
+	struct v4l2ctd_info *v4l2ctd_info = (struct v4l2ctd_info *)hw_drv_info;
+	struct v4l2ctd_vcrtcm_hal_descriptor *vhd =
+			v4l2ctd_info->v4l2ctd_vcrtcm_hal_descriptor;
+
+	mutex_lock(&v4l2ctd_info->buffer_mutex);
+	vhd->fb_xmit_allowed = 0;
+	mutex_unlock(&v4l2ctd_info->buffer_mutex);
+}
+
+
 void v4l2ctd_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =

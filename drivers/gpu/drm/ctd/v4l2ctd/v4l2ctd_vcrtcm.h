@@ -43,6 +43,8 @@ int v4l2ctd_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int v4l2ctd_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *hw_drv_info, int flow);
 
+void v4l2ctd_disable(void *hw_drv_info, int flow);
+
 /* VCRTCM functions that interact directly with HW */
 int v4l2ctd_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
 int v4l2ctd_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);

@@ -926,7 +926,8 @@ static struct vcrtcm_funcs v4l2ctd_vcrtcm_funcs = {
 	.set_cursor = v4l2ctd_set_cursor,
 	.get_cursor = v4l2ctd_get_cursor,
 	.set_dpms = v4l2ctd_set_dpms,
-	.get_dpms = v4l2ctd_get_dpms
+	.get_dpms = v4l2ctd_get_dpms,
+	.disable = v4l2ctd_disable
 };
 
 static struct vcrtcm_hw_props v4l2ctd_vcrtcm_hw_props = {
