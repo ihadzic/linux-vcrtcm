@@ -695,7 +695,7 @@ int udlctd_check_mode(void *hw_drv_info, struct vcrtcm_mode *mode, int *status)
 	return 0;
 }
 
-void udlctd_disable(void *hw_drv_info)
+void udlctd_disable(void *hw_drv_info, int flow)
 {
 	struct udlctd_info *udlctd_info = (struct udlctd_info *) hw_drv_info;
 	struct udlctd_vcrtcm_hal_descriptor *uvhd =
