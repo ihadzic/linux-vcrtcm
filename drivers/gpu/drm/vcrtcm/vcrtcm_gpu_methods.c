@@ -722,7 +722,8 @@ void vcrtcm_disable(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 			vcrtcm_dev_info->hw_minor,
 			vcrtcm_dev_info->hw_flow);
 
-		vcrtcm_dev_hal->funcs.disable(vcrtcm_dev_info->hw_drv_info);
+		vcrtcm_dev_hal->funcs.disable(vcrtcm_dev_info->hw_drv_info,
+					      vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, HAL %d.%d.%d\n",
 			vcrtcm_dev_info->hw_major,

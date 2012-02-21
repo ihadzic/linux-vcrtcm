@@ -108,7 +108,7 @@ struct vcrtcm_funcs {
 	int (*check_mode) (void *hw_drv_info, struct vcrtcm_mode *mode,
 			   int *status);
 
-	void (*disable) (void *hw_drv_info);
+	void (*disable) (void *hw_drv_info, int flow);
 };
 
 enum vcrtcm_xfer_mode {
