@@ -704,8 +704,6 @@ void udlctd_disable(void *hw_drv_info, int flow)
 	mutex_lock(&udlctd_info->buffer_mutex);
 	uvhd->fb_xmit_allowed = 0;
 	mutex_unlock(&udlctd_info->buffer_mutex);
-
-	return;
 }
 
 void udlctd_fake_vblank(struct work_struct *work)
