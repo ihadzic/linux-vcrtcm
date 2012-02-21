@@ -106,6 +106,7 @@ struct v4l2ctd_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
+	int fb_xmit_allowed;
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;

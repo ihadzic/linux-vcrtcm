@@ -166,6 +166,7 @@ int v4l2ctd_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		vhd->v4l2ctd_info = v4l2ctd_info;
 		vhd->vcrtcm_dev_hal = vcrtcm_dev_hal;
 		vhd->fb_force_xmit = 0;
+		vhd->fb_xmit_allowed = 0;
 		vhd->fb_xmit_counter = 0;
 		vhd->fb_xmit_period_jiffies = 0;
 		vhd->next_vblank_jiffies = 0;
@@ -281,6 +282,7 @@ int v4l2ctd_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 		v4l2ctd_alloc_shadowbuf(v4l2ctd_info, sb_size);
 		mutex_unlock(&v4l2ctd_info->sb_lock);
 	}
+	vhd->fb_xmit_allowed = 1;
 	mutex_unlock(&v4l2ctd_info->buffer_mutex);
 	return r;
 }
@@ -633,7 +635,8 @@ int v4l2ctd_do_xmit_fb_push(struct v4l2ctd_vcrtcm_hal_descriptor *vhd)
 
 	if ((vhd->fb_force_xmit ||
 	     time_after(jiffies_snapshot, vhd->last_xmit_jiffies +
-			V4L2CTD_XMIT_HARD_DEADLINE)) && have_push_buffer) {
+			V4L2CTD_XMIT_HARD_DEADLINE)) && have_push_buffer &&
+	    vhd->fb_xmit_allowed) {
 		/* someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
 		 * should transmit for real.
