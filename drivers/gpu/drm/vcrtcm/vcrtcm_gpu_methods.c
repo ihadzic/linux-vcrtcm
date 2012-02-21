@@ -601,6 +601,7 @@ int vcrtcm_hal_connected(struct vcrtcm_dev_hal *vcrtcm_dev_hal, int *status)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_dev_hal->funcs.connected(vcrtcm_dev_info->hw_drv_info,
+						    vcrtcm_dev_info->hw_flow,
 						    status);
 	} else {
 		VCRTCM_DEBUG("missing connected backend, HAL %d.%d.%d\n",
@@ -655,6 +656,7 @@ int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_dev_hal->funcs.get_modes(vcrtcm_dev_info->hw_drv_info,
+						    vcrtcm_dev_info->hw_flow,
 						    modes,
 						    count);
 	} else {
@@ -692,6 +694,7 @@ int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_dev_hal->funcs.check_mode(vcrtcm_dev_info->hw_drv_info,
+						     vcrtcm_dev_info->hw_flow,
 						     mode,
 						     status);
 	} else {

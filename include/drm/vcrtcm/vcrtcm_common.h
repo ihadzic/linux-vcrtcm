@@ -102,11 +102,11 @@ struct vcrtcm_funcs {
 			   void *hw_drv_info, int flow);
 	int (*set_dpms) (int state, void *hw_drv_info, int flow);
 	int (*get_dpms) (int *state, void *hw_drv_info, int flow);
-	int (*connected) (void *hw_drv_info, int *status);
-	int (*get_modes) (void *hw_drv_info, struct vcrtcm_mode **modes,
-			  int *count);
-	int (*check_mode) (void *hw_drv_info, struct vcrtcm_mode *mode,
-			   int *status);
+	int (*connected) (void *hw_drv_info, int flow, int *status);
+	int (*get_modes) (void *hw_drv_info, int flow,
+			  struct vcrtcm_mode **modes, int *count);
+	int (*check_mode) (void *hw_drv_info, int flow,
+			   struct vcrtcm_mode *mode, int *status);
 
 	void (*disable) (void *hw_drv_info, int flow);
 };
