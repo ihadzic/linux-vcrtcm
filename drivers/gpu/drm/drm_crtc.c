@@ -969,6 +969,7 @@ int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 	group->num_planes = 0;
 	return 0;
 }
+EXPORT_SYMBOL(drm_mode_group_init);
 
 int drm_mode_group_init_legacy_group(struct drm_device *dev,
 				     struct drm_mode_group *group)

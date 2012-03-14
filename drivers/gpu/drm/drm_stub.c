@@ -268,6 +268,7 @@ int drm_fill_in_dev(struct drm_device *dev,
 	INIT_LIST_HEAD(&dev->vmalist);
 	INIT_LIST_HEAD(&dev->maplist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
+	INIT_LIST_HEAD(&dev->render_minor_list);
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->event_lock);
@@ -355,6 +356,7 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 	new_minor->dev = dev;
 	new_minor->index = minor_id;
 	INIT_LIST_HEAD(&new_minor->master_list);
+	INIT_LIST_HEAD(&new_minor->render_node_list);
 
 	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
@@ -399,6 +401,29 @@ err_idr:
 }
 EXPORT_SYMBOL(drm_get_minor);
 
+int drm_create_minor_render(struct drm_device *dev, struct drm_minor **minor_p)
+{
+	int ret;
+	struct drm_minor *minor;
+
+	ret = drm_get_minor(dev, &minor, DRM_MINOR_RENDER);
+	if (ret)
+		return ret;
+
+	list_add_tail(&minor->render_node_list, &dev->render_minor_list);
+	return 0;
+}
+
+int drm_destroy_minor_render(struct drm_device *dev)
+{
+	struct drm_minor *minor, *tmp;
+
+	list_for_each_entry_safe(minor, tmp, &dev->render_minor_list, render_node_list) {
+		drm_put_minor(&minor);
+	}
+	return 0;
+}
+
 /**
  * Put a secondary minor number.
  *
@@ -414,6 +439,8 @@ int drm_put_minor(struct drm_minor **minor_p)
 	struct drm_minor *minor = *minor_p;
 
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
+
+	list_del(&minor->render_node_list);
 
 	if (minor->type == DRM_MINOR_LEGACY)
 		drm_proc_cleanup(minor, drm_proc_root);
@@ -483,8 +510,11 @@ void drm_put_dev(struct drm_device *dev)
 
 	drm_ctxbitmap_cleanup(dev);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_put_minor(&dev->control);
+
+		drm_destroy_minor_render(dev);
+	}
 
 	if (driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
