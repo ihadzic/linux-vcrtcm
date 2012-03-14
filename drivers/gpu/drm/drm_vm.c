@@ -691,8 +691,15 @@ EXPORT_SYMBOL(drm_mmap);
 void drm_unmap_mapping(struct drm_device *dev, loff_t const holebegin,
 		       loff_t const holelen)
 {
+	struct drm_minor *minor;
 	if (dev->primary->dev_mapping)
 		unmap_mapping_range(dev->primary->dev_mapping,
 				    holebegin, holelen, 1);
+
+	list_for_each_entry(minor, &dev->render_minor_list, render_node_list) {
+		if (minor->dev_mapping)
+			unmap_mapping_range(minor->dev_mapping,
+					    holebegin, holelen, 1);
+	}
 }
 EXPORT_SYMBOL(drm_unmap_mapping);

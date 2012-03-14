@@ -999,6 +999,8 @@ struct drm_minor {
 	struct drm_mode_group mode_group;
 
 	struct address_space *dev_mapping;
+
+	struct list_head render_node_list;
 };
 
 /* mode specified on the command line */
@@ -1162,7 +1164,7 @@ struct drm_device {
 	unsigned int agp_buffer_token;
 	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
-
+	struct list_head render_minor_list;
         struct drm_mode_config mode_config;	/**< Current mode config */
 
 	/** \name GEM information */
