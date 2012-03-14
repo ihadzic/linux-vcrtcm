@@ -997,6 +997,8 @@ struct drm_minor {
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;
 	struct drm_mode_group mode_group;
+
+	struct address_space *dev_mapping;
 };
 
 /* mode specified on the command line */
@@ -1152,7 +1154,6 @@ struct drm_device {
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
 	void *dev_private;		/**< device private data */
 	void *mm_private;
-	struct address_space *dev_mapping;
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
 

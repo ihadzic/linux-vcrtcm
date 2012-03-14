@@ -115,8 +115,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 
 	size = ALIGN(size, PAGE_SIZE);
 
-	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
-		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
+	if (unlikely(rdev->mman.bdev.mapping_priv == NULL)) {
+		rdev->mman.bdev.mapping_priv = (void *)rdev->ddev;
 	}
 	if (kernel) {
 		type = ttm_bo_type_kernel;

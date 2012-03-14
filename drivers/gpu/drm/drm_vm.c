@@ -687,3 +687,12 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 EXPORT_SYMBOL(drm_mmap);
+
+void drm_unmap_mapping(struct drm_device *dev, loff_t const holebegin,
+		       loff_t const holelen)
+{
+	if (dev->primary->dev_mapping)
+		unmap_mapping_range(dev->primary->dev_mapping,
+				    holebegin, holelen, 1);
+}
+EXPORT_SYMBOL(drm_unmap_mapping);

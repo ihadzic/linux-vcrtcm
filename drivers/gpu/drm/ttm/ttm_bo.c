@@ -38,6 +38,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
+#include "drm/drm_mem_util.h"
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)
@@ -1579,7 +1580,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	bdev->nice_mode = true;
 	INIT_LIST_HEAD(&bdev->ddestroy);
-	bdev->dev_mapping = NULL;
+	bdev->mapping_priv = NULL;
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
 	bdev->val_seq = 0;
@@ -1623,9 +1624,9 @@ void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 	loff_t offset = (loff_t) bo->addr_space_offset;
 	loff_t holelen = ((loff_t) bo->mem.num_pages) << PAGE_SHIFT;
 
-	if (!bdev->dev_mapping)
+	if (!bdev->mapping_priv)
 		return;
-	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
+	drm_unmap_mapping(bdev->mapping_priv, offset, holelen);
 	ttm_mem_io_free_vm(bo);
 }
 

@@ -150,13 +150,11 @@ static struct {
 static void evict_entry(struct drm_gem_object *obj,
 		enum tiler_fmt fmt, struct usergart_entry *entry)
 {
-	if (obj->dev->dev_mapping) {
-		size_t size = PAGE_SIZE * usergart[fmt].height;
-		loff_t off = mmap_offset(obj) +
-				(entry->obj_pgoff << PAGE_SHIFT);
-		unmap_mapping_range(obj->dev->dev_mapping, off, size, 1);
-	}
+	size_t size = PAGE_SIZE * usergart[fmt].height;
+	loff_t off = mmap_offset(obj) +
+		(entry->obj_pgoff << PAGE_SHIFT);
 
+	drm_unmap_mapping(obj->dev, off, size);
 	entry->obj = NULL;
 }
 
