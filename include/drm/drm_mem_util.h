@@ -62,4 +62,7 @@ static __inline void drm_free_large(void *ptr)
 	vfree(ptr);
 }
 
+struct drm_device;
+extern void drm_unmap_mapping(struct drm_device *dev, loff_t const holebegin,
+			      loff_t const holelen);
 #endif

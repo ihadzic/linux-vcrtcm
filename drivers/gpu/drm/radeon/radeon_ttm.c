@@ -753,9 +753,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	}
 	DRM_INFO("radeon: %uM of GTT memory ready.\n",
 		 (unsigned)(rdev->mc.gtt_size / (1024 * 1024)));
-	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
-		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
-	}
+
+	if (unlikely(rdev->mman.bdev.mapping_priv == NULL))
+		rdev->mman.bdev.mapping_priv = (void *)rdev->ddev;
 
 	r = radeon_ttm_debugfs_init(rdev);
 	if (r) {

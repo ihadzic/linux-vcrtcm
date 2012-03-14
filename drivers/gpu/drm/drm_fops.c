@@ -141,10 +141,10 @@ int drm_open(struct inode *inode, struct file *filp)
 	}
 	if (!retcode) {
 		mutex_lock(&dev->struct_mutex);
-		if (minor->type == DRM_MINOR_LEGACY) {
-			if (dev->dev_mapping == NULL)
-				dev->dev_mapping = inode->i_mapping;
-			else if (dev->dev_mapping != inode->i_mapping)
+		if (minor->type == DRM_MINOR_LEGACY || minor->type == DRM_MINOR_RENDER) {
+			if (minor->dev_mapping == NULL)
+				minor->dev_mapping = inode->i_mapping;
+			else if (minor->dev_mapping != inode->i_mapping)
 				retcode = -ENODEV;
 		}
 		mutex_unlock(&dev->struct_mutex);
