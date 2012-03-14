@@ -43,8 +43,8 @@
 DEFINE_MUTEX(drm_global_mutex);
 EXPORT_SYMBOL(drm_global_mutex);
 
-static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev);
+static int drm_open_helper(struct file *filp,
+			   struct drm_minor *minor);
 
 static int drm_setup(struct drm_device * dev)
 {
@@ -136,7 +136,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	retcode = drm_open_helper(inode, filp, dev);
+	retcode = drm_open_helper(filp, minor);
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
 		if (!dev->open_count++)
@@ -232,10 +232,10 @@ static int drm_cpu_valid(void)
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
-static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev)
+static int drm_open_helper(struct file *filp,
+			   struct drm_minor *minor)
 {
-	int minor_id = iminor(inode);
+	struct drm_device *dev = minor->dev;
 	struct drm_file *priv;
 	int ret;
 
@@ -246,7 +246,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
+	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -256,7 +256,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->filp = filp;
 	priv->uid = current_euid();
 	priv->pid = task_pid_nr(current);
-	priv->minor = idr_find(&drm_minors_idr, minor_id);
+	priv->minor = minor;
 	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
 	priv->authenticated = capable(CAP_SYS_ADMIN);
@@ -570,7 +570,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	iput(container_of(dev->dev_mapping, struct inode, i_data));
 
 	/* drop the reference held my the file priv */
-	drm_master_put(&file_priv->master);
+	if (file_priv->master)
+		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->struct_mutex);
