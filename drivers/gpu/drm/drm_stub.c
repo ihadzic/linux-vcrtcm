@@ -421,17 +421,30 @@ int drm_create_render_node(struct drm_device *dev, struct drm_minor **minor_p)
 	return 0;
 }
 
-int drm_destroy_all_render_nodes(struct drm_device *dev)
+int drm_destroy_render_node(struct drm_device *dev, int index)
 {
-	struct drm_render_node *render_node, *tmp;
+	struct drm_render_node *node, *tmp;
 
-	list_for_each_entry_safe(render_node, tmp,
-				 &dev->render_node_list, list) {
-		list_del(&render_node->list);
-		drm_put_minor(&render_node->minor);
-		kfree(render_node);
+	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
+		if (node->minor->index == index) {
+			list_del(&node->list);
+			drm_put_minor(&node->minor);
+			kfree(node);
+			return 0;
+		}
 	}
-	return 0;
+	return -ENODEV;
+}
+
+void drm_destroy_all_render_nodes(struct drm_device *dev)
+{
+	struct drm_render_node *node, *tmp;
+
+	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
+		list_del(&node->list);
+		drm_put_minor(&node->minor);
+		kfree(node);
+	}
 }
 
 /**
@@ -563,25 +576,30 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_minor *new_minor;
 	int total_ids, i;
 	uint32_t __user *ids_ptr;
-	ret = drm_create_render_node(dev, &new_minor);
-	if (ret)
-		goto out;
 
-	args->node_minor_id = new_minor->index;
-
+	/* trivial case: render node with no display resources */
 	if (args->num_crtc == 0 && args->num_encoder == 0 &&
-	    args->num_connector == 0 && args->num_plane == 0)
-		goto out;
+	    args->num_connector == 0 && args->num_plane == 0) {
+		ret = drm_create_render_node(dev, &new_minor);
+		if (!ret)
+			args->node_minor_id = new_minor->index;
+		return ret;
+	}
+
+	/* if we have display resources, then we need at least
+	 * one CRTC, one encoder and one connector */
 	if (args->num_crtc == 0 ||
 	    args->num_encoder == 0 ||
-	    args->num_connector == 0) {
-		ret = -EINVAL;
-		goto out;
-	}
+	    args->num_connector == 0)
+		return -EINVAL;
+
+	ret = drm_create_render_node(dev, &new_minor);
+	if (ret)
+		return ret;
 
 	ret = drm_mode_group_init(dev, &new_minor->mode_group);
 	if (ret)
-		goto out;
+		goto out_del;
 
 	ids_ptr = (uint32_t __user *)(unsigned long)args->id_list_ptr;
 	total_ids = args->num_crtc + args->num_encoder +
@@ -589,12 +607,18 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	for (i = 0; i < total_ids; i++) {
 		if (get_user(new_minor->mode_group.id_list[i], &ids_ptr[i])) {
 			ret = -EFAULT;
-			goto out_put;
+			goto out_del;
 		}
 	}
-out_put:
-	drm_put_minor(&new_minor);
-out:
+	new_minor->mode_group.num_crtcs = args->num_crtc;
+	new_minor->mode_group.num_encoders = args->num_encoder;
+	new_minor->mode_group.num_connectors = args->num_connector;
+	new_minor->mode_group.num_planes = args->num_plane;
+
+	args->node_minor_id = new_minor->index;
+	return 0;
+out_del:
+	drm_destroy_render_node(dev, new_minor->index);
 	return ret;
 }
 
@@ -602,11 +626,8 @@ int drm_render_node_remove_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_render_node_remove *args = data;
-	struct drm_render_node *del_node, *tmp;
+	int ret;
 
-	list_for_each_entry_safe(del_node, tmp, &dev->render_node_list, list) {
-		if (del_node->minor->index == args->node_minor_id)
-			drm_put_minor(&del_node->minor);
-	}
-	return 0;
+	ret = drm_destroy_render_node(dev, args->node_minor_id);
+	return ret;
 }
