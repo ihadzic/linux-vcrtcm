@@ -268,7 +268,7 @@ int drm_fill_in_dev(struct drm_device *dev,
 	INIT_LIST_HEAD(&dev->vmalist);
 	INIT_LIST_HEAD(&dev->maplist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
-	INIT_LIST_HEAD(&dev->render_minor_list);
+	INIT_LIST_HEAD(&dev->render_node_list);
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->event_lock);
@@ -356,7 +356,6 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 	new_minor->dev = dev;
 	new_minor->index = minor_id;
 	INIT_LIST_HEAD(&new_minor->master_list);
-	INIT_LIST_HEAD(&new_minor->render_node_list);
 
 	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
@@ -401,25 +400,36 @@ err_idr:
 }
 EXPORT_SYMBOL(drm_get_minor);
 
-int drm_create_minor_render(struct drm_device *dev, struct drm_minor **minor_p)
+int drm_create_render_node(struct drm_device *dev, struct drm_minor **minor_p)
 {
 	int ret;
 	struct drm_minor *minor;
+	struct drm_render_node *render_node;
+
+	render_node = kmalloc(sizeof(struct drm_render_node), GFP_KERNEL);
+	if (!render_node)
+		return -ENOMEM;
 
 	ret = drm_get_minor(dev, &minor, DRM_MINOR_RENDER);
-	if (ret)
+	if (ret) {
+		kfree(render_node);
 		return ret;
-
-	list_add_tail(&minor->render_node_list, &dev->render_minor_list);
+	}
+	render_node->minor = minor;
+	*minor_p = minor;
+	list_add_tail(&render_node->list, &dev->render_node_list);
 	return 0;
 }
 
-int drm_destroy_minor_render(struct drm_device *dev)
+int drm_destroy_all_render_nodes(struct drm_device *dev)
 {
-	struct drm_minor *minor, *tmp;
+	struct drm_render_node *render_node, *tmp;
 
-	list_for_each_entry_safe(minor, tmp, &dev->render_minor_list, render_node_list) {
-		drm_put_minor(&minor);
+	list_for_each_entry_safe(render_node, tmp,
+				 &dev->render_node_list, list) {
+		list_del(&render_node->list);
+		drm_put_minor(&render_node->minor);
+		kfree(render_node);
 	}
 	return 0;
 }
@@ -439,8 +449,6 @@ int drm_put_minor(struct drm_minor **minor_p)
 	struct drm_minor *minor = *minor_p;
 
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
-
-	list_del(&minor->render_node_list);
 
 	if (minor->type == DRM_MINOR_LEGACY)
 		drm_proc_cleanup(minor, drm_proc_root);
@@ -512,8 +520,7 @@ void drm_put_dev(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_put_minor(&dev->control);
-
-		drm_destroy_minor_render(dev);
+		drm_destroy_all_render_nodes(dev);
 	}
 
 	if (driver->driver_features & DRIVER_GEM)
@@ -556,7 +563,7 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_minor *new_minor;
 	int total_ids, i;
 	uint32_t __user *ids_ptr;
-	ret = drm_create_minor_render(dev, &new_minor);
+	ret = drm_create_render_node(dev, &new_minor);
 	if (ret)
 		goto out;
 
@@ -595,11 +602,11 @@ int drm_render_node_remove_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_render_node_remove *args = data;
-	struct drm_minor *del_minor, *tmp;
+	struct drm_render_node *del_node, *tmp;
 
-	list_for_each_entry_safe(del_minor, tmp, &dev->render_minor_list, render_node_list) {
-		if (del_minor->index == args->node_minor_id)
-			drm_put_minor(&del_minor);
+	list_for_each_entry_safe(del_node, tmp, &dev->render_node_list, list) {
+		if (del_node->minor->index == args->node_minor_id)
+			drm_put_minor(&del_node->minor);
 	}
 	return 0;
 }
