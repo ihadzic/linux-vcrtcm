@@ -427,6 +427,8 @@ int drm_destroy_render_node(struct drm_device *dev, int index)
 
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		if (node->minor->index == index) {
+			if (node->minor->open_count)
+				return -EBUSY;
 			list_del(&node->list);
 			drm_put_minor(&node->minor);
 			kfree(node);

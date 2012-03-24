@@ -139,6 +139,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(filp, minor);
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
+		minor->open_count++;
 		if (!dev->open_count++)
 			retcode = drm_setup(dev);
 	}
@@ -589,6 +590,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	 */
 
 	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
+	file_priv->minor->open_count--;
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {
 			DRM_ERROR("Device busy: %d\n",
