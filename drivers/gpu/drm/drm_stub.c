@@ -577,6 +577,10 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	int total_ids, i;
 	uint32_t __user *ids_ptr;
 
+	/* allow access through control node only */
+	if (file_priv->minor != dev->control)
+		return -EPERM;
+
 	/* trivial case: render node with no display resources */
 	if (args->num_crtc == 0 && args->num_encoder == 0 &&
 	    args->num_connector == 0 && args->num_plane == 0) {
@@ -627,6 +631,10 @@ int drm_render_node_remove_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_render_node_remove *args = data;
 	int ret;
+
+	/* allow access through control node only */
+	if (file_priv->minor != dev->control)
+		return -EPERM;
 
 	ret = drm_destroy_render_node(dev, args->node_minor_id);
 	return ret;
