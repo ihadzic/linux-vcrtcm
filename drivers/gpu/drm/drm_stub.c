@@ -427,10 +427,13 @@ int drm_destroy_render_node(struct drm_device *dev, int index)
 
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		if (node->minor->index == index) {
+			struct drm_mode_group *group;
 			if (node->minor->open_count)
 				return -EBUSY;
+			group = &node->minor->mode_group;
 			list_del(&node->list);
 			drm_put_minor(&node->minor);
+			drm_mode_group_fini(group);
 			kfree(node);
 			return 0;
 		}
@@ -443,8 +446,11 @@ void drm_destroy_all_render_nodes(struct drm_device *dev)
 	struct drm_render_node *node, *tmp;
 
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
+		struct drm_mode_group *group;
+		group = &node->minor->mode_group;
 		list_del(&node->list);
 		drm_put_minor(&node->minor);
+		drm_mode_group_fini(group);
 		kfree(node);
 	}
 }
