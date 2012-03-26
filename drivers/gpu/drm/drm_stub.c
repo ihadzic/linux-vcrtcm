@@ -400,6 +400,54 @@ err_idr:
 }
 EXPORT_SYMBOL(drm_get_minor);
 
+static int drm_get_id_from_user(struct drm_device *dev,
+				uint32_t *id_dst,
+				uint32_t __user *id_src,
+				uint32_t expected_type)
+{
+	struct drm_mode_object *drmmode_obj;
+	uint32_t id;
+
+	if (get_user(id, id_src))
+		return -EFAULT;
+	drmmode_obj = drm_mode_object_find(dev, id, expected_type);
+	if (!drmmode_obj)
+		return -EINVAL;
+	*id_dst = id;
+	return 0;
+}
+
+#define DRM_RN_NUM_EXP_TYPES 4
+static const uint32_t expected_type_list[DRM_RN_NUM_EXP_TYPES] = {
+	DRM_MODE_OBJECT_CRTC,
+	DRM_MODE_OBJECT_ENCODER,
+	DRM_MODE_OBJECT_CONNECTOR,
+	DRM_MODE_OBJECT_PLANE
+};
+
+static int drm_get_render_node_resources(struct drm_device *dev,
+					 uint32_t *id_list,
+					 uint32_t __user *ids_ptr,
+					 int *resource_count)
+
+{
+	int s, e, i, j;
+	int ret;
+
+	for (e = 0, j = 0; j < DRM_RN_NUM_EXP_TYPES; j++) {
+		s = e;
+		e += resource_count[j];
+		for (i = s; i < e; i++) {
+			ret = drm_get_id_from_user(dev, &id_list[i],
+						   &ids_ptr[i],
+						   expected_type_list[j]);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 int drm_create_render_node(struct drm_device *dev, struct drm_minor **minor_p)
 {
 	int ret;
@@ -583,8 +631,10 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_render_node_create *args = data;
 	int ret;
 	struct drm_minor *new_minor;
-	int total_ids, i;
+	int total_ids;
+	int resource_count[DRM_RN_NUM_EXP_TYPES];
 	uint32_t __user *ids_ptr;
+	uint32_t *id_list;
 
 	/* allow access through control node only */
 	if (file_priv->minor != dev->control)
@@ -617,14 +667,16 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	ret = drm_mode_group_init(&new_minor->mode_group, total_ids);
 	if (ret)
 		goto out_del;
-
+	resource_count[0] = args->num_crtc;
+	resource_count[1] = args->num_encoder;
+	resource_count[2] = args->num_connector;
+	resource_count[3] = args->num_plane;
 	ids_ptr = (uint32_t __user *)(unsigned long)args->id_list_ptr;
-	for (i = 0; i < total_ids; i++) {
-		if (get_user(new_minor->mode_group.id_list[i], &ids_ptr[i])) {
-			ret = -EFAULT;
-			goto out_del;
-		}
-	}
+	id_list = new_minor->mode_group.id_list;
+	ret = drm_get_render_node_resources(dev, id_list, ids_ptr,
+					    resource_count);
+	if (ret)
+		goto out_del;
 	new_minor->mode_group.num_crtcs = args->num_crtc;
 	new_minor->mode_group.num_encoders = args->num_encoder;
 	new_minor->mode_group.num_connectors = args->num_connector;
