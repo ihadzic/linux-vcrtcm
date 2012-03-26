@@ -599,9 +599,12 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	/* if we have display resources, then we need at least
-	 * one CRTC, one encoder and one connector */
-	if (args->num_crtc == 0 ||
+	/* sanity check for requested num_crtc/_encoder/_connector/_plane */
+	if (args->num_crtc > dev->mode_config.num_crtc ||
+	    args->num_encoder > dev->mode_config.num_encoder ||
+	    args->num_encoder > dev->mode_config.num_connector ||
+	    args->num_plane > dev->mode_config.num_plane ||
+	    args->num_crtc == 0 ||
 	    args->num_encoder == 0 ||
 	    args->num_connector == 0)
 		return -EINVAL;
