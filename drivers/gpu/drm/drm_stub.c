@@ -547,6 +547,7 @@ void drm_put_dev(struct drm_device *dev)
 	if (driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
+	drm_mode_group_fini(&dev->primary->mode_group);
 	drm_put_minor(&dev->primary);
 
 	list_del(&dev->driver_item);
