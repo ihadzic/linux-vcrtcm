@@ -964,6 +964,17 @@ int drm_mode_group_init(struct drm_mode_group *group, int total_objects)
 }
 EXPORT_SYMBOL(drm_mode_group_init);
 
+void drm_mode_group_fini(struct drm_mode_group *group)
+{
+	kfree(group->id_list);
+	group->id_list = NULL;
+	group->num_crtcs = 0;
+	group->num_connectors = 0;
+	group->num_encoders = 0;
+	group->num_planes = 0;
+}
+EXPORT_SYMBOL(drm_mode_group_fini);
+
 int drm_mode_group_init_legacy_group(struct drm_device *dev,
 				     struct drm_mode_group *group)
 {
