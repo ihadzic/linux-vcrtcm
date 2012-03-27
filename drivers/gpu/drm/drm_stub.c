@@ -448,6 +448,95 @@ static int drm_get_render_node_resources(struct drm_device *dev,
 	return 0;
 }
 
+static int *drm_get_render_node_owner(struct drm_device *dev,
+				      uint32_t id, uint32_t type)
+{
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct drm_plane *plane;
+
+	obj = drm_mode_object_find(dev, id, type);
+	if (!obj)
+		return NULL;
+	switch (type) {
+	case DRM_MODE_OBJECT_CRTC:
+		crtc = container_of(obj, struct drm_crtc, base);
+		return &crtc->render_node_owner;
+	case DRM_MODE_OBJECT_ENCODER:
+		encoder = container_of(obj, struct drm_encoder, base);
+		return &encoder->render_node_owner;
+	case DRM_MODE_OBJECT_CONNECTOR:
+		connector = container_of(obj, struct drm_connector, base);
+		return &connector->render_node_owner;
+	case DRM_MODE_OBJECT_PLANE:
+		plane = container_of(obj, struct drm_plane, base);
+		return &plane->render_node_owner;
+
+	default:
+		return NULL;
+	}
+}
+
+static void drm_release_render_node_resources(struct drm_device *dev,
+					      uint32_t *id_list,
+					      int *resource_count,
+					      int minor)
+{
+	int *render_node_owner;
+	int s, e, i, j;
+
+	for (e = 0, j = 0; j < DRM_RN_NUM_EXP_TYPES; j++) {
+		s = e;
+		e += resource_count[j];
+		for (i = s; i < e; i++) {
+			render_node_owner =
+				drm_get_render_node_owner(dev, id_list[i],
+					expected_type_list[j]);
+			if (render_node_owner &&
+			    *render_node_owner == minor)
+				*render_node_owner = -1;
+		}
+	}
+}
+
+static int drm_claim_render_node_resources(struct drm_device *dev,
+					   uint32_t *id_list,
+					   int *resource_count,
+					   int minor)
+{
+	int *render_node_owner;
+	int s, e, i, j;
+	int ret = 0;
+
+	for (e = 0, j = 0; j < DRM_RN_NUM_EXP_TYPES; j++) {
+		s = e;
+		e += resource_count[j];
+		for (i = s; i < e; i++) {
+			render_node_owner =
+				drm_get_render_node_owner(dev, id_list[i],
+					expected_type_list[j]);
+			if (!render_node_owner) {
+				/* list was validated, not supposed to fail */
+				WARN_ON(1);
+				ret = -EFAULT;
+				goto out_release;
+			}
+			if (*render_node_owner != -1) {
+				ret = -EBUSY;
+				goto out_release;
+			}
+			*render_node_owner = minor;
+		}
+	}
+	return ret;
+
+out_release:
+	drm_release_render_node_resources(dev, id_list, resource_count, minor);
+	return ret;
+}
+
 int drm_create_render_node(struct drm_device *dev, struct drm_minor **minor_p)
 {
 	int ret;
@@ -476,10 +565,19 @@ int drm_destroy_render_node(struct drm_device *dev, int index)
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		if (node->minor->index == index) {
 			struct drm_mode_group *group;
+			int resource_count[DRM_RN_NUM_EXP_TYPES];
+
 			if (node->minor->open_count)
 				return -EBUSY;
 			group = &node->minor->mode_group;
 			list_del(&node->list);
+			resource_count[0] = group->num_crtcs;
+			resource_count[1] = group->num_encoders;
+			resource_count[2] = group->num_connectors;
+			resource_count[3] = group->num_planes;
+			drm_release_render_node_resources(dev, group->id_list,
+							  resource_count,
+							  node->minor->index);
 			drm_put_minor(&node->minor);
 			drm_mode_group_fini(group);
 			kfree(node);
@@ -495,8 +593,17 @@ void drm_destroy_all_render_nodes(struct drm_device *dev)
 
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		struct drm_mode_group *group;
+		int resource_count[DRM_RN_NUM_EXP_TYPES];
+
 		group = &node->minor->mode_group;
 		list_del(&node->list);
+		resource_count[0] = group->num_crtcs;
+		resource_count[1] = group->num_encoders;
+		resource_count[2] = group->num_connectors;
+		resource_count[3] = group->num_planes;
+		drm_release_render_node_resources(dev, group->id_list,
+						  resource_count,
+						  node->minor->index);
 		drm_put_minor(&node->minor);
 		drm_mode_group_fini(group);
 		kfree(node);
@@ -675,6 +782,10 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	id_list = new_minor->mode_group.id_list;
 	ret = drm_get_render_node_resources(dev, id_list, ids_ptr,
 					    resource_count);
+	if (ret)
+		goto out_del;
+	ret = drm_claim_render_node_resources(dev, id_list, resource_count,
+					      new_minor->index);
 	if (ret)
 		goto out_del;
 	new_minor->mode_group.num_crtcs = args->num_crtc;

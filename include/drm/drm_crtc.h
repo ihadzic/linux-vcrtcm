@@ -396,6 +396,7 @@ struct drm_crtc {
 	struct drm_framebuffer *fb;
 
 	bool enabled;
+	int render_node_owner;
 
 	/* Requested mode from modesetting. */
 	struct drm_display_mode mode;
@@ -501,6 +502,8 @@ struct drm_encoder {
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
 
+	int render_node_owner;
+
 	struct drm_crtc *crtc;
 	const struct drm_encoder_funcs *funcs;
 	void *helper_private;
@@ -577,6 +580,7 @@ struct drm_connector {
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
+	int render_node_owner;
 
 	/* these are modes added by probing with DDC or the BIOS */
 	struct list_head probed_modes;
@@ -667,6 +671,7 @@ struct drm_plane {
 	uint16_t *gamma_store;
 
 	bool enabled;
+	int render_node_owner;
 
 	const struct drm_plane_funcs *funcs;
 	void *helper_private;
