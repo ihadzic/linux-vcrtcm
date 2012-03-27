@@ -377,6 +377,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
+	crtc->render_node_owner = -1;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -488,6 +489,7 @@ int drm_connector_init(struct drm_device *dev,
 	connector->base.properties = &connector->properties;
 	connector->dev = dev;
 	connector->funcs = funcs;
+	connector->render_node_owner = -1;
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
 		++drm_connector_enum_list[connector_type].count; /* TODO */
@@ -569,6 +571,7 @@ int drm_encoder_init(struct drm_device *dev,
 	if (ret)
 		goto out;
 
+	encoder->render_node_owner = -1;
 	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
 	encoder->funcs = funcs;
@@ -611,6 +614,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
+	plane->render_node_owner = -1;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
 				      GFP_KERNEL);
 	if (!plane->format_types) {
