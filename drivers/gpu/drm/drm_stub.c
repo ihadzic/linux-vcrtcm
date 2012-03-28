@@ -487,6 +487,7 @@ static void drm_release_render_node_resources(struct drm_device *dev,
 	int *render_node_owner;
 	int s, e, i, j;
 
+	/* no lock, assume we were called with mode_config mutex grabbed */
 	for (e = 0, j = 0; j < DRM_RN_NUM_EXP_TYPES; j++) {
 		s = e;
 		e += resource_count[j];
@@ -510,6 +511,7 @@ static int drm_claim_render_node_resources(struct drm_device *dev,
 	int s, e, i, j;
 	int ret = 0;
 
+	mutex_lock(&dev->mode_config.mutex);
 	for (e = 0, j = 0; j < DRM_RN_NUM_EXP_TYPES; j++) {
 		s = e;
 		e += resource_count[j];
@@ -530,10 +532,12 @@ static int drm_claim_render_node_resources(struct drm_device *dev,
 			*render_node_owner = minor;
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 
 out_release:
 	drm_release_render_node_resources(dev, id_list, resource_count, minor);
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
 
@@ -554,7 +558,9 @@ int drm_create_render_node(struct drm_device *dev, struct drm_minor **minor_p)
 	}
 	render_node->minor = minor;
 	*minor_p = minor;
+	mutex_lock(&dev->mode_config.mutex);
 	list_add_tail(&render_node->list, &dev->render_node_list);
+	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 }
 
@@ -562,13 +568,16 @@ int drm_destroy_render_node(struct drm_device *dev, int index)
 {
 	struct drm_render_node *node, *tmp;
 
+	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		if (node->minor->index == index) {
 			struct drm_mode_group *group;
 			int resource_count[DRM_RN_NUM_EXP_TYPES];
 
-			if (node->minor->open_count)
+			if (node->minor->open_count) {
+				mutex_unlock(&dev->mode_config.mutex);
 				return -EBUSY;
+			}
 			group = &node->minor->mode_group;
 			list_del(&node->list);
 			resource_count[0] = group->num_crtcs;
@@ -578,12 +587,14 @@ int drm_destroy_render_node(struct drm_device *dev, int index)
 			drm_release_render_node_resources(dev, group->id_list,
 							  resource_count,
 							  node->minor->index);
+			mutex_unlock(&dev->mode_config.mutex);
 			drm_put_minor(&node->minor);
 			drm_mode_group_fini(group);
 			kfree(node);
 			return 0;
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return -ENODEV;
 }
 
@@ -591,6 +602,7 @@ void drm_destroy_all_render_nodes(struct drm_device *dev)
 {
 	struct drm_render_node *node, *tmp;
 
+	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry_safe(node, tmp, &dev->render_node_list, list) {
 		struct drm_mode_group *group;
 		int resource_count[DRM_RN_NUM_EXP_TYPES];
@@ -608,6 +620,7 @@ void drm_destroy_all_render_nodes(struct drm_device *dev)
 		drm_mode_group_fini(group);
 		kfree(node);
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 /**
