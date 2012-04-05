@@ -1576,7 +1576,6 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
 	struct drm_mode_get_plane_res *plane_resp = data;
-	struct drm_mode_config *config;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
 	int copied = 0, ret = 0;
@@ -1585,25 +1584,50 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
-	config = &dev->mode_config;
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
 	 */
-	if (config->num_plane &&
-	    (plane_resp->count_planes >= config->num_plane)) {
-		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
+	plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
+	if (file_priv->minor->type == DRM_MINOR_CONTROL) {
+		struct drm_mode_config *config = &dev->mode_config;
 
-		list_for_each_entry(plane, &config->plane_list, head) {
-			if (put_user(plane->base.id, plane_ptr + copied)) {
-				ret = -EFAULT;
-				goto out;
+		if (config->num_plane &&
+		    (plane_resp->count_planes >= config->num_plane)) {
+			list_for_each_entry(plane, &config->plane_list, head) {
+				if (put_user(plane->base.id,
+					     plane_ptr + copied)) {
+					ret = -EFAULT;
+					goto out;
+				}
+				copied++;
 			}
-			copied++;
 		}
+		plane_resp->count_planes = config->num_plane;
+	} else {
+		int i;
+		struct drm_mode_group *mode_group =
+			&file_priv->minor->mode_group;
+
+		if (mode_group->num_planes &&
+		    (plane_resp->count_planes >= mode_group->num_planes)) {
+			int start;
+
+			start = mode_group->num_crtcs;
+			start += mode_group->num_encoders;
+			start += mode_group->num_connectors;
+			for (i = start; i < start + mode_group->num_planes; i++) {
+				if (put_user(mode_group->id_list[i],
+					     plane_ptr + copied)) {
+					ret = -EFAULT;
+					goto out;
+				}
+				copied++;
+			}
+		}
+		plane_resp->count_planes = mode_group->num_planes;
 	}
-	plane_resp->count_planes = config->num_plane;
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
