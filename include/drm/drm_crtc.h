@@ -709,6 +709,7 @@ struct drm_mode_config_funcs {
  * @num_crtcs: CRTC count
  * @num_encoders: encoder count
  * @num_connectors: connector count
+ * @num_planes: connector count
  * @id_list: list of KMS object IDs in this group
  *
  * Currently this simply tracks the global mode setting state.  But in the
@@ -721,6 +722,7 @@ struct drm_mode_group {
 	uint32_t num_crtcs;
 	uint32_t num_encoders;
 	uint32_t num_connectors;
+	uint32_t num_planes;
 
 	/* list of object IDs for this group */
 	uint32_t *id_list;
