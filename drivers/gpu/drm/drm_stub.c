@@ -602,14 +602,13 @@ int drm_render_node_create_ioctl(struct drm_device *dev, void *data,
 	ret = drm_create_render_node(dev, &new_minor);
 	if (ret)
 		return ret;
-
-	ret = drm_mode_group_init(dev, &new_minor->mode_group);
+	total_ids = args->num_crtc + args->num_encoder +
+		args->num_connector + args->num_plane;
+	ret = drm_mode_group_init(&new_minor->mode_group, total_ids);
 	if (ret)
 		goto out_del;
 
 	ids_ptr = (uint32_t __user *)(unsigned long)args->id_list_ptr;
-	total_ids = args->num_crtc + args->num_encoder +
-		args->num_connector + args->num_plane;
 	for (i = 0; i < total_ids; i++) {
 		if (get_user(new_minor->mode_group.id_list[i], &ids_ptr[i])) {
 			ret = -EFAULT;
