@@ -950,15 +950,8 @@ void drm_mode_config_init(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_config_init);
 
-int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
+int drm_mode_group_init(struct drm_mode_group *group, int total_objects)
 {
-	uint32_t total_objects = 0;
-
-	total_objects += dev->mode_config.num_crtc;
-	total_objects += dev->mode_config.num_connector;
-	total_objects += dev->mode_config.num_encoder;
-	total_objects += dev->mode_config.num_plane;
-
 	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
 		return -ENOMEM;
@@ -978,9 +971,14 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_plane *plane;
-	int ret;
+	int ret, total_objects;
 
-	if ((ret = drm_mode_group_init(dev, group)))
+	total_objects = dev->mode_config.num_crtc;
+	total_objects += dev->mode_config.num_connector;
+	total_objects += dev->mode_config.num_encoder;
+	total_objects += dev->mode_config.num_plane;
+	ret = drm_mode_group_init(group, total_objects);
+	if (ret)
 		return ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
