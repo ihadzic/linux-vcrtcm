@@ -1004,6 +1004,7 @@ int radeon_virtual_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_gem_object *obj;
+	struct radeon_bo *robj;
 	uint64_t cursor_gpuaddr;
 	int r = 0;
 
@@ -1029,8 +1030,12 @@ int radeon_virtual_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	r = radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM,
-				  &cursor_gpuaddr);
+	robj = gem_to_radeon_bo(obj);
+	r = radeon_bo_reserve(robj, false);
+	if (unlikely(r != 0))
+		goto fail;
+	r = radeon_bo_pin(robj, RADEON_GEM_DOMAIN_VRAM, &cursor_gpuaddr);
+	radeon_bo_unreserve(robj);
 	if (r)
 		goto fail;
 
@@ -1041,7 +1046,12 @@ int radeon_virtual_crtc_cursor_set(struct drm_crtc *crtc,
 
 unpin:
 	if (radeon_crtc->cursor_bo) {
-		radeon_gem_object_unpin(radeon_crtc->cursor_bo);
+		robj = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+		r = radeon_bo_reserve(robj, false);
+		if (likely(r == 0)) {
+			radeon_bo_unpin(robj);
+			radeon_bo_unreserve(robj);
+		}
 		drm_gem_object_unreference_unlocked(radeon_crtc->cursor_bo);
 	}
 
