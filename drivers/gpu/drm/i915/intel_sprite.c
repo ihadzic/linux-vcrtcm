@@ -225,16 +225,16 @@ snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	/* Mask out pixel format bits in case we change it */
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
-	dvscntr &= ~DVS_RGB_ORDER_RGBX;
+	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
-		dvscntr |= DVS_FORMAT_RGBX888;
+		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_RGBX;
+		dvscntr |= DVS_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
@@ -410,6 +410,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	old_obj = intel_plane->obj;
+
+	src_w = src_w >> 16;
+	src_h = src_h >> 16;
 
 	/* Pipe must be running... */
 	if (!(I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE))

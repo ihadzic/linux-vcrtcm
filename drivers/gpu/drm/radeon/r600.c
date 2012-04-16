@@ -49,6 +49,7 @@
 #define EVERGREEN_PM4_UCODE_SIZE 1376
 #define EVERGREEN_RLC_UCODE_SIZE 768
 #define CAYMAN_RLC_UCODE_SIZE 1024
+#define ARUBA_RLC_UCODE_SIZE 1536
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -2362,6 +2363,9 @@ void r600_semaphore_ring_emit(struct radeon_device *rdev,
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
+	if (rdev->family < CHIP_CAYMAN)
+		sel |= PACKET3_SEM_WAIT_ON_SIGNAL;
+
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
 	radeon_ring_write(ring, addr & 0xffffffff);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
@@ -2529,6 +2533,7 @@ int r600_resume(struct radeon_device *rdev)
 	r = r600_startup(rdev);
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
+		rdev->accel_working = false;
 		return r;
 	}
 
@@ -2774,7 +2779,7 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->ih.rptr = 0;
 }
 
-static int r600_ih_ring_alloc(struct radeon_device *rdev)
+int r600_ih_ring_alloc(struct radeon_device *rdev)
 {
 	int r;
 
@@ -2810,7 +2815,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 	return 0;
 }
 
-static void r600_ih_ring_fini(struct radeon_device *rdev)
+void r600_ih_ring_fini(struct radeon_device *rdev)
 {
 	int r;
 	if (rdev->ih.ring_obj) {
@@ -2857,10 +2862,17 @@ static int r600_rlc_init(struct radeon_device *rdev)
 
 	r600_rlc_stop(rdev);
 
-	WREG32(RLC_HB_BASE, 0);
 	WREG32(RLC_HB_CNTL, 0);
-	WREG32(RLC_HB_RPTR, 0);
-	WREG32(RLC_HB_WPTR, 0);
+
+	if (rdev->family == CHIP_ARUBA) {
+		WREG32(TN_RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
+		WREG32(TN_RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
+	}
+	if (rdev->family <= CHIP_CAYMAN) {
+		WREG32(RLC_HB_BASE, 0);
+		WREG32(RLC_HB_RPTR, 0);
+		WREG32(RLC_HB_WPTR, 0);
+	}
 	if (rdev->family <= CHIP_CAICOS) {
 		WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
 		WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
@@ -2869,7 +2881,12 @@ static int r600_rlc_init(struct radeon_device *rdev)
 	WREG32(RLC_UCODE_CNTL, 0);
 
 	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	if (rdev->family >= CHIP_CAYMAN) {
+	if (rdev->family >= CHIP_ARUBA) {
+		for (i = 0; i < ARUBA_RLC_UCODE_SIZE; i++) {
+			WREG32(RLC_UCODE_ADDR, i);
+			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+		}
+	} else if (rdev->family >= CHIP_CAYMAN) {
 		for (i = 0; i < CAYMAN_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
@@ -3029,6 +3046,9 @@ int r600_irq_init(struct radeon_device *rdev)
 		evergreen_disable_interrupt_state(rdev);
 	else
 		r600_disable_interrupt_state(rdev);
+
+	/* at this point everything should be setup correctly to enable master */
+	pci_set_master(rdev->pdev);
 
 	/* enable irqs */
 	r600_enable_interrupts(rdev);

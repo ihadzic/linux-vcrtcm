@@ -133,6 +133,7 @@ retry:
 				(*ib)->gpu_addr += (*ib)->sa_bo.offset;
 				(*ib)->fence = fence;
 				(*ib)->vm_id = 0;
+				(*ib)->is_const_ib = false;
 				/* ib are most likely to be allocated in a ring fashion
 				 * thus rdev->ib_pool.head_id should be the id of the
 				 * oldest ib
@@ -503,8 +504,11 @@ static unsigned radeon_debugfs_ib_idx[RADEON_IB_POOL_SIZE];
 int radeon_debugfs_ring_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
-					ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	if (rdev->family >= CHIP_CAYMAN)
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
+						ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	else
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list, 1);
 #else
 	return 0;
 #endif

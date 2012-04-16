@@ -287,12 +287,12 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	I915_WRITE_CTL(ring,
 			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
-			| RING_REPORT_64K | RING_VALID);
+			| RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
-	    I915_READ_START(ring) != obj->gtt_offset ||
-	    (I915_READ_HEAD(ring) & HEAD_ADDR) != 0) {
+	if (wait_for((I915_READ_CTL(ring) & RING_VALID) != 0 &&
+		     I915_READ_START(ring) == obj->gtt_offset &&
+		     (I915_READ_HEAD(ring) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
@@ -626,7 +626,7 @@ gen6_ring_get_seqno(struct intel_ring_buffer *ring)
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page. */
-	if (IS_GEN7(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		intel_ring_get_active_head(ring);
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
@@ -687,7 +687,7 @@ render_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
-		if (HAS_PCH_SPLIT(dev))
+		if (INTEL_INFO(dev)->gen >= 5)
 			ironlake_enable_irq(dev_priv,
 					    GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
 		else
@@ -706,7 +706,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
-		if (HAS_PCH_SPLIT(dev))
+		if (INTEL_INFO(dev)->gen >= 5)
 			ironlake_disable_irq(dev_priv,
 					     GT_USER_INTERRUPT |
 					     GT_PIPE_NOTIFY);
@@ -788,10 +788,11 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
-gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+gen6_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 mask = ring->irq_enable;
 
 	if (!dev->irq_enabled)
 	       return false;
@@ -803,9 +804,9 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 
 	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
-		ring->irq_mask &= ~rflag;
+		ring->irq_mask &= ~mask;
 		I915_WRITE_IMR(ring, ring->irq_mask);
-		ironlake_enable_irq(dev_priv, gflag);
+		ironlake_enable_irq(dev_priv, mask);
 	}
 	spin_unlock(&ring->irq_lock);
 
@@ -813,16 +814,17 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 }
 
 static void
-gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+gen6_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 mask = ring->irq_enable;
 
 	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
-		ring->irq_mask |= rflag;
+		ring->irq_mask |= mask;
 		I915_WRITE_IMR(ring, ring->irq_mask);
-		ironlake_disable_irq(dev_priv, gflag);
+		ironlake_disable_irq(dev_priv, mask);
 	}
 	spin_unlock(&ring->irq_lock);
 
@@ -1191,18 +1193,6 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long end;
 	int ret;
-	u32 head;
-
-	/* If the reported head position has wrapped or hasn't advanced,
-	 * fallback to the slow and accurate path.
-	 */
-	head = intel_read_status_page(ring, 4);
-	if (head > ring->head) {
-		ring->head = head;
-		ring->space = ring_space(ring);
-		if (ring->space >= n)
-			return 0;
-	}
 
 	ret = intel_ring_wait_request(ring, n);
 	if (ret != -ENOSPC)
@@ -1373,38 +1363,6 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static bool
-gen6_render_ring_get_irq(struct intel_ring_buffer *ring)
-{
-	return gen6_ring_get_irq(ring,
-				 GT_USER_INTERRUPT,
-				 GEN6_RENDER_USER_INTERRUPT);
-}
-
-static void
-gen6_render_ring_put_irq(struct intel_ring_buffer *ring)
-{
-	return gen6_ring_put_irq(ring,
-				 GT_USER_INTERRUPT,
-				 GEN6_RENDER_USER_INTERRUPT);
-}
-
-static bool
-gen6_bsd_ring_get_irq(struct intel_ring_buffer *ring)
-{
-	return gen6_ring_get_irq(ring,
-				 GT_GEN6_BSD_USER_INTERRUPT,
-				 GEN6_BSD_USER_INTERRUPT);
-}
-
-static void
-gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
-{
-	return gen6_ring_put_irq(ring,
-				 GT_GEN6_BSD_USER_INTERRUPT,
-				 GEN6_BSD_USER_INTERRUPT);
-}
-
 /* ring buffer for Video Codec for Gen6+ */
 static const struct intel_ring_buffer gen6_bsd_ring = {
 	.name			= "gen6 bsd ring",
@@ -1416,8 +1374,9 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 	.flush			= gen6_ring_flush,
 	.add_request		= gen6_add_request,
 	.get_seqno		= gen6_ring_get_seqno,
-	.irq_get		= gen6_bsd_ring_get_irq,
-	.irq_put		= gen6_bsd_ring_put_irq,
+	.irq_enable		= GEN6_BSD_USER_INTERRUPT,
+	.irq_get		= gen6_ring_get_irq,
+	.irq_put		= gen6_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
 	.sync_to		= gen6_bsd_ring_sync_to,
 	.semaphore_register	= {MI_SEMAPHORE_SYNC_VR,
@@ -1427,22 +1386,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 };
 
 /* Blitter support (SandyBridge+) */
-
-static bool
-blt_ring_get_irq(struct intel_ring_buffer *ring)
-{
-	return gen6_ring_get_irq(ring,
-				 GT_BLT_USER_INTERRUPT,
-				 GEN6_BLITTER_USER_INTERRUPT);
-}
-
-static void
-blt_ring_put_irq(struct intel_ring_buffer *ring)
-{
-	gen6_ring_put_irq(ring,
-			  GT_BLT_USER_INTERRUPT,
-			  GEN6_BLITTER_USER_INTERRUPT);
-}
 
 static int blt_ring_flush(struct intel_ring_buffer *ring,
 			  u32 invalidate, u32 flush)
@@ -1475,8 +1418,9 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 	.flush			= blt_ring_flush,
 	.add_request		= gen6_add_request,
 	.get_seqno		= gen6_ring_get_seqno,
-	.irq_get		= blt_ring_get_irq,
-	.irq_put		= blt_ring_put_irq,
+	.irq_get		= gen6_ring_get_irq,
+	.irq_put		= gen6_ring_put_irq,
+	.irq_enable		= GEN6_BLITTER_USER_INTERRUPT,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
 	.sync_to		= gen6_blt_ring_sync_to,
 	.semaphore_register	= {MI_SEMAPHORE_SYNC_BR,
@@ -1494,8 +1438,9 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
 		ring->flush = gen6_render_ring_flush;
-		ring->irq_get = gen6_render_ring_get_irq;
-		ring->irq_put = gen6_render_ring_put_irq;
+		ring->irq_get = gen6_ring_get_irq;
+		ring->irq_put = gen6_ring_put_irq;
+		ring->irq_enable = GT_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
@@ -1518,8 +1463,9 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	*ring = render_ring;
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
-		ring->irq_get = gen6_render_ring_get_irq;
-		ring->irq_put = gen6_render_ring_put_irq;
+		ring->irq_get = gen6_ring_get_irq;
+		ring->irq_put = gen6_ring_put_irq;
+		ring->irq_enable = GT_USER_INTERRUPT;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->get_seqno = pc_render_get_seqno;

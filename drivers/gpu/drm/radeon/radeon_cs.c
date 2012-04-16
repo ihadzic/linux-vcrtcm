@@ -105,8 +105,13 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		p->ring = RADEON_RING_TYPE_GFX_INDEX;
 		break;
 	case RADEON_CS_RING_COMPUTE:
-		/* for now */
-		p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		if (p->rdev->family >= CHIP_TAHITI) {
+			if (p->priority > 0)
+				p->ring = CAYMAN_RING_TYPE_CP1_INDEX;
+			else
+				p->ring = CAYMAN_RING_TYPE_CP2_INDEX;
+		} else
+			p->ring = RADEON_RING_TYPE_GFX_INDEX;
 		break;
 	}
 	return 0;
@@ -172,6 +177,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->chunk_ib_idx = -1;
 	p->chunk_relocs_idx = -1;
 	p->chunk_flags_idx = -1;
+	p->chunk_const_ib_idx = -1;
 	p->chunks_array = kcalloc(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
@@ -210,6 +216,12 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
+		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_CONST_IB) {
+			p->chunk_const_ib_idx = i;
+			/* zero length CONST IB isn't useful */
+			if (p->chunks[i].length_dw == 0)
+				return -EINVAL;
+		}
 		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
 			p->chunk_flags_idx = i;
 			/* zero length flags aren't useful */
@@ -245,20 +257,18 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	if ((p->cs_flags & RADEON_CS_USE_VM) &&
 	    !p->rdev->vm_manager.enabled) {
 		DRM_ERROR("VM not active on asic!\n");
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
 		return -EINVAL;
 	}
 
-	if (radeon_cs_get_ring(p, ring, priority)) {
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
+	/* we only support VM on SI+ */
+	if ((p->rdev->family >= CHIP_TAHITI) &&
+	    ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
+		DRM_ERROR("VM required on SI+!\n");
 		return -EINVAL;
 	}
+
+	if (radeon_cs_get_ring(p, ring, priority))
+		return -EINVAL;
 
 
 	/* deal with non-vm */
@@ -270,13 +280,15 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				  p->chunks[p->chunk_ib_idx].length_dw);
 			return -EINVAL;
 		}
-		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
-		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
-			kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
-			kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
-			return -ENOMEM;
+		if ((p->rdev->flags & RADEON_IS_AGP)) {
+			p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
+			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
+				kfree(p->chunks[i].kpage[0]);
+				kfree(p->chunks[i].kpage[1]);
+				return -ENOMEM;
+			}
 		}
 		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
 		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
@@ -318,8 +330,10 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->relocs_ptr);
 	for (i = 0; i < parser->nchunks; i++) {
 		kfree(parser->chunks[i].kdata);
-		kfree(parser->chunks[i].kpage[0]);
-		kfree(parser->chunks[i].kpage[1]);
+		if ((parser->rdev->flags & RADEON_IS_AGP)) {
+			kfree(parser->chunks[i].kpage[0]);
+			kfree(parser->chunks[i].kpage[1]);
+		}
 	}
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
@@ -403,6 +417,32 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if ((parser->cs_flags & RADEON_CS_USE_VM) == 0)
 		return 0;
 
+	if ((rdev->family >= CHIP_TAHITI) &&
+	    (parser->chunk_const_ib_idx != -1)) {
+		ib_chunk = &parser->chunks[parser->chunk_const_ib_idx];
+		if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
+			DRM_ERROR("cs IB CONST too big: %d\n", ib_chunk->length_dw);
+			return -EINVAL;
+		}
+		r =  radeon_ib_get(rdev, parser->ring, &parser->const_ib,
+				   ib_chunk->length_dw * 4);
+		if (r) {
+			DRM_ERROR("Failed to get const ib !\n");
+			return r;
+		}
+		parser->const_ib->is_const_ib = true;
+		parser->const_ib->length_dw = ib_chunk->length_dw;
+		/* Copy the packet into the IB */
+		if (DRM_COPY_FROM_USER(parser->const_ib->ptr, ib_chunk->user_ptr,
+				       ib_chunk->length_dw * 4)) {
+			return -EFAULT;
+		}
+		r = radeon_ring_ib_parse(rdev, parser->ring, parser->const_ib);
+		if (r) {
+			return r;
+		}
+	}
+
 	ib_chunk = &parser->chunks[parser->chunk_ib_idx];
 	if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
 		DRM_ERROR("cs IB too big: %d\n", ib_chunk->length_dw);
@@ -438,11 +478,25 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (r) {
 		DRM_ERROR("Failed to synchronize rings !\n");
 	}
+
+	if ((rdev->family >= CHIP_TAHITI) &&
+	    (parser->chunk_const_ib_idx != -1)) {
+		parser->const_ib->vm_id = vm->id;
+		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
+		 * offset inside the pool bo
+		 */
+		parser->const_ib->gpu_addr = parser->const_ib->sa_bo.offset;
+		r = radeon_ib_schedule(rdev, parser->const_ib);
+		if (r)
+			goto out;
+	}
+
 	parser->ib->vm_id = vm->id;
 	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 	 * offset inside the pool bo
 	 */
 	parser->ib->gpu_addr = parser->ib->sa_bo.offset;
+	parser->ib->is_const_ib = false;
 	r = radeon_ib_schedule(rdev, parser->ib);
 out:
 	if (!r) {
@@ -462,6 +516,10 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	int r;
 
 	radeon_mutex_lock(&rdev->cs_mutex);
+	if (!rdev->accel_working) {
+		radeon_mutex_unlock(&rdev->cs_mutex);
+		return -EBUSY;
+	}
 
 	/* to avoid frame tearing, we must wait until vcrtcm transmission */
 	/* is done before scheduling the next batch of IBs to the GPU */
@@ -530,6 +588,7 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
 	int i;
 	int size = PAGE_SIZE;
+	bool copy1 = (p->rdev->flags & RADEON_IS_AGP) ? false : true;
 
 	for (i = ibc->last_copied_page + 1; i < pg_idx; i++) {
 		if (DRM_COPY_FROM_USER(p->ib->ptr + (i * (PAGE_SIZE/4)),
@@ -540,13 +599,15 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		}
 	}
 
-	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
-
 	if (pg_idx == ibc->last_page_index) {
 		size = (ibc->length_dw * 4) % PAGE_SIZE;
-			if (size == 0)
-				size = PAGE_SIZE;
+		if (size == 0)
+			size = PAGE_SIZE;
 	}
+
+	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
+	if (copy1)
+		ibc->kpage[new_page] = p->ib->ptr + (pg_idx * (PAGE_SIZE / 4));
 
 	if (DRM_COPY_FROM_USER(ibc->kpage[new_page],
 			       ibc->user_ptr + (pg_idx * PAGE_SIZE),
@@ -555,8 +616,9 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		return 0;
 	}
 
-	/* copy to IB here */
-	memcpy((void *)(p->ib->ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
+	/* copy to IB for non single case */
+	if (!copy1)
+		memcpy((void *)(p->ib->ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
 
 	ibc->last_copied_page = pg_idx;
 	ibc->kpage_idx[new_page] = pg_idx;

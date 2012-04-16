@@ -468,7 +468,45 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	if (!HAS_PCH_SPLIT(dev)) {
+	if (IS_VALLEYVIEW(dev)) {
+		seq_printf(m, "Display IER:\t%08x\n",
+			   I915_READ(VLV_IER));
+		seq_printf(m, "Display IIR:\t%08x\n",
+			   I915_READ(VLV_IIR));
+		seq_printf(m, "Display IIR_RW:\t%08x\n",
+			   I915_READ(VLV_IIR_RW));
+		seq_printf(m, "Display IMR:\t%08x\n",
+			   I915_READ(VLV_IMR));
+		for_each_pipe(pipe)
+			seq_printf(m, "Pipe %c stat:\t%08x\n",
+				   pipe_name(pipe),
+				   I915_READ(PIPESTAT(pipe)));
+
+		seq_printf(m, "Master IER:\t%08x\n",
+			   I915_READ(VLV_MASTER_IER));
+
+		seq_printf(m, "Render IER:\t%08x\n",
+			   I915_READ(GTIER));
+		seq_printf(m, "Render IIR:\t%08x\n",
+			   I915_READ(GTIIR));
+		seq_printf(m, "Render IMR:\t%08x\n",
+			   I915_READ(GTIMR));
+
+		seq_printf(m, "PM IER:\t\t%08x\n",
+			   I915_READ(GEN6_PMIER));
+		seq_printf(m, "PM IIR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIIR));
+		seq_printf(m, "PM IMR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIMR));
+
+		seq_printf(m, "Port hotplug:\t%08x\n",
+			   I915_READ(PORT_HOTPLUG_EN));
+		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
+			   I915_READ(VLV_DPFLIPSTAT));
+		seq_printf(m, "DPINVGTT:\t%08x\n",
+			   I915_READ(DPINVGTT));
+
+	} else if (!HAS_PCH_SPLIT(dev)) {
 		seq_printf(m, "Interrupt enable:    %08x\n",
 			   I915_READ(IER));
 		seq_printf(m, "Interrupt identity:  %08x\n",
@@ -704,6 +742,7 @@ static void i915_ring_error_state(struct seq_file *m,
 				  struct drm_i915_error_state *error,
 				  unsigned ring)
 {
+	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
 	seq_printf(m, "%s command stream:\n", ring_str(ring));
 	seq_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	seq_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
@@ -718,8 +757,8 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 4)
 		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
+	seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
-		seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
 		seq_printf(m, "  SYNC_0: 0x%08x\n",
 			   error->semaphore_mboxes[ring][0]);
@@ -1502,11 +1541,50 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int
-i915_debugfs_common_open(struct inode *inode,
-			 struct file *filp)
+static int i915_dpio_info(struct seq_file *m, void *data)
 {
-	filp->private_data = inode->i_private;
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+
+	if (!IS_VALLEYVIEW(dev)) {
+		seq_printf(m, "unsupported\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
+
+	seq_printf(m, "DPIO_DIV_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_DIV_A));
+	seq_printf(m, "DPIO_DIV_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_DIV_B));
+
+	seq_printf(m, "DPIO_REFSFR_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_REFSFR_A));
+	seq_printf(m, "DPIO_REFSFR_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_REFSFR_B));
+
+	seq_printf(m, "DPIO_CORE_CLK_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
+	seq_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
+
+	seq_printf(m, "DPIO_LFP_COEFF_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
+	seq_printf(m, "DPIO_LFP_COEFF_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
+
+	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
+		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
+
+	mutex_unlock(&dev->mode_config.mutex);
+
 	return 0;
 }
 
@@ -1560,7 +1638,7 @@ i915_wedged_write(struct file *filp,
 
 static const struct file_operations i915_wedged_fops = {
 	.owner = THIS_MODULE,
-	.open = i915_debugfs_common_open,
+	.open = simple_open,
 	.read = i915_wedged_read,
 	.write = i915_wedged_write,
 	.llseek = default_llseek,
@@ -1622,7 +1700,7 @@ i915_max_freq_write(struct file *filp,
 
 static const struct file_operations i915_max_freq_fops = {
 	.owner = THIS_MODULE,
-	.open = i915_debugfs_common_open,
+	.open = simple_open,
 	.read = i915_max_freq_read,
 	.write = i915_max_freq_write,
 	.llseek = default_llseek,
@@ -1693,7 +1771,7 @@ i915_cache_sharing_write(struct file *filp,
 
 static const struct file_operations i915_cache_sharing_fops = {
 	.owner = THIS_MODULE,
-	.open = i915_debugfs_common_open,
+	.open = simple_open,
 	.read = i915_cache_sharing_read,
 	.write = i915_cache_sharing_write,
 	.llseek = default_llseek,
@@ -1844,6 +1922,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
+	{"i915_dpio", i915_dpio_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

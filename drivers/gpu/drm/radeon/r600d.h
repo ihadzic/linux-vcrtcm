@@ -195,6 +195,14 @@
 #define		PREZ_MUST_WAIT_FOR_POSTZ_DONE			(1 << 31)
 #define	DB_DEPTH_BASE					0x2800C
 #define	DB_HTILE_DATA_BASE				0x28014
+#define	DB_HTILE_SURFACE				0x28D24
+#define   S_028D24_HTILE_WIDTH(x)                      (((x) & 0x1) << 0)
+#define   G_028D24_HTILE_WIDTH(x)                      (((x) >> 0) & 0x1)
+#define   C_028D24_HTILE_WIDTH                         0xFFFFFFFE
+#define   S_028D24_HTILE_HEIGHT(x)                      (((x) & 0x1) << 1)
+#define   G_028D24_HTILE_HEIGHT(x)                      (((x) >> 1) & 0x1)
+#define   C_028D24_HTILE_HEIGHT                         0xFFFFFFFD
+#define   G_028D24_LINEAR(x)                           (((x) >> 2) & 0x1)
 #define	DB_WATERMARKS					0x9838
 #define		DEPTH_FREE(x)					((x) << 0)
 #define		DEPTH_FLUSH(x)					((x) << 5)
@@ -593,6 +601,10 @@
 #define RLC_UCODE_ADDR                                    0x3f2c
 #define RLC_UCODE_DATA                                    0x3f30
 
+/* new for TN */
+#define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
+#define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
+
 #define SRBM_SOFT_RESET                                   0xe60
 #       define SOFT_RESET_RLC                             (1 << 13)
 
@@ -850,6 +862,7 @@
 #define	PACKET3_STRMOUT_BUFFER_UPDATE			0x34
 #define	PACKET3_INDIRECT_BUFFER_MP			0x38
 #define	PACKET3_MEM_SEMAPHORE				0x39
+#              define PACKET3_SEM_WAIT_ON_SIGNAL    (0x1 << 12)
 #              define PACKET3_SEM_SEL_SIGNAL	    (0x6 << 29)
 #              define PACKET3_SEM_SEL_WAIT	    (0x7 << 29)
 #define	PACKET3_MPEG_INDEX				0x3A
