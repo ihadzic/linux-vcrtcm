@@ -438,6 +438,9 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 	struct radeon_device *rdev =
 	    (struct radeon_device *)crtc->dev->dev_private;
 
+	if (radeon_crtc->vcrtcm_dev_hal)
+		return -EBUSY;
+
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
 		r = vcrtcm_attach(major, minor, flow, crtc,
 				  &physical_crtc_gpu_callbacks,
