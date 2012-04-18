@@ -593,6 +593,9 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 	struct radeon_crtc *radeon_crtc;
 	int r;
 
+	if (file_priv->minor->type == DRM_MINOR_RENDER)
+		return -EPERM;
+
 	DRM_DEBUG("display_index %d\n", display_index);
 	if (!ASIC_IS_VCRTC_CAPABLE(rdev)) {
 		DRM_ERROR("GPU too old for VCRTCM\n");
