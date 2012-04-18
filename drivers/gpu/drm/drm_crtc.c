@@ -1541,6 +1541,52 @@ out:
 	return ret;
 }
 
+static uint32_t remap_possible_crtcs(struct drm_mode_group *mode_group,
+				     struct drm_mode_config *mode_config,
+				     uint32_t possible_crtcs)
+{
+	uint32_t remapped_possible_crtcs = 0;
+	int i;
+
+	for (i = 0; i < mode_group->num_crtcs; i++) {
+		struct drm_crtc *crtc;
+		uint32_t crtc_mask = 1;
+
+		list_for_each_entry(crtc, &mode_config->crtc_list, head) {
+			if (crtc->base.id == mode_group->id_list[i]) {
+				if (crtc_mask & possible_crtcs)
+					remapped_possible_crtcs |= 1 << i;
+				break;
+			}
+			crtc_mask <<= 1;
+		}
+	}
+	return remapped_possible_crtcs;
+}
+
+static uint32_t remap_possible_clones(struct drm_mode_group *mode_group,
+				      struct drm_mode_config *mode_config,
+				      uint32_t possible_clones)
+{
+	uint32_t remapped_possible_clones = 0x0;
+	int i;
+
+	for (i = 0; i < mode_group->num_encoders; i++) {
+		struct drm_encoder *encoder;
+		uint32_t encoder_mask = 1;
+
+		list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+			if (encoder->base.id ==
+			    mode_group->id_list[mode_group->num_crtcs + i]) {
+				if (encoder_mask & possible_clones)
+					remapped_possible_clones |= 1 << i;
+			}
+			encoder_mask <<= 1;
+		}
+	}
+	return remapped_possible_clones;
+}
+
 int drm_mode_getencoder(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
@@ -1567,8 +1613,20 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 		enc_resp->crtc_id = 0;
 	enc_resp->encoder_type = encoder->encoder_type;
 	enc_resp->encoder_id = encoder->base.id;
-	enc_resp->possible_crtcs = encoder->possible_crtcs;
-	enc_resp->possible_clones = encoder->possible_clones;
+	if (file_priv->minor->type == DRM_MINOR_RENDER) {
+		enc_resp->possible_crtcs =
+			remap_possible_crtcs(&file_priv->minor->mode_group,
+					     &dev->mode_config,
+					     encoder->possible_crtcs);
+		enc_resp->possible_clones =
+			remap_possible_clones(&file_priv->minor->mode_group,
+					      &dev->mode_config,
+					      encoder->possible_clones);
+	} else {
+		enc_resp->possible_crtcs = encoder->possible_crtcs;
+		enc_resp->possible_clones = encoder->possible_clones;
+	}
+
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -1692,7 +1750,14 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		plane_resp->fb_id = 0;
 
 	plane_resp->plane_id = plane->base.id;
-	plane_resp->possible_crtcs = plane->possible_crtcs;
+	if (file_priv->minor->type == DRM_MINOR_RENDER)
+		plane_resp->possible_crtcs =
+			remap_possible_crtcs(&file_priv->minor->mode_group,
+					     &dev->mode_config,
+					     plane->possible_crtcs);
+
+	else
+		plane_resp->possible_crtcs = plane->possible_crtcs;
 	plane_resp->gamma_size = plane->gamma_size;
 
 	/*
