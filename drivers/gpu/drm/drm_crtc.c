@@ -1440,6 +1440,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	struct drm_mode_get_connector *out_resp = data;
+	struct drm_mode_group *mode_group = &file_priv->minor->mode_group;
 	struct drm_mode_object *obj;
 	struct drm_connector *connector;
 	struct drm_display_mode *mode;
@@ -1473,8 +1474,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	connector = obj_to_connector(obj);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
-		struct drm_mode_group *mode_group =
-			&file_priv->minor->mode_group;
 		if (!obj_is_in_group(connector->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
@@ -1484,9 +1483,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	props_count = connector->properties.count;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		if (connector->encoder_ids[i] != 0) {
+		if ((connector->encoder_ids[i] != 0) &&
+		    obj_is_in_group(connector->encoder_ids[i], mode_group))
 			encoders_count++;
-		}
 	}
 
 	if (out_resp->count_modes == 0) {
@@ -1555,7 +1554,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		copied = 0;
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
 		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] != 0) {
+			if ((connector->encoder_ids[i] != 0) &&
+			    obj_is_in_group(connector->encoder_ids[i],
+					    mode_group)) {
 				if (put_user(connector->encoder_ids[i],
 					     encoder_ptr + copied)) {
 					ret = -EFAULT;
