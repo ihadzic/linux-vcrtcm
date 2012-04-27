@@ -24,12 +24,11 @@
 #include <vcrtcm/vcrtcm_common.h>
 
 /* Private data structures for Virtual CRTC Manager and modules
-   that use it: GPU driver and compression/transmission/display
-   (CTD) cards */
+   that use it: GPU driver and pixel consumer (PCON) */
 
 #define VCRTCM_STATUS_HAL_IN_USE 0x01
 
-/* main structure for keeping track of each CTD-CRTC relationship */
+/* main structure for keeping track of each PCON-CRTC relationship */
 struct vcrtcm_dev_info {
 	struct list_head list;
 	/* general lock for fields subject to concurrent access */
@@ -43,11 +42,11 @@ struct vcrtcm_dev_info {
 	/* records the time when last (emulated) vblank occurred */
 	struct timeval vblank_time;
 	int vblank_time_valid;
-	/* pointer back to the (hardware) specific CTD driver structure */
+	/* pointer back to the (hardware) specific PCON structure */
 	void *hw_drv_info;
 	/* identifies the CRTC using this HAL */
 	struct drm_crtc *drm_crtc;
-	/* callbacks from CTD driver into the GPU */
+	/* callbacks from PCON into the GPU */
 	struct vcrtcm_gpu_callbacks gpu_callbacks;
 	/* public HAL information */
 	struct vcrtcm_dev_hal vcrtcm_dev_hal;

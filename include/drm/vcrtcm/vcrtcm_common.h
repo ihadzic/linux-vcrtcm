@@ -117,7 +117,7 @@ enum vcrtcm_xfer_mode {
 	VCRTCM_PUSH_PULL
 };
 
-/* describes properties of the attached CTD HAL */
+/* describes properties of the attached PCON HAL */
 /* that GPU needs to know about */
 struct vcrtcm_hw_props {
 	enum vcrtcm_xfer_mode xfer_mode;
@@ -126,10 +126,10 @@ struct vcrtcm_hw_props {
 /* Abstracted hadrware of a generic Virtual CRTC
    (independent of actual hardware implementation)
 
-   Compression/transmission/display (CTD) card driver
+   Pixel consumer (PCON)
    allocates, populates and enlists this structure by calling
    the register function in vcrtcm module
-   GPU driver interacts with the CTD card by calling API functions
+   GPU driver interacts with the PCON by calling API functions
    linked off this structure */
 struct vcrtcm_dev_hal {
 	/* mutex to protect HAL access */
@@ -141,10 +141,10 @@ struct vcrtcm_dev_hal {
 };
 
 /* descriptor for push buffer; when push-method is used */
-/* CTD device must obtain the buffer from GPU because it */
+/* the PCON must obtain the buffer from GPU because it */
 /* must be a proper buffer object (GEM or TTM or whatever */
-/* the specific GPU "likes"; CTD driver, however only cares about the pages */
-/* so this is a "minimalistic" descriptor that satisfies the CTD driver */
+/* the specific GPU "likes"; the PCON, however only cares about the pages */
+/* so this is a "minimalistic" descriptor that satisfies the PCON */
 /* the only TTM-ish restriction is that the list of pages first */
 /* lists all lo-mem pages followed by all hi-mem pages */
 /* of course, we need an object pointer so that we can return the buffer */
@@ -174,11 +174,11 @@ struct vcrtcm_gpu_callbacks {
 	/* return push buffer NB: may not be NULL if pb_alloc exists */
 	void (*pb_free) (struct drm_gem_object *obj);
 
-	/* CTD requests from GPU to push the buffer to it */
+	/* PCON requests from GPU to push the buffer to it */
 	int (*push) (struct drm_crtc *scrtc,
 		     struct drm_gem_object *dbuf_fb,
 		     struct drm_gem_object *dbuf_cursor);
-	/* CTD signals a hotplug event to GPU */
+	/* PCON signals a hotplug event to GPU */
 	void (*hotplug) (struct drm_crtc *crtc);
 };
 

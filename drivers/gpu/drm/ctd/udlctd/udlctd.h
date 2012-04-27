@@ -23,7 +23,7 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <vcrtcm/vcrtcm_ctd.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 
 #define UDLCTD_MAX_DEVICES 64 /* This is currently a hard limitation. */
 #define UDLCTD_FPS_HARD_LIMIT 100

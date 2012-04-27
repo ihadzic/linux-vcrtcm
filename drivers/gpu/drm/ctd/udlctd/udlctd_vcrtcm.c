@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include <vcrtcm/vcrtcm_ctd.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 
 #include "udlctd.h"
 #include "udlctd_vcrtcm.h"

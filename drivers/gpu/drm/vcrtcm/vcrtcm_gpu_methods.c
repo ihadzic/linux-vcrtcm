@@ -22,7 +22,7 @@
 #include "vcrtcm_private.h"
 
 /* called by the GPU driver to attach its CRTC to the
-   compression/transmission/display (CTD) device
+   pixel consumer (PCON)
    GPU driver *must* supply the pointer to its own drm_crtc
    structure that describes the CRTC and the pointer to a
    callback function to be called on detach */
@@ -106,7 +106,7 @@ int vcrtcm_attach(int major, int minor, int flow,
 EXPORT_SYMBOL(vcrtcm_attach);
 
 /* called by the GPU driver to detach its CRTC from the
-   compression/transmission/display (CTD) device
+   pixel consumer (PCON)
    GPU driver must supply the HAL it is detaching
    this function will also work if someoby else's
    HAL is provided for detaching but this is not expected
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(vcrtcm_detach);
    emulated registers); registers must be implemented
    in the backend function; this function simply passes
    the register content and flow information to the back-end
-   and lets the CTD driver deal with it */
+   and lets the PCON deal with it */
 int vcrtcm_set_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
@@ -290,7 +290,7 @@ int vcrtcm_xmit_fb(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 EXPORT_SYMBOL(vcrtcm_xmit_fb);
 
 /* GPU driver can use this function to synchronize with the
-   CTD driver transmission (e.g. wait for the transmission to
+   PCON transmission (e.g. wait for the transmission to
    complete). whether the wait will actually occur or not
    totally depends on the policy implemented in the backend
    NOTE: this function may block */
@@ -415,7 +415,7 @@ EXPORT_SYMBOL(vcrtcm_get_fps);
    emulated registers); registers must be implemented
    in the backend function; this function simply passes
    the register content and flow information to the back-end
-   and lets the CTD driver deal with it */
+   and lets the PCON deal with it */
 int vcrtcm_set_cursor(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
@@ -560,7 +560,7 @@ int vcrtcm_get_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 EXPORT_SYMBOL(vcrtcm_get_vblank_time);
 
 /* set new (fake) vblank time; used when vblank emulation */
-/* is generated internally by the GPU without involving the CTD */
+/* is generated internally by the GPU without involving the PCON */
 /* (typically after a successful push) */
 void vcrtcm_set_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 {
@@ -582,8 +582,8 @@ void vcrtcm_set_vblank_time(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 }
 EXPORT_SYMBOL(vcrtcm_set_vblank_time);
 
-/* check if the attached ctd is in the connected state
- * some CTDs can be always connected (typically software
+/* check if the attached PCON is in the connected state
+ * some PCONs can be always connected (typically software
  * emulators), but some can feed real display devices
  * and may want to query the device they are driving for status
  */
@@ -637,8 +637,8 @@ static struct vcrtcm_mode common_modes[17] = {
 	{1920, 1200, 60}
 };
 
-/* get the list of modes that the attached CTD supports
- * if CTD does not implement the backend function, assume
+/* get the list of modes that the attached PCON supports
+ * if the PCON does not implement the backend function, assume
  * that it can support anything and use a list of common modes
  */
 int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
@@ -675,9 +675,9 @@ int vcrtcm_get_modes(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 EXPORT_SYMBOL(vcrtcm_get_modes);
 
 
-/* check if the mode is acceprable by the attached CTD
- * if backed function is not implemented, assume the CTD
- * driver accepts everything and the mode is OK
+/* check if the mode is acceprable by the attached PCON
+ * if backed function is not implemented, assume the PCON
+ * accepts everything and the mode is OK
  */
 int vcrtcm_check_mode(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		      struct vcrtcm_mode *mode, int *status)

@@ -29,7 +29,7 @@
 #include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <linux/prefetch.h>
-#include <vcrtcm/vcrtcm_ctd.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 
 #include "udlctd.h"
 #include "udlctd_vcrtcm.h"

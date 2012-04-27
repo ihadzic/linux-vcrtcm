@@ -57,7 +57,7 @@ config DRM_VCRTCM
 	  Select either 'm' or 'n'; 'y' has not been tested. Selecting 'm',
 	  even if you have no use for it, is safe.
 
-menu "VCRTCM CTD Drivers"
+menu "VCRTCM PCONs"
         depends on DRM_VCRTCM
 	source "drivers/gpu/drm/ctd/udlctd/Kconfig"
 	source "drivers/gpu/drm/ctd/v4l2ctd/Kconfig"

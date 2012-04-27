@@ -33,7 +33,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <linux/videodev2.h>
 
-#include "vcrtcm/vcrtcm_ctd.h"
+#include "vcrtcm/vcrtcm_pcon.h"
 
 #define V4L2CTD_MAX_MINOR 255
 

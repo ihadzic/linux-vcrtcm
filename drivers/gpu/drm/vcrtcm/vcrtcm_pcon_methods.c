@@ -22,8 +22,8 @@
 #include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
-/* called by the compression/transmission/display (CTD) driver to
-   register it's implementation with HAL; CTD driver can also provide
+/* called by the pixel consumer (PCON) to
+   register it's implementation with HAL; the PCON can also provide
    pointers to back-end functions (functions that get called after
    generic HAL function is executed) */
 int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
@@ -100,7 +100,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 }
 EXPORT_SYMBOL(vcrtcm_hw_add);
 
-/* called by the compression/transmission/display (CTD) driver
+/* called by the pixel consumer (PCON)
    (typically on exit) to unregister it's implementation with HAL */
 void vcrtcm_hw_del(int major, int minor, int flow)
 {
@@ -156,8 +156,8 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 }
 EXPORT_SYMBOL(vcrtcm_hw_del);
 
-/* called by the CTD driver to synchronize with GPU rendering
-   whenever the CTD driver wants to wait for the GPU
+/* called by the PCON to synchronize with GPU rendering
+   whenever the PCON wants to wait for the GPU
    to finish some work before proceeding (typically
    to avoid frame tearing during transmission) */
 void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
@@ -182,9 +182,9 @@ void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 }
 EXPORT_SYMBOL(vcrtcm_gpu_sync);
 
-/* called by the CTD driver to emulate vblank
+/* called by the PCON to emulate vblank
    this is the link between the vblank event that happened in
-   the CTD-hardware-specific driver but is emulated by the virtual
+   the PCON-specific driver but is emulated by the virtual
    CRTC implementation in the GPU-hardware-specific driver */
 void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 {
@@ -212,7 +212,7 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 }
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
 
-/* called by the CTD driver to allocate a push buffer */
+/* called by the PCON to allocate a push buffer */
 int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
@@ -239,7 +239,7 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 }
 EXPORT_SYMBOL(vcrtcm_push_buffer_alloc);
 
-/* called by the CTD driver to free up a push buffer */
+/* called by the PCON to free up a push buffer */
 void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
@@ -262,7 +262,7 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 }
 EXPORT_SYMBOL(vcrtcm_push_buffer_free);
 
-/* called by the CTD driver to request GPU push of the */
+/* called by the PCON to request GPU push of the */
 /* frame buffer pixels; pushes the frame buffer associated with  */
 /* the ctrc that is attached to the specified hal into the push buffer */
 /* defined by pbd */
@@ -289,7 +289,7 @@ int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 }
 EXPORT_SYMBOL(vcrtcm_push);
 
-/* called by the CTD driver to signal hotplug event on a CRTC
+/* called by the PCON to signal hotplug event on a CRTC
  * attached to the specified HAL
  */
 void vcrtcm_hotplug(struct vcrtcm_dev_hal *vcrtcm_dev_hal)

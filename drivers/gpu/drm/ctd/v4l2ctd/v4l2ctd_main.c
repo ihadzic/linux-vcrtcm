@@ -39,7 +39,7 @@
 #include "v4l2ctd.h"
 #include "v4l2ctd_vcrtcm.h"
 #include "v4l2ctd_utils.h"
-#include "vcrtcm/vcrtcm_ctd.h"
+#include "vcrtcm/vcrtcm_pcon.h"
 
 
 #define V4L2CTD_MAJOR_VERSION 0

@@ -19,25 +19,25 @@
 
 
 /*
-  Public interface for Virtual CRTC Manager to the CTD
-  CTD drivers should include this file only
+  Public interface for Virtual CRTC Manager to the PCON
+  PCONs should include this file only
 */
 
-#ifndef __VCRTCM_CTD_H__
-#define __VCRTCM_CTD_H__
+#ifndef __VCRTCM_PCON_H__
+#define __VCRTCM_PCON_H__
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
 #include "vcrtcm_common.h"
 
-/* setup/config functions for CTD driver's use */
+/* setup/config functions for PCON's use */
 int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info);
 void vcrtcm_hw_del(int major, int minor, int flow);
 
-/* functions for use by CTD driver in operational state */
+/* functions for use by PCON in operational state */
 void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal);
 int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,

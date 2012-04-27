@@ -21,7 +21,7 @@
 #include "v4l2ctd.h"
 #include "v4l2ctd_vcrtcm.h"
 #include "v4l2ctd_utils.h"
-#include "vcrtcm/vcrtcm_ctd.h"
+#include "vcrtcm/vcrtcm_pcon.h"
 
 static void v4l2ctd_free_pb(struct v4l2ctd_info *v4l2ctd_info,
 		struct v4l2ctd_vcrtcm_hal_descriptor *vhd, int flag)
