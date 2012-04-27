@@ -59,8 +59,8 @@ config DRM_VCRTCM
 
 menu "VCRTCM PCONs"
         depends on DRM_VCRTCM
-	source "drivers/gpu/drm/ctd/udl/Kconfig"
-	source "drivers/gpu/drm/ctd/v4l2/Kconfig"
+	source "drivers/gpu/drm/pcon/udl/Kconfig"
+	source "drivers/gpu/drm/pcon/v4l2/Kconfig"
 endmenu
 
 config DRM_TTM
