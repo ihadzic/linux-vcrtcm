@@ -23,74 +23,74 @@
 #include <linux/usb.h>
 
 /* DisplayLink rendering functions */
-static int udlctd_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes);
-static void udlctd_compress_hline_16(
+static int udlpcon_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes);
+static void udlpcon_compress_hline_16(
 	const uint16_t **pixel_start_ptr,
 	const uint16_t *const pixel_end,
 	uint32_t *device_address_ptr,
 	uint8_t **command_buffer_ptr,
 	const uint8_t *const cmd_buffer_end);
-static void udlctd_compress_hline_8(
+static void udlpcon_compress_hline_8(
 	const uint8_t **pixel_start_ptr,
 	const uint8_t *const pixel_end,
 	uint32_t *device_address_ptr,
 	uint8_t **command_buffer_ptr,
 	const uint8_t *const cmd_buffer_end);
-static int udlctd_render_hline(struct udlctd_info *udlctd_info, struct urb **urb_ptr,
+static int udlpcon_render_hline(struct udlpcon_info *udlpcon_info, struct urb **urb_ptr,
 				const char *front, char **urb_buf_ptr,
 				u32 byte_offset, u32 byte_width,
 				int *ident_ptr, int *sent_ptr);
-static int udlctd_blank_hw_fb(struct udlctd_info *udlctd_info, unsigned color);
+static int udlpcon_blank_hw_fb(struct udlpcon_info *udlpcon_info, unsigned color);
 
 /* USB management functions */
-static int udlctd_usb_probe(struct usb_interface *interface,
+static int udlpcon_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id);
-static void udlctd_usb_disconnect(struct usb_interface *interface);
+static void udlpcon_usb_disconnect(struct usb_interface *interface);
 
-void udlctd_free(struct kref *kref);
+void udlpcon_free(struct kref *kref);
 
 
 /* DisplayLink stuff */
-static int udlctd_select_std_channel(struct udlctd_info *udlctd_info);
-static int udlctd_parse_vendor_descriptor(struct udlctd_info *udlctd_info,
+static int udlpcon_select_std_channel(struct udlpcon_info *udlpcon_info);
+static int udlpcon_parse_vendor_descriptor(struct udlpcon_info *udlpcon_info,
 					struct usb_device *usbdev);
-static int udlctd_get_edid(struct udlctd_info *udlctd_info,
+static int udlpcon_get_edid(struct udlpcon_info *udlpcon_info,
 				char *edid, int len);
-static int udlctd_is_valid_mode(struct udlctd_info *udlctd_info,
+static int udlpcon_is_valid_mode(struct udlpcon_info *udlpcon_info,
 				int xres, int yres);
 
-static int udlctd_alloc_scratch_memory(struct udlctd_info *udlctd_info,
+static int udlpcon_alloc_scratch_memory(struct udlpcon_info *udlpcon_info,
 					int line_bytes, int num_lines);
-static void udlctd_free_scratch_memory(struct udlctd_info *udlctd_info);
-static int udlctd_map_scratch_memory(struct udlctd_info *udlctd_info);
-static void udlctd_unmap_scratch_memory(struct udlctd_info *udlctd_info);
-static int udlctd_set_video_mode(struct udlctd_info *udlctd_info,
-				struct udlctd_video_mode *mode);
-static void udlctd_query_edid(struct work_struct *work);
+static void udlpcon_free_scratch_memory(struct udlpcon_info *udlpcon_info);
+static int udlpcon_map_scratch_memory(struct udlpcon_info *udlpcon_info);
+static void udlpcon_unmap_scratch_memory(struct udlpcon_info *udlpcon_info);
+static int udlpcon_set_video_mode(struct udlpcon_info *udlpcon_info,
+				struct udlpcon_video_mode *mode);
+static void udlpcon_query_edid(struct work_struct *work);
 
 /* DisplayLink low level stuff */
-static char *udlctd_set_register(char *buf, u8 reg, u8 val);
-static char *udlctd_vidreg_lock(char *buf);
-static char *udlctd_vidreg_unlock(char *buf);
-static char *udlctd_enable_hvsync(char *buf, bool enable);
-static char *udlctd_set_color_depth(char *buf, u8 selection);
-static char *udlctd_set_base16bpp(char *wrptr, u32 base);
-static char *udlctd_set_base8bpp(char *wrptr, u32 base);
-static char *udlctd_set_register_16(char *wrptr, u8 reg, u16 value);
-static char *udlctd_set_register_16be(char *wrptr, u8 reg, u16 value);
-static u16 udlctd_lfsr16(u16 actual_count);
-static char *udlctd_set_register_lfsr16(char *wrptr, u8 reg, u16 value);
-static char *udlctd_set_vid_cmds(char *wrptr, struct udlctd_video_mode *mode);
+static char *udlpcon_set_register(char *buf, u8 reg, u8 val);
+static char *udlpcon_vidreg_lock(char *buf);
+static char *udlpcon_vidreg_unlock(char *buf);
+static char *udlpcon_enable_hvsync(char *buf, bool enable);
+static char *udlpcon_set_color_depth(char *buf, u8 selection);
+static char *udlpcon_set_base16bpp(char *wrptr, u32 base);
+static char *udlpcon_set_base8bpp(char *wrptr, u32 base);
+static char *udlpcon_set_register_16(char *wrptr, u8 reg, u16 value);
+static char *udlpcon_set_register_16be(char *wrptr, u8 reg, u16 value);
+static u16 udlpcon_lfsr16(u16 actual_count);
+static char *udlpcon_set_register_lfsr16(char *wrptr, u8 reg, u16 value);
+static char *udlpcon_set_vid_cmds(char *wrptr, struct udlpcon_video_mode *mode);
 
 /* USB stuff */
-static void udlctd_urb_completion(struct urb *urb);
-static void udlctd_free_urb_list(struct udlctd_info *udlctd_info);
-static int udlctd_alloc_urb_list(struct udlctd_info *udlctd_info,
+static void udlpcon_urb_completion(struct urb *urb);
+static void udlpcon_free_urb_list(struct udlpcon_info *udlpcon_info);
+static int udlpcon_alloc_urb_list(struct udlpcon_info *udlpcon_info,
 				int count, size_t size);
-static struct urb *udlctd_get_urb(struct udlctd_info *udlctd_info);
-static int udlctd_submit_urb(struct udlctd_info *udlctd_info,
+static struct urb *udlpcon_get_urb(struct udlpcon_info *udlpcon_info);
+static int udlpcon_submit_urb(struct udlpcon_info *udlpcon_info,
 				struct urb *urb, size_t len);
-static void udlctd_release_urb_work(struct work_struct *work);
+static void udlpcon_release_urb_work(struct work_struct *work);
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
 #define NR_USB_REQUEST_CHANNEL 0x12

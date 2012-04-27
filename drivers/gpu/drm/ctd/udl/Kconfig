@@ -1,9 +1,9 @@
-config DRM_VCRTCM_CTD_UDLCTD
-	tristate "DisplayLink USB Graphics Adapter CTD Driver"
+config DRM_VCRTCM_PCON_UDL
+	tristate "DisplayLink USB Graphics Adapter PCON"
 	depends on DRM_VCRTCM && FB && USB
 	select FB_MODE_HELPERS
 	help
-	 CTD Driver for DisplayLink USB Graphics Adapter.
+	 PCON for DisplayLink USB Graphics Adapter.
 	 Attaches to a Virtual CRTC and displays rendered
 	 pixels on a DisplayLink device. In other words,
 	 lets your GPU do the hardware-accelerated

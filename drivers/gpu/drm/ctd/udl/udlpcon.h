@@ -17,50 +17,50 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __UDLCTD_H
-#define __UDLCTD_H
+#ifndef __UDLPCON_H
+#define __UDLPCON_H
 
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 
-#define UDLCTD_MAX_DEVICES 64 /* This is currently a hard limitation. */
-#define UDLCTD_FPS_HARD_LIMIT 100
-#define UDLCTD_DEFAULT_PIXEL_DEPTH 32
-#define UDLCTD_XFER_MAX_TRY 20
-#define UDLCTD_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
-#define UDLCTD_XMIT_HARD_DEADLINE (HZ/10)
+#define UDLPCON_MAX_DEVICES 64 /* This is currently a hard limitation. */
+#define UDLPCON_FPS_HARD_LIMIT 100
+#define UDLPCON_DEFAULT_PIXEL_DEPTH 32
+#define UDLPCON_XFER_MAX_TRY 20
+#define UDLPCON_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
+#define UDLPCON_XMIT_HARD_DEADLINE (HZ/10)
 
-#define UDLCTD_IN_DO_XMIT 0x1
+#define UDLPCON_IN_DO_XMIT 0x1
 
-#define UDLCTD_ALLOC_PB_FLAG_FB 0x0
-#define UDLCTD_ALLOC_PB_FLAG_CURSOR 0x1
-#define UDLCTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+#define UDLPCON_ALLOC_PB_FLAG_FB 0x0
+#define UDLPCON_ALLOC_PB_FLAG_CURSOR 0x1
+#define UDLPCON_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
-#define UDLCTD_BLANK_COLOR 0x0080c8
-#define UDLCTD_ERROR_COLOR 0xFF0000
+#define UDLPCON_BLANK_COLOR 0x0080c8
+#define UDLPCON_ERROR_COLOR 0xFF0000
 
-#define UDLCTD_EDID_QUERY_TIME HZ
-#define UDLCTD_EDID_QUERY_TRIES 3
+#define UDLPCON_EDID_QUERY_TIME HZ
+#define UDLPCON_EDID_QUERY_TRIES 3
 
 /* Module options */
 extern int true32bpp;
 extern int debug;
 extern int enable_default_modes;
 
-extern struct usb_driver udlctd_driver;
-extern struct list_head udlctd_info_list;
-extern int udlctd_major;
-extern int udlctd_num_minors;
-extern int udlctd_max_minor;
-extern int udlctd_fake_vblank_slack;
-extern struct vcrtcm_funcs udlctd_vcrtcm_funcs;
-extern struct vcrtcm_hw_props udlctd_vcrtcm_hw_props;
+extern struct usb_driver udlpcon_driver;
+extern struct list_head udlpcon_info_list;
+extern int udlpcon_major;
+extern int udlpcon_num_minors;
+extern int udlpcon_max_minor;
+extern int udlpcon_fake_vblank_slack;
+extern struct vcrtcm_funcs udlpcon_vcrtcm_funcs;
+extern struct vcrtcm_hw_props udlpcon_vcrtcm_hw_props;
 
 struct urb_node {
 	struct list_head entry;
-	struct udlctd_info *dev;
+	struct udlpcon_info *dev;
 	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
@@ -74,7 +74,7 @@ struct urb_list {
 	size_t size;
 };
 
-struct udlctd_video_mode {
+struct udlpcon_video_mode {
 	struct list_head list;
 	u32 xres;
 	u32 yres;
@@ -88,7 +88,7 @@ struct udlctd_video_mode {
 	u32 refresh;
 };
 
-struct udlctd_scratch_memory_descriptor {
+struct udlpcon_scratch_memory_descriptor {
 	struct page **backing_buffer_pages;
 	struct page **hline_16_pages;
 	struct page **hline_8_pages;
@@ -97,13 +97,13 @@ struct udlctd_scratch_memory_descriptor {
 	unsigned int hline_8_num_pages;
 };
 
-struct udlctd_info {
+struct udlpcon_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct udlctd_vcrtcm_hal_descriptor *udlctd_vcrtcm_hal_descriptor;
+	struct udlpcon_vcrtcm_hal_descriptor *udlpcon_vcrtcm_hal_descriptor;
 	struct mutex buffer_mutex;
-	spinlock_t udlctd_lock;
+	spinlock_t udlpcon_lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
@@ -126,11 +126,11 @@ struct udlctd_info {
 	char *cursor;
 	int bpp;
 
-	struct udlctd_scratch_memory_descriptor *scratch_memory;
+	struct udlpcon_scratch_memory_descriptor *scratch_memory;
 
 	/* supported fb modes */
-	struct udlctd_video_mode default_video_mode;
-	struct udlctd_video_mode current_video_mode;
+	struct udlpcon_video_mode default_video_mode;
+	struct udlpcon_video_mode current_video_mode;
 	struct vcrtcm_mode *last_vcrtcm_mode_list;
 	int monitor_connected;
 
@@ -154,7 +154,7 @@ struct udlctd_info {
 	int vmalloc_track;
 };
 
-struct udlctd_vcrtcm_hal_descriptor {
+struct udlpcon_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -174,21 +174,21 @@ struct udlctd_vcrtcm_hal_descriptor {
 
 	int dpms_state;
 
-	struct udlctd_info *udlctd_info;
+	struct udlpcon_info *udlpcon_info;
 };
 
 
 /* USB/HW functions that VCRTCM functions need access to */
-int udlctd_setup_screen(struct udlctd_info *udlctd_info,
-	struct udlctd_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
-int udlctd_error_screen(struct udlctd_info *udlctd_info);
-int udlctd_dpms_sleep(struct udlctd_info *udlctd_info);
-int udlctd_dpms_wakeup(struct udlctd_info *udlctd_info);
-int udlctd_transmit_framebuffer(struct udlctd_info *udlctd_info);
-int udlctd_build_modelist(struct udlctd_info *udlctd_info,
-			struct udlctd_video_mode **modes, int *mode_count);
-int udlctd_free_modelist(struct udlctd_info *udlctd_info,
-			struct udlctd_video_mode *modes);
-void udlctd_query_edid_core(struct udlctd_info *udlctd_info);
+int udlpcon_setup_screen(struct udlpcon_info *udlpcon_info,
+	struct udlpcon_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
+int udlpcon_error_screen(struct udlpcon_info *udlpcon_info);
+int udlpcon_dpms_sleep(struct udlpcon_info *udlpcon_info);
+int udlpcon_dpms_wakeup(struct udlpcon_info *udlpcon_info);
+int udlpcon_transmit_framebuffer(struct udlpcon_info *udlpcon_info);
+int udlpcon_build_modelist(struct udlpcon_info *udlpcon_info,
+			struct udlpcon_video_mode **modes, int *mode_count);
+int udlpcon_free_modelist(struct udlpcon_info *udlpcon_info,
+			struct udlpcon_video_mode *modes);
+void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info);
 
 #endif

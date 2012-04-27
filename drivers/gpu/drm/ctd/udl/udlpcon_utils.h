@@ -17,11 +17,11 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __UDLCTD_UTILS_H__
-#define __UDLCTD_UTILS_H__
+#ifndef __UDLPCON_UTILS_H__
+#define __UDLPCON_UTILS_H__
 
 #include <linux/console.h>
-#include "udlctd.h"
+#include "udlpcon.h"
 
 extern int debug;
 
@@ -41,38 +41,38 @@ extern int debug;
 					fmt, ## args); \
 	} while (0)
 
-int udlctd_alloc_multiple_pages(struct udlctd_info *udlctd_info,
+int udlpcon_alloc_multiple_pages(struct udlpcon_info *udlpcon_info,
 				gfp_t gfp_mask,
 				struct page **page_array,
 				unsigned int num_pages);
 
-void udlctd_free_multiple_pages(struct udlctd_info *udlctd_info,
+void udlpcon_free_multiple_pages(struct udlpcon_info *udlpcon_info,
 				struct page **page_array,
 				unsigned int num_pages);
 
-inline struct page *udlctd_alloc_page(struct udlctd_info *udlctd_info,
+inline struct page *udlpcon_alloc_page(struct udlpcon_info *udlpcon_info,
 				gfp_t gfp_mask);
 
-inline void udlctd_free_page(struct udlctd_info *udlctd_info,
+inline void udlpcon_free_page(struct udlpcon_info *udlpcon_info,
 				struct page *page);
 
-inline void *udlctd_kmalloc(struct udlctd_info *udlctd_info,
+inline void *udlpcon_kmalloc(struct udlpcon_info *udlpcon_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void *udlctd_kzalloc(struct udlctd_info *udlctd_info,
+inline void *udlpcon_kzalloc(struct udlpcon_info *udlpcon_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void udlctd_kfree(struct udlctd_info *udlctd_info,
+inline void udlpcon_kfree(struct udlpcon_info *udlpcon_info,
 			void *ptr);
 
-inline void *udlctd_vmalloc(struct udlctd_info *udlctd_info,
+inline void *udlpcon_vmalloc(struct udlpcon_info *udlpcon_info,
 			size_t size);
 
-inline void *udlctd_vzalloc(struct udlctd_info *udlctd_info,
+inline void *udlpcon_vzalloc(struct udlpcon_info *udlpcon_info,
 			size_t size);
 
-inline void udlctd_vfree(struct udlctd_info *udlctd_info,
+inline void udlpcon_vfree(struct udlpcon_info *udlpcon_info,
 			void *ptr);
 #endif
