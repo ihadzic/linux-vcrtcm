@@ -1,7 +1,7 @@
 /*
    Copyright (C) 2011 Alcatel-Lucent, Inc.
    Authors: Hans Christian Woithe <hans.woithe@alcatel-lucent.com>
-            Bill Katsak <william.katsak@alcatel-lucent.com>
+		Bill Katsak <william.katsak@alcatel-lucent.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 */
 
 
-#ifndef __v4l2ctd_H
-#define __v4l2ctd_H
+#ifndef __v4l2pcon_H
+#define __v4l2pcon_H
 
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -35,38 +35,38 @@
 
 #include "vcrtcm/vcrtcm_pcon.h"
 
-#define V4L2CTD_MAX_MINOR 255
+#define V4L2PCON_MAX_MINOR 255
 
-#define V4L2CTD_FPS_HARD_LIMIT 100
-#define V4L2CTD_XMIT_HARD_DEADLINE (HZ/10)
+#define V4L2PCON_FPS_HARD_LIMIT 100
+#define V4L2PCON_XMIT_HARD_DEADLINE (HZ/10)
 
-#define V4L2CTD_IN_DO_XMIT 0x1
+#define V4L2PCON_IN_DO_XMIT 0x1
 
-#define V4L2CTD_ALLOC_PB_FLAG_FB 0x0
-#define V4L2CTD_ALLOC_PB_FLAG_CURSOR 0x1
-#define V4L2CTD_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+#define V4L2PCON_ALLOC_PB_FLAG_FB 0x0
+#define V4L2PCON_ALLOC_PB_FLAG_CURSOR 0x1
+#define V4L2PCON_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
 extern int debug;
 
-extern struct list_head v4l2ctd_info_list;
-extern int v4l2ctd_major;
-extern int v4l2ctd_num_minors;
-extern int v4l2ctd_fake_vblank_slack;
+extern struct list_head v4l2pcon_info_list;
+extern int v4l2pcon_major;
+extern int v4l2pcon_num_minors;
+extern int v4l2pcon_fake_vblank_slack;
 
-struct v4l2ctd_fmt {
+struct v4l2pcon_fmt {
 	char  *name;
 	uint32_t  fourcc;
 	int   depth;
 	enum v4l2_colorspace colorspace;
 };
 
-struct v4l2ctd_info {
+struct v4l2pcon_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct v4l2ctd_vcrtcm_hal_descriptor *v4l2ctd_vcrtcm_hal_descriptor;
+	struct v4l2pcon_vcrtcm_hal_descriptor *v4l2pcon_vcrtcm_hal_descriptor;
 	struct mutex buffer_mutex;
-	spinlock_t v4l2ctd_lock;
+	spinlock_t v4l2pcon_lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
@@ -78,7 +78,7 @@ struct v4l2ctd_info {
 	char *main_buffer;
 	char *cursor;
 
-	/* v4l2ctd */
+	/* v4l2pcon */
 	uint8_t *shadowbuf;
 	uint32_t shadowbufsize;
 	struct mutex sb_lock;
@@ -94,7 +94,7 @@ struct v4l2ctd_info {
 	struct list_head active;
 	unsigned long generating;
 	struct task_struct *kthread;
-	struct v4l2ctd_fmt *fmt;
+	struct v4l2pcon_fmt *fmt;
 
 	/* debug stuff */
 	int page_track;
@@ -102,7 +102,7 @@ struct v4l2ctd_info {
 	int vmalloc_track;
 };
 
-struct v4l2ctd_vcrtcm_hal_descriptor {
+struct v4l2pcon_vcrtcm_hal_descriptor {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -122,11 +122,11 @@ struct v4l2ctd_vcrtcm_hal_descriptor {
 
 	int dpms_state;
 
-	struct v4l2ctd_info *v4l2ctd_info;
+	struct v4l2pcon_info *v4l2pcon_info;
 };
 
-int v4l2ctd_alloc_shadowbuf(struct v4l2ctd_info *v4l2ctd_info,
+int v4l2pcon_alloc_shadowbuf(struct v4l2pcon_info *v4l2pcon_info,
 				unsigned long size);
-void v4l2ctd_free_shadowbuf(struct v4l2ctd_info *v4l2ctd_info);
+void v4l2pcon_free_shadowbuf(struct v4l2pcon_info *v4l2pcon_info);
 
 #endif

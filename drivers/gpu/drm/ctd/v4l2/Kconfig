@@ -1,8 +1,8 @@
-config DRM_VCRTCM_CTD_V4L2CTD
-	tristate "Video for Linux CTD Driver"
+config DRM_VCRTCM_PCON_V4L2
+	tristate "Video for Linux PCON"
 	depends on DRM_VCRTCM && VIDEO_V4L2
 	help
-	 CTD Driver for V4L2. Attaches to a Virtual CTRC
+	 PCON for V4L2. Attaches to a Virtual CTRC
 	 and presents the pixel flow from GPU as a
 	 V4L2 device to the user space. Allows applications
 	 that can take the V4L2 input to do something good

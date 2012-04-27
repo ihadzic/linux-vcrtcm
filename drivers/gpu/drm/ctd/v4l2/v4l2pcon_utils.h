@@ -1,7 +1,7 @@
 /*
    Copyright (C) 2011 Alcatel-Lucent, Inc.
    Authors: Hans Christian Woithe <hans.woithe@alcatel-lucent.com>
-            Bill Katsak <william.katsak@alcatel-lucent.com>
+		Bill Katsak <william.katsak@alcatel-lucent.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __v4l2ctd_UTILS_H__
-#define __v4l2ctd_UTILS_H__
+#ifndef __v4l2pcon_UTILS_H__
+#define __v4l2pcon_UTILS_H__
 
 extern int debug;
 
@@ -39,38 +39,38 @@ extern int debug;
 					fmt, ## args); \
 	} while (0)
 
-int v4l2ctd_alloc_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+int v4l2pcon_alloc_multiple_pages(struct v4l2pcon_info *v4l2pcon_info,
 					gfp_t gfp_mask,
 					struct page **page_array,
 					unsigned int num_pages);
 
-void v4l2ctd_free_multiple_pages(struct v4l2ctd_info *v4l2ctd_info,
+void v4l2pcon_free_multiple_pages(struct v4l2pcon_info *v4l2pcon_info,
 					struct page **page_array,
 					unsigned int num_pages);
 
-inline struct page *v4l2ctd_alloc_page(struct v4l2ctd_info *v4l2ctd_info,
+inline struct page *v4l2pcon_alloc_page(struct v4l2pcon_info *v4l2pcon_info,
 				gfp_t gfp_mask);
 
-inline void v4l2ctd_free_page(struct v4l2ctd_info *v4l2ctd_info,
+inline void v4l2pcon_free_page(struct v4l2pcon_info *v4l2pcon_info,
 				struct page *page);
 
-inline void *v4l2ctd_kmalloc(struct v4l2ctd_info *v4l2ctd_info,
+inline void *v4l2pcon_kmalloc(struct v4l2pcon_info *v4l2pcon_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void *v4l2ctd_kzalloc(struct v4l2ctd_info *v4l2ctd_info,
+inline void *v4l2pcon_kzalloc(struct v4l2pcon_info *v4l2pcon_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void v4l2ctd_kfree(struct v4l2ctd_info *v4l2ctd_info,
+inline void v4l2pcon_kfree(struct v4l2pcon_info *v4l2pcon_info,
 			void *ptr);
 
-inline void *v4l2ctd_vmalloc(struct v4l2ctd_info *v4l2ctd_info,
+inline void *v4l2pcon_vmalloc(struct v4l2pcon_info *v4l2pcon_info,
 			size_t size);
 
-inline void *v4l2ctd_vzalloc(struct v4l2ctd_info *v4l2ctd_info,
+inline void *v4l2pcon_vzalloc(struct v4l2pcon_info *v4l2pcon_info,
 			size_t size);
 
-inline void v4l2ctd_vfree(struct v4l2ctd_info *v4l2ctd_info,
+inline void v4l2pcon_vfree(struct v4l2pcon_info *v4l2pcon_info,
 			void *ptr);
 #endif
