@@ -23,10 +23,10 @@
 
 /* VCRTCM interface function prototypes */
 
-int v4l2pcon_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *hw_drv_info, int flow);
 
-void v4l2pcon_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *hw_drv_info, int flow);
 
 int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow);

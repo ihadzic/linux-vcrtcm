@@ -301,7 +301,7 @@ struct radeon_crtc {
 	int emulated_vblank_counter;
 	int emulated_pflip_counter;
 	struct drm_framebuffer *vcrtcm_push_fb;
-	struct vcrtcm_dev_hal *vcrtcm_dev_hal;
+	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
 };
 
 struct radeon_encoder_primary_dac {

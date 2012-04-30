@@ -49,7 +49,7 @@ struct vcrtcm_dev_info {
 	/* functional interface to GPU driver */
 	struct vcrtcm_gpu_funcs gpu_funcs;
 	/* public HAL information */
-	struct vcrtcm_dev_hal vcrtcm_dev_hal;
+	struct vcrtcm_pcon_info vcrtcm_pcon_info;
 };
 
 extern struct list_head vcrtcm_dev_list;

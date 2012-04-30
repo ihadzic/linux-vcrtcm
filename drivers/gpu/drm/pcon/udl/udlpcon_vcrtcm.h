@@ -22,10 +22,10 @@
 
 /* VCRTCM interface function prototypes */
 
-int udlpcon_attach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *hw_drv_info, int flow);
 
-void udlpcon_detach(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *hw_drv_info, int flow);
 
 int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,

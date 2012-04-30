@@ -74,13 +74,13 @@ struct vcrtcm_mode {
 #define VCRTCM_MODE_OK  0
 #define VCRTCM_MODE_BAD 1
 
-struct vcrtcm_dev_hal;
+struct vcrtcm_pcon_info;
 
 /* functional interface to PCON */
 struct vcrtcm_pcon_funcs {
-	int (*attach) (struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+	int (*attach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		       void *hw_drv_info, int flow);
-	void (*detach) (struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+	void (*detach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *hw_drv_info, int flow);
 	int (*set_fb) (struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		       int flow);
@@ -122,13 +122,11 @@ struct vcrtcm_hw_props {
 	enum vcrtcm_xfer_mode xfer_mode;
 };
 
-/* Abstracted hadrware of a generic Virtual CRTC */
-/* (independent of actual hardware implementation) */
-/* The pixel consumer (PCON) allocates, populates, */
-/* and enlists this structure by calling vcrtcm_hw_add() */
+/* everything that vcrtcm knows about a PCON */
+/* The PCON registers this structure by calling vcrtcm_hw_add() */
 /* The GPU driver interacts with the PCON by calling the */
 /* vcrtcm_pcon_funcs provided in this structure */
-struct vcrtcm_dev_hal {
+struct vcrtcm_pcon_info {
 	struct mutex hal_mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_hw_props hw_props;

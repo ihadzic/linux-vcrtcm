@@ -41,17 +41,17 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 			/* if the HAL already exists, we just overwrite
 			   the provided functions (assuming that the PCON
 			   that called us knows what it's doing */
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
+			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
 			VCRTCM_WARNING("found an existing HAL %d.%d.%d, "
 				       "refreshing its implementation\n",
 				       vcrtcm_dev_info->hw_major,
 				       vcrtcm_dev_info->hw_minor,
 				       vcrtcm_dev_info->hw_flow);
-			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs,
+			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.funcs,
 			       vcrtcm_pcon_funcs, sizeof(struct vcrtcm_pcon_funcs));
-			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props,
+			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props,
 			       vcrtcm_hw_props, sizeof(struct vcrtcm_hw_props));
-			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
+			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
 				     hal_mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
 			return 0;
@@ -68,10 +68,10 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	/* populate the HAL structures (no need to hold the hal_mutex
 	   because no one else sees this structure yet) */
 	spin_lock_init(&vcrtcm_dev_info->lock);
-	mutex_init(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
-	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_pcon_funcs,
+	mutex_init(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
+	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.funcs, vcrtcm_pcon_funcs,
 	       sizeof(struct vcrtcm_pcon_funcs));
-	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props, vcrtcm_hw_props,
+	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props, vcrtcm_hw_props,
 	       sizeof(struct vcrtcm_hw_props));
 
 	/* populate the info structure and link it to the HAL structure */
@@ -113,7 +113,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
 			unsigned long flags;
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
+			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
 			VCRTCM_INFO("found an existing HAL %d.%d.%d "
 				    "removing\n",
 				    vcrtcm_dev_info->hw_major,
@@ -127,10 +127,10 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 				VCRTCM_INFO("HAL in use by CRTC %p, "
 					    "forcing detach\n",
 					    vcrtcm_dev_info->drm_crtc);
-				if (vcrtcm_dev_info->vcrtcm_dev_hal.funcs.detach)
-					vcrtcm_dev_info->vcrtcm_dev_hal.funcs.
+				if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.detach)
+					vcrtcm_dev_info->vcrtcm_pcon_info.funcs.
 					    detach(&vcrtcm_dev_info->
-						   vcrtcm_dev_hal,
+						   vcrtcm_pcon_info,
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
 				if (vcrtcm_dev_info->gpu_funcs.detach)
@@ -140,7 +140,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 						       flags);
 			list_del(&vcrtcm_dev_info->list);
-			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
+			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
 				     hal_mutex);
 			kfree(vcrtcm_dev_info);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
@@ -160,11 +160,11 @@ EXPORT_SYMBOL(vcrtcm_hw_del);
    whenever the PCON wants to wait for the GPU
    to finish some work before proceeding (typically
    to avoid frame tearing during transmission) */
-void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+void vcrtcm_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			 vcrtcm_dev_hal);
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			 vcrtcm_pcon_info);
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
 
 	VCRTCM_INFO("waiting for GPU HAL %d.%d.%d\n",
@@ -186,11 +186,11 @@ EXPORT_SYMBOL(vcrtcm_gpu_sync);
    this is the link between the vblank event that happened in
    the PCON but is emulated by the virtual
    CRTC implementation in the GPU-hardware-specific driver */
-void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+void vcrtcm_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			 vcrtcm_dev_hal);
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			 vcrtcm_pcon_info);
 	unsigned long flags;
 
 	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
@@ -213,12 +213,12 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
 
 /* called by the PCON to allocate a push buffer */
-int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+int vcrtcm_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			     vcrtcm_dev_hal);
+		container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			     vcrtcm_pcon_info);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *obj;
@@ -240,12 +240,12 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 EXPORT_SYMBOL(vcrtcm_push_buffer_alloc);
 
 /* called by the PCON to free up a push buffer */
-void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+void vcrtcm_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			     vcrtcm_dev_hal);
+		container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			     vcrtcm_pcon_info);
 	struct drm_gem_object *obj = pbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_funcs.pb_free) {
@@ -266,13 +266,13 @@ EXPORT_SYMBOL(vcrtcm_push_buffer_free);
 /* frame buffer pixels; pushes the frame buffer associated with  */
 /* the ctrc that is attached to the specified hal into the push buffer */
 /* defined by pbd */
-int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
+int vcrtcm_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			     vcrtcm_dev_hal);
+		container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			     vcrtcm_pcon_info);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 	struct drm_gem_object *push_buffer_fb = fpbd->gpu_private;
 	struct drm_gem_object *push_buffer_cursor = cpbd->gpu_private;
@@ -292,11 +292,11 @@ EXPORT_SYMBOL(vcrtcm_push);
 /* called by the PCON to signal hotplug event on a CRTC
  * attached to the specified HAL
  */
-void vcrtcm_hotplug(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
+void vcrtcm_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
-		container_of(vcrtcm_dev_hal, struct vcrtcm_dev_info,
-			     vcrtcm_dev_hal);
+		container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+			     vcrtcm_pcon_info);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 
 	if (vcrtcm_dev_info->gpu_funcs.hotplug) {

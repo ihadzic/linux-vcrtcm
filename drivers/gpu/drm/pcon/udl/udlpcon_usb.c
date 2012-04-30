@@ -632,7 +632,7 @@ void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		PR_DEBUG("Calling hotplug.\n");
-		vcrtcm_hotplug(uvhd->vcrtcm_dev_hal);
+		vcrtcm_hotplug(uvhd->vcrtcm_pcon_info);
 	}
 
 	if (old_edid)
