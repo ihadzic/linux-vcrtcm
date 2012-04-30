@@ -75,7 +75,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 		vcrtcm_fb.pitch = fb->pitches[0];
 		vcrtcm_fb.height = fb->height;
 		vcrtcm_fb.viewport_x = x;
-		/* in pull mode, clipping is done by CTD, in push mode
+		/* in pull mode, clipping is done by the PCON, in push mode
 		 * GPU does the clipping along Y axis, so viewport_y
 		 * is zero (REVISIT: this will change when we cut our
 		 * own blit function that does the full clipping
@@ -136,7 +136,7 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 
 	/* loop through CRTCs and mark each CRTC for transmission */
 	/* back-end will evaluate the flag in the work function */
-	/* and deal with the CTD transmission hardware */
+	/* and deal with the PCON transmission */
 
 	/* REVISIT: we can (in theory) get smarter if we knew */
 	/* what rendering activity belonged to what CRTC/framebuffer */
@@ -243,8 +243,8 @@ radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
 		return r;
 	}
 	/* NB: we don't store GPU address of the bo because that's */
-	/* radeon-specific stuff and we don't want to expose the CTD */
-	/* driver to it; push callback (that actually does the copy) */
+	/* radeon-specific stuff and we don't want to expose the PCON */
+	/* to it; push callback (that actually does the copy) */
 	/* will have to re-retrieve it each time it is called */
 	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_GTT, &addr);
 	DRM_DEBUG("vcrtcm push buffer allocated name=%d, gpu_addr=0x%llx\n",
@@ -258,7 +258,7 @@ radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
 	ttm = rbo->tbo.ttm;
 	radeon_bo_unreserve(rbo);
 
-	/* extract information that CTD driver cares about */
+	/* extract information that the PCON cares about */
 	/* so that it can get to it without calling any DRM/TTM/GEM funcs */
 	pbd->gpu_private = &rbo->gem_base;
 	pbd->num_pages = ttm->num_pages;

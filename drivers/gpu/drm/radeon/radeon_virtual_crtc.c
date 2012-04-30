@@ -130,11 +130,11 @@ static int radeon_virtual_crtc_get_modes(struct drm_connector *connector)
 	if (!radeon_crtc)
 		return 0;
 
-	/* if we have no CTD attached, then we have no modes to add */
+	/* if we have no PCON attached, then we have no modes to add */
 	if (!radeon_crtc->vcrtcm_dev_hal)
 		return 0;
 
-	/* found an attached CTD, ask it */
+	/* found an attached PCON, ask it */
 	r = vcrtcm_get_modes(radeon_crtc->vcrtcm_dev_hal,
 			     &probed_modes, &probed_modes_count);
 	if (r)
@@ -1110,7 +1110,7 @@ static void radeon_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 	}
 
 	/* REVISIT: lut probably needs to go to the vcrtcm which */
-	/* should pass it to the CTD driver to decide what to do */
+	/* should pass it to the PCON to decide what to do */
 	/* (e.g. send a message to the remote display device) */
 	/* implement the call here */
 }
