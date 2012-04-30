@@ -49,7 +49,7 @@ static void __exit vcrtcm_exit(void)
 	VCRTCM_INFO("unloading module");
 
 	/* any remaining virtual CRTC must now be detached and destroyed
-	   even if the drivers have not explicitly given them up
+	   even if the PCONs have not explicitly given them up
 	   (we have no other choice) */
 	mutex_lock(&vcrtcm_dev_list_mutex);
 	list_for_each_entry_safe(vcrtcm_dev_info, tmp, &vcrtcm_dev_list, list) {

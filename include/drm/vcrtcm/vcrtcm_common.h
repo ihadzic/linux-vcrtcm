@@ -21,8 +21,7 @@
 
 /*
    Public data structures for Virtual CRTC Manager and modules
-   that use it (GPU driver and compression/transmission/display
-   cards
+   that use it (GPU driver and PCONs)
 */
 #ifndef __VCRTCM_COMMON_H__
 #define __VCRTCM_COMMON_H__
@@ -123,14 +122,12 @@ struct vcrtcm_hw_props {
 	enum vcrtcm_xfer_mode xfer_mode;
 };
 
-/* Abstracted hadrware of a generic Virtual CRTC
-   (independent of actual hardware implementation)
-
-   Pixel consumer (PCON)
-   allocates, populates and enlists this structure by calling
-   the register function in vcrtcm module
-   GPU driver interacts with the PCON by calling API functions
-   linked off this structure */
+/* Abstracted hadrware of a generic Virtual CRTC */
+/* (independent of actual hardware implementation) */
+/* The pixel consumer (PCON) allocates, populates, */
+/* and enlists this structure by calling vcrtcm_hw_add() */
+/* The GPU driver interacts with the PCON by calling the */
+/* vcrtcm_funcs provided in this structure */
 struct vcrtcm_dev_hal {
 	/* mutex to protect HAL access */
 	struct mutex hal_mutex;

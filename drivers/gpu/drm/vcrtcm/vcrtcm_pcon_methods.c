@@ -23,7 +23,7 @@
 #include "vcrtcm_private.h"
 
 /* called by the pixel consumer (PCON) to
-   register it's implementation with HAL; the PCON can also provide
+   register its implementation with HAL; the PCON can also provide
    pointers to back-end functions (functions that get called after
    generic HAL function is executed) */
 int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
@@ -39,7 +39,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
 			/* if the HAL already exists, we just overwrite
-			   the provided functions (assuming that the driver
+			   the provided functions (assuming that the PCON
 			   that called us knows what it's doing */
 			mutex_lock(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
 			VCRTCM_WARNING("found an existing HAL %d.%d.%d, "
@@ -66,7 +66,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 		return -ENOMEM;
 
 	/* populate the HAL structures (no need to hold the hal_mutex
-	   becuse noone else sees this structure yet) */
+	   because no one else sees this structure yet) */
 	spin_lock_init(&vcrtcm_dev_info->lock);
 	mutex_init(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
 	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_funcs,
@@ -101,7 +101,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 EXPORT_SYMBOL(vcrtcm_hw_add);
 
 /* called by the pixel consumer (PCON)
-   (typically on exit) to unregister it's implementation with HAL */
+   (typically on exit) to unregister its implementation with HAL */
 void vcrtcm_hw_del(int major, int minor, int flow)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
@@ -184,7 +184,7 @@ EXPORT_SYMBOL(vcrtcm_gpu_sync);
 
 /* called by the PCON to emulate vblank
    this is the link between the vblank event that happened in
-   the PCON-specific driver but is emulated by the virtual
+   the PCON but is emulated by the virtual
    CRTC implementation in the GPU-hardware-specific driver */
 void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 {
