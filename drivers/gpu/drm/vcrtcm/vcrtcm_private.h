@@ -46,8 +46,8 @@ struct vcrtcm_dev_info {
 	void *hw_drv_info;
 	/* identifies the CRTC using this HAL */
 	struct drm_crtc *drm_crtc;
-	/* callbacks from PCON into the GPU */
-	struct vcrtcm_gpu_callbacks gpu_callbacks;
+	/* functional interface to GPU driver */
+	struct vcrtcm_gpu_funcs gpu_funcs;
 	/* public HAL information */
 	struct vcrtcm_dev_hal vcrtcm_dev_hal;
 };

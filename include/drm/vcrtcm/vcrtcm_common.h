@@ -76,8 +76,8 @@ struct vcrtcm_mode {
 
 struct vcrtcm_dev_hal;
 
-/* hardware-specific back-end for each HAL function */
-struct vcrtcm_funcs {
+/* functional interface to PCON */
+struct vcrtcm_pcon_funcs {
 	int (*attach) (struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 		       void *hw_drv_info, int flow);
 	void (*detach) (struct vcrtcm_dev_hal *vcrtcm_dev_hal,
@@ -116,7 +116,7 @@ enum vcrtcm_xfer_mode {
 	VCRTCM_PUSH_PULL
 };
 
-/* describes properties of the attached PCON HAL */
+/* describes properties of the attached PCON */
 /* that GPU needs to know about */
 struct vcrtcm_hw_props {
 	enum vcrtcm_xfer_mode xfer_mode;
@@ -127,13 +127,10 @@ struct vcrtcm_hw_props {
 /* The pixel consumer (PCON) allocates, populates, */
 /* and enlists this structure by calling vcrtcm_hw_add() */
 /* The GPU driver interacts with the PCON by calling the */
-/* vcrtcm_funcs provided in this structure */
+/* vcrtcm_pcon_funcs provided in this structure */
 struct vcrtcm_dev_hal {
-	/* mutex to protect HAL access */
 	struct mutex hal_mutex;
-	/* function pointers into HAL implementation */
-	struct vcrtcm_funcs funcs;
-	/* harware properties that GPU driver needs to know */
+	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_hw_props hw_props;
 };
 
@@ -152,13 +149,13 @@ struct vcrtcm_push_buffer_descriptor {
 	unsigned long num_pages;
 };
 
-struct vcrtcm_gpu_callbacks {
+/* functional interface to GPU driver */
+struct vcrtcm_gpu_funcs {
 
 	/* callback into GPU driver when detach is called */
 	void (*detach) (struct drm_crtc *drm_crtc);
 
 	/* VBLANK emulation function  */
-	/* if one is needed by the HAL (typically used by virtual CRTCs)  */
 	void (*vblank) (struct drm_crtc *drm_crtc);
 
 	/* synchronization with GPU rendering (e.g. fence wait) */

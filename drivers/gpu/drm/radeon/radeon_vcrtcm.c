@@ -415,7 +415,7 @@ static void radeon_vcrtcm_hotplug(struct drm_crtc *crtc)
 	schedule_work(&rdev->hotplug_work);
 }
 
-struct vcrtcm_gpu_callbacks physical_crtc_gpu_callbacks = {
+struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.sync = radeon_sync_callback,
@@ -425,7 +425,7 @@ struct vcrtcm_gpu_callbacks physical_crtc_gpu_callbacks = {
 	.hotplug = NULL /* real CRTC has its own hotplug */
 };
 
-struct vcrtcm_gpu_callbacks virtual_crtc_gpu_callbacks = {
+struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = radeon_emulate_vblank,
 	.sync = radeon_sync_callback,
@@ -448,11 +448,11 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc, int major,
 
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
 		r = vcrtcm_attach(major, minor, flow, crtc,
-				  &physical_crtc_gpu_callbacks,
+				  &physical_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_dev_hal);
 	else
 		r = vcrtcm_attach(major, minor, flow, crtc,
-				  &virtual_crtc_gpu_callbacks,
+				  &virtual_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_dev_hal);
 
 	if (r)

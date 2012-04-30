@@ -26,7 +26,7 @@
    register its implementation with HAL; the PCON can also provide
    pointers to back-end functions (functions that get called after
    generic HAL function is executed) */
-int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
+int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info)
 {
@@ -48,7 +48,7 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 				       vcrtcm_dev_info->hw_minor,
 				       vcrtcm_dev_info->hw_flow);
 			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs,
-			       vcrtcm_funcs, sizeof(struct vcrtcm_funcs));
+			       vcrtcm_pcon_funcs, sizeof(struct vcrtcm_pcon_funcs));
 			memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props,
 			       vcrtcm_hw_props, sizeof(struct vcrtcm_hw_props));
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_dev_hal.
@@ -69,8 +69,8 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 	   because no one else sees this structure yet) */
 	spin_lock_init(&vcrtcm_dev_info->lock);
 	mutex_init(&vcrtcm_dev_info->vcrtcm_dev_hal.hal_mutex);
-	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_funcs,
-	       sizeof(struct vcrtcm_funcs));
+	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.funcs, vcrtcm_pcon_funcs,
+	       sizeof(struct vcrtcm_pcon_funcs));
 	memcpy(&vcrtcm_dev_info->vcrtcm_dev_hal.hw_props, vcrtcm_hw_props,
 	       sizeof(struct vcrtcm_hw_props));
 
@@ -84,8 +84,8 @@ int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
 	vcrtcm_dev_info->vblank_time.tv_sec = 0;
 	vcrtcm_dev_info->vblank_time.tv_usec = 0;
 	vcrtcm_dev_info->drm_crtc = NULL;
-	memset(&vcrtcm_dev_info->gpu_callbacks, 0,
-	       sizeof(struct vcrtcm_gpu_callbacks));
+	memset(&vcrtcm_dev_info->gpu_funcs, 0,
+	       sizeof(struct vcrtcm_gpu_funcs));
 
 	VCRTCM_INFO("adding new HAL %d.%d.%d\n",
 		    vcrtcm_dev_info->hw_major,
@@ -133,9 +133,9 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 						   vcrtcm_dev_hal,
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
-				if (vcrtcm_dev_info->gpu_callbacks.detach)
+				if (vcrtcm_dev_info->gpu_funcs.detach)
 					vcrtcm_dev_info->
-						gpu_callbacks.detach(vcrtcm_dev_info->drm_crtc);
+						gpu_funcs.detach(vcrtcm_dev_info->drm_crtc);
 			} else
 				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 						       flags);
@@ -171,8 +171,8 @@ void vcrtcm_gpu_sync(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 		    vcrtcm_dev_info->hw_major,
 		    vcrtcm_dev_info->hw_minor, vcrtcm_dev_info->hw_flow);
 	jiffies_snapshot = jiffies;
-	if (vcrtcm_dev_info->gpu_callbacks.sync)
-		vcrtcm_dev_info->gpu_callbacks.sync(vcrtcm_dev_info->drm_crtc);
+	if (vcrtcm_dev_info->gpu_funcs.sync)
+		vcrtcm_dev_info->gpu_funcs.sync(vcrtcm_dev_info->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
@@ -202,12 +202,12 @@ void vcrtcm_emulate_vblank(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
 	vcrtcm_dev_info->vblank_time_valid = 1;
 	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
-	if (vcrtcm_dev_info->gpu_callbacks.vblank) {
+	if (vcrtcm_dev_info->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		vcrtcm_dev_info->gpu_callbacks.vblank(vcrtcm_dev_info->drm_crtc);
+		vcrtcm_dev_info->gpu_funcs.vblank(vcrtcm_dev_info->drm_crtc);
 	}
 }
 EXPORT_SYMBOL(vcrtcm_emulate_vblank);
@@ -223,9 +223,9 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *obj;
 
-	if (vcrtcm_dev_info->gpu_callbacks.pb_alloc) {
+	if (vcrtcm_dev_info->gpu_funcs.pb_alloc) {
 		int r;
-		r = vcrtcm_dev_info->gpu_callbacks.pb_alloc(dev, pbd);
+		r = vcrtcm_dev_info->gpu_funcs.pb_alloc(dev, pbd);
 		obj = pbd->gpu_private;
 		VCRTCM_DEBUG("HAL %d.%d.%d "
 			     "allocated push buffer name=%d, size=%d\n",
@@ -248,14 +248,14 @@ void vcrtcm_push_buffer_free(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 			     vcrtcm_dev_hal);
 	struct drm_gem_object *obj = pbd->gpu_private;
 
-	if (vcrtcm_dev_info->gpu_callbacks.pb_free) {
+	if (vcrtcm_dev_info->gpu_funcs.pb_free) {
 		VCRTCM_DEBUG("HAL %d.%d.%d "
 			     "freeing push buffer name=%d, size=%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow,
 			     obj->name, obj->size);
-		vcrtcm_dev_info->gpu_callbacks.pb_free(obj);
+		vcrtcm_dev_info->gpu_funcs.pb_free(obj);
 		memset(pbd, 0,
 		       sizeof(struct vcrtcm_push_buffer_descriptor));
 	}
@@ -277,12 +277,12 @@ int vcrtcm_push(struct vcrtcm_dev_hal *vcrtcm_dev_hal,
 	struct drm_gem_object *push_buffer_fb = fpbd->gpu_private;
 	struct drm_gem_object *push_buffer_cursor = cpbd->gpu_private;
 
-	if (vcrtcm_dev_info->gpu_callbacks.push) {
+	if (vcrtcm_dev_info->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for HAL  %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		return vcrtcm_dev_info->gpu_callbacks.push(crtc,
+		return vcrtcm_dev_info->gpu_funcs.push(crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
@@ -299,8 +299,8 @@ void vcrtcm_hotplug(struct vcrtcm_dev_hal *vcrtcm_dev_hal)
 			     vcrtcm_dev_hal);
 	struct drm_crtc *crtc = vcrtcm_dev_info->drm_crtc;
 
-	if (vcrtcm_dev_info->gpu_callbacks.hotplug) {
-		vcrtcm_dev_info->gpu_callbacks.hotplug(crtc);
+	if (vcrtcm_dev_info->gpu_funcs.hotplug) {
+		vcrtcm_dev_info->gpu_funcs.hotplug(crtc);
 		VCRTCM_DEBUG("HAL %d.%d.%d hotplug\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,

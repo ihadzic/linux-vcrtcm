@@ -47,7 +47,7 @@ int udlpcon_num_minors = -1;
 int udlpcon_max_minor = -1;
 int udlpcon_fake_vblank_slack = 1;
 
-struct vcrtcm_funcs udlpcon_vcrtcm_funcs = {
+struct vcrtcm_pcon_funcs udlpcon_vcrtcm_pcon_funcs = {
 	.attach = udlpcon_attach,
 	.detach = udlpcon_detach,
 	.set_fb = udlpcon_set_fb,

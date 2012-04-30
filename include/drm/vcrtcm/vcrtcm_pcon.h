@@ -32,7 +32,7 @@
 #include "vcrtcm_common.h"
 
 /* setup/config functions for PCON's use */
-int vcrtcm_hw_add(struct vcrtcm_funcs *vcrtcm_funcs,
+int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info);
 void vcrtcm_hw_del(int major, int minor, int flow);
