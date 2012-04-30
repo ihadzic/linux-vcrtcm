@@ -26,16 +26,16 @@
 /* Private data structures for Virtual CRTC Manager and modules
    that use it: GPU driver and pixel consumer (PCON) */
 
-#define VCRTCM_STATUS_HAL_IN_USE 0x01
+#define VCRTCM_STATUS_PCON_IN_USE 0x01
 
 /* main structure for keeping track of each PCON-CRTC relationship */
 struct vcrtcm_dev_info {
 	struct list_head list;
 	/* general lock for fields subject to concurrent access */
 	spinlock_t lock;
-	/* see VCRTCM_STATUS_HAL constants above for possible status bits */
+	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
 	int status;
-	/* identifies the driver/hardware that implements this HAL */
+	/* identifies the driver/hardware that implements this PCON */
 	int hw_major;
 	int hw_minor;
 	int hw_flow;
@@ -44,11 +44,11 @@ struct vcrtcm_dev_info {
 	int vblank_time_valid;
 	/* pointer back to the (hardware) specific PCON structure */
 	void *hw_drv_info;
-	/* identifies the CRTC using this HAL */
+	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
 	/* functional interface to GPU driver */
 	struct vcrtcm_gpu_funcs gpu_funcs;
-	/* public HAL information */
+	/* public PCON information */
 	struct vcrtcm_pcon_info vcrtcm_pcon_info;
 };
 

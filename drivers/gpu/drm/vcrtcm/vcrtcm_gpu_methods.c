@@ -41,21 +41,21 @@ int vcrtcm_attach(int major, int minor, int flow,
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
 			unsigned long flags;
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
+			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
 			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-			if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+			if (vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 							flags);
-				VCRTCM_ERROR("HAL %d.%d.%d already attached "
+				VCRTCM_ERROR("pcon %d.%d.%d already attached "
 					     "to crtc_drm %p\n",
 					     major, minor, flow, drm_crtc);
 				mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
-					     hal_mutex);
+					     mutex);
 				mutex_unlock(&vcrtcm_dev_list_mutex);
 				return -EBUSY;
 			}
 			spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
-			/* if we got here, then we have found the HAL
+			/* if we got here, then we have found the PCON
 			   and it's free for us to attach to */
 
 			/* call the device specific back-end of attach */
@@ -69,7 +69,7 @@ int vcrtcm_attach(int major, int minor, int flow,
 				if (r) {
 					VCRTCM_ERROR("back-end attach call failed\n");
 					mutex_unlock(&vcrtcm_dev_info->
-						     vcrtcm_pcon_info.hal_mutex);
+						     vcrtcm_pcon_info.mutex);
 					mutex_unlock(&vcrtcm_dev_list_mutex);
 					return r;
 				}
@@ -82,16 +82,16 @@ int vcrtcm_attach(int major, int minor, int flow,
 			vcrtcm_dev_info->drm_crtc = drm_crtc;
 			vcrtcm_dev_info->gpu_funcs = *gpu_funcs;
 
-			/* point the GPU driver to HAL we have just attached */
+			/* point the GPU driver to PCON we have just attached */
 			*vcrtcm_pcon_info = &vcrtcm_dev_info->vcrtcm_pcon_info;
 
 			/* very last thing to do: change the status */
 			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-			vcrtcm_dev_info->status |= VCRTCM_STATUS_HAL_IN_USE;
+			vcrtcm_dev_info->status |= VCRTCM_STATUS_PCON_IN_USE;
 			spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 					       flags);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
-				     hal_mutex);
+				     mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
 			return 0;
 
@@ -99,24 +99,24 @@ int vcrtcm_attach(int major, int minor, int flow,
 	}
 	mutex_unlock(&vcrtcm_dev_list_mutex);
 
-	/* if we got here, then the HAL was not found */
-	VCRTCM_ERROR("HAL %d.%d.%d not found\n", major, minor, flow);
+	/* if we got here, then the PCON was not found */
+	VCRTCM_ERROR("pcon %d.%d.%d not found\n", major, minor, flow);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vcrtcm_attach);
 
 /* called by the GPU driver to detach its CRTC from the
    pixel consumer (PCON)
-   GPU driver must supply the HAL it is detaching
+   GPU driver must supply the PCON it is detaching
    this function will also work if someoby else's
-   HAL is provided for detaching but this is not expected
+   PCON is provided for detaching but this is not expected
    to be used by the GPU driver (although VCRTCM may do
-   this if the HAL implementation disappears from the system)
+   this if the PCON disappears from the system)
 
    after doing local cleanup, the detach function will
    make a callback into the driver to finish up the
    GPU driver-side cleanup (at least the GPU must
-   set the pointer to HAL to NULL and it may need to do
+   set the pointer to PCON to NULL and it may need to do
    additional (driver-dependent) cleanup */
 int vcrtcm_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
@@ -126,15 +126,15 @@ int vcrtcm_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			 vcrtcm_pcon_info);
 	unsigned long flags;
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
 	if (!vcrtcm_dev_info->status) {
 		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
-		VCRTCM_WARNING("HAL already detached\n");
-		mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+		VCRTCM_WARNING("pcon already detached\n");
+		mutex_unlock(&vcrtcm_pcon_info->mutex);
 		return -EINVAL;
 	}
-	vcrtcm_dev_info->status &= ~VCRTCM_STATUS_HAL_IN_USE;
+	vcrtcm_dev_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.detach)
 		vcrtcm_dev_info->
@@ -147,7 +147,7 @@ int vcrtcm_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	memset(&vcrtcm_dev_info->gpu_funcs, 0,
 	       sizeof(struct vcrtcm_gpu_funcs));
 	vcrtcm_dev_info->drm_crtc = NULL;
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return 0;
 
 }
@@ -170,9 +170,9 @@ int vcrtcm_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_fb) {
-		VCRTCM_DEBUG("calling set_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling set_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -180,13 +180,13 @@ int vcrtcm_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						 vcrtcm_dev_info->hw_drv_info,
 						 vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing set_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_WARNING("missing set_fb backend, pcon %d.%d.%d\n",
 			       vcrtcm_dev_info->hw_major,
 			       vcrtcm_dev_info->hw_minor,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_fb);
@@ -202,9 +202,9 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_fb) {
-		VCRTCM_DEBUG("calling get_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -212,13 +212,13 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						 vcrtcm_dev_info->hw_drv_info,
 						 vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing get_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_WARNING("missing get_fb backend, pcon %d.%d.%d\n",
 			       vcrtcm_dev_info->hw_major,
 			       vcrtcm_dev_info->hw_minor,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_fb);
@@ -268,9 +268,9 @@ int vcrtcm_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 	/* see the long comment in wait_fb implementation about
 	   blocking and mutexes */
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.xmit_fb) {
-		VCRTCM_DEBUG("calling xmit_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling xmit_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -278,13 +278,13 @@ int vcrtcm_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing xmit_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing xmit_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_xmit_fb);
@@ -300,9 +300,9 @@ int vcrtcm_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.wait_fb) {
-		VCRTCM_DEBUG("calling wait_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling wait_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -310,13 +310,13 @@ int vcrtcm_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing wait_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing wait_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_wait_fb);
@@ -331,7 +331,7 @@ int vcrtcm_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			 vcrtcm_pcon_info);
 
 	if (vcrtcm_pcon_info->funcs.get_fb_status) {
-		VCRTCM_DEBUG("calling get_fb_status backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_fb_status backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -340,7 +340,7 @@ int vcrtcm_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 							vcrtcm_dev_info->hw_flow,
 							status);
 	} else {
-		VCRTCM_WARNING("missing get_fb_status backend, HAL %d.%d.%d\n",
+		VCRTCM_WARNING("missing get_fb_status backend, pcon %d.%d.%d\n",
 			       vcrtcm_dev_info->hw_major,
 			       vcrtcm_dev_info->hw_minor,
 			       vcrtcm_dev_info->hw_flow);
@@ -358,9 +358,9 @@ int vcrtcm_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_fps) {
-		VCRTCM_DEBUG("calling set_fps backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling set_fps backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -368,13 +368,13 @@ int vcrtcm_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing set_fps backend, HAL %d.%d.%d\n",
+		VCRTCM_WARNING("missing set_fps backend, pcon %d.%d.%d\n",
 			       vcrtcm_dev_info->hw_major,
 			       vcrtcm_dev_info->hw_minor,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_fps);
@@ -387,9 +387,9 @@ int vcrtcm_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_fps) {
-		VCRTCM_DEBUG("calling get_fps backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_fps backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -397,13 +397,13 @@ int vcrtcm_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_WARNING("missing get_fps backend, HAL %d.%d.%d\n",
+		VCRTCM_WARNING("missing get_fps backend, pcon %d.%d.%d\n",
 			       vcrtcm_dev_info->hw_major,
 			       vcrtcm_dev_info->hw_minor,
 			       vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_fps);
@@ -424,9 +424,9 @@ int vcrtcm_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_cursor) {
-		VCRTCM_DEBUG("calling set_cursor backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling set_cursor backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -435,13 +435,13 @@ int vcrtcm_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						     hw_drv_info,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing set_cursor backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing set_cursor backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_cursor);
@@ -457,9 +457,9 @@ int vcrtcm_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_cursor) {
-		VCRTCM_DEBUG("calling get_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -468,13 +468,13 @@ int vcrtcm_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						     hw_drv_info,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing get_fb backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing get_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_cursor);
@@ -487,9 +487,9 @@ int vcrtcm_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_dpms) {
-		VCRTCM_DEBUG("calling set_dpms backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling set_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -497,13 +497,13 @@ int vcrtcm_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing set_dpms backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing set_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_set_dpms);
@@ -516,9 +516,9 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
 			 vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_dpms) {
-		VCRTCM_DEBUG("calling get_dpms backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -526,13 +526,13 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 						   vcrtcm_dev_info->hw_drv_info,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing get_dpms backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing get_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_get_dpms);
@@ -548,7 +548,7 @@ int vcrtcm_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
 
 	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if ((vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) &&
+	if ((vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) &&
 	    (vcrtcm_dev_info->vblank_time_valid)) {
 		*vblank_time = vcrtcm_dev_info->vblank_time;
 		r = 0;
@@ -570,7 +570,7 @@ void vcrtcm_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
 
 	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
 		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 		return;
@@ -587,16 +587,16 @@ EXPORT_SYMBOL(vcrtcm_set_vblank_time);
  * emulators), but some can feed real display devices
  * and may want to query the device they are driving for status
  */
-int vcrtcm_hal_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
+int vcrtcm_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_pcon_info,
 			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
 	int r;
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.connected) {
-		VCRTCM_DEBUG("calling connected backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling connected backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -604,18 +604,18 @@ int vcrtcm_hal_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 						    vcrtcm_dev_info->hw_flow,
 						    status);
 	} else {
-		VCRTCM_DEBUG("missing connected backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing connected backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		*status = VCRTCM_HAL_CONNECTED;
+		*status = VCRTCM_PCON_CONNECTED;
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_hal_connected);
+EXPORT_SYMBOL(vcrtcm_pcon_connected);
 
 static struct vcrtcm_mode common_modes[17] = {
 	{640, 480, 60},
@@ -649,9 +649,9 @@ int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
 	int r;
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_modes) {
-		VCRTCM_DEBUG("calling get_modes backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling get_modes backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -660,7 +660,7 @@ int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						    modes,
 						    count);
 	} else {
-		VCRTCM_DEBUG("missing get_modes backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing get_modes backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -668,7 +668,7 @@ int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		*modes = common_modes;
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 
 	return r;
 }
@@ -687,9 +687,9 @@ int vcrtcm_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
 	int r;
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.check_mode) {
-		VCRTCM_DEBUG("calling check_mode backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling check_mode backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -698,21 +698,21 @@ int vcrtcm_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 						     mode,
 						     status);
 	} else {
-		VCRTCM_DEBUG("missing check_mode backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing check_mode backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		*status = VCRTCM_MODE_OK;
 		r = 0;
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_check_mode);
 
-/* disable the transmission on specified HAL
- * called when CRTC associated with the HAL is
+/* disable the transmission on specified PCON
+ * called when CRTC associated with the PCON is
  * disabled from userland
  */
 void vcrtcm_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
@@ -721,10 +721,10 @@ void vcrtcm_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			container_of(vcrtcm_pcon_info,
 				struct vcrtcm_dev_info, vcrtcm_pcon_info);
 
-	mutex_lock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_lock(&vcrtcm_pcon_info->mutex);
 
 	if (vcrtcm_pcon_info->funcs.disable) {
-		VCRTCM_DEBUG("calling disable backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("calling disable backend, pcon %d.%d.%d\n",
 			vcrtcm_dev_info->hw_major,
 			vcrtcm_dev_info->hw_minor,
 			vcrtcm_dev_info->hw_flow);
@@ -732,12 +732,12 @@ void vcrtcm_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		vcrtcm_pcon_info->funcs.disable(vcrtcm_dev_info->hw_drv_info,
 					      vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing disable backend, HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("missing disable backend, pcon %d.%d.%d\n",
 			vcrtcm_dev_info->hw_major,
 			vcrtcm_dev_info->hw_minor,
 			vcrtcm_dev_info->hw_flow);
 	}
-	mutex_unlock(&vcrtcm_pcon_info->hal_mutex);
+	mutex_unlock(&vcrtcm_pcon_info->mutex);
 
 	return;
 }

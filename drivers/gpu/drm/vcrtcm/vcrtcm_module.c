@@ -53,13 +53,13 @@ static void __exit vcrtcm_exit(void)
 	   (we have no other choice) */
 	mutex_lock(&vcrtcm_dev_list_mutex);
 	list_for_each_entry_safe(vcrtcm_dev_info, tmp, &vcrtcm_dev_list, list) {
-		mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
-		VCRTCM_INFO("removing HAL %d.%d.%d\n",
+		mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
+		VCRTCM_INFO("removing pcon %d.%d.%d\n",
 			    vcrtcm_dev_info->hw_major,
 			    vcrtcm_dev_info->hw_minor,
 			    vcrtcm_dev_info->hw_flow);
-		if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
-			VCRTCM_INFO("HAL in use by CRTC %p, forcing detach\n",
+		if (vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 				    vcrtcm_dev_info->drm_crtc);
 			if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.detach)
 				vcrtcm_dev_info->
@@ -72,7 +72,7 @@ static void __exit vcrtcm_exit(void)
 					gpu_funcs.detach(vcrtcm_dev_info->drm_crtc);
 		}
 		list_del(&vcrtcm_dev_info->list);
-		mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
+		mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
 		kfree(vcrtcm_dev_info);
 	}
 	mutex_unlock(&vcrtcm_dev_list_mutex);

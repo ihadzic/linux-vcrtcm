@@ -147,7 +147,7 @@ int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
 
-	PR_INFO("Attaching vl2pcon %d to HAL %p\n",
+	PR_INFO("Attaching vl2pcon %d to pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
 
 	if (v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor) {
@@ -186,7 +186,7 @@ int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 
 		v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor = vhd;
 
-		PR_INFO("v4l2pcon %d now serves HAL %p\n", v4l2pcon_info->minor,
+		PR_INFO("v4l2pcon %d now serves pcon %p\n", v4l2pcon_info->minor,
 			vcrtcm_pcon_info);
 
 		return 0;
@@ -199,7 +199,7 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
-	PR_INFO("Detaching v4l2pcon %d from HAL %p\n",
+	PR_INFO("Detaching v4l2pcon %d from pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_gpu_sync(vcrtcm_pcon_info);
@@ -235,7 +235,7 @@ int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 
 	/* TODO: Do we need this? */
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -296,7 +296,7 @@ int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -359,7 +359,7 @@ int v4l2pcon_set_fps(int fps, void *hw_drv_info, int flow)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -400,7 +400,7 @@ int v4l2pcon_get_fps(int *fps, void *hw_drv_info, int flow)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -428,7 +428,7 @@ int v4l2pcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -486,7 +486,7 @@ int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -507,7 +507,7 @@ int v4l2pcon_set_dpms(int state, void *hw_drv_info, int flow)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -527,7 +527,7 @@ int v4l2pcon_get_dpms(int *state, void *hw_drv_info, int flow)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -575,7 +575,7 @@ void v4l2pcon_fake_vblank(struct work_struct *work)
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	if (!vhd) {
-		PR_ERR("v4l2pcon_fake_vblank: Cannot find HAL descriptor\n");
+		PR_ERR("v4l2pcon_fake_vblank: Cannot find pcon descriptor\n");
 		return;
 	}
 

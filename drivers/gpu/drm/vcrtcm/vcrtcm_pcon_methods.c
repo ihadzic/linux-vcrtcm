@@ -23,9 +23,9 @@
 #include "vcrtcm_private.h"
 
 /* called by the pixel consumer (PCON) to
-   register its implementation with HAL; the PCON can also provide
+   register itself implementation with vcrtcm; the PCON can also provide
    pointers to back-end functions (functions that get called after
-   generic HAL function is executed) */
+   generic PCON function is executed) */
 int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_hw_props *vcrtcm_hw_props,
 		  int major, int minor, int flow, void *hw_drv_info)
@@ -38,11 +38,11 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		if ((vcrtcm_dev_info->hw_major == major) &&
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
-			/* if the HAL already exists, we just overwrite
+			/* if the PCON already exists, we just overwrite
 			   the provided functions (assuming that the PCON
 			   that called us knows what it's doing */
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
-			VCRTCM_WARNING("found an existing HAL %d.%d.%d, "
+			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
+			VCRTCM_WARNING("found an existing pcon %d.%d.%d, "
 				       "refreshing its implementation\n",
 				       vcrtcm_dev_info->hw_major,
 				       vcrtcm_dev_info->hw_minor,
@@ -52,7 +52,7 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props,
 			       vcrtcm_hw_props, sizeof(struct vcrtcm_hw_props));
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
-				     hal_mutex);
+				     mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
 			return 0;
 		}
@@ -60,21 +60,21 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	mutex_unlock(&vcrtcm_dev_list_mutex);
 
 	/* if we got here, then we are dealing with a new implementation
-	   and we have to allocate and populate the HAL structure */
+	   and we have to allocate and populate the PCON structure */
 	vcrtcm_dev_info = kmalloc(sizeof(struct vcrtcm_dev_info), GFP_KERNEL);
 	if (vcrtcm_dev_info == NULL)
 		return -ENOMEM;
 
-	/* populate the HAL structures (no need to hold the hal_mutex
+	/* populate the PCON structures (no need to hold the mutex
 	   because no one else sees this structure yet) */
 	spin_lock_init(&vcrtcm_dev_info->lock);
-	mutex_init(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
+	mutex_init(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
 	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.funcs, vcrtcm_pcon_funcs,
 	       sizeof(struct vcrtcm_pcon_funcs));
 	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props, vcrtcm_hw_props,
 	       sizeof(struct vcrtcm_hw_props));
 
-	/* populate the info structure and link it to the HAL structure */
+	/* populate the info structure and link it to the PCON structure */
 	vcrtcm_dev_info->status = 0;
 	vcrtcm_dev_info->hw_major = major;
 	vcrtcm_dev_info->hw_minor = minor;
@@ -87,11 +87,11 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	memset(&vcrtcm_dev_info->gpu_funcs, 0,
 	       sizeof(struct vcrtcm_gpu_funcs));
 
-	VCRTCM_INFO("adding new HAL %d.%d.%d\n",
+	VCRTCM_INFO("adding new pcon %d.%d.%d\n",
 		    vcrtcm_dev_info->hw_major,
 		    vcrtcm_dev_info->hw_minor, vcrtcm_dev_info->hw_flow);
 
-	/* make the new HAL available to the rest of the system */
+	/* make the new PCON available to the rest of the system */
 	mutex_lock(&vcrtcm_dev_list_mutex);
 	list_add(&vcrtcm_dev_info->list, &vcrtcm_dev_list);
 	mutex_unlock(&vcrtcm_dev_list_mutex);
@@ -101,7 +101,7 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 EXPORT_SYMBOL(vcrtcm_hw_add);
 
 /* called by the pixel consumer (PCON)
-   (typically on exit) to unregister its implementation with HAL */
+   (typically on exit) to unregister its implementation with PCON */
 void vcrtcm_hw_del(int major, int minor, int flow)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
@@ -113,18 +113,18 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 		    (vcrtcm_dev_info->hw_minor == minor) &&
 		    (vcrtcm_dev_info->hw_flow == flow)) {
 			unsigned long flags;
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.hal_mutex);
-			VCRTCM_INFO("found an existing HAL %d.%d.%d "
+			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
+			VCRTCM_INFO("found an existing pcon %d.%d.%d "
 				    "removing\n",
 				    vcrtcm_dev_info->hw_major,
 				    vcrtcm_dev_info->hw_minor,
 				    vcrtcm_dev_info->hw_flow);
 			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-			if (vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
-				vcrtcm_dev_info->status &= ~VCRTCM_STATUS_HAL_IN_USE;
+			if (vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+				vcrtcm_dev_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
 						       flags);
-				VCRTCM_INFO("HAL in use by CRTC %p, "
+				VCRTCM_INFO("pcon in use by CRTC %p, "
 					    "forcing detach\n",
 					    vcrtcm_dev_info->drm_crtc);
 				if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.detach)
@@ -141,7 +141,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 						       flags);
 			list_del(&vcrtcm_dev_info->list);
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
-				     hal_mutex);
+				     mutex);
 			kfree(vcrtcm_dev_info);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
 			return;
@@ -151,7 +151,7 @@ void vcrtcm_hw_del(int major, int minor, int flow)
 
 	/* if we got here, then the caller is attempting to remove something
 	   that does not exist */
-	VCRTCM_WARNING("requested HAL %d.%d.%d not found\n",
+	VCRTCM_WARNING("requested pcon %d.%d.%d not found\n",
 		       major, minor, flow);
 }
 EXPORT_SYMBOL(vcrtcm_hw_del);
@@ -167,7 +167,7 @@ void vcrtcm_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			 vcrtcm_pcon_info);
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
 
-	VCRTCM_INFO("waiting for GPU HAL %d.%d.%d\n",
+	VCRTCM_INFO("waiting for GPU pcon %d.%d.%d\n",
 		    vcrtcm_dev_info->hw_major,
 		    vcrtcm_dev_info->hw_minor, vcrtcm_dev_info->hw_flow);
 	jiffies_snapshot = jiffies;
@@ -194,7 +194,7 @@ void vcrtcm_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_HAL_IN_USE) {
+	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
 		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 		return;
@@ -203,7 +203,7 @@ void vcrtcm_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	vcrtcm_dev_info->vblank_time_valid = 1;
 	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	if (vcrtcm_dev_info->gpu_funcs.vblank) {
-		VCRTCM_DEBUG("emulating vblank event for HAL %d.%d.%d\n",
+		VCRTCM_DEBUG("emulating vblank event for pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -227,7 +227,7 @@ int vcrtcm_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		int r;
 		r = vcrtcm_dev_info->gpu_funcs.pb_alloc(dev, pbd);
 		obj = pbd->gpu_private;
-		VCRTCM_DEBUG("HAL %d.%d.%d "
+		VCRTCM_DEBUG("pcon %d.%d.%d "
 			     "allocated push buffer name=%d, size=%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
@@ -249,7 +249,7 @@ void vcrtcm_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	struct drm_gem_object *obj = pbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_funcs.pb_free) {
-		VCRTCM_DEBUG("HAL %d.%d.%d "
+		VCRTCM_DEBUG("pcon %d.%d.%d "
 			     "freeing push buffer name=%d, size=%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
@@ -278,7 +278,7 @@ int vcrtcm_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	struct drm_gem_object *push_buffer_cursor = cpbd->gpu_private;
 
 	if (vcrtcm_dev_info->gpu_funcs.push) {
-		VCRTCM_DEBUG("push for HAL  %d.%d.%d\n",
+		VCRTCM_DEBUG("push for pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -290,7 +290,7 @@ int vcrtcm_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 EXPORT_SYMBOL(vcrtcm_push);
 
 /* called by the PCON to signal hotplug event on a CRTC
- * attached to the specified HAL
+ * attached to the specified PCON
  */
 void vcrtcm_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
@@ -301,7 +301,7 @@ void vcrtcm_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 	if (vcrtcm_dev_info->gpu_funcs.hotplug) {
 		vcrtcm_dev_info->gpu_funcs.hotplug(crtc);
-		VCRTCM_DEBUG("HAL %d.%d.%d hotplug\n",
+		VCRTCM_DEBUG("pcon %d.%d.%d hotplug\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);

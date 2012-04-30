@@ -59,7 +59,7 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state);
 int vcrtcm_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			   struct timeval *vblank_time);
 void vcrtcm_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int vcrtcm_hal_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status);
+int vcrtcm_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status);
 int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     struct vcrtcm_mode **modes, int *count);
 int vcrtcm_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,

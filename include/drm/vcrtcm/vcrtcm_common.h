@@ -68,8 +68,8 @@ struct vcrtcm_mode {
 
 #define VCRTCM_PFLIP_DEFERRED 1
 
-#define VCRTCM_HAL_DISCONNECTED 0
-#define VCRTCM_HAL_CONNECTED    1
+#define VCRTCM_PCON_DISCONNECTED 0
+#define VCRTCM_PCON_CONNECTED    1
 
 #define VCRTCM_MODE_OK  0
 #define VCRTCM_MODE_BAD 1
@@ -127,7 +127,7 @@ struct vcrtcm_hw_props {
 /* The GPU driver interacts with the PCON by calling the */
 /* vcrtcm_pcon_funcs provided in this structure */
 struct vcrtcm_pcon_info {
-	struct mutex hal_mutex;
+	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_hw_props hw_props;
 };

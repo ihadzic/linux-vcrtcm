@@ -204,11 +204,11 @@ radeon_virtual_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 
 	/* otherwise ask VCRTCM */
-	r = vcrtcm_hal_connected(radeon_crtc->vcrtcm_pcon_info,
+	r = vcrtcm_pcon_connected(radeon_crtc->vcrtcm_pcon_info,
 				 &connected_status);
 	if (r)
 		return connector_status_unknown;
-	if (connected_status == VCRTCM_HAL_CONNECTED)
+	if (connected_status == VCRTCM_PCON_CONNECTED)
 		return connector_status_connected;
 	else
 		return connector_status_disconnected;

@@ -148,7 +148,7 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
 
-	PR_INFO("Attaching udlpcon %d to HAL %p\n",
+	PR_INFO("Attaching udlpcon %d to pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
 
 	if (udlpcon_info->udlpcon_vcrtcm_hal_descriptor) {
@@ -196,7 +196,7 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		queue_delayed_work(udlpcon_info->workqueue,
 					&udlpcon_info->query_edid_work, 0);
 
-		PR_INFO("udlpcon %d now serves HAL %p\n", udlpcon_info->minor,
+		PR_INFO("udlpcon %d now serves pcon %p\n", udlpcon_info->minor,
 			vcrtcm_pcon_info);
 
 		return 0;
@@ -209,7 +209,7 @@ void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
-	PR_INFO("Detaching udlpcon %d from HAL %p\n",
+	PR_INFO("Detaching udlpcon %d from pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_gpu_sync(vcrtcm_pcon_info);
@@ -252,7 +252,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 
 	/* TODO: Do we need this? */
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -337,7 +337,7 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -401,7 +401,7 @@ int udlpcon_set_fps(int fps, void *hw_drv_info, int flow)
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -442,7 +442,7 @@ int udlpcon_get_fps(int *fps, void *hw_drv_info, int flow)
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -470,7 +470,7 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -528,7 +528,7 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -549,7 +549,7 @@ int udlpcon_set_dpms(int state, void *hw_drv_info, int flow)
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -575,7 +575,7 @@ int udlpcon_get_dpms(int *state, void *hw_drv_info, int flow)
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("Cannot find HAL descriptor\n");
+		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
@@ -591,10 +591,10 @@ int udlpcon_connected(void *hw_drv_info, int flow, int *status)
 
 	if (udlpcon_info->monitor_connected) {
 		PR_DEBUG("...connected\n");
-		*status = VCRTCM_HAL_CONNECTED;
+		*status = VCRTCM_PCON_CONNECTED;
 	} else {
 		PR_DEBUG("...not connected\n");
-		*status = VCRTCM_HAL_DISCONNECTED;
+		*status = VCRTCM_PCON_DISCONNECTED;
 	}
 	return 0;
 }
@@ -735,7 +735,7 @@ void udlpcon_fake_vblank(struct work_struct *work)
 	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 
 	if (!uvhd) {
-		PR_ERR("udlpcon_fake_vblank: Cannot find HAL descriptor\n");
+		PR_ERR("udlpcon_fake_vblank: Cannot find pcon descriptor\n");
 		return;
 	}
 
