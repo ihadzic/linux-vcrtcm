@@ -25,7 +25,7 @@
 
 
 static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_vcrtcm_hal_descriptor *uvhd, int flag)
+		struct udlpcon_flow_info *uvhd, int flag)
 {
 	int i;
 
@@ -50,7 +50,7 @@ static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
 }
 
 static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_vcrtcm_hal_descriptor *uvhd,
+		struct udlpcon_flow_info *uvhd,
 		int requested_num_pages, int flag)
 {
 	int i;
@@ -151,13 +151,13 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	PR_INFO("Attaching udlpcon %d to pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
 
-	if (udlpcon_info->udlpcon_vcrtcm_hal_descriptor) {
+	if (udlpcon_info->udlpcon_flow_info) {
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
-		struct udlpcon_vcrtcm_hal_descriptor
+		struct udlpcon_flow_info
 			*uvhd = udlpcon_kzalloc(udlpcon_info,
-				sizeof(struct udlpcon_vcrtcm_hal_descriptor),
+				sizeof(struct udlpcon_flow_info),
 				GFP_KERNEL);
 		if (uvhd == NULL) {
 			PR_ERR("attach: no memory\n");
@@ -186,7 +186,7 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		uvhd->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
 
-		udlpcon_info->udlpcon_vcrtcm_hal_descriptor =
+		udlpcon_info->udlpcon_flow_info =
 			uvhd;
 
 		/* Do an initial query of the EDID */
@@ -207,13 +207,13 @@ void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_INFO("Detaching udlpcon %d from pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_pcon_gpu_sync(vcrtcm_pcon_info);
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	cancel_delayed_work_sync(&udlpcon_info->fake_vblank_work);
 	cancel_delayed_work_sync(&udlpcon_info->query_edid_work);
@@ -224,7 +224,7 @@ void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		udlpcon_free_pb(udlpcon_info, uvhd, UDLPCON_ALLOC_PB_FLAG_FB);
 		udlpcon_free_pb(udlpcon_info, uvhd, UDLPCON_ALLOC_PB_FLAG_CURSOR);
 
-		udlpcon_info->udlpcon_vcrtcm_hal_descriptor = NULL;
+		udlpcon_info->udlpcon_flow_info = NULL;
 		udlpcon_kfree(udlpcon_info, uvhd);
 
 		udlpcon_info->main_buffer = NULL;
@@ -238,7 +238,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 	struct udlpcon_video_mode *udlpcon_video_modes;
 	int udlpcon_mode_count = 0;
 	int found_mode = 0;
@@ -248,7 +248,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 
 	PR_DEBUG("In udlpcon_set_fb, minor %d.\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	/* TODO: Do we need this? */
 	if (!uvhd) {
@@ -331,10 +331,10 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("In udlpcon_get_fb, minor %d.\n", udlpcon_info->minor);
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -349,7 +349,7 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("in udlpcon_dirty_fb, minor %d\n", udlpcon_info->minor);
 
@@ -357,7 +357,7 @@ int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 	 * does the rest (when called).
 	 */
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (uvhd)
 		uvhd->fb_force_xmit = 1;
@@ -393,12 +393,12 @@ int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
 int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 	unsigned long jiffies_snapshot;
 
 	PR_DEBUG("udlpcon_set_fps, fps %d.\n", fps);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -435,11 +435,11 @@ int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("udlpcon_get_fps.\n");
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -461,13 +461,13 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -521,11 +521,11 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -541,12 +541,12 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("in udlpcon_set_dpms, minor %d, state %d\n",
 			udlpcon_info->minor, state);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -567,12 +567,12 @@ int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 
 	PR_DEBUG("in udlpcon_get_dpms, minor %d\n",
 			udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -700,8 +700,8 @@ int udlpcon_check_mode(void *udlpcon_info_, int flow,
 void udlpcon_disable(void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd =
-			udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	struct udlpcon_flow_info *uvhd =
+			udlpcon_info->udlpcon_flow_info;
 
 	mutex_lock(&udlpcon_info->buffer_mutex);
 	uvhd->fb_xmit_allowed = 0;
@@ -714,7 +714,7 @@ void udlpcon_fake_vblank(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct udlpcon_info *udlpcon_info =
 		container_of(delayed_work, struct udlpcon_info, fake_vblank_work);
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 	/*static long last_snapshot = 0;*/
 
 	unsigned long jiffies_snapshot = 0;
@@ -732,7 +732,7 @@ void udlpcon_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	if (!uvhd) {
 		PR_ERR("udlpcon_fake_vblank: Cannot find pcon descriptor\n");
@@ -779,7 +779,7 @@ void udlpcon_fake_vblank(struct work_struct *work)
 	return;
 }
 
-int udlpcon_do_xmit_fb_push(struct udlpcon_vcrtcm_hal_descriptor *uvhd)
+int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 {
 	struct udlpcon_info *udlpcon_info = uvhd->udlpcon_info;
 	unsigned long jiffies_snapshot;

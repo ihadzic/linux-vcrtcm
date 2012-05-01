@@ -184,7 +184,7 @@ static int udlpcon_usb_probe(struct usb_interface *interface,
 	udlpcon_info->workqueue =
 			alloc_workqueue("udlpcon_workers", WQ_MEM_RECLAIM, 5);
 
-	udlpcon_info->udlpcon_vcrtcm_hal_descriptor = NULL;
+	udlpcon_info->udlpcon_flow_info = NULL;
 	udlpcon_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlpcon_info->fake_vblank_work, udlpcon_fake_vblank);
@@ -390,7 +390,7 @@ int udlpcon_transmit_framebuffer(struct udlpcon_info *udlpcon_info)
 	int yres = udlpcon_info->current_video_mode.yres;
 	int bytes_per_pixel = udlpcon_info->bpp / 8;
 	struct vcrtcm_fb *vcrtcm_fb =
-			&udlpcon_info->udlpcon_vcrtcm_hal_descriptor->vcrtcm_fb;
+			&udlpcon_info->udlpcon_flow_info->vcrtcm_fb;
 
 	start_cycles = get_cycles();
 
@@ -570,7 +570,7 @@ int udlpcon_free_modelist(struct udlpcon_info *udlpcon_info,
 /* but is also called once by attach */
 void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 {
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
+	struct udlpcon_flow_info *uvhd;
 	struct fb_monspecs monspecs;
 	char *new_edid, *old_edid;
 	int new_edid_valid = 0;
@@ -580,7 +580,7 @@ void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 
 	PR_DEBUG("In udlpcon_query_edid\n");
 
-	uvhd = udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	uvhd = udlpcon_info->udlpcon_flow_info;
 
 	new_edid = udlpcon_kmalloc(udlpcon_info, EDID_LENGTH, GFP_KERNEL);
 
@@ -888,8 +888,8 @@ static int udlpcon_render_hline(struct udlpcon_info *udlpcon_info, struct urb **
 	u8 *cmd_end = (u8 *) urb->transfer_buffer +
 				urb->transfer_buffer_length;
 
-	struct udlpcon_vcrtcm_hal_descriptor *uvhd =
-			udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
+	struct udlpcon_flow_info *uvhd =
+			udlpcon_info->udlpcon_flow_info;
 	struct vcrtcm_cursor *vcrtcm_cursor = &uvhd->vcrtcm_cursor;
 	struct vcrtcm_fb *vcrtcm_fb = &uvhd->vcrtcm_fb;
 
@@ -917,7 +917,7 @@ static int udlpcon_render_hline(struct udlpcon_info *udlpcon_info, struct urb **
 	/*
 	 * Overlay the cursor
 	 */
-	if (udlpcon_info->udlpcon_vcrtcm_hal_descriptor && udlpcon_info->cursor) {
+	if (udlpcon_info->udlpcon_flow_info && udlpcon_info->cursor) {
 		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
 		    line_num >= vcrtcm_cursor->location_y &&
 		    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {

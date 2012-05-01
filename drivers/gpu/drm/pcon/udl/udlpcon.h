@@ -101,7 +101,7 @@ struct udlpcon_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct udlpcon_vcrtcm_hal_descriptor *udlpcon_vcrtcm_hal_descriptor;
+	struct udlpcon_flow_info *udlpcon_flow_info;
 	struct mutex buffer_mutex;
 	spinlock_t udlpcon_lock;
 	int enabled_queue;
@@ -154,7 +154,7 @@ struct udlpcon_info {
 	int vmalloc_track;
 };
 
-struct udlpcon_vcrtcm_hal_descriptor {
+struct udlpcon_flow_info {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
