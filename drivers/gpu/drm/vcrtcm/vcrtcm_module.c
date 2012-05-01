@@ -65,7 +65,7 @@ static void __exit vcrtcm_exit(void)
 				vcrtcm_dev_info->
 				    vcrtcm_pcon_info.funcs.
 				    detach(&vcrtcm_dev_info->vcrtcm_pcon_info,
-					   vcrtcm_dev_info->hw_drv_info,
+					   vcrtcm_dev_info->pcon_cookie,
 					   vcrtcm_dev_info->hw_flow);
 			if (vcrtcm_dev_info->gpu_funcs.detach)
 				vcrtcm_dev_info->

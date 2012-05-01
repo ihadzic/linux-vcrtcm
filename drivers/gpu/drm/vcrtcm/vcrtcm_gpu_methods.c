@@ -64,7 +64,7 @@ int vcrtcm_gpu_attach(int major, int minor, int flow,
 				r = vcrtcm_dev_info->
 				    vcrtcm_pcon_info.funcs.
 				    attach(&vcrtcm_dev_info->vcrtcm_pcon_info,
-					   vcrtcm_dev_info->hw_drv_info,
+					   vcrtcm_dev_info->pcon_cookie,
 					   vcrtcm_dev_info->hw_flow);
 				if (r) {
 					VCRTCM_ERROR("back-end attach call failed\n");
@@ -140,7 +140,7 @@ int vcrtcm_gpu_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		vcrtcm_dev_info->
 		    vcrtcm_pcon_info.funcs.detach(&vcrtcm_dev_info->
 						vcrtcm_pcon_info,
-						vcrtcm_dev_info->hw_drv_info,
+						vcrtcm_dev_info->pcon_cookie,
 						vcrtcm_dev_info->hw_flow);
 	if (vcrtcm_dev_info->gpu_funcs.detach)
 		vcrtcm_dev_info->gpu_funcs.detach(vcrtcm_dev_info->drm_crtc);
@@ -177,7 +177,7 @@ int vcrtcm_gpu_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_fb(vcrtcm_fb,
-						 vcrtcm_dev_info->hw_drv_info,
+						 vcrtcm_dev_info->pcon_cookie,
 						 vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %d.%d.%d\n",
@@ -209,7 +209,7 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_fb(vcrtcm_fb,
-						 vcrtcm_dev_info->hw_drv_info,
+						 vcrtcm_dev_info->pcon_cookie,
 						 vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing get_fb backend, pcon %d.%d.%d\n",
@@ -246,7 +246,7 @@ int vcrtcm_gpu_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	/* semaphore grabbing allowed */
 	if (vcrtcm_pcon_info->funcs.page_flip)
 		r = vcrtcm_pcon_info->funcs.page_flip(ioaddr,
-						    vcrtcm_dev_info->hw_drv_info,
+						    vcrtcm_dev_info->pcon_cookie,
 						    vcrtcm_dev_info->hw_flow);
 	else
 		r = 0;
@@ -275,7 +275,7 @@ int vcrtcm_gpu_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_dev_info->drm_crtc,
-						  vcrtcm_dev_info->hw_drv_info,
+						  vcrtcm_dev_info->pcon_cookie,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %d.%d.%d\n",
@@ -307,7 +307,7 @@ int vcrtcm_gpu_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.wait_fb(vcrtcm_dev_info->drm_crtc,
-						  vcrtcm_dev_info->hw_drv_info,
+						  vcrtcm_dev_info->pcon_cookie,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing wait_fb backend, pcon %d.%d.%d\n",
@@ -336,7 +336,7 @@ int vcrtcm_gpu_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_fb_status(vcrtcm_dev_info->drm_crtc,
-							vcrtcm_dev_info->hw_drv_info,
+							vcrtcm_dev_info->pcon_cookie,
 							vcrtcm_dev_info->hw_flow,
 							status);
 	} else {
@@ -365,7 +365,7 @@ int vcrtcm_gpu_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_fps(fps,
-						  vcrtcm_dev_info->hw_drv_info,
+						  vcrtcm_dev_info->pcon_cookie,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing set_fps backend, pcon %d.%d.%d\n",
@@ -394,7 +394,7 @@ int vcrtcm_gpu_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_fps(fps,
-						  vcrtcm_dev_info->hw_drv_info,
+						  vcrtcm_dev_info->pcon_cookie,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing get_fps backend, pcon %d.%d.%d\n",
@@ -432,7 +432,7 @@ int vcrtcm_gpu_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_cursor(vcrtcm_cursor,
 						     vcrtcm_dev_info->
-						     hw_drv_info,
+						     pcon_cookie,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing set_cursor backend, pcon %d.%d.%d\n",
@@ -465,7 +465,7 @@ int vcrtcm_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_cursor(vcrtcm_cursor,
 						     vcrtcm_dev_info->
-						     hw_drv_info,
+						     pcon_cookie,
 						     vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing get_fb backend, pcon %d.%d.%d\n",
@@ -494,7 +494,7 @@ int vcrtcm_gpu_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_dpms(state,
-						   vcrtcm_dev_info->hw_drv_info,
+						   vcrtcm_dev_info->pcon_cookie,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon %d.%d.%d\n",
@@ -523,7 +523,7 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_dpms(state,
-						   vcrtcm_dev_info->hw_drv_info,
+						   vcrtcm_dev_info->pcon_cookie,
 						   vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing get_dpms backend, pcon %d.%d.%d\n",
@@ -600,7 +600,7 @@ int vcrtcm_gpu_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *st
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_dev_info->hw_drv_info,
+		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_dev_info->pcon_cookie,
 						    vcrtcm_dev_info->hw_flow,
 						    status);
 	} else {
@@ -655,7 +655,7 @@ int vcrtcm_gpu_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_dev_info->hw_drv_info,
+		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_dev_info->pcon_cookie,
 						    vcrtcm_dev_info->hw_flow,
 						    modes,
 						    count);
@@ -693,7 +693,7 @@ int vcrtcm_gpu_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_dev_info->hw_drv_info,
+		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_dev_info->pcon_cookie,
 						     vcrtcm_dev_info->hw_flow,
 						     mode,
 						     status);
@@ -729,7 +729,7 @@ void vcrtcm_gpu_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			vcrtcm_dev_info->hw_minor,
 			vcrtcm_dev_info->hw_flow);
 
-		vcrtcm_pcon_info->funcs.disable(vcrtcm_dev_info->hw_drv_info,
+		vcrtcm_pcon_info->funcs.disable(vcrtcm_dev_info->pcon_cookie,
 					      vcrtcm_dev_info->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %d.%d.%d\n",

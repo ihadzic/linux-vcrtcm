@@ -34,7 +34,7 @@
 /* setup/config functions */
 int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
-		  int major, int minor, int flow, void *hw_drv_info);
+		  int major, int minor, int flow, void *pcon_cookie);
 void vcrtcm_pcon_del(int major, int minor, int flow);
 
 /* functions for use by PCON in operational state */

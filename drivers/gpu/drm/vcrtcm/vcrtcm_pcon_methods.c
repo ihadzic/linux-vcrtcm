@@ -28,7 +28,7 @@
    generic PCON function is executed) */
 int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
-		  int major, int minor, int flow, void *hw_drv_info)
+		  int major, int minor, int flow, void *pcon_cookie)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
 
@@ -79,7 +79,7 @@ int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	vcrtcm_dev_info->hw_major = major;
 	vcrtcm_dev_info->hw_minor = minor;
 	vcrtcm_dev_info->hw_flow = flow;
-	vcrtcm_dev_info->hw_drv_info = hw_drv_info;
+	vcrtcm_dev_info->pcon_cookie = pcon_cookie;
 	vcrtcm_dev_info->vblank_time_valid = 0;
 	vcrtcm_dev_info->vblank_time.tv_sec = 0;
 	vcrtcm_dev_info->vblank_time.tv_usec = 0;
@@ -131,7 +131,7 @@ void vcrtcm_pcon_del(int major, int minor, int flow)
 					vcrtcm_dev_info->vcrtcm_pcon_info.funcs.
 					    detach(&vcrtcm_dev_info->
 						   vcrtcm_pcon_info,
-						   vcrtcm_dev_info->hw_drv_info,
+						   vcrtcm_dev_info->pcon_cookie,
 						   vcrtcm_dev_info->hw_flow);
 				if (vcrtcm_dev_info->gpu_funcs.detach)
 					vcrtcm_dev_info->

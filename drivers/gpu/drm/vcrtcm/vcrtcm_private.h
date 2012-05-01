@@ -43,7 +43,7 @@ struct vcrtcm_dev_info {
 	struct timeval vblank_time;
 	int vblank_time_valid;
 	/* pointer back to the (hardware) specific PCON structure */
-	void *hw_drv_info;
+	void *pcon_cookie;
 	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
 	/* functional interface to GPU driver */
