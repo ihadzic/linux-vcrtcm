@@ -24,7 +24,7 @@
 #include "vcrtcm/vcrtcm_pcon.h"
 
 static void v4l2pcon_free_pb(struct v4l2pcon_info *v4l2pcon_info,
-		struct v4l2pcon_vcrtcm_hal_descriptor *vhd, int flag)
+		struct v4l2pcon_flow_info *vhd, int flag)
 {
 	int i;
 
@@ -49,7 +49,7 @@ static void v4l2pcon_free_pb(struct v4l2pcon_info *v4l2pcon_info,
 }
 
 static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
-		struct v4l2pcon_vcrtcm_hal_descriptor *vhd,
+		struct v4l2pcon_flow_info *vhd,
 		int requested_num_pages, int flag)
 {
 	int i;
@@ -150,13 +150,13 @@ int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	PR_INFO("Attaching vl2pcon %d to pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
 
-	if (v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor) {
+	if (v4l2pcon_info->v4l2pcon_flow_info) {
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
-		struct v4l2pcon_vcrtcm_hal_descriptor
+		struct v4l2pcon_flow_info
 			*vhd = v4l2pcon_kzalloc(v4l2pcon_info,
-				sizeof(struct v4l2pcon_vcrtcm_hal_descriptor),
+				sizeof(struct v4l2pcon_flow_info),
 				GFP_KERNEL);
 		if (vhd == NULL) {
 			PR_ERR("attach: no memory\n");
@@ -184,7 +184,7 @@ int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 
 		vhd->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 
-		v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor = vhd;
+		v4l2pcon_info->v4l2pcon_flow_info = vhd;
 
 		PR_INFO("v4l2pcon %d now serves pcon %p\n", v4l2pcon_info->minor,
 			vcrtcm_pcon_info);
@@ -197,13 +197,13 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_INFO("Detaching v4l2pcon %d from pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_pcon_gpu_sync(vcrtcm_pcon_info);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	cancel_delayed_work_sync(&v4l2pcon_info->fake_vblank_work);
 
@@ -213,7 +213,7 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		v4l2pcon_free_pb(v4l2pcon_info, vhd, V4L2PCON_ALLOC_PB_FLAG_FB);
 		v4l2pcon_free_pb(v4l2pcon_info, vhd, V4L2PCON_ALLOC_PB_FLAG_CURSOR);
 
-		v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor = NULL;
+		v4l2pcon_info->v4l2pcon_flow_info = NULL;
 		v4l2pcon_kfree(v4l2pcon_info, vhd);
 
 		v4l2pcon_info->main_buffer = NULL;
@@ -224,14 +224,14 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint32_t w, h, sb_size;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In v4l2pcon_set_fb, minor %d.\n", v4l2pcon_info->minor);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	/* TODO: Do we need this? */
 	if (!vhd) {
@@ -290,10 +290,10 @@ int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("In v4l2pcon_get_fb, minor %d.\n", v4l2pcon_info->minor);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -308,7 +308,7 @@ int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("in v4l2pcon_dirty_fb, minor %d\n", v4l2pcon_info->minor);
 
@@ -316,7 +316,7 @@ int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow)
 	 * does the rest (when called).
 	 */
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (vhd)
 		vhd->fb_force_xmit = 1;
@@ -351,12 +351,12 @@ int v4l2pcon_get_fb_status(struct drm_crtc *drm_crtc,
 int v4l2pcon_set_fps(int fps, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	unsigned long jiffies_snapshot;
 
 	PR_DEBUG("v4l2pcon_set_fps, fps %d.\n", fps);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -393,11 +393,11 @@ int v4l2pcon_set_fps(int fps, void *v4l2pcon_info_, int flow)
 int v4l2pcon_get_fps(int *fps, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("v4l2pcon_get_fps.\n");
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -419,13 +419,13 @@ int v4l2pcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In v4l2pcon_set_cursor, minor %d\n", v4l2pcon_info->minor);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -479,11 +479,11 @@ int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("In v4l2pcon_set_cursor, minor %d\n", v4l2pcon_info->minor);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -499,12 +499,12 @@ int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int v4l2pcon_set_dpms(int state, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("in v4l2pcon_set_dpms, minor %d, state %d\n",
 			v4l2pcon_info->minor, state);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -519,12 +519,12 @@ int v4l2pcon_set_dpms(int state, void *v4l2pcon_info_, int flow)
 int v4l2pcon_get_dpms(int *state, void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	PR_DEBUG("in v4l2pcon_get_dpms, minor %d\n",
 			v4l2pcon_info->minor);
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -539,8 +539,8 @@ int v4l2pcon_get_dpms(int *state, void *v4l2pcon_info_, int flow)
 void v4l2pcon_disable(void *v4l2pcon_info_, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *)v4l2pcon_info_;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd =
-			v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	struct v4l2pcon_flow_info *vhd =
+			v4l2pcon_info->v4l2pcon_flow_info;
 
 	mutex_lock(&v4l2pcon_info->buffer_mutex);
 	vhd->fb_xmit_allowed = 0;
@@ -554,7 +554,7 @@ void v4l2pcon_fake_vblank(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct v4l2pcon_info *v4l2pcon_info =
 		container_of(delayed_work, struct v4l2pcon_info, fake_vblank_work);
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	/*static long last_snapshot = 0;*/
 
 	unsigned long jiffies_snapshot = 0;
@@ -572,7 +572,7 @@ void v4l2pcon_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 
 	if (!vhd) {
 		PR_ERR("v4l2pcon_fake_vblank: Cannot find pcon descriptor\n");
@@ -619,7 +619,7 @@ void v4l2pcon_fake_vblank(struct work_struct *work)
 	return;
 }
 
-int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_vcrtcm_hal_descriptor *vhd)
+int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_flow_info *vhd)
 {
 	struct v4l2pcon_info *v4l2pcon_info = vhd->v4l2pcon_info;
 	unsigned long jiffies_snapshot;

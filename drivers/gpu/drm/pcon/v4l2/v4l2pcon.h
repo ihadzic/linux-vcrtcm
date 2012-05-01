@@ -64,7 +64,7 @@ struct v4l2pcon_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct v4l2pcon_vcrtcm_hal_descriptor *v4l2pcon_vcrtcm_hal_descriptor;
+	struct v4l2pcon_flow_info *v4l2pcon_flow_info;
 	struct mutex buffer_mutex;
 	spinlock_t v4l2pcon_lock;
 	int enabled_queue;
@@ -102,7 +102,7 @@ struct v4l2pcon_info {
 	int vmalloc_track;
 };
 
-struct v4l2pcon_vcrtcm_hal_descriptor {
+struct v4l2pcon_flow_info {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;

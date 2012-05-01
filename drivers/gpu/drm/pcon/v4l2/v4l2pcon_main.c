@@ -124,7 +124,7 @@ static struct v4l2pcon_fmt *get_format(struct v4l2_format *f)
 static void
 v4l2pcon_fillbuff(struct v4l2pcon_info *v4l2pcon_info, struct videobuf_buffer *vb)
 {
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	struct timeval ts;
 	uint8_t *fb, *fbend, *dst;
 	uint32_t fbsize;
@@ -137,7 +137,7 @@ v4l2pcon_fillbuff(struct v4l2pcon_info *v4l2pcon_info, struct videobuf_buffer *v
 	dst = videobuf_to_vmalloc(vb);
 	if (!dst)
 		return;
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return;
 
@@ -312,12 +312,12 @@ static int
 buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pcon_info = vq->priv_data;
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -343,13 +343,13 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
 	v4l2pcon_info = vq->priv_data;
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -429,13 +429,13 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	struct v4l2pcon_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -462,14 +462,14 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	struct v4l2pcon_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 	enum v4l2_field field;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -503,13 +503,13 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	struct v4l2pcon_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -539,12 +539,12 @@ static ssize_t
 v4l2pcon_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -562,12 +562,12 @@ static unsigned int
 v4l2pcon_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -588,13 +588,13 @@ static int v4l2pcon_close(struct file *file)
 static int v4l2pcon_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fb = v4l2pcon_info->shadowbuf;
@@ -693,12 +693,12 @@ static int
 vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	struct v4l2_fract timeperframe;
 	int fps;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 	fps = HZ / vhd->fb_xmit_period_jiffies;
@@ -718,10 +718,10 @@ static int
 vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 
@@ -737,11 +737,11 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 					struct v4l2_frmsizeenum *fsize)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint32_t i;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 
@@ -763,12 +763,12 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 					struct v4l2_frmivalenum *fival)
 {
 	struct v4l2pcon_info *v4l2pcon_info;
-	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
+	struct v4l2pcon_flow_info *vhd;
 	uint32_t i;
 	int fps;
 
 	v4l2pcon_info = video_drvdata(file);
-	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
+	vhd = v4l2pcon_info->v4l2pcon_flow_info;
 	if (!vhd)
 		return -EINVAL;
 
@@ -997,7 +997,7 @@ static struct v4l2pcon_info *v4l2pcon_create_minor(int minor)
 
 	v4l2pcon_info->workqueue = create_workqueue("v4l2pcon_workers");
 
-	v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor = NULL;
+	v4l2pcon_info->v4l2pcon_flow_info = NULL;
 
 	INIT_DELAYED_WORK(&v4l2pcon_info->fake_vblank_work, v4l2pcon_fake_vblank);
 
