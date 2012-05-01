@@ -43,7 +43,7 @@ static void v4l2pcon_free_pb(struct v4l2pcon_info *v4l2pcon_info,
 		if (pbd->num_pages) {
 			BUG_ON(!pbd->gpu_private);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info, pbd);
+			vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info, pbd);
 		}
 	}
 }
@@ -63,7 +63,7 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 			pbd = &vhd->pbd_cursor[i];
 
 		pbd->num_pages = requested_num_pages;
-		r = vcrtcm_push_buffer_alloc(vhd->vcrtcm_pcon_info, pbd);
+		r = vcrtcm_pcon_push_buffer_alloc(vhd->vcrtcm_pcon_info, pbd);
 		if (r) {
 			PR_ERR("%s[%d]: push buffer alloc_failed\n",
 					V4L2PCON_ALLOC_PB_STRING(flag), i);
@@ -75,7 +75,7 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 		if (pbd->num_pages != requested_num_pages) {
 			PR_ERR("%s[%d]: incorrect size allocated\n",
 					V4L2PCON_ALLOC_PB_STRING(flag), i);
-			vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info, pbd);
+			vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info, pbd);
 			/* incorrect size in most cases means too few pages */
 			/* so it makes sense to return ENOMEM here */
 			r = -ENOMEM;
@@ -98,7 +98,7 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 			if (vhd->pb_fb[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info,
+				vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info,
 							&vhd->pbd_fb[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
@@ -113,7 +113,7 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 			if (vhd->pb_cursor[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info,
+				vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info,
 							&vhd->pbd_cursor[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
@@ -129,12 +129,12 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 		if (flag == V4L2PCON_ALLOC_PB_FLAG_FB) {
 			vm_unmap_ram(vhd->pbd_fb[0].pages,
 				vhd->pbd_fb[0].num_pages);
-			vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info,
+			vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info,
 						&vhd->pbd_fb[0]);
 		} else {
 			vm_unmap_ram(vhd->pbd_cursor[0].pages,
 					vhd->pbd_cursor[0].num_pages);
-			vcrtcm_push_buffer_free(vhd->vcrtcm_pcon_info,
+			vcrtcm_pcon_push_buffer_free(vhd->vcrtcm_pcon_info,
 						&vhd->pbd_cursor[0]);
 		}
 	}
@@ -202,7 +202,7 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	PR_INFO("Detaching v4l2pcon %d from pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
 
-	vcrtcm_gpu_sync(vcrtcm_pcon_info);
+	vcrtcm_pcon_gpu_sync(vcrtcm_pcon_info);
 	vhd = v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 
 	cancel_delayed_work_sync(&v4l2pcon_info->fake_vblank_work);
@@ -677,18 +677,18 @@ int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_vcrtcm_hal_descriptor *vhd)
 		v4l2pcon_info->status &= ~V4L2PCON_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pcon_info->v4l2pcon_lock, flags);
 
-		r = vcrtcm_push(vhd->vcrtcm_pcon_info,
+		r = vcrtcm_pcon_push(vhd->vcrtcm_pcon_info,
 				&vhd->pbd_fb[push_buffer_index],
 				&vhd->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_emulate_vblank(vhd->vcrtcm_pcon_info);
+			vcrtcm_pcon_emulate_vblank(vhd->vcrtcm_pcon_info);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for transmission in the next
-			 * vblank interval; note that call to vcrtcm_push only
+			 * vblank interval; note that call to vcrtcm_pcon_push only
 			 * initiates the push request to GPU; when GPU does it
 			 * is up to the GPU and doesn't matter as long as it is
 			 * within the frame transmission period (otherwise, we'll
@@ -709,7 +709,7 @@ int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_vcrtcm_hal_descriptor *vhd)
 		v4l2pcon_info->status &= ~V4L2PCON_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pcon_info->v4l2pcon_lock, flags);
 
-		vcrtcm_emulate_vblank(vhd->vcrtcm_pcon_info);
+		vcrtcm_pcon_emulate_vblank(vhd->vcrtcm_pcon_info);
 		PR_DEBUG("transmission not happening\n");
 	}
 

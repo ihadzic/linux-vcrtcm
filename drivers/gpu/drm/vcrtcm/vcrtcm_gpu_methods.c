@@ -26,7 +26,7 @@
    GPU driver *must* supply the pointer to its own drm_crtc
    structure that describes the CRTC and the pointer to a
    callback function to be called on detach */
-int vcrtcm_attach(int major, int minor, int flow,
+int vcrtcm_gpu_attach(int major, int minor, int flow,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_funcs,
 		  struct vcrtcm_pcon_info **vcrtcm_pcon_info)
@@ -103,7 +103,7 @@ int vcrtcm_attach(int major, int minor, int flow,
 	VCRTCM_ERROR("pcon %d.%d.%d not found\n", major, minor, flow);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(vcrtcm_attach);
+EXPORT_SYMBOL(vcrtcm_gpu_attach);
 
 /* called by the GPU driver to detach its CRTC from the
    pixel consumer (PCON)
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(vcrtcm_attach);
    GPU driver-side cleanup (at least the GPU must
    set the pointer to PCON to NULL and it may need to do
    additional (driver-dependent) cleanup */
-int vcrtcm_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int vcrtcm_gpu_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -151,7 +151,7 @@ int vcrtcm_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	return 0;
 
 }
-EXPORT_SYMBOL(vcrtcm_detach);
+EXPORT_SYMBOL(vcrtcm_gpu_detach);
 
 /* Emulates write/setup access to registers that
    define where the frame buffer associated with
@@ -162,7 +162,7 @@ EXPORT_SYMBOL(vcrtcm_detach);
    in the backend function; this function simply passes
    the register content and flow information to the back-end
    and lets the PCON deal with it */
-int vcrtcm_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
 	int r;
@@ -189,9 +189,9 @@ int vcrtcm_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_set_fb);
+EXPORT_SYMBOL(vcrtcm_gpu_set_fb);
 
-/* The opposite of vcrtcm_set_fb; GPU driver can read the content
+/* The opposite of vcrtcm_gpu_set_fb; GPU driver can read the content
    of the emulated registers (implemented in the GTD driver) into
    a structure pointed by vcrtcm_fb argument. */
 int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
@@ -224,7 +224,7 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 EXPORT_SYMBOL(vcrtcm_get_fb);
 
 /* Emulates a page-flip call for a virtual CRTC
-   similar to vcrtcm_set_fb, but only the ioaddr is modified
+   similar to vcrtcm_gpu_set_fb, but only the ioaddr is modified
    and the backend is expected to make sure that frame tearing
    is avoided
 
@@ -234,7 +234,7 @@ EXPORT_SYMBOL(vcrtcm_get_fb);
    done right away, VCRTCM_PFLIP_DEFERRED if the flip could not be
    done immediately (backend must chache it and execute when possible)
    or an error code when if the flip can't be done at all */
-int vcrtcm_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     u32 ioaddr)
 {
 	int r;
@@ -252,14 +252,14 @@ int vcrtcm_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		r = 0;
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_page_flip);
+EXPORT_SYMBOL(vcrtcm_gpu_page_flip);
 
 /* GPU driver calls this function whenever the the framebuffer
    associated with a given CRTC has changed to request transmission
    the transmission policy and scheduling is totally up to the
    backend implementation
    NOTE: this function may block */
-int vcrtcm_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int vcrtcm_gpu_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -287,14 +287,14 @@ int vcrtcm_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_xmit_fb);
+EXPORT_SYMBOL(vcrtcm_gpu_xmit_fb);
 
 /* GPU driver can use this function to synchronize with the
    PCON transmission (e.g. wait for the transmission to
    complete). whether the wait will actually occur or not
    totally depends on the policy implemented in the backend
    NOTE: this function may block */
-int vcrtcm_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int vcrtcm_gpu_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -319,10 +319,10 @@ int vcrtcm_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_wait_fb);
+EXPORT_SYMBOL(vcrtcm_gpu_wait_fb);
 
 /* retrieves the status of frame buffer */
-int vcrtcm_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			 u32 *status)
 {
 	int r;
@@ -348,10 +348,10 @@ int vcrtcm_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	}
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_fb_status);
+EXPORT_SYMBOL(vcrtcm_gpu_get_fb_status);
 
 /* sets the frame rate for frame buffer transmission */
-int vcrtcm_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
+int vcrtcm_gpu_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -377,10 +377,10 @@ int vcrtcm_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_set_fps);
+EXPORT_SYMBOL(vcrtcm_gpu_set_fps);
 
 /* reads the frame rate for frame buffer transmission */
-int vcrtcm_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
+int vcrtcm_gpu_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -406,7 +406,7 @@ int vcrtcm_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_fps);
+EXPORT_SYMBOL(vcrtcm_gpu_get_fps);
 
 /* Emulates write/setup access to registers that
    control the hardware cursor
@@ -416,7 +416,7 @@ EXPORT_SYMBOL(vcrtcm_get_fps);
    in the backend function; this function simply passes
    the register content and flow information to the back-end
    and lets the PCON deal with it */
-int vcrtcm_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
 	int r;
@@ -444,9 +444,9 @@ int vcrtcm_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_set_cursor);
+EXPORT_SYMBOL(vcrtcm_gpu_set_cursor);
 
-/* The opposite of vcrtcm_set_cursor; GPU driver can read the content
+/* The opposite of vcrtcm_gpu_set_cursor; GPU driver can read the content
    of the emulated registers (implemented in the GTD driver) into
    a structure pointed by vcrtcm_fb argument. */
 int vcrtcm_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
@@ -480,7 +480,7 @@ int vcrtcm_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 EXPORT_SYMBOL(vcrtcm_get_cursor);
 
 /* dpms manipulation functions */
-int vcrtcm_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
+int vcrtcm_gpu_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -506,7 +506,7 @@ int vcrtcm_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_set_dpms);
+EXPORT_SYMBOL(vcrtcm_gpu_set_dpms);
 
 /* dpms manipulation functions */
 int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
@@ -538,7 +538,7 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 EXPORT_SYMBOL(vcrtcm_get_dpms);
 
 /* retrieve the last (fake) vblank time if it exists */
-int vcrtcm_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			   struct timeval *vblank_time)
 {
 	int r;
@@ -557,12 +557,12 @@ int vcrtcm_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_vblank_time);
+EXPORT_SYMBOL(vcrtcm_gpu_get_vblank_time);
 
 /* set new (fake) vblank time; used when vblank emulation */
 /* is generated internally by the GPU without involving the PCON */
 /* (typically after a successful push) */
-void vcrtcm_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_gpu_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	unsigned long flags;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -580,14 +580,14 @@ void vcrtcm_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
 	return;
 }
-EXPORT_SYMBOL(vcrtcm_set_vblank_time);
+EXPORT_SYMBOL(vcrtcm_gpu_set_vblank_time);
 
 /* check if the attached PCON is in the connected state
  * some PCONs can be always connected (typically software
  * emulators), but some can feed real display devices
  * and may want to query the device they are driving for status
  */
-int vcrtcm_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
+int vcrtcm_gpu_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_pcon_info,
@@ -615,7 +615,7 @@ int vcrtcm_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status
 
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_pcon_connected);
+EXPORT_SYMBOL(vcrtcm_gpu_pcon_connected);
 
 static struct vcrtcm_mode common_modes[17] = {
 	{640, 480, 60},
@@ -641,7 +641,7 @@ static struct vcrtcm_mode common_modes[17] = {
  * if the PCON does not implement the backend function, assume
  * that it can support anything and use a list of common modes
  */
-int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     struct vcrtcm_mode **modes, int *count)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -672,14 +672,14 @@ int vcrtcm_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_modes);
+EXPORT_SYMBOL(vcrtcm_gpu_get_modes);
 
 
 /* check if the mode is acceprable by the attached PCON
  * if backed function is not implemented, assume the PCON
  * accepts everything and the mode is OK
  */
-int vcrtcm_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_gpu_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		      struct vcrtcm_mode *mode, int *status)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -709,13 +709,13 @@ int vcrtcm_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_check_mode);
+EXPORT_SYMBOL(vcrtcm_gpu_check_mode);
 
 /* disable the transmission on specified PCON
  * called when CRTC associated with the PCON is
  * disabled from userland
  */
-void vcrtcm_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_gpu_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 			container_of(vcrtcm_pcon_info,
@@ -741,4 +741,4 @@ void vcrtcm_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 	return;
 }
-EXPORT_SYMBOL(vcrtcm_disable);
+EXPORT_SYMBOL(vcrtcm_gpu_disable);

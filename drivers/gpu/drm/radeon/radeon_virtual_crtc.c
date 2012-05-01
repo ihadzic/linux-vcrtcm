@@ -135,7 +135,7 @@ static int radeon_virtual_crtc_get_modes(struct drm_connector *connector)
 		return 0;
 
 	/* found an attached PCON, ask it */
-	r = vcrtcm_get_modes(radeon_crtc->vcrtcm_pcon_info,
+	r = vcrtcm_gpu_get_modes(radeon_crtc->vcrtcm_pcon_info,
 			     &probed_modes, &probed_modes_count);
 	if (r)
 		return 0;
@@ -173,7 +173,7 @@ static int radeon_virtual_crtc_mode_valid(struct drm_connector *connector,
 	vcrtcm_mode.w = drm_mode_width(mode);
 	vcrtcm_mode.h = drm_mode_height(mode);
 	vcrtcm_mode.refresh = drm_mode_vrefresh(mode);
-	r = vcrtcm_check_mode(radeon_crtc->vcrtcm_pcon_info,
+	r = vcrtcm_gpu_check_mode(radeon_crtc->vcrtcm_pcon_info,
 			      &vcrtcm_mode,
 			      &mode_status);
 	if (r)
@@ -204,7 +204,7 @@ radeon_virtual_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 
 	/* otherwise ask VCRTCM */
-	r = vcrtcm_pcon_connected(radeon_crtc->vcrtcm_pcon_info,
+	r = vcrtcm_gpu_pcon_connected(radeon_crtc->vcrtcm_pcon_info,
 				 &connected_status);
 	if (r)
 		return connector_status_unknown;
@@ -471,7 +471,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 		radeon_crtc->enabled = true;
 		/*radeon_pm_compute_clocks(rdev); */
 		if (radeon_crtc->vcrtcm_pcon_info)
-			vcrtcm_set_dpms(radeon_crtc->vcrtcm_pcon_info,
+			vcrtcm_gpu_set_dpms(radeon_crtc->vcrtcm_pcon_info,
 					VCRTCM_DPMS_STATE_ON);
 		drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
 		break;
@@ -481,7 +481,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_DEBUG("disabling crtc\n");
 		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
 		if (radeon_crtc->vcrtcm_pcon_info)
-			vcrtcm_set_dpms(radeon_crtc->vcrtcm_pcon_info,
+			vcrtcm_gpu_set_dpms(radeon_crtc->vcrtcm_pcon_info,
 					VCRTCM_DPMS_STATE_OFF);
 		radeon_crtc->enabled = false;
 		/*radeon_pm_compute_clocks(rdev); */
@@ -821,7 +821,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 		/* would guarantee not to release a buffer whose transmission */
 		/* may still be in progress */
 		if (radeon_crtc->vcrtcm_pcon_info)
-			r = vcrtcm_wait_fb(radeon_crtc->vcrtcm_pcon_info);
+			r = vcrtcm_gpu_wait_fb(radeon_crtc->vcrtcm_pcon_info);
 		/* if wait fails, unpin anyway (we have a bigger problem in that case) */
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
@@ -860,7 +860,7 @@ static void radeon_virtual_crtc_disable(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	DRM_DEBUG("\n");
 	if (radeon_crtc->vcrtcm_pcon_info)
-		vcrtcm_disable(radeon_crtc->vcrtcm_pcon_info);
+		vcrtcm_gpu_disable(radeon_crtc->vcrtcm_pcon_info);
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
@@ -915,10 +915,10 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 			return r;
 		vcrtcm_cursor.location_x = x;
 		vcrtcm_cursor.location_y = y;
-		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_pcon_info,
+		r = vcrtcm_gpu_set_cursor(radeon_crtc->vcrtcm_pcon_info,
 				      &vcrtcm_cursor);
 		if (radeon_crtc->enabled)
-			vcrtcm_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
 	}
 
 	return r;
@@ -938,17 +938,17 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc)
 		if (r)
 			return r;
 		vcrtcm_cursor.flag |= VCRTCM_CURSOR_FLAG_HIDE;
-		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_pcon_info,
+		r = vcrtcm_gpu_set_cursor(radeon_crtc->vcrtcm_pcon_info,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
-		r = vcrtcm_get_fps(radeon_crtc->vcrtcm_pcon_info, &fps);
+		r = vcrtcm_gpu_get_fps(radeon_crtc->vcrtcm_pcon_info, &fps);
 		if (r)
 			return r;
 		/* force xmit only if xmit is enabled, */
 		/* otherwise, just silently return */
 		if (fps > 0)
-			return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			return vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
 		else
 			return 0;
 	}
@@ -982,15 +982,15 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 		vcrtcm_cursor.height = radeon_crtc->cursor_height;
 		vcrtcm_cursor.bpp = radeon_crtc->base.fb->bits_per_pixel;
 		vcrtcm_cursor.ioaddr = cursor_ioaddr;
-		r = vcrtcm_set_cursor(radeon_crtc->vcrtcm_pcon_info,
+		r = vcrtcm_gpu_set_cursor(radeon_crtc->vcrtcm_pcon_info,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
-		r = vcrtcm_get_fps(radeon_crtc->vcrtcm_pcon_info, &fps);
+		r = vcrtcm_gpu_get_fps(radeon_crtc->vcrtcm_pcon_info, &fps);
 		if (r)
 			return r;
 		if (fps > 0)
-			return vcrtcm_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			return vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
 		else
 			return 0;
 	}
@@ -1057,7 +1057,7 @@ unpin:
 
 	radeon_crtc->cursor_bo = obj;
 	if (radeon_crtc->vcrtcm_pcon_info && radeon_crtc->enabled)
-		vcrtcm_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+		vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);

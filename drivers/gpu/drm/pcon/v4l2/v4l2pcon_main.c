@@ -1060,11 +1060,11 @@ static int __init v4l2pcon_init(void)
 	PR_INFO("Using major device number %d\n", v4l2pcon_major);
 
 	list_for_each_entry(v4l2pcon_info, &v4l2pcon_info_list, list) {
-		PR_DEBUG("Calling vcrtcm_hw_add for v4l2pcon %p major %d minor %d\n",
+		PR_DEBUG("Calling vcrtcm_pcon_add for v4l2pcon %p major %d minor %d\n",
 				v4l2pcon_info, v4l2pcon_major, v4l2pcon_info->minor);
-		if (vcrtcm_hw_add(&v4l2pcon_vcrtcm_pcon_funcs, &v4l2pcon_vcrtcm_pcon_props,
+		if (vcrtcm_pcon_add(&v4l2pcon_vcrtcm_pcon_funcs, &v4l2pcon_vcrtcm_pcon_props,
 				  v4l2pcon_major, v4l2pcon_info->minor, 0, v4l2pcon_info))
-			PR_WARN("vcrtcm_hw_add failed, v4l2pcon major %d, minor %d, "
+			PR_WARN("vcrtcm_pcon_add failed, v4l2pcon major %d, minor %d, "
 				"won't work\n", v4l2pcon_major, v4l2pcon_info->minor);
 		PR_INFO("successfully registered minor %d\n", v4l2pcon_info->minor);
 	}
@@ -1084,12 +1084,12 @@ static void __exit v4l2pcon_exit(void)
 			v4l2_device_unregister(&v4l2pcon_info->v4l2_dev);
 
 			/* unregister with VCRTCM */
-			PR_DEBUG("Calling vcrtcm_hw_del for "
+			PR_DEBUG("Calling vcrtcm_pcon_del for "
 				"v4l2pcon %p, major %d, minor %d\n",
 				v4l2pcon_info, v4l2pcon_major,
 				v4l2pcon_info->minor);
 			cancel_delayed_work_sync(&v4l2pcon_info->fake_vblank_work);
-			vcrtcm_hw_del(v4l2pcon_major, v4l2pcon_info->minor, 0);
+			vcrtcm_pcon_del(v4l2pcon_major, v4l2pcon_info->minor, 0);
 
 			mutex_lock(&v4l2pcon_info->sb_lock);
 			if (v4l2pcon_info->shadowbuf)

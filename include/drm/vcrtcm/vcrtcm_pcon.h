@@ -31,21 +31,22 @@
 
 #include "vcrtcm_common.h"
 
-/* setup/config functions for PCON's use */
-int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
+/* setup/config functions */
+int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
 		  int major, int minor, int flow, void *hw_drv_info);
-void vcrtcm_hw_del(int major, int minor, int flow);
+void vcrtcm_pcon_del(int major, int minor, int flow);
 
 /* functions for use by PCON in operational state */
-void vcrtcm_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-void vcrtcm_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int vcrtcm_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+void vcrtcm_pcon_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+void vcrtcm_pcon_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int vcrtcm_pcon_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
-void vcrtcm_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+void vcrtcm_pcon_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
-int vcrtcm_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_pcon_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd);
-void vcrtcm_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+void vcrtcm_pcon_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+
 #endif
