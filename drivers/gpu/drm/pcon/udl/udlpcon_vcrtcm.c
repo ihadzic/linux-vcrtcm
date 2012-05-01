@@ -144,9 +144,9 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 }
 
 int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow)
+			void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 
 	PR_INFO("Attaching udlpcon %d to pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
@@ -204,9 +204,9 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 }
 
 void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow)
+			void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_INFO("Detaching udlpcon %d from pcon %p\n",
@@ -234,10 +234,10 @@ void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	}
 }
 
-int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
+int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 	struct udlpcon_video_mode *udlpcon_video_modes;
 	int udlpcon_mode_count = 0;
@@ -327,10 +327,10 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	return r;
 }
 
-int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
+int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("In udlpcon_get_fb, minor %d.\n", udlpcon_info->minor);
@@ -346,9 +346,9 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	return 0;
 }
 
-int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlpcon_dirty_fb, minor %d\n", udlpcon_info->minor);
@@ -365,16 +365,16 @@ int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int udlpcon_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int udlpcon_wait_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 {
 	return 0;
 }
 
 int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
-		void *hw_drv_info, int flow, u32 *status)
+		void *udlpcon_info_, int flow, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	unsigned long flags;
 
 	PR_DEBUG("Queried for status\n");
@@ -390,9 +390,9 @@ int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
 }
 
 
-int udlpcon_set_fps(int fps, void *hw_drv_info, int flow)
+int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 	unsigned long jiffies_snapshot;
 
@@ -432,9 +432,9 @@ int udlpcon_set_fps(int fps, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int udlpcon_get_fps(int *fps, void *hw_drv_info, int flow)
+int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("udlpcon_get_fps.\n");
@@ -458,9 +458,9 @@ int udlpcon_get_fps(int *fps, void *hw_drv_info, int flow)
 }
 
 int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow)
+				void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
@@ -518,9 +518,9 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 }
 
 int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow)
+				void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
@@ -538,9 +538,9 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	return 0;
 }
 
-int udlpcon_set_dpms(int state, void *hw_drv_info, int flow)
+int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlpcon_set_dpms, minor %d, state %d\n",
@@ -564,9 +564,9 @@ int udlpcon_set_dpms(int state, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int udlpcon_get_dpms(int *state, void *hw_drv_info, int flow)
+int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
 	PR_DEBUG("in udlpcon_get_dpms, minor %d\n",
@@ -584,9 +584,9 @@ int udlpcon_get_dpms(int *state, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int udlpcon_connected(void *hw_drv_info, int flow, int *status)
+int udlpcon_connected(void *udlpcon_info_, int flow, int *status)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	PR_DEBUG("connected: udlpcon_info %p\n", udlpcon_info);
 
 	if (udlpcon_info->monitor_connected) {
@@ -599,10 +599,10 @@ int udlpcon_connected(void *hw_drv_info, int flow, int *status)
 	return 0;
 }
 
-int udlpcon_get_modes(void *hw_drv_info, int flow, struct vcrtcm_mode **modes,
+int udlpcon_get_modes(void *udlpcon_info_, int flow, struct vcrtcm_mode **modes,
 		     int *count)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_video_mode *udlpcon_video_modes;
 	struct vcrtcm_mode *vcrtcm_mode_list =
 			udlpcon_info->last_vcrtcm_mode_list;
@@ -657,10 +657,10 @@ int udlpcon_get_modes(void *hw_drv_info, int flow, struct vcrtcm_mode **modes,
 	return 0;
 }
 
-int udlpcon_check_mode(void *hw_drv_info, int flow,
+int udlpcon_check_mode(void *udlpcon_info_, int flow,
 		      struct vcrtcm_mode *mode, int *status)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_video_mode *udlpcon_video_modes;
 	int udlpcon_mode_count = 0;
 	int retval;
@@ -697,9 +697,9 @@ int udlpcon_check_mode(void *hw_drv_info, int flow,
 	return 0;
 }
 
-void udlpcon_disable(void *hw_drv_info, int flow)
+void udlpcon_disable(void *udlpcon_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
+	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd =
 			udlpcon_info->udlpcon_vcrtcm_hal_descriptor;
 

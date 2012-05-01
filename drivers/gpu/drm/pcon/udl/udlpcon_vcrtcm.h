@@ -23,42 +23,42 @@
 /* VCRTCM interface function prototypes */
 
 int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow);
+			void *udlpcon_info_, int flow);
 
 void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow);
+			void *udlpcon_info_, int flow);
 
-int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
+int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow);
 
-int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
+int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow);
 
-int udlpcon_set_fps(int fps, void *hw_drv_info, int flow);
+int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow);
 
-int udlpcon_get_fps(int *fps, void *hw_drv_info, int flow);
+int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow);
 
-int udlpcon_page_flip(u32 ioaddr, void *hw_drv_info, int flow);
+int udlpcon_page_flip(u32 ioaddr, void *udlpcon_info_, int flow);
 
 int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow);
+				void *udlpcon_info_, int flow);
 
 int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow);
+				void *udlpcon_info_, int flow);
 
-void udlpcon_disable(void *hw_drv_info, int flow);
+void udlpcon_disable(void *udlpcon_info_, int flow);
 
 /* VCRTCM functions that interact directly with HW */
-int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
-int udlpcon_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
+int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow);
+int udlpcon_wait_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow);
 int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
-		void *hw_drv_info, int flow, u32 *status);
-int udlpcon_set_dpms(int state, void *hw_drv_info, int flow);
-int udlpcon_get_dpms(int *state, void *hw_drv_info, int flow);
-int udlpcon_connected(void *hw_drv_info, int flow, int *status);
-int udlpcon_get_modes(void *hw_drv_info, int flow, struct vcrtcm_mode **modes,
+		void *udlpcon_info_, int flow, u32 *status);
+int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow);
+int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow);
+int udlpcon_connected(void *udlpcon_info_, int flow, int *status);
+int udlpcon_get_modes(void *udlpcon_info_, int flow, struct vcrtcm_mode **modes,
 			int *count);
-int udlpcon_check_mode(void *hw_drv_info, int flow, struct vcrtcm_mode *mode,
+int udlpcon_check_mode(void *udlpcon_info_, int flow, struct vcrtcm_mode *mode,
 			int *status);
 
 /* Scheduled/delayed work functions */
