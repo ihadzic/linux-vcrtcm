@@ -478,11 +478,11 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 					/* max_error is 1000 ns  because that is the granularity */
 					/* of gettimeofday when it snapshot in emulate_vblank */
 					*max_error = 1000;
-					r = vcrtcm_gpu_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
+					r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
 								   vblank_time);
 					if (r)
 						return r;
-					r = vcrtcm_gpu_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
+					r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
 								 &vblank_status);
 					if (r)
 						return r;

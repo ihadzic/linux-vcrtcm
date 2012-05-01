@@ -210,11 +210,11 @@ static int udlpcon_usb_probe(struct usb_interface *interface,
 	PR_INFO("successfully registered"
 		" minor %d\n", udlpcon_info->minor);
 
-	PR_DEBUG("Calling vcrtcm_pcon_add for udlpcon %p major %d minor %d\n",
+	PR_DEBUG("Calling vcrtcm_p_add for udlpcon %p major %d minor %d\n",
 		udlpcon_info, udlpcon_major, udlpcon_info->minor);
-	if (vcrtcm_pcon_add(&udlpcon_vcrtcm_pcon_funcs, &udlpcon_vcrtcm_pcon_props,
+	if (vcrtcm_p_add(&udlpcon_vcrtcm_pcon_funcs, &udlpcon_vcrtcm_pcon_props,
 			  udlpcon_major, udlpcon_info->minor, 0, udlpcon_info))
-		PR_WARN("vcrtcm_pcon_add failed, udlpcon major %d, minor %d,"
+		PR_WARN("vcrtcm_p_add failed, udlpcon major %d, minor %d,"
 			" won't work\n", udlpcon_major, udlpcon_info->minor);
 
 	list_add(&udlpcon_info->list, &udlpcon_info_list);
@@ -253,12 +253,12 @@ static void udlpcon_usb_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	/* unregister with VCRTCM */
-	PR_DEBUG("Calling vcrtcm_pcon_del for "
+	PR_DEBUG("Calling vcrtcm_p_del for "
 		"udlpcon %p, major %d, minor %d\n",
 		udlpcon_info, udlpcon_major, udlpcon_info->minor);
 
 	cancel_delayed_work_sync(&udlpcon_info->fake_vblank_work);
-	vcrtcm_pcon_del(udlpcon_major, udlpcon_info->minor, 0);
+	vcrtcm_p_del(udlpcon_major, udlpcon_info->minor, 0);
 
 	/* release reference taken by kref_init in probe() */
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
@@ -632,7 +632,7 @@ void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		PR_DEBUG("Calling hotplug.\n");
-		vcrtcm_pcon_hotplug(uvhd->vcrtcm_pcon_info);
+		vcrtcm_p_hotplug(uvhd->vcrtcm_pcon_info);
 	}
 
 	if (old_edid)

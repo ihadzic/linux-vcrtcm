@@ -26,7 +26,7 @@
    register itself implementation with vcrtcm; the PCON can also provide
    pointers to back-end functions (functions that get called after
    generic PCON function is executed) */
-int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
+int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
 		  int major, int minor, int flow, void *pcon_cookie)
 {
@@ -98,11 +98,11 @@ int vcrtcm_pcon_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 
 	return 0;
 }
-EXPORT_SYMBOL(vcrtcm_pcon_add);
+EXPORT_SYMBOL(vcrtcm_p_add);
 
 /* called by the pixel consumer (PCON)
    (typically on exit) to unregister its implementation with PCON */
-void vcrtcm_pcon_del(int major, int minor, int flow)
+void vcrtcm_p_del(int major, int minor, int flow)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
 
@@ -154,13 +154,13 @@ void vcrtcm_pcon_del(int major, int minor, int flow)
 	VCRTCM_WARNING("requested pcon %d.%d.%d not found\n",
 		       major, minor, flow);
 }
-EXPORT_SYMBOL(vcrtcm_pcon_del);
+EXPORT_SYMBOL(vcrtcm_p_del);
 
 /* called by the PCON to synchronize with GPU rendering
    whenever the PCON wants to wait for the GPU
    to finish some work before proceeding (typically
    to avoid frame tearing during transmission) */
-void vcrtcm_pcon_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
@@ -180,13 +180,13 @@ void vcrtcm_pcon_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		     (int)(jiffies_snapshot)) * 1000 / HZ);
 
 }
-EXPORT_SYMBOL(vcrtcm_pcon_gpu_sync);
+EXPORT_SYMBOL(vcrtcm_p_gpu_sync);
 
 /* called by the PCON to emulate vblank
    this is the link between the vblank event that happened in
    the PCON but is emulated by the virtual
    CRTC implementation in the GPU-hardware-specific driver */
-void vcrtcm_pcon_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
@@ -210,10 +210,10 @@ void vcrtcm_pcon_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		vcrtcm_dev_info->gpu_funcs.vblank(vcrtcm_dev_info->drm_crtc);
 	}
 }
-EXPORT_SYMBOL(vcrtcm_pcon_emulate_vblank);
+EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
 /* called by the PCON to allocate a push buffer */
-int vcrtcm_pcon_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_p_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -237,10 +237,10 @@ int vcrtcm_pcon_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	} else
 		return -ENOMEM;
 }
-EXPORT_SYMBOL(vcrtcm_pcon_push_buffer_alloc);
+EXPORT_SYMBOL(vcrtcm_p_push_buffer_alloc);
 
 /* called by the PCON to free up a push buffer */
-void vcrtcm_pcon_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+void vcrtcm_p_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -260,13 +260,13 @@ void vcrtcm_pcon_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		       sizeof(struct vcrtcm_push_buffer_descriptor));
 	}
 }
-EXPORT_SYMBOL(vcrtcm_pcon_push_buffer_free);
+EXPORT_SYMBOL(vcrtcm_p_push_buffer_free);
 
 /* called by the PCON to request GPU push of the */
 /* frame buffer pixels; pushes the frame buffer associated with  */
 /* the ctrc that is attached to the specified hal into the push buffer */
 /* defined by pbd */
-int vcrtcm_pcon_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int vcrtcm_p_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd)
 {
@@ -287,12 +287,12 @@ int vcrtcm_pcon_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	} else
 		return -ENOTSUPP;
 }
-EXPORT_SYMBOL(vcrtcm_pcon_push);
+EXPORT_SYMBOL(vcrtcm_p_push);
 
 /* called by the PCON to signal hotplug event on a CRTC
  * attached to the specified PCON
  */
-void vcrtcm_pcon_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
 		container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
@@ -308,4 +308,4 @@ void vcrtcm_pcon_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 	}
 }
-EXPORT_SYMBOL(vcrtcm_pcon_hotplug);
+EXPORT_SYMBOL(vcrtcm_p_hotplug);

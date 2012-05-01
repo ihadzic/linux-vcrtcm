@@ -212,7 +212,7 @@ unpin:
 
 	radeon_crtc->cursor_bo = obj;
 	if (radeon_crtc->vcrtcm_pcon_info && radeon_crtc->enabled)
-		vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
+		vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
