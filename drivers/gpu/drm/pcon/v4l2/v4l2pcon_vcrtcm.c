@@ -143,9 +143,9 @@ static int v4l2pcon_alloc_pb(struct v4l2pcon_info *v4l2pcon_info,
 }
 
 int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow)
+			void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 
 	PR_INFO("Attaching vl2pcon %d to pcon %p\n",
 		v4l2pcon_info->minor, vcrtcm_pcon_info);
@@ -194,9 +194,9 @@ int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 }
 
 void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow)
+			void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_INFO("Detaching v4l2pcon %d from pcon %p\n",
@@ -221,9 +221,9 @@ void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	}
 }
 
-int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
+int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 	uint32_t w, h, sb_size;
 	int r = 0;
@@ -287,9 +287,9 @@ int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 	return r;
 }
 
-int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
+int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("In v4l2pcon_get_fb, minor %d.\n", v4l2pcon_info->minor);
@@ -305,9 +305,9 @@ int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("in v4l2pcon_dirty_fb, minor %d\n", v4l2pcon_info->minor);
@@ -324,16 +324,16 @@ int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int v4l2pcon_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int v4l2pcon_wait_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow)
 {
 	return 0;
 }
 
 int v4l2pcon_get_fb_status(struct drm_crtc *drm_crtc,
-		void *hw_drv_info, int flow, u32 *status)
+		void *v4l2pcon_info_, int flow, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	unsigned long flags;
 
 	PR_DEBUG("Queried for status\n");
@@ -348,9 +348,9 @@ int v4l2pcon_get_fb_status(struct drm_crtc *drm_crtc,
 	return 0;
 }
 
-int v4l2pcon_set_fps(int fps, void *hw_drv_info, int flow)
+int v4l2pcon_set_fps(int fps, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 	unsigned long jiffies_snapshot;
 
@@ -390,9 +390,9 @@ int v4l2pcon_set_fps(int fps, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int v4l2pcon_get_fps(int *fps, void *hw_drv_info, int flow)
+int v4l2pcon_get_fps(int *fps, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("v4l2pcon_get_fps.\n");
@@ -416,9 +416,9 @@ int v4l2pcon_get_fps(int *fps, void *hw_drv_info, int flow)
 }
 
 int v4l2pcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow)
+				void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
@@ -476,9 +476,9 @@ int v4l2pcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 }
 
 int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow)
+				void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("In v4l2pcon_set_cursor, minor %d\n", v4l2pcon_info->minor);
@@ -496,9 +496,9 @@ int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	return 0;
 }
 
-int v4l2pcon_set_dpms(int state, void *hw_drv_info, int flow)
+int v4l2pcon_set_dpms(int state, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("in v4l2pcon_set_dpms, minor %d, state %d\n",
@@ -516,9 +516,9 @@ int v4l2pcon_set_dpms(int state, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int v4l2pcon_get_dpms(int *state, void *hw_drv_info, int flow)
+int v4l2pcon_get_dpms(int *state, void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
 	PR_DEBUG("in v4l2pcon_get_dpms, minor %d\n",
@@ -536,9 +536,9 @@ int v4l2pcon_get_dpms(int *state, void *hw_drv_info, int flow)
 	return 0;
 }
 
-void v4l2pcon_disable(void *hw_drv_info, int flow)
+void v4l2pcon_disable(void *v4l2pcon_info_, int flow)
 {
-	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *)hw_drv_info;
+	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *)v4l2pcon_info_;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd =
 			v4l2pcon_info->v4l2pcon_vcrtcm_hal_descriptor;
 

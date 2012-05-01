@@ -24,34 +24,34 @@
 /* VCRTCM interface function prototypes */
 
 int v4l2pcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow);
+			void *v4l2pcon_info_, int flow);
 
 void v4l2pcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *hw_drv_info, int flow);
+			void *v4l2pcon_info_, int flow);
 
-int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow);
+int v4l2pcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow);
 
-int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow);
+int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pcon_info_, int flow);
 
-int v4l2pcon_set_fps(int fps, void *hw_drv_info, int flow);
+int v4l2pcon_set_fps(int fps, void *v4l2pcon_info_, int flow);
 
-int v4l2pcon_get_fps(int *fps, void *hw_drv_info, int flow);
+int v4l2pcon_get_fps(int *fps, void *v4l2pcon_info_, int flow);
 
 int v4l2pcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow);
+				void *v4l2pcon_info_, int flow);
 
 int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *hw_drv_info, int flow);
+				void *v4l2pcon_info_, int flow);
 
-void v4l2pcon_disable(void *hw_drv_info, int flow);
+void v4l2pcon_disable(void *v4l2pcon_info_, int flow);
 
 /* VCRTCM functions that interact directly with HW */
-int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
-int v4l2pcon_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
+int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow);
+int v4l2pcon_wait_fb(struct drm_crtc *drm_crtc, void *v4l2pcon_info_, int flow);
 int v4l2pcon_get_fb_status(struct drm_crtc *drm_crtc,
-		void *hw_drv_info, int flow, u32 *status);
-int v4l2pcon_set_dpms(int state, void *hw_drv_info, int flow);
-int v4l2pcon_get_dpms(int *state, void *hw_drv_info, int flow);
+		void *v4l2pcon_info_, int flow, u32 *status);
+int v4l2pcon_set_dpms(int state, void *v4l2pcon_info_, int flow);
+int v4l2pcon_get_dpms(int *state, void *v4l2pcon_info_, int flow);
 
 /* Scheduled/delayed work functions */
 void v4l2pcon_fake_vblank(struct work_struct *work);
