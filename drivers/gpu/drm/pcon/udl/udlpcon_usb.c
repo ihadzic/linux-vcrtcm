@@ -212,7 +212,7 @@ static int udlpcon_usb_probe(struct usb_interface *interface,
 
 	PR_DEBUG("Calling vcrtcm_hw_add for udlpcon %p major %d minor %d\n",
 		udlpcon_info, udlpcon_major, udlpcon_info->minor);
-	if (vcrtcm_hw_add(&udlpcon_vcrtcm_pcon_funcs, &udlpcon_vcrtcm_hw_props,
+	if (vcrtcm_hw_add(&udlpcon_vcrtcm_pcon_funcs, &udlpcon_vcrtcm_pcon_props,
 			  udlpcon_major, udlpcon_info->minor, 0, udlpcon_info))
 		PR_WARN("vcrtcm_hw_add failed, udlpcon major %d, minor %d,"
 			" won't work\n", udlpcon_major, udlpcon_info->minor);

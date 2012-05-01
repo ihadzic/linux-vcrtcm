@@ -56,7 +56,7 @@ extern int udlpcon_num_minors;
 extern int udlpcon_max_minor;
 extern int udlpcon_fake_vblank_slack;
 extern struct vcrtcm_pcon_funcs udlpcon_vcrtcm_pcon_funcs;
-extern struct vcrtcm_hw_props udlpcon_vcrtcm_hw_props;
+extern struct vcrtcm_pcon_props udlpcon_vcrtcm_pcon_props;
 
 struct urb_node {
 	struct list_head entry;

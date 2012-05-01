@@ -27,7 +27,7 @@
    pointers to back-end functions (functions that get called after
    generic PCON function is executed) */
 int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
-		  struct vcrtcm_hw_props *vcrtcm_hw_props,
+		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
 		  int major, int minor, int flow, void *hw_drv_info)
 {
 	struct vcrtcm_dev_info *vcrtcm_dev_info;
@@ -49,8 +49,8 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 				       vcrtcm_dev_info->hw_flow);
 			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.funcs,
 			       vcrtcm_pcon_funcs, sizeof(struct vcrtcm_pcon_funcs));
-			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props,
-			       vcrtcm_hw_props, sizeof(struct vcrtcm_hw_props));
+			memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.props,
+			       vcrtcm_pcon_props, sizeof(struct vcrtcm_pcon_props));
 			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
 				     mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
@@ -71,8 +71,8 @@ int vcrtcm_hw_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	mutex_init(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
 	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.funcs, vcrtcm_pcon_funcs,
 	       sizeof(struct vcrtcm_pcon_funcs));
-	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.hw_props, vcrtcm_hw_props,
-	       sizeof(struct vcrtcm_hw_props));
+	memcpy(&vcrtcm_dev_info->vcrtcm_pcon_info.props, vcrtcm_pcon_props,
+	       sizeof(struct vcrtcm_pcon_props));
 
 	/* populate the info structure and link it to the PCON structure */
 	vcrtcm_dev_info->status = 0;

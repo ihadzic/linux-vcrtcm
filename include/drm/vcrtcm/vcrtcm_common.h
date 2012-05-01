@@ -118,7 +118,7 @@ enum vcrtcm_xfer_mode {
 
 /* describes properties of the attached PCON */
 /* that GPU needs to know about */
-struct vcrtcm_hw_props {
+struct vcrtcm_pcon_props {
 	enum vcrtcm_xfer_mode xfer_mode;
 };
 
@@ -129,7 +129,7 @@ struct vcrtcm_hw_props {
 struct vcrtcm_pcon_info {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
-	struct vcrtcm_hw_props hw_props;
+	struct vcrtcm_pcon_props props;
 };
 
 /* descriptor for push buffer; when push-method is used */

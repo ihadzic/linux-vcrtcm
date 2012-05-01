@@ -68,7 +68,7 @@ struct vcrtcm_pcon_funcs udlpcon_vcrtcm_pcon_funcs = {
 };
 
 
-struct vcrtcm_hw_props udlpcon_vcrtcm_hw_props = {
+struct vcrtcm_pcon_props udlpcon_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 

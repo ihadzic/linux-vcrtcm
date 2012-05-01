@@ -930,7 +930,7 @@ static struct vcrtcm_pcon_funcs v4l2pcon_vcrtcm_pcon_funcs = {
 	.disable = v4l2pcon_disable
 };
 
-static struct vcrtcm_hw_props v4l2pcon_vcrtcm_hw_props = {
+static struct vcrtcm_pcon_props v4l2pcon_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
@@ -1062,7 +1062,7 @@ static int __init v4l2pcon_init(void)
 	list_for_each_entry(v4l2pcon_info, &v4l2pcon_info_list, list) {
 		PR_DEBUG("Calling vcrtcm_hw_add for v4l2pcon %p major %d minor %d\n",
 				v4l2pcon_info, v4l2pcon_major, v4l2pcon_info->minor);
-		if (vcrtcm_hw_add(&v4l2pcon_vcrtcm_pcon_funcs, &v4l2pcon_vcrtcm_hw_props,
+		if (vcrtcm_hw_add(&v4l2pcon_vcrtcm_pcon_funcs, &v4l2pcon_vcrtcm_pcon_props,
 				  v4l2pcon_major, v4l2pcon_info->minor, 0, v4l2pcon_info))
 			PR_WARN("vcrtcm_hw_add failed, v4l2pcon major %d, minor %d, "
 				"won't work\n", v4l2pcon_major, v4l2pcon_info->minor);
