@@ -87,7 +87,7 @@ struct vcrtcm_pcon_funcs {
 	int (*get_fb) (struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 		       int flow);
 	int (*page_flip) (u32 ioaddr, void *hw_drv_info, int flow);
-	int (*xmit_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
+	int (*dirty_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);
 	int (*wait_fb) (struct drm_crtc *drm_crtc, void *hw_drv_info,
 			int flow);

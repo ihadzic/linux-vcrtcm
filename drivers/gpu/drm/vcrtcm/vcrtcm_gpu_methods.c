@@ -259,7 +259,7 @@ EXPORT_SYMBOL(vcrtcm_gpu_page_flip);
    the transmission policy and scheduling is totally up to the
    backend implementation
    NOTE: this function may block */
-int vcrtcm_gpu_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int vcrtcm_gpu_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
 	struct vcrtcm_dev_info *vcrtcm_dev_info =
@@ -269,16 +269,16 @@ int vcrtcm_gpu_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	/* see the long comment in wait_fb implementation about
 	   blocking and mutexes */
 	mutex_lock(&vcrtcm_pcon_info->mutex);
-	if (vcrtcm_pcon_info->funcs.xmit_fb) {
-		VCRTCM_DEBUG("calling xmit_fb backend, pcon %d.%d.%d\n",
+	if (vcrtcm_pcon_info->funcs.dirty_fb) {
+		VCRTCM_DEBUG("calling dirty_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.xmit_fb(vcrtcm_dev_info->drm_crtc,
+		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_dev_info->drm_crtc,
 						  vcrtcm_dev_info->hw_drv_info,
 						  vcrtcm_dev_info->hw_flow);
 	} else {
-		VCRTCM_DEBUG("missing xmit_fb backend, pcon %d.%d.%d\n",
+		VCRTCM_DEBUG("missing dirty_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_dev_info->hw_major,
 			     vcrtcm_dev_info->hw_minor,
 			     vcrtcm_dev_info->hw_flow);
@@ -287,7 +287,7 @@ int vcrtcm_gpu_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_gpu_xmit_fb);
+EXPORT_SYMBOL(vcrtcm_gpu_dirty_fb);
 
 /* GPU driver can use this function to synchronize with the
    PCON transmission (e.g. wait for the transmission to

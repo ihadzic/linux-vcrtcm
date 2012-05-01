@@ -305,12 +305,12 @@ int v4l2pcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info, int flow)
 	return 0;
 }
 
-int v4l2pcon_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 {
 	struct v4l2pcon_info *v4l2pcon_info = (struct v4l2pcon_info *) hw_drv_info;
 	struct v4l2pcon_vcrtcm_hal_descriptor *vhd;
 
-	PR_DEBUG("in v4l2pcon_xmit_fb, minor %d\n", v4l2pcon_info->minor);
+	PR_DEBUG("in v4l2pcon_dirty_fb, minor %d\n", v4l2pcon_info->minor);
 
 	/* just mark the "force" flag, v4l2pcon_do_xmit_fb_pull
 	 * does the rest (when called).

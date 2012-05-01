@@ -46,7 +46,7 @@ int v4l2pcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 void v4l2pcon_disable(void *hw_drv_info, int flow);
 
 /* VCRTCM functions that interact directly with HW */
-int v4l2pcon_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
+int v4l2pcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
 int v4l2pcon_wait_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow);
 int v4l2pcon_get_fb_status(struct drm_crtc *drm_crtc,
 		void *hw_drv_info, int flow, u32 *status);

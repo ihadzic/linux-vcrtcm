@@ -146,13 +146,13 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc = rdev->mode_info.crtcs[i];
 		if ((radeon_crtc->vcrtcm_pcon_info) && (radeon_crtc->enabled))
-			vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	}
 
 	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 		radeon_crtc = virtual_crtc->radeon_crtc;
 		if ((radeon_crtc->vcrtcm_pcon_info) && (radeon_crtc->enabled))
-			vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	}
 }
 
@@ -552,7 +552,7 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
 {
 	if (radeon_crtc->vcrtcm_pcon_info)
-		return vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+		return vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	else
 		return -EINVAL;
 }

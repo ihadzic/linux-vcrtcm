@@ -918,7 +918,7 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 		r = vcrtcm_gpu_set_cursor(radeon_crtc->vcrtcm_pcon_info,
 				      &vcrtcm_cursor);
 		if (radeon_crtc->enabled)
-			vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	}
 
 	return r;
@@ -948,7 +948,7 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc)
 		/* force xmit only if xmit is enabled, */
 		/* otherwise, just silently return */
 		if (fps > 0)
-			return vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			return vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 		else
 			return 0;
 	}
@@ -990,7 +990,7 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 		if (r)
 			return r;
 		if (fps > 0)
-			return vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+			return vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 		else
 			return 0;
 	}
@@ -1057,7 +1057,7 @@ unpin:
 
 	radeon_crtc->cursor_bo = obj;
 	if (radeon_crtc->vcrtcm_pcon_info && radeon_crtc->enabled)
-		vcrtcm_gpu_xmit_fb(radeon_crtc->vcrtcm_pcon_info);
+		vcrtcm_gpu_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);

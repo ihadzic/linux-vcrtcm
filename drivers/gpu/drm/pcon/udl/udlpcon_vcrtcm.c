@@ -346,12 +346,12 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *hw_drv_info,
 	return 0;
 }
 
-int udlpcon_xmit_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
+int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *hw_drv_info, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) hw_drv_info;
 	struct udlpcon_vcrtcm_hal_descriptor *uvhd;
 
-	PR_DEBUG("in udlpcon_xmit_fb, minor %d\n", udlpcon_info->minor);
+	PR_DEBUG("in udlpcon_dirty_fb, minor %d\n", udlpcon_info->minor);
 
 	/* just mark the "force" flag, udlpcon_do_xmit_fb_pull
 	 * does the rest (when called).

@@ -45,7 +45,7 @@ int vcrtcm_gpu_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		  struct vcrtcm_fb *vcrtcm_fb);
 int vcrtcm_gpu_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     u32 ioaddr);
-int vcrtcm_gpu_xmit_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int vcrtcm_gpu_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 int vcrtcm_gpu_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 int vcrtcm_gpu_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, u32 *status);
 int vcrtcm_gpu_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps);
