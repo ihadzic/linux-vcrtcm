@@ -64,7 +64,7 @@ int udlpcon_check_mode(void *udlpcon_info_, int flow, struct vcrtcm_mode *mode,
 /* Scheduled/delayed work functions */
 void udlpcon_fake_vblank(struct work_struct *work);
 void copy_cursor_work(struct work_struct *work);
-int udlpcon_do_xmit_fb_pull(struct udlpcon_flow_info *uvhd);
-int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd);
+int udlpcon_do_xmit_fb_pull(struct udlpcon_flow_info *flow_info);
+int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info);
 
 #endif

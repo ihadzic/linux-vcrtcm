@@ -25,7 +25,7 @@
 
 
 static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_flow_info *uvhd, int flag)
+		struct udlpcon_flow_info *flow_info, int flag)
 {
 	int i;
 
@@ -34,23 +34,23 @@ static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
-			pbd = &uvhd->pbd_fb[i];
-			pb_mapped_ram = uvhd->pb_fb[i];
+			pbd = &flow_info->pbd_fb[i];
+			pb_mapped_ram = flow_info->pb_fb[i];
 		} else {
-			pbd = &uvhd->pbd_cursor[i];
-			pb_mapped_ram = uvhd->pb_cursor[i];
+			pbd = &flow_info->pbd_cursor[i];
+			pb_mapped_ram = flow_info->pb_cursor[i];
 		}
 
 		if (pbd->num_pages) {
 			BUG_ON(!pbd->gpu_private);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info, pbd);
+			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
 		}
 	}
 }
 
 static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_flow_info *uvhd,
+		struct udlpcon_flow_info *flow_info,
 		int requested_num_pages, int flag)
 {
 	int i;
@@ -59,12 +59,12 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLPCON_ALLOC_PB_FLAG_FB)
-			pbd = &uvhd->pbd_fb[i];
+			pbd = &flow_info->pbd_fb[i];
 		else
-			pbd = &uvhd->pbd_cursor[i];
+			pbd = &flow_info->pbd_cursor[i];
 
 		pbd->num_pages = requested_num_pages;
-		r = vcrtcm_p_push_buffer_alloc(uvhd->vcrtcm_pcon_info, pbd);
+		r = vcrtcm_p_push_buffer_alloc(flow_info->vcrtcm_pcon_info, pbd);
 		if (r) {
 			PR_ERR("%s[%d]: push buffer alloc_failed\n",
 					UDLPCON_ALLOC_PB_STRING(flag), i);
@@ -76,14 +76,14 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 		if (pbd->num_pages != requested_num_pages) {
 			PR_ERR("%s[%d]: incorrect size allocated\n",
 					UDLPCON_ALLOC_PB_STRING(flag), i);
-			vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info, pbd);
+			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
 			/* incorrect size in most cases means too few pages */
 			/* so it makes sense to return ENOMEM here */
 			r = -ENOMEM;
 			break;
 		}
 
-		uvhd->pb_needs_xmit[i] = 0;
+		flow_info->pb_needs_xmit[i] = 0;
 		PR_DEBUG("%s[%d]: allocated %lu pages\n",
 				UDLPCON_ALLOC_PB_STRING(flag),
 				i, pbd->num_pages);
@@ -91,31 +91,31 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 		/* we have the buffer, now we need to map it */
 		/* (and that can fail too) */
 		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
-			uvhd->pb_fb[i] =
-				vm_map_ram(uvhd->pbd_fb[i].pages,
-					uvhd->pbd_fb[i].num_pages,
+			flow_info->pb_fb[i] =
+				vm_map_ram(flow_info->pbd_fb[i].pages,
+					flow_info->pbd_fb[i].num_pages,
 					0, PAGE_KERNEL);
 
-			if (uvhd->pb_fb[i] == NULL) {
+			if (flow_info->pb_fb[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info,
-							&uvhd->pbd_fb[i]);
+				vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
+							&flow_info->pbd_fb[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
 			}
 		} else {
-			uvhd->pb_cursor[i] =
-				vm_map_ram(uvhd->pbd_cursor[i].pages,
-					uvhd->pbd_cursor[i].num_pages,
+			flow_info->pb_cursor[i] =
+				vm_map_ram(flow_info->pbd_cursor[i].pages,
+					flow_info->pbd_cursor[i].num_pages,
 					0, PAGE_KERNEL);
 
-			if (uvhd->pb_cursor[i] == NULL) {
+			if (flow_info->pb_cursor[i] == NULL) {
 				/* If we couldn't map it, we need to */
 				/* free the buffer */
-				vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info,
-							&uvhd->pbd_cursor[i]);
+				vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
+							&flow_info->pbd_cursor[i]);
 				/* TODO: Is this right to return ENOMEM? */
 				r = -ENOMEM;
 				break;
@@ -128,15 +128,15 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 		/* of the loop, we must release the buffer */
 		/* allocated in the first one before returning*/
 		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
-			vm_unmap_ram(uvhd->pbd_fb[0].pages,
-				uvhd->pbd_fb[0].num_pages);
-			vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info,
-						&uvhd->pbd_fb[0]);
+			vm_unmap_ram(flow_info->pbd_fb[0].pages,
+				flow_info->pbd_fb[0].num_pages);
+			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
+						&flow_info->pbd_fb[0]);
 		} else {
-			vm_unmap_ram(uvhd->pbd_cursor[0].pages,
-					uvhd->pbd_cursor[0].num_pages);
-			vcrtcm_p_push_buffer_free(uvhd->vcrtcm_pcon_info,
-						&uvhd->pbd_cursor[0]);
+			vm_unmap_ram(flow_info->pbd_cursor[0].pages,
+					flow_info->pbd_cursor[0].num_pages);
+			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
+						&flow_info->pbd_cursor[0]);
 		}
 	}
 
@@ -156,38 +156,38 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		return -EBUSY;
 	} else {
 		struct udlpcon_flow_info
-			*uvhd = udlpcon_kzalloc(udlpcon_info,
+			*flow_info = udlpcon_kzalloc(udlpcon_info,
 				sizeof(struct udlpcon_flow_info),
 				GFP_KERNEL);
-		if (uvhd == NULL) {
+		if (flow_info == NULL) {
 			PR_ERR("attach: no memory\n");
 			return -ENOMEM;
 		}
 
-		uvhd->udlpcon_info = udlpcon_info;
-		uvhd->vcrtcm_pcon_info = vcrtcm_pcon_info;
-		uvhd->fb_force_xmit = 0;
-		uvhd->fb_xmit_allowed = 0;
-		uvhd->fb_xmit_counter = 0;
-		uvhd->fb_xmit_period_jiffies = 0;
-		uvhd->next_vblank_jiffies = 0;
-		uvhd->push_buffer_index = 0;
-		uvhd->pb_needs_xmit[0] = 0;
-		uvhd->pb_needs_xmit[1] = 0;
-		memset(&uvhd->pbd_fb, 0,
+		flow_info->udlpcon_info = udlpcon_info;
+		flow_info->vcrtcm_pcon_info = vcrtcm_pcon_info;
+		flow_info->fb_force_xmit = 0;
+		flow_info->fb_xmit_allowed = 0;
+		flow_info->fb_xmit_counter = 0;
+		flow_info->fb_xmit_period_jiffies = 0;
+		flow_info->next_vblank_jiffies = 0;
+		flow_info->push_buffer_index = 0;
+		flow_info->pb_needs_xmit[0] = 0;
+		flow_info->pb_needs_xmit[1] = 0;
+		memset(&flow_info->pbd_fb, 0,
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		memset(&uvhd->pbd_cursor, 0,
+		memset(&flow_info->pbd_cursor, 0,
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		uvhd->pb_fb[0] = 0;
-		uvhd->pb_fb[1] = 0;
-		uvhd->pb_cursor[0] = 0;
-		uvhd->pb_cursor[1] = 0;
+		flow_info->pb_fb[0] = 0;
+		flow_info->pb_fb[1] = 0;
+		flow_info->pb_cursor[0] = 0;
+		flow_info->pb_cursor[1] = 0;
 
-		uvhd->vcrtcm_cursor.flag =
+		flow_info->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
 
 		udlpcon_info->udlpcon_flow_info =
-			uvhd;
+			flow_info;
 
 		/* Do an initial query of the EDID */
 		udlpcon_query_edid_core(udlpcon_info);
@@ -207,25 +207,25 @@ void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_INFO("Detaching udlpcon %d from pcon %p\n",
 		udlpcon_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_p_gpu_sync(vcrtcm_pcon_info);
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
 	cancel_delayed_work_sync(&udlpcon_info->fake_vblank_work);
 	cancel_delayed_work_sync(&udlpcon_info->query_edid_work);
 
-	if (uvhd->vcrtcm_pcon_info == vcrtcm_pcon_info) {
+	if (flow_info->vcrtcm_pcon_info == vcrtcm_pcon_info) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		udlpcon_free_pb(udlpcon_info, uvhd, UDLPCON_ALLOC_PB_FLAG_FB);
-		udlpcon_free_pb(udlpcon_info, uvhd, UDLPCON_ALLOC_PB_FLAG_CURSOR);
+		udlpcon_free_pb(udlpcon_info, flow_info, UDLPCON_ALLOC_PB_FLAG_FB);
+		udlpcon_free_pb(udlpcon_info, flow_info, UDLPCON_ALLOC_PB_FLAG_CURSOR);
 
 		udlpcon_info->udlpcon_flow_info = NULL;
-		udlpcon_kfree(udlpcon_info, uvhd);
+		udlpcon_kfree(udlpcon_info, flow_info);
 
 		udlpcon_info->main_buffer = NULL;
 		udlpcon_info->cursor = NULL;
@@ -238,7 +238,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 	struct udlpcon_video_mode *udlpcon_video_modes;
 	int udlpcon_mode_count = 0;
 	int found_mode = 0;
@@ -248,16 +248,16 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 
 	PR_DEBUG("In udlpcon_set_fb, minor %d.\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
 	/* TODO: Do we need this? */
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&udlpcon_info->buffer_mutex);
-	memcpy(&uvhd->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
+	memcpy(&flow_info->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
 	udlpcon_build_modelist(udlpcon_info,
 			&udlpcon_video_modes, &udlpcon_mode_count);
@@ -276,7 +276,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			udlpcon_setup_screen(udlpcon_info,
 					&udlpcon_video_modes[i], vcrtcm_fb);
 			found_mode = 1;
-			uvhd->fb_xmit_allowed = 1;
+			flow_info->fb_xmit_allowed = 1;
 			break;
 		}
 	}
@@ -285,26 +285,26 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 
 	if (!found_mode) {
 		PR_ERR("could not find matching mode...\n");
-		uvhd->fb_xmit_allowed = 0;
+		flow_info->fb_xmit_allowed = 0;
 		udlpcon_error_screen(udlpcon_info);
 		mutex_unlock(&udlpcon_info->buffer_mutex);
 		return 0;
 	}
 
-	size_in_bytes = uvhd->vcrtcm_fb.pitch *
-			uvhd->vcrtcm_fb.vdisplay;
+	size_in_bytes = flow_info->vcrtcm_fb.pitch *
+			flow_info->vcrtcm_fb.vdisplay;
 
 	requested_num_pages = size_in_bytes / PAGE_SIZE;
 	if (size_in_bytes % PAGE_SIZE)
 		requested_num_pages++;
 
-	BUG_ON(uvhd->pbd_fb[0].num_pages != uvhd->pbd_fb[1].num_pages);
+	BUG_ON(flow_info->pbd_fb[0].num_pages != flow_info->pbd_fb[1].num_pages);
 
 	if (!requested_num_pages) {
 		PR_DEBUG("framebuffer: zero size requested\n");
-		udlpcon_free_pb(udlpcon_info, uvhd,
+		udlpcon_free_pb(udlpcon_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_FB);
-	} else if (uvhd->pbd_fb[0].num_pages == requested_num_pages) {
+	} else if (flow_info->pbd_fb[0].num_pages == requested_num_pages) {
 		/* we can safely check index 0 num_pages against */
 		/* index 1 num_pages because we checked that they */
 		/* are equal above. */
@@ -316,10 +316,10 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 		PR_INFO("framebuffer: allocating push buffer, "
 				"size=%d, num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
-		udlpcon_free_pb(udlpcon_info, uvhd,
+		udlpcon_free_pb(udlpcon_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_FB);
 
-		r = udlpcon_alloc_pb(udlpcon_info, uvhd,
+		r = udlpcon_alloc_pb(udlpcon_info, flow_info,
 				requested_num_pages,
 				UDLPCON_ALLOC_PB_FLAG_FB);
 	}
@@ -331,17 +331,17 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 			int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("In udlpcon_get_fb, minor %d.\n", udlpcon_info->minor);
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	memcpy(vcrtcm_fb, &uvhd->vcrtcm_fb, sizeof(struct vcrtcm_fb));
+	memcpy(vcrtcm_fb, &flow_info->vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
 	return 0;
 }
@@ -349,7 +349,7 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("in udlpcon_dirty_fb, minor %d\n", udlpcon_info->minor);
 
@@ -357,10 +357,10 @@ int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 	 * does the rest (when called).
 	 */
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (uvhd)
-		uvhd->fb_force_xmit = 1;
+	if (flow_info)
+		flow_info->fb_force_xmit = 1;
 
 	return 0;
 }
@@ -393,14 +393,14 @@ int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
 int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
 	PR_DEBUG("udlpcon_set_fps, fps %d.\n", fps);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
@@ -411,15 +411,15 @@ int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 	}
 
 	if (fps <= 0) {
-		uvhd->fb_xmit_period_jiffies = 0;
+		flow_info->fb_xmit_period_jiffies = 0;
 		PR_INFO("Transmission disabled, (negative or zero fps).\n");
 	} else {
-		uvhd->fb_xmit_period_jiffies = HZ / fps;
+		flow_info->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
-		uvhd->last_xmit_jiffies = jiffies_snapshot;
-		uvhd->fb_force_xmit = 1;
-		uvhd->next_vblank_jiffies =
-			jiffies_snapshot + uvhd->fb_xmit_period_jiffies;
+		flow_info->last_xmit_jiffies = jiffies_snapshot;
+		flow_info->fb_force_xmit = 1;
+		flow_info->next_vblank_jiffies =
+			jiffies_snapshot + flow_info->fb_xmit_period_jiffies;
 
 		PR_INFO("Frame transmission period set to %d jiffies\n",
 			HZ / fps);
@@ -435,24 +435,24 @@ int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("udlpcon_get_fps.\n");
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	if (uvhd->fb_xmit_period_jiffies <= 0) {
+	if (flow_info->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
 		PR_INFO
 		("Zero or negative frame rate, transmission disabled\n");
 		return 0;
 	} else {
-		*fps = HZ / uvhd->fb_xmit_period_jiffies;
+		*fps = HZ / flow_info->fb_xmit_period_jiffies;
 		return 0;
 	}
 }
@@ -461,41 +461,41 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
 
 	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&udlpcon_info->buffer_mutex);
-	memcpy(&uvhd->vcrtcm_cursor, vcrtcm_cursor,
+	memcpy(&flow_info->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 
 	/* calculate the push buffer size for cursor */
 	size_in_bytes =
-			uvhd->vcrtcm_cursor.height *
-			uvhd->vcrtcm_cursor.width *
-			(uvhd->vcrtcm_cursor.bpp >> 3);
+			flow_info->vcrtcm_cursor.height *
+			flow_info->vcrtcm_cursor.width *
+			(flow_info->vcrtcm_cursor.bpp >> 3);
 
 	requested_num_pages = size_in_bytes / PAGE_SIZE;
 	if (size_in_bytes % PAGE_SIZE)
 			requested_num_pages++;
 
-	BUG_ON(uvhd->pbd_cursor[0].num_pages !=
-			uvhd->pbd_cursor[1].num_pages);
+	BUG_ON(flow_info->pbd_cursor[0].num_pages !=
+			flow_info->pbd_cursor[1].num_pages);
 
 	if (!requested_num_pages) {
 		PR_DEBUG("cursor: zero size requested\n");
-		udlpcon_free_pb(udlpcon_info, uvhd,
+		udlpcon_free_pb(udlpcon_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
-	} else if (uvhd->pbd_cursor[0].num_pages ==
+	} else if (flow_info->pbd_cursor[0].num_pages ==
 					requested_num_pages) {
 		PR_DEBUG("cursor : reusing existing push buffer\n");
 	} else {
@@ -506,10 +506,10 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				"num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
 
-		udlpcon_free_pb(udlpcon_info, uvhd,
+		udlpcon_free_pb(udlpcon_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
 
-		r = udlpcon_alloc_pb(udlpcon_info, uvhd,
+		r = udlpcon_alloc_pb(udlpcon_info, flow_info,
 				requested_num_pages,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
 	}
@@ -521,18 +521,18 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	memcpy(vcrtcm_cursor, &uvhd->vcrtcm_cursor,
+	memcpy(vcrtcm_cursor, &flow_info->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
 
 	return 0;
@@ -541,19 +541,19 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("in udlpcon_set_dpms, minor %d, state %d\n",
 			udlpcon_info->minor, state);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	uvhd->dpms_state = state;
+	flow_info->dpms_state = state;
 
 	if (state == VCRTCM_DPMS_STATE_ON) {
 		udlpcon_dpms_wakeup(udlpcon_info);
@@ -567,19 +567,19 @@ int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 
 	PR_DEBUG("in udlpcon_get_dpms, minor %d\n",
 			udlpcon_info->minor);
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	*state = uvhd->dpms_state;
+	*state = flow_info->dpms_state;
 
 	return 0;
 }
@@ -700,11 +700,11 @@ int udlpcon_check_mode(void *udlpcon_info_, int flow,
 void udlpcon_disable(void *udlpcon_info_, int flow)
 {
 	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *uvhd =
+	struct udlpcon_flow_info *flow_info =
 			udlpcon_info->udlpcon_flow_info;
 
 	mutex_lock(&udlpcon_info->buffer_mutex);
-	uvhd->fb_xmit_allowed = 0;
+	flow_info->fb_xmit_allowed = 0;
 	mutex_unlock(&udlpcon_info->buffer_mutex);
 }
 
@@ -714,7 +714,7 @@ void udlpcon_fake_vblank(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct udlpcon_info *udlpcon_info =
 		container_of(delayed_work, struct udlpcon_info, fake_vblank_work);
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 	/*static long last_snapshot = 0;*/
 
 	unsigned long jiffies_snapshot = 0;
@@ -732,33 +732,33 @@ void udlpcon_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
-	if (!uvhd) {
+	if (!flow_info) {
 		PR_ERR("udlpcon_fake_vblank: Cannot find pcon descriptor\n");
 		return;
 	}
 
 	jiffies_snapshot = jiffies;
 
-	if (uvhd->fb_xmit_period_jiffies > 0) {
+	if (flow_info->fb_xmit_period_jiffies > 0) {
 		if (time_after_eq(jiffies_snapshot + udlpcon_fake_vblank_slack_sane,
-				uvhd->next_vblank_jiffies)) {
-			uvhd->next_vblank_jiffies +=
-					uvhd->fb_xmit_period_jiffies;
+				flow_info->next_vblank_jiffies)) {
+			flow_info->next_vblank_jiffies +=
+					flow_info->fb_xmit_period_jiffies;
 
 			mutex_lock(&udlpcon_info->buffer_mutex);
-			udlpcon_do_xmit_fb_push(uvhd);
+			udlpcon_do_xmit_fb_push(flow_info);
 			mutex_unlock(&udlpcon_info->buffer_mutex);
 		}
 
 		if (!next_vblank_jiffies_valid) {
-			next_vblank_jiffies = uvhd->next_vblank_jiffies;
+			next_vblank_jiffies = flow_info->next_vblank_jiffies;
 			next_vblank_jiffies_valid = 1;
 		} else {
 			if (time_after_eq(next_vblank_jiffies,
-					uvhd->next_vblank_jiffies)) {
-				next_vblank_jiffies = uvhd->next_vblank_jiffies;
+					flow_info->next_vblank_jiffies)) {
+				next_vblank_jiffies = flow_info->next_vblank_jiffies;
 			}
 		}
 	}
@@ -779,9 +779,9 @@ void udlpcon_fake_vblank(struct work_struct *work)
 	return;
 }
 
-int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
+int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
 {
-	struct udlpcon_info *udlpcon_info = uvhd->udlpcon_info;
+	struct udlpcon_info *udlpcon_info = flow_info->udlpcon_info;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
@@ -793,9 +793,9 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 	udlpcon_info->status |= UDLPCON_IN_DO_XMIT;
 	spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
 
-	push_buffer_index = uvhd->push_buffer_index;
+	push_buffer_index = flow_info->push_buffer_index;
 
-	if (uvhd->pbd_fb[push_buffer_index].num_pages) {
+	if (flow_info->pbd_fb[push_buffer_index].num_pages) {
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
@@ -805,12 +805,12 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 
 	jiffies_snapshot = jiffies;
 
-	if ((uvhd->fb_force_xmit ||
-	     time_after(jiffies_snapshot, uvhd->last_xmit_jiffies +
+	if ((flow_info->fb_force_xmit ||
+	     time_after(jiffies_snapshot, flow_info->last_xmit_jiffies +
 			UDLPCON_XMIT_HARD_DEADLINE)) &&
 			have_push_buffer &&
 			udlpcon_info->monitor_connected &&
-			uvhd->fb_xmit_allowed) {
+			flow_info->fb_xmit_allowed) {
 		/* Someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
 		 * should transmit for real.
@@ -819,36 +819,36 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 		 */
 
 		PR_DEBUG("transmission happening...\n");
-		uvhd->fb_force_xmit = 0;
-		uvhd->last_xmit_jiffies = jiffies;
-		uvhd->fb_xmit_counter++;
+		flow_info->fb_force_xmit = 0;
+		flow_info->last_xmit_jiffies = jiffies;
+		flow_info->fb_xmit_counter++;
 
 		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
-				uvhd->vcrtcm_fb.pitch,
-				uvhd->vcrtcm_fb.width,
-				uvhd->vcrtcm_fb.height,
-				uvhd->vcrtcm_fb.bpp);
+				flow_info->vcrtcm_fb.pitch,
+				flow_info->vcrtcm_fb.width,
+				flow_info->vcrtcm_fb.height,
+				flow_info->vcrtcm_fb.bpp);
 
 		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
-				uvhd->vcrtcm_fb.viewport_x,
-				uvhd->vcrtcm_fb.viewport_y,
-				uvhd->vcrtcm_fb.hdisplay,
-				uvhd->vcrtcm_fb.vdisplay);
+				flow_info->vcrtcm_fb.viewport_x,
+				flow_info->vcrtcm_fb.viewport_y,
+				flow_info->vcrtcm_fb.hdisplay,
+				flow_info->vcrtcm_fb.vdisplay);
 
 		spin_lock_irqsave(&udlpcon_info->udlpcon_lock, flags);
 		udlpcon_info->status &= ~UDLPCON_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
 
-		r = vcrtcm_p_push(uvhd->vcrtcm_pcon_info,
-				&uvhd->pbd_fb[push_buffer_index],
-				&uvhd->pbd_cursor[push_buffer_index]);
+		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
+				&flow_info->pbd_fb[push_buffer_index],
+				&flow_info->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_p_emulate_vblank(uvhd->vcrtcm_pcon_info);
+			vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for USB transmission in the next
@@ -863,9 +863,9 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 			 * look at it until push is complete.
 			 */
 
-			uvhd->pb_needs_xmit[push_buffer_index] = 1;
+			flow_info->pb_needs_xmit[push_buffer_index] = 1;
 			push_buffer_index = (push_buffer_index + 1) & 0x1;
-			uvhd->push_buffer_index = push_buffer_index;
+			flow_info->push_buffer_index = push_buffer_index;
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
@@ -873,23 +873,23 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *uvhd)
 		udlpcon_info->status &= ~UDLPCON_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
 
-		vcrtcm_p_emulate_vblank(uvhd->vcrtcm_pcon_info);
+		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);
 		PR_DEBUG("transmission not happening\n");
 	}
 
-	if (uvhd->pb_needs_xmit[push_buffer_index]) {
+	if (flow_info->pb_needs_xmit[push_buffer_index]) {
 		unsigned long jiffies_snapshot;
 		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
-		udlpcon_info->main_buffer = uvhd->pb_fb[push_buffer_index];
-		udlpcon_info->cursor = uvhd->pb_cursor[push_buffer_index];
+		udlpcon_info->main_buffer = flow_info->pb_fb[push_buffer_index];
+		udlpcon_info->cursor = flow_info->pb_cursor[push_buffer_index];
 
 		jiffies_snapshot = jiffies;
 		udlpcon_transmit_framebuffer(udlpcon_info);
 		PR_DEBUG("transmit over USB took %u ms\n", jiffies_to_msecs(jiffies - jiffies_snapshot));
 
-		uvhd->pb_needs_xmit[push_buffer_index] = 0;
+		flow_info->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
 	return r;

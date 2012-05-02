@@ -570,7 +570,7 @@ int udlpcon_free_modelist(struct udlpcon_info *udlpcon_info,
 /* but is also called once by attach */
 void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 {
-	struct udlpcon_flow_info *uvhd;
+	struct udlpcon_flow_info *flow_info;
 	struct fb_monspecs monspecs;
 	char *new_edid, *old_edid;
 	int new_edid_valid = 0;
@@ -580,7 +580,7 @@ void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 
 	PR_DEBUG("In udlpcon_query_edid\n");
 
-	uvhd = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpcon_info->udlpcon_flow_info;
 
 	new_edid = udlpcon_kmalloc(udlpcon_info, EDID_LENGTH, GFP_KERNEL);
 
@@ -628,11 +628,11 @@ void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info)
 	udlpcon_info->monitor_connected = new_edid ? 1 : 0;
 	spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
 
-	if (uvhd && ((!old_edid && new_edid) ||
+	if (flow_info && ((!old_edid && new_edid) ||
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		PR_DEBUG("Calling hotplug.\n");
-		vcrtcm_p_hotplug(uvhd->vcrtcm_pcon_info);
+		vcrtcm_p_hotplug(flow_info->vcrtcm_pcon_info);
 	}
 
 	if (old_edid)
@@ -888,10 +888,10 @@ static int udlpcon_render_hline(struct udlpcon_info *udlpcon_info, struct urb **
 	u8 *cmd_end = (u8 *) urb->transfer_buffer +
 				urb->transfer_buffer_length;
 
-	struct udlpcon_flow_info *uvhd =
+	struct udlpcon_flow_info *flow_info =
 			udlpcon_info->udlpcon_flow_info;
-	struct vcrtcm_cursor *vcrtcm_cursor = &uvhd->vcrtcm_cursor;
-	struct vcrtcm_fb *vcrtcm_fb = &uvhd->vcrtcm_fb;
+	struct vcrtcm_cursor *vcrtcm_cursor = &flow_info->vcrtcm_cursor;
+	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
 
 	/* We need line_num for the dev_offset and to do the cursor overlay */
 	int line_num = byte_offset / vcrtcm_fb->pitch;
