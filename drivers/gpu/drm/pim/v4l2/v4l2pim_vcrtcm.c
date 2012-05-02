@@ -32,7 +32,7 @@ static void v4l2pim_free_pb(struct v4l2pim_info *v4l2pim_info,
 	void *pb_mapped_ram;
 
 	for (i = 0; i < 2; i++) {
-		if (flag == V4L2PCON_ALLOC_PB_FLAG_FB) {
+		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			pbd = &flow_info->pbd_fb[i];
 			pb_mapped_ram = flow_info->pb_fb[i];
 		} else {
@@ -57,7 +57,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 	struct vcrtcm_push_buffer_descriptor *pbd = NULL;
 
 	for (i = 0; i < 2; i++) {
-		if (flag == V4L2PCON_ALLOC_PB_FLAG_FB)
+		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB)
 			pbd = &flow_info->pbd_fb[i];
 		else
 			pbd = &flow_info->pbd_cursor[i];
@@ -66,7 +66,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 		r = vcrtcm_p_push_buffer_alloc(flow_info->vcrtcm_pcon_info, pbd);
 		if (r) {
 			PR_ERR("%s[%d]: push buffer alloc_failed\n",
-					V4L2PCON_ALLOC_PB_STRING(flag), i);
+					V4L2PIM_ALLOC_PB_STRING(flag), i);
 			memset(pbd, 0,
 				sizeof(struct vcrtcm_push_buffer_descriptor));
 			break;
@@ -74,7 +74,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 
 		if (pbd->num_pages != requested_num_pages) {
 			PR_ERR("%s[%d]: incorrect size allocated\n",
-					V4L2PCON_ALLOC_PB_STRING(flag), i);
+					V4L2PIM_ALLOC_PB_STRING(flag), i);
 			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
 			/* incorrect size in most cases means too few pages */
 			/* so it makes sense to return ENOMEM here */
@@ -84,12 +84,12 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 
 		flow_info->pb_needs_xmit[i] = 0;
 		PR_DEBUG("%s[%d]: allocated %lu pages\n",
-				V4L2PCON_ALLOC_PB_STRING(flag),
+				V4L2PIM_ALLOC_PB_STRING(flag),
 				i, pbd->num_pages);
 
 		/* we have the buffer, now we need to map it */
 		/* (and that can fail too) */
-		if (flag == V4L2PCON_ALLOC_PB_FLAG_FB) {
+		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			flow_info->pb_fb[i] =
 				vm_map_ram(flow_info->pbd_fb[i].pages,
 					flow_info->pbd_fb[i].num_pages,
@@ -126,7 +126,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 		/* allocation failed in the second iteration */
 		/* of the loop, we must release the buffer */
 		/* allocated in the first one before returning*/
-		if (flag == V4L2PCON_ALLOC_PB_FLAG_FB) {
+		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			vm_unmap_ram(flow_info->pbd_fb[0].pages,
 				flow_info->pbd_fb[0].num_pages);
 			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
@@ -208,8 +208,8 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	if (flow_info->vcrtcm_pcon_info == vcrtcm_pcon_info) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PCON_ALLOC_PB_FLAG_FB);
-		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PCON_ALLOC_PB_FLAG_CURSOR);
+		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PIM_ALLOC_PB_FLAG_FB);
+		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 
 		v4l2pim_info->v4l2pim_flow_info = NULL;
 		v4l2pim_kfree(v4l2pim_info, flow_info);
@@ -252,7 +252,7 @@ int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *
 	if (!requested_num_pages) {
 		PR_DEBUG("framebuffer: zero size requested\n");
 		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PCON_ALLOC_PB_FLAG_FB);
+				V4L2PIM_ALLOC_PB_FLAG_FB);
 	} else if (flow_info->pbd_fb[0].num_pages == requested_num_pages) {
 		/* we can safely check index 0 num_pages against */
 		/* index 1 num_pages because we checked that they */
@@ -266,11 +266,11 @@ int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *
 				"size=%d, num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
 		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PCON_ALLOC_PB_FLAG_FB);
+				V4L2PIM_ALLOC_PB_FLAG_FB);
 
 		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info,
 				requested_num_pages,
-				V4L2PCON_ALLOC_PB_FLAG_FB);
+				V4L2PIM_ALLOC_PB_FLAG_FB);
 		/* shadowbuf init */
 		/* this should get freed later */
 		w = flow_info->vcrtcm_fb.hdisplay;
@@ -336,7 +336,7 @@ int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_
 	PR_DEBUG("Queried for status\n");
 
 	spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-	if (v4l2pim_info->status & V4L2PCON_IN_DO_XMIT)
+	if (v4l2pim_info->status & V4L2PIM_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
 	spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
@@ -360,7 +360,7 @@ int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 		return -EINVAL;
 	}
 
-	if (fps > V4L2PCON_FPS_HARD_LIMIT) {
+	if (fps > V4L2PIM_FPS_HARD_LIMIT) {
 		PR_ERR("Frame rate above the hard limit\n");
 		return -EINVAL;
 	}
@@ -448,7 +448,7 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_
 	if (!requested_num_pages) {
 		PR_DEBUG("cursor: zero size requested\n");
 		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PCON_ALLOC_PB_FLAG_CURSOR);
+				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	} else if (flow_info->pbd_cursor[0].num_pages ==
 					requested_num_pages) {
 		PR_DEBUG("cursor : reusing existing push buffer\n");
@@ -461,11 +461,11 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_
 				size_in_bytes, requested_num_pages);
 
 		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PCON_ALLOC_PB_FLAG_CURSOR);
+				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 
 		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info,
 				requested_num_pages,
-				V4L2PCON_ALLOC_PB_FLAG_CURSOR);
+				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	}
 	mutex_unlock(&v4l2pim_info->buffer_mutex);
 	return r;
@@ -625,7 +625,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 	PR_DEBUG("in v4l2pim_do_xmit_fb_push, minor %d\n", v4l2pim_info->minor);
 
 	spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-	v4l2pim_info->status |= V4L2PCON_IN_DO_XMIT;
+	v4l2pim_info->status |= V4L2PIM_IN_DO_XMIT;
 	spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
 	push_buffer_index = flow_info->push_buffer_index;
@@ -642,7 +642,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 
 	if ((flow_info->fb_force_xmit ||
 	     time_after(jiffies_snapshot, flow_info->last_xmit_jiffies +
-			V4L2PCON_XMIT_HARD_DEADLINE)) && have_push_buffer &&
+			V4L2PIM_XMIT_HARD_DEADLINE)) && have_push_buffer &&
 	    flow_info->fb_xmit_allowed) {
 		/* someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
@@ -669,7 +669,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 				flow_info->vcrtcm_fb.vdisplay);
 
 		spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-		v4l2pim_info->status &= ~V4L2PCON_IN_DO_XMIT;
+		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
@@ -701,7 +701,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
 		spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-		v4l2pim_info->status &= ~V4L2PCON_IN_DO_XMIT;
+		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
 		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);

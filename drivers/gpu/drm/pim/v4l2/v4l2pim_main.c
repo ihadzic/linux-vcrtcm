@@ -42,11 +42,11 @@
 #include "vcrtcm/vcrtcm_pcon.h"
 
 
-#define V4L2PCON_MAJOR_VERSION 0
-#define V4L2PCON_MINOR_VERSION 2
-#define V4L2PCON_RELEASE 0
-#define V4L2PCON_VERSION \
-	KERNEL_VERSION(V4L2PCON_MAJOR_VERSION, V4L2PCON_MINOR_VERSION, V4L2PCON_RELEASE)
+#define V4L2PIM_MAJOR_VERSION 0
+#define V4L2PIM_MINOR_VERSION 2
+#define V4L2PIM_RELEASE 0
+#define V4L2PIM_VERSION \
+	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
@@ -406,7 +406,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strcpy(cap->card, "v4l2pim");
 	strlcpy(cap->bus_info, v4l2pim_info->v4l2_dev.name,
 		sizeof(cap->bus_info));
-	cap->version = V4L2PCON_VERSION;
+	cap->version = V4L2PIM_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
 	return 0;
@@ -1029,8 +1029,8 @@ static int __init v4l2pim_init(void)
 
 	if (v4l2pim_num_minors < 0)
 		v4l2pim_num_minors = 0;
-	if (v4l2pim_num_minors > V4L2PCON_MAX_MINOR)
-		v4l2pim_num_minors = V4L2PCON_MAX_MINOR;
+	if (v4l2pim_num_minors > V4L2PIM_MAX_MINOR)
+		v4l2pim_num_minors = V4L2PIM_MAX_MINOR;
 
 	num_created = 0;
 	for (minor = 0; minor < v4l2pim_num_minors; minor++) {

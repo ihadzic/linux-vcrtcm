@@ -18,8 +18,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef V4L2PCON_VCRTCM_H
-#define V4L2PCON_VCRTCM_H
+#ifndef V4L2PIM_VCRTCM_H
+#define V4L2PIM_VCRTCM_H
 
 /* VCRTCM interface function prototypes */
 

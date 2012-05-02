@@ -35,16 +35,16 @@
 
 #include "vcrtcm/vcrtcm_pcon.h"
 
-#define V4L2PCON_MAX_MINOR 255
+#define V4L2PIM_MAX_MINOR 255
 
-#define V4L2PCON_FPS_HARD_LIMIT 100
-#define V4L2PCON_XMIT_HARD_DEADLINE (HZ/10)
+#define V4L2PIM_FPS_HARD_LIMIT 100
+#define V4L2PIM_XMIT_HARD_DEADLINE (HZ/10)
 
-#define V4L2PCON_IN_DO_XMIT 0x1
+#define V4L2PIM_IN_DO_XMIT 0x1
 
-#define V4L2PCON_ALLOC_PB_FLAG_FB 0x0
-#define V4L2PCON_ALLOC_PB_FLAG_CURSOR 0x1
-#define V4L2PCON_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+#define V4L2PIM_ALLOC_PB_FLAG_FB 0x0
+#define V4L2PIM_ALLOC_PB_FLAG_CURSOR 0x1
+#define V4L2PIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
 extern int debug;
 
