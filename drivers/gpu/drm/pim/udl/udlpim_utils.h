@@ -17,8 +17,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __UDLPCON_UTILS_H__
-#define __UDLPCON_UTILS_H__
+#ifndef __UDLPIM_UTILS_H__
+#define __UDLPIM_UTILS_H__
 
 #include <linux/console.h>
 #include "udlpim.h"

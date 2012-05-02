@@ -33,7 +33,7 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 	void *pb_mapped_ram;
 
 	for (i = 0; i < 2; i++) {
-		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
 			pbd = &flow_info->pbd_fb[i];
 			pb_mapped_ram = flow_info->pb_fb[i];
 		} else {
@@ -58,7 +58,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 	struct vcrtcm_push_buffer_descriptor *pbd = NULL;
 
 	for (i = 0; i < 2; i++) {
-		if (flag == UDLPCON_ALLOC_PB_FLAG_FB)
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
 			pbd = &flow_info->pbd_fb[i];
 		else
 			pbd = &flow_info->pbd_cursor[i];
@@ -67,7 +67,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 		r = vcrtcm_p_push_buffer_alloc(flow_info->vcrtcm_pcon_info, pbd);
 		if (r) {
 			PR_ERR("%s[%d]: push buffer alloc_failed\n",
-					UDLPCON_ALLOC_PB_STRING(flag), i);
+					UDLPIM_ALLOC_PB_STRING(flag), i);
 			memset(pbd, 0,
 				sizeof(struct vcrtcm_push_buffer_descriptor));
 			break;
@@ -75,7 +75,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 
 		if (pbd->num_pages != requested_num_pages) {
 			PR_ERR("%s[%d]: incorrect size allocated\n",
-					UDLPCON_ALLOC_PB_STRING(flag), i);
+					UDLPIM_ALLOC_PB_STRING(flag), i);
 			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
 			/* incorrect size in most cases means too few pages */
 			/* so it makes sense to return ENOMEM here */
@@ -85,12 +85,12 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 
 		flow_info->pb_needs_xmit[i] = 0;
 		PR_DEBUG("%s[%d]: allocated %lu pages\n",
-				UDLPCON_ALLOC_PB_STRING(flag),
+				UDLPIM_ALLOC_PB_STRING(flag),
 				i, pbd->num_pages);
 
 		/* we have the buffer, now we need to map it */
 		/* (and that can fail too) */
-		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
 			flow_info->pb_fb[i] =
 				vm_map_ram(flow_info->pbd_fb[i].pages,
 					flow_info->pbd_fb[i].num_pages,
@@ -127,7 +127,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 		/* allocation failed in the second iteration */
 		/* of the loop, we must release the buffer */
 		/* allocated in the first one before returning*/
-		if (flag == UDLPCON_ALLOC_PB_FLAG_FB) {
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
 			vm_unmap_ram(flow_info->pbd_fb[0].pages,
 				flow_info->pbd_fb[0].num_pages);
 			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
@@ -219,8 +219,8 @@ void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	if (flow_info->vcrtcm_pcon_info == vcrtcm_pcon_info) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		udlpim_free_pb(udlpim_info, flow_info, UDLPCON_ALLOC_PB_FLAG_FB);
-		udlpim_free_pb(udlpim_info, flow_info, UDLPCON_ALLOC_PB_FLAG_CURSOR);
+		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
+		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 
 		udlpim_info->udlpim_flow_info = NULL;
 		udlpim_kfree(udlpim_info, flow_info);
@@ -300,7 +300,7 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	if (!requested_num_pages) {
 		PR_DEBUG("framebuffer: zero size requested\n");
 		udlpim_free_pb(udlpim_info, flow_info,
-				UDLPCON_ALLOC_PB_FLAG_FB);
+				UDLPIM_ALLOC_PB_FLAG_FB);
 	} else if (flow_info->pbd_fb[0].num_pages == requested_num_pages) {
 		/* we can safely check index 0 num_pages against */
 		/* index 1 num_pages because we checked that they */
@@ -314,11 +314,11 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 				"size=%d, num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
 		udlpim_free_pb(udlpim_info, flow_info,
-				UDLPCON_ALLOC_PB_FLAG_FB);
+				UDLPIM_ALLOC_PB_FLAG_FB);
 
 		r = udlpim_alloc_pb(udlpim_info, flow_info,
 				requested_num_pages,
-				UDLPCON_ALLOC_PB_FLAG_FB);
+				UDLPIM_ALLOC_PB_FLAG_FB);
 	}
 	mutex_unlock(&udlpim_info->buffer_mutex);
 	return r;
@@ -375,7 +375,7 @@ int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_c
 	PR_DEBUG("Queried for status\n");
 
 	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-	if (udlpim_info->status & UDLPCON_IN_DO_XMIT)
+	if (udlpim_info->status & UDLPIM_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
 	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
@@ -400,7 +400,7 @@ int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 		return -EINVAL;
 	}
 
-	if (fps > UDLPCON_FPS_HARD_LIMIT) {
+	if (fps > UDLPIM_FPS_HARD_LIMIT) {
 		PR_ERR("Frame rate above the hard limit\n");
 		return -EINVAL;
 	}
@@ -488,7 +488,7 @@ int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 	if (!requested_num_pages) {
 		PR_DEBUG("cursor: zero size requested\n");
 		udlpim_free_pb(udlpim_info, flow_info,
-				UDLPCON_ALLOC_PB_FLAG_CURSOR);
+				UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	} else if (flow_info->pbd_cursor[0].num_pages ==
 					requested_num_pages) {
 		PR_DEBUG("cursor : reusing existing push buffer\n");
@@ -501,11 +501,11 @@ int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 				size_in_bytes, requested_num_pages);
 
 		udlpim_free_pb(udlpim_info, flow_info,
-				UDLPCON_ALLOC_PB_FLAG_CURSOR);
+				UDLPIM_ALLOC_PB_FLAG_CURSOR);
 
 		r = udlpim_alloc_pb(udlpim_info, flow_info,
 				requested_num_pages,
-				UDLPCON_ALLOC_PB_FLAG_CURSOR);
+				UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	}
 	mutex_unlock(&udlpim_info->buffer_mutex);
 	return r;
@@ -782,7 +782,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 	PR_DEBUG("in udlpim_do_xmit_fb_push, minor %d\n", udlpim_info->minor);
 
 	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-	udlpim_info->status |= UDLPCON_IN_DO_XMIT;
+	udlpim_info->status |= UDLPIM_IN_DO_XMIT;
 	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 	push_buffer_index = flow_info->push_buffer_index;
@@ -799,7 +799,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 
 	if ((flow_info->fb_force_xmit ||
 	     time_after(jiffies_snapshot, flow_info->last_xmit_jiffies +
-			UDLPCON_XMIT_HARD_DEADLINE)) &&
+			UDLPIM_XMIT_HARD_DEADLINE)) &&
 			have_push_buffer &&
 			udlpim_info->monitor_connected &&
 			flow_info->fb_xmit_allowed) {
@@ -830,7 +830,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 				flow_info->vcrtcm_fb.vdisplay);
 
 		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-		udlpim_info->status &= ~UDLPCON_IN_DO_XMIT;
+		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
@@ -862,7 +862,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
 		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-		udlpim_info->status &= ~UDLPCON_IN_DO_XMIT;
+		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);

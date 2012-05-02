@@ -84,7 +84,7 @@ static int __init udlpim_init(void)
 	INIT_LIST_HEAD(&udlpim_info_list);
 
 	PR_INFO("Allocating/registering dynamic major number");
-	ret = alloc_chrdev_region(&dev, 0, UDLPCON_MAX_DEVICES, "udlpim");
+	ret = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_DEVICES, "udlpim");
 	udlpim_major = MAJOR(dev);
 
 	if (ret) {
@@ -114,8 +114,8 @@ static void __exit udlpim_exit(void)
 	if (udlpim_major >= -1) {
 		PR_INFO
 		("Deallocating major device number %d, count %d\n",
-			udlpim_major, UDLPCON_MAX_DEVICES);
-		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPCON_MAX_DEVICES);
+			udlpim_major, UDLPIM_MAX_DEVICES);
+		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
 	}
 
 	return;

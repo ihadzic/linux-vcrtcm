@@ -17,32 +17,32 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __UDLPCON_H
-#define __UDLPCON_H
+#ifndef __UDLPIM_H
+#define __UDLPIM_H
 
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 
-#define UDLPCON_MAX_DEVICES 64 /* This is currently a hard limitation. */
-#define UDLPCON_FPS_HARD_LIMIT 100
-#define UDLPCON_DEFAULT_PIXEL_DEPTH 32
-#define UDLPCON_XFER_MAX_TRY 20
-#define UDLPCON_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
-#define UDLPCON_XMIT_HARD_DEADLINE (HZ/10)
+#define UDLPIM_MAX_DEVICES 64 /* This is currently a hard limitation. */
+#define UDLPIM_FPS_HARD_LIMIT 100
+#define UDLPIM_DEFAULT_PIXEL_DEPTH 32
+#define UDLPIM_XFER_MAX_TRY 20
+#define UDLPIM_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
+#define UDLPIM_XMIT_HARD_DEADLINE (HZ/10)
 
-#define UDLPCON_IN_DO_XMIT 0x1
+#define UDLPIM_IN_DO_XMIT 0x1
 
-#define UDLPCON_ALLOC_PB_FLAG_FB 0x0
-#define UDLPCON_ALLOC_PB_FLAG_CURSOR 0x1
-#define UDLPCON_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+#define UDLPIM_ALLOC_PB_FLAG_FB 0x0
+#define UDLPIM_ALLOC_PB_FLAG_CURSOR 0x1
+#define UDLPIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
-#define UDLPCON_BLANK_COLOR 0x0080c8
-#define UDLPCON_ERROR_COLOR 0xFF0000
+#define UDLPIM_BLANK_COLOR 0x0080c8
+#define UDLPIM_ERROR_COLOR 0xFF0000
 
-#define UDLPCON_EDID_QUERY_TIME HZ
-#define UDLPCON_EDID_QUERY_TRIES 3
+#define UDLPIM_EDID_QUERY_TIME HZ
+#define UDLPIM_EDID_QUERY_TRIES 3
 
 /* Module options */
 extern int true32bpp;

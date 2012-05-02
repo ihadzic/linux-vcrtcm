@@ -17,8 +17,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef UDLPCON_VCRTCM_H_
-#define UDLPCON_VCRTCM_H_
+#ifndef UDLPIM_VCRTCM_H_
+#define UDLPIM_VCRTCM_H_
 
 /* VCRTCM interface function prototypes */
 

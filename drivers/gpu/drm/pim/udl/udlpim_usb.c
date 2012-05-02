@@ -140,7 +140,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 		/* In this case we want to reuse the lower number(s). */
 		/* Note that this implementation will only work as long as */
 		/* the total number of minors is less than 64. For this */
-		/* reason we set UDLPCON_MAX_DEVICES to 64 in udlpim.h */
+		/* reason we set UDLPIM_MAX_DEVICES to 64 in udlpim.h */
 		int new_minor = -1;
 		uint64_t used_minors = 0;
 		struct udlpim_info *ptr;
@@ -165,7 +165,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 		/* minors that have gone away. */
 
 		/* If we ready have too many minors, error out. */
-		if (udlpim_num_minors == UDLPCON_MAX_DEVICES) {
+		if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
 			PR_ERR("Maximum number of minors already assigned. "
 				"Device will be unusable.\n");
 			goto error;
@@ -204,7 +204,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	atomic_set(&udlpim_info->usb_active, 1);
 	udlpim_select_std_channel(udlpim_info);
 	udlpim_set_video_mode(udlpim_info, &udlpim_info->default_video_mode);
-	udlpim_blank_hw_fb(udlpim_info, UDLPCON_BLANK_COLOR);
+	udlpim_blank_hw_fb(udlpim_info, UDLPIM_BLANK_COLOR);
 
 	PR_INFO("DisplayLink USB device attached.\n");
 	PR_INFO("successfully registered"
@@ -341,7 +341,7 @@ int udlpim_setup_screen(struct udlpim_info *udlpim_info,
 		return 1;
 	}
 
-	result = udlpim_blank_hw_fb(udlpim_info, UDLPCON_BLANK_COLOR);
+	result = udlpim_blank_hw_fb(udlpim_info, UDLPIM_BLANK_COLOR);
 
 	if (result) {
 		PR_ERR("Could not blank HW framebuffer\n");
@@ -355,7 +355,7 @@ int udlpim_setup_screen(struct udlpim_info *udlpim_info,
 int udlpim_error_screen(struct udlpim_info *udlpim_info)
 {
 	udlpim_set_video_mode(udlpim_info, &udlpim_info->default_video_mode);
-	udlpim_blank_hw_fb(udlpim_info, UDLPCON_ERROR_COLOR);
+	udlpim_blank_hw_fb(udlpim_info, UDLPIM_ERROR_COLOR);
 
 	return 0;
 }
@@ -574,7 +574,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 	struct fb_monspecs monspecs;
 	char *new_edid, *old_edid;
 	int new_edid_valid = 0;
-	int tries = UDLPCON_EDID_QUERY_TRIES;
+	int tries = UDLPIM_EDID_QUERY_TRIES;
 	int i;
 	unsigned long flags;
 
@@ -1449,7 +1449,7 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 {
 	struct udlpim_scratch_memory_descriptor *scratch_memory =
 			udlpim_info->scratch_memory;
-	uint32_t blank_pixel_32 = UDLPCON_BLANK_COLOR;
+	uint32_t blank_pixel_32 = UDLPIM_BLANK_COLOR;
 	uint16_t blank_pixel_16;
 	uint8_t blank_pixel_8;
 
@@ -1613,7 +1613,7 @@ static void udlpim_query_edid(struct work_struct *work)
 	udlpim_query_edid_core(udlpim_info);
 
 	queue_delayed_work(udlpim_info->workqueue,
-			&udlpim_info->query_edid_work, UDLPCON_EDID_QUERY_TIME);
+			&udlpim_info->query_edid_work, UDLPIM_EDID_QUERY_TIME);
 }
 
 /* The following are all low-level DisplayLink manipulation functions */
