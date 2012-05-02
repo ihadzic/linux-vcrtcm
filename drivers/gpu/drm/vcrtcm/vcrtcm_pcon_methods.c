@@ -129,10 +129,7 @@ void vcrtcm_p_del(int major, int minor, int flow)
 					    vcrtcm_pcon_info_private->drm_crtc);
 				if (vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.detach)
 					vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.
-					    detach(&vcrtcm_pcon_info_private->
-						   vcrtcm_pcon_info,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+					    detach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info);
 				if (vcrtcm_pcon_info_private->gpu_funcs.detach)
 					vcrtcm_pcon_info_private->
 						gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);

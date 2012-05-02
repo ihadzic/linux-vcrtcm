@@ -63,9 +63,7 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 				int r;
 				r = vcrtcm_pcon_info_private->
 				    vcrtcm_pcon_info.funcs.
-				    attach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info,
-					   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-					   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+				    attach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info);
 				if (r) {
 					VCRTCM_ERROR("back-end attach call failed\n");
 					mutex_unlock(&vcrtcm_pcon_info_private->
@@ -138,10 +136,7 @@ int vcrtcm_g_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	spin_unlock_irqrestore(&vcrtcm_pcon_info_private->lock, flags);
 	if (vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.detach)
 		vcrtcm_pcon_info_private->
-		    vcrtcm_pcon_info.funcs.detach(&vcrtcm_pcon_info_private->
-						vcrtcm_pcon_info,
-						vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		    vcrtcm_pcon_info.funcs.detach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info);
 	if (vcrtcm_pcon_info_private->gpu_funcs.detach)
 		vcrtcm_pcon_info_private->gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);
 	memset(&vcrtcm_pcon_info_private->gpu_funcs, 0,
@@ -176,9 +171,7 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.set_fb(vcrtcm_fb,
-						 vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						 vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.set_fb(vcrtcm_pcon_info, vcrtcm_fb);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %d.%d.%d\n",
 			       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -208,9 +201,7 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_fb(vcrtcm_fb,
-						 vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						 vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.get_fb(vcrtcm_pcon_info, vcrtcm_fb);
 	} else {
 		VCRTCM_WARNING("missing get_fb backend, pcon %d.%d.%d\n",
 			       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -238,16 +229,10 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     u32 ioaddr)
 {
 	int r;
-	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_info_private,
-			 vcrtcm_pcon_info);
-
 	/* this method is intended to be called from ISR, so no */
 	/* semaphore grabbing allowed */
 	if (vcrtcm_pcon_info->funcs.page_flip)
-		r = vcrtcm_pcon_info->funcs.page_flip(ioaddr,
-						    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.page_flip(vcrtcm_pcon_info, ioaddr);
 	else
 		r = 0;
 	return r;
@@ -274,9 +259,7 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_pcon_info_private->drm_crtc,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_pcon_info, vcrtcm_pcon_info_private->drm_crtc);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -306,9 +289,7 @@ int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.wait_fb(vcrtcm_pcon_info_private->drm_crtc,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.wait_fb(vcrtcm_pcon_info, vcrtcm_pcon_info_private->drm_crtc);
 	} else {
 		VCRTCM_DEBUG("missing wait_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -335,10 +316,7 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_fb_status(vcrtcm_pcon_info_private->drm_crtc,
-							vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-							vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-							status);
+		r = vcrtcm_pcon_info->funcs.get_fb_status(vcrtcm_pcon_info, vcrtcm_pcon_info_private->drm_crtc, status);
 	} else {
 		VCRTCM_WARNING("missing get_fb_status backend, pcon %d.%d.%d\n",
 			       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -364,9 +342,7 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.set_fps(fps,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.set_fps(vcrtcm_pcon_info, fps);
 	} else {
 		VCRTCM_WARNING("missing set_fps backend, pcon %d.%d.%d\n",
 			       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -393,9 +369,7 @@ int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_fps(fps,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						  vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.get_fps(vcrtcm_pcon_info, fps);
 	} else {
 		VCRTCM_WARNING("missing get_fps backend, pcon %d.%d.%d\n",
 			       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -430,10 +404,7 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.set_cursor(vcrtcm_cursor,
-						     vcrtcm_pcon_info_private->
-						     vcrtcm_pcon_info.pcon_cookie,
-						     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.set_cursor(vcrtcm_pcon_info, vcrtcm_cursor);
 	} else {
 		VCRTCM_DEBUG("missing set_cursor backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -463,10 +434,7 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_cursor(vcrtcm_cursor,
-						     vcrtcm_pcon_info_private->
-						     vcrtcm_pcon_info.pcon_cookie,
-						     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.get_cursor(vcrtcm_pcon_info, vcrtcm_cursor);
 	} else {
 		VCRTCM_DEBUG("missing get_fb backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -493,9 +461,7 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.set_dpms(state,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.set_dpms(vcrtcm_pcon_info, state);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -522,9 +488,7 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_dpms(state,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		r = vcrtcm_pcon_info->funcs.get_dpms(vcrtcm_pcon_info, state);
 	} else {
 		VCRTCM_DEBUG("missing get_dpms backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -600,9 +564,7 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *stat
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-						    status);
+		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_pcon_info, status);
 	} else {
 		VCRTCM_DEBUG("missing connected backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -655,10 +617,7 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-						    modes,
-						    count);
+		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_pcon_info, modes, count);
 	} else {
 		VCRTCM_DEBUG("missing get_modes backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -693,10 +652,7 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-						     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-						     mode,
-						     status);
+		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_pcon_info, mode, status);
 	} else {
 		VCRTCM_DEBUG("missing check_mode backend, pcon %d.%d.%d\n",
 			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
@@ -729,8 +685,7 @@ void vcrtcm_g_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
 			vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 
-		vcrtcm_pcon_info->funcs.disable(vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
-					      vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
+		vcrtcm_pcon_info->funcs.disable(vcrtcm_pcon_info);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %d.%d.%d\n",
 			vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,

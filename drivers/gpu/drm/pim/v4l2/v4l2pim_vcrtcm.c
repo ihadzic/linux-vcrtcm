@@ -142,10 +142,9 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 	return r;
 }
 
-int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *v4l2pim_info_, int flow)
+int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 
 	PR_INFO("Attaching vl2pcon %d to pcon %p\n",
 		v4l2pim_info->minor, vcrtcm_pcon_info);
@@ -193,10 +192,9 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	}
 }
 
-void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *v4l2pim_info_, int flow)
+void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_INFO("Detaching v4l2pim %d from pcon %p\n",
@@ -221,9 +219,9 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	}
 }
 
-int v4l2pim_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow)
+int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 	uint32_t w, h, sb_size;
 	int r = 0;
@@ -287,9 +285,9 @@ int v4l2pim_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow)
 	return r;
 }
 
-int v4l2pim_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow)
+int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("In v4l2pim_get_fb, minor %d.\n", v4l2pim_info->minor);
@@ -305,9 +303,9 @@ int v4l2pim_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow)
 	return 0;
 }
 
-int v4l2pim_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pim_info_, int flow)
+int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("in v4l2pim_dirty_fb, minor %d\n", v4l2pim_info->minor);
@@ -324,16 +322,15 @@ int v4l2pim_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pim_info_, int flow)
 	return 0;
 }
 
-int v4l2pim_wait_fb(struct drm_crtc *drm_crtc, void *v4l2pim_info_, int flow)
+int v4l2pim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc)
 {
 	return 0;
 }
 
-int v4l2pim_get_fb_status(struct drm_crtc *drm_crtc,
-		void *v4l2pim_info_, int flow, u32 *status)
+int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	unsigned long flags;
 
 	PR_DEBUG("Queried for status\n");
@@ -348,9 +345,9 @@ int v4l2pim_get_fb_status(struct drm_crtc *drm_crtc,
 	return 0;
 }
 
-int v4l2pim_set_fps(int fps, void *v4l2pim_info_, int flow)
+int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
@@ -390,9 +387,9 @@ int v4l2pim_set_fps(int fps, void *v4l2pim_info_, int flow)
 	return 0;
 }
 
-int v4l2pim_get_fps(int *fps, void *v4l2pim_info_, int flow)
+int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("v4l2pim_get_fps.\n");
@@ -415,10 +412,9 @@ int v4l2pim_get_fps(int *fps, void *v4l2pim_info_, int flow)
 	}
 }
 
-int v4l2pim_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *v4l2pim_info_, int flow)
+int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
@@ -475,10 +471,9 @@ int v4l2pim_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	return r;
 }
 
-int v4l2pim_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *v4l2pim_info_, int flow)
+int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("In v4l2pim_set_cursor, minor %d\n", v4l2pim_info->minor);
@@ -496,9 +491,9 @@ int v4l2pim_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	return 0;
 }
 
-int v4l2pim_set_dpms(int state, void *v4l2pim_info_, int flow)
+int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("in v4l2pim_set_dpms, minor %d, state %d\n",
@@ -516,9 +511,9 @@ int v4l2pim_set_dpms(int state, void *v4l2pim_info_, int flow)
 	return 0;
 }
 
-int v4l2pim_get_dpms(int *state, void *v4l2pim_info_, int flow)
+int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("in v4l2pim_get_dpms, minor %d\n",
@@ -536,9 +531,9 @@ int v4l2pim_get_dpms(int *state, void *v4l2pim_info_, int flow)
 	return 0;
 }
 
-void v4l2pim_disable(void *v4l2pim_info_, int flow)
+void v4l2pim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *)v4l2pim_info_;
+	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *)vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info =
 			v4l2pim_info->v4l2pim_flow_info;
 

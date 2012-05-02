@@ -78,36 +78,24 @@ struct vcrtcm_pcon_info;
 
 /* functional interface to PCON */
 struct vcrtcm_pcon_funcs {
-	int (*attach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-		       void *pcon_cookie, int flow);
-	void (*detach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *pcon_cookie, int flow);
-	int (*set_fb) (struct vcrtcm_fb *vcrtcm_fb, void *pcon_cookie,
-		       int flow);
-	int (*get_fb) (struct vcrtcm_fb *vcrtcm_fb, void *pcon_cookie,
-		       int flow);
-	int (*page_flip) (u32 ioaddr, void *pcon_cookie, int flow);
-	int (*dirty_fb) (struct drm_crtc *drm_crtc, void *pcon_cookie,
-			int flow);
-	int (*wait_fb) (struct drm_crtc *drm_crtc, void *pcon_cookie,
-			int flow);
-	int (*get_fb_status)(struct drm_crtc *drm_crtc, void *pcon_cookie,
-			int flow, u32 *status);
-	int (*set_fps) (int fps, void *pcon_cookie, int flow);
-	int (*get_fps) (int *fps, void *pcon_cookie, int flow);
-	int (*set_cursor) (struct vcrtcm_cursor *vcrtcm_cursor,
-			   void *pcon_cookie, int flow);
-	int (*get_cursor) (struct vcrtcm_cursor *vcrtcm_cursor,
-			   void *pcon_cookie, int flow);
-	int (*set_dpms) (int state, void *pcon_cookie, int flow);
-	int (*get_dpms) (int *state, void *pcon_cookie, int flow);
-	int (*connected) (void *pcon_cookie, int flow, int *status);
-	int (*get_modes) (void *pcon_cookie, int flow,
-			  struct vcrtcm_mode **modes, int *count);
-	int (*check_mode) (void *pcon_cookie, int flow,
-			   struct vcrtcm_mode *mode, int *status);
-
-	void (*disable) (void *pcon_cookie, int flow);
+	int (*attach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+	void (*detach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+	int (*set_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
+	int (*get_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
+	int (*page_flip) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, u32 ioaddr);
+	int (*dirty_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
+	int (*wait_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
+	int (*get_fb_status)(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status);
+	int (*set_fps) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);
+	int (*get_fps) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps);
+	int (*set_cursor) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
+	int (*get_cursor) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
+	int (*set_dpms) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state);
+	int (*get_dpms) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state);
+	int (*connected) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status);
+	int (*get_modes) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode **modes, int *count);
+	int (*check_mode) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode *mode, int *status);
+	void (*disable) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 };
 
 enum vcrtcm_xfer_mode {

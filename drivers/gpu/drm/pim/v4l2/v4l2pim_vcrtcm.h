@@ -23,35 +23,22 @@
 
 /* VCRTCM interface function prototypes */
 
-int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *v4l2pim_info_, int flow);
-
-void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *v4l2pim_info_, int flow);
-
-int v4l2pim_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow);
-
-int v4l2pim_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *v4l2pim_info_, int flow);
-
-int v4l2pim_set_fps(int fps, void *v4l2pim_info_, int flow);
-
-int v4l2pim_get_fps(int *fps, void *v4l2pim_info_, int flow);
-
-int v4l2pim_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *v4l2pim_info_, int flow);
-
-int v4l2pim_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *v4l2pim_info_, int flow);
-
-void v4l2pim_disable(void *v4l2pim_info_, int flow);
+int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
+int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
+int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);
+int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps);
+int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
+int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
+void v4l2pim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 
 /* VCRTCM functions that interact directly with HW */
-int v4l2pim_dirty_fb(struct drm_crtc *drm_crtc, void *v4l2pim_info_, int flow);
-int v4l2pim_wait_fb(struct drm_crtc *drm_crtc, void *v4l2pim_info_, int flow);
-int v4l2pim_get_fb_status(struct drm_crtc *drm_crtc,
-		void *v4l2pim_info_, int flow, u32 *status);
-int v4l2pim_set_dpms(int state, void *v4l2pim_info_, int flow);
-int v4l2pim_get_dpms(int *state, void *v4l2pim_info_, int flow);
+int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
+int v4l2pim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
+int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status);
+int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state);
+int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state);
 
 /* Scheduled/delayed work functions */
 void v4l2pim_fake_vblank(struct work_struct *work);
