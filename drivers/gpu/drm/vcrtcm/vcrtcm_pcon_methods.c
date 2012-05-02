@@ -35,18 +35,18 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	/* first check whether we are already registered */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
 	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_pcon_list, list) {
-		if ((vcrtcm_pcon_info_private->hw_major == major) &&
-		    (vcrtcm_pcon_info_private->hw_minor == minor) &&
-		    (vcrtcm_pcon_info_private->hw_flow == flow)) {
+		if ((vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major == major) &&
+		    (vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor == minor) &&
+		    (vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow == flow)) {
 			/* if the PCON already exists, we just overwrite
 			   the provided functions (assuming that the PCON
 			   that called us knows what it's doing */
 			mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 			VCRTCM_WARNING("found an existing pcon %d.%d.%d, "
 				       "refreshing its implementation\n",
-				       vcrtcm_pcon_info_private->hw_major,
-				       vcrtcm_pcon_info_private->hw_minor,
-				       vcrtcm_pcon_info_private->hw_flow);
+				       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+				       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+				       vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 			memcpy(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs,
 			       vcrtcm_pcon_funcs, sizeof(struct vcrtcm_pcon_funcs));
 			memcpy(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.props,
@@ -76,9 +76,9 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 
 	/* populate the info structure and link it to the PCON structure */
 	vcrtcm_pcon_info_private->status = 0;
-	vcrtcm_pcon_info_private->hw_major = major;
-	vcrtcm_pcon_info_private->hw_minor = minor;
-	vcrtcm_pcon_info_private->hw_flow = flow;
+	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major = major;
+	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor = minor;
+	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow = flow;
 	vcrtcm_pcon_info_private->pcon_cookie = pcon_cookie;
 	vcrtcm_pcon_info_private->vblank_time_valid = 0;
 	vcrtcm_pcon_info_private->vblank_time.tv_sec = 0;
@@ -88,8 +88,8 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	       sizeof(struct vcrtcm_gpu_funcs));
 
 	VCRTCM_INFO("adding new pcon %d.%d.%d\n",
-		    vcrtcm_pcon_info_private->hw_major,
-		    vcrtcm_pcon_info_private->hw_minor, vcrtcm_pcon_info_private->hw_flow);
+		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor, vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 
 	/* make the new PCON available to the rest of the system */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
@@ -109,16 +109,16 @@ void vcrtcm_p_del(int major, int minor, int flow)
 	/* find the entry that should be removed */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
 	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_pcon_list, list) {
-		if ((vcrtcm_pcon_info_private->hw_major == major) &&
-		    (vcrtcm_pcon_info_private->hw_minor == minor) &&
-		    (vcrtcm_pcon_info_private->hw_flow == flow)) {
+		if ((vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major == major) &&
+		    (vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor == minor) &&
+		    (vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow == flow)) {
 			unsigned long flags;
 			mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 			VCRTCM_INFO("found an existing pcon %d.%d.%d "
 				    "removing\n",
-				    vcrtcm_pcon_info_private->hw_major,
-				    vcrtcm_pcon_info_private->hw_minor,
-				    vcrtcm_pcon_info_private->hw_flow);
+				    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+				    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+				    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 			spin_lock_irqsave(&vcrtcm_pcon_info_private->lock, flags);
 			if (vcrtcm_pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 				vcrtcm_pcon_info_private->status &= ~VCRTCM_STATUS_PCON_IN_USE;
@@ -132,7 +132,7 @@ void vcrtcm_p_del(int major, int minor, int flow)
 					    detach(&vcrtcm_pcon_info_private->
 						   vcrtcm_pcon_info,
 						   vcrtcm_pcon_info_private->pcon_cookie,
-						   vcrtcm_pcon_info_private->hw_flow);
+						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 				if (vcrtcm_pcon_info_private->gpu_funcs.detach)
 					vcrtcm_pcon_info_private->
 						gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);
@@ -168,8 +168,8 @@ void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
 
 	VCRTCM_INFO("waiting for GPU pcon %d.%d.%d\n",
-		    vcrtcm_pcon_info_private->hw_major,
-		    vcrtcm_pcon_info_private->hw_minor, vcrtcm_pcon_info_private->hw_flow);
+		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor, vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 	jiffies_snapshot = jiffies;
 	if (vcrtcm_pcon_info_private->gpu_funcs.sync)
 		vcrtcm_pcon_info_private->gpu_funcs.sync(vcrtcm_pcon_info_private->drm_crtc);
@@ -204,9 +204,9 @@ void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	spin_unlock_irqrestore(&vcrtcm_pcon_info_private->lock, flags);
 	if (vcrtcm_pcon_info_private->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for pcon %d.%d.%d\n",
-			     vcrtcm_pcon_info_private->hw_major,
-			     vcrtcm_pcon_info_private->hw_minor,
-			     vcrtcm_pcon_info_private->hw_flow);
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 		vcrtcm_pcon_info_private->gpu_funcs.vblank(vcrtcm_pcon_info_private->drm_crtc);
 	}
 }
@@ -229,9 +229,9 @@ int vcrtcm_p_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		obj = pbd->gpu_private;
 		VCRTCM_DEBUG("pcon %d.%d.%d "
 			     "allocated push buffer name=%d, size=%d\n",
-			     vcrtcm_pcon_info_private->hw_major,
-			     vcrtcm_pcon_info_private->hw_minor,
-			     vcrtcm_pcon_info_private->hw_flow,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
 			     obj->name, obj->size);
 		return r;
 	} else
@@ -251,9 +251,9 @@ void vcrtcm_p_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	if (vcrtcm_pcon_info_private->gpu_funcs.pb_free) {
 		VCRTCM_DEBUG("pcon %d.%d.%d "
 			     "freeing push buffer name=%d, size=%d\n",
-			     vcrtcm_pcon_info_private->hw_major,
-			     vcrtcm_pcon_info_private->hw_minor,
-			     vcrtcm_pcon_info_private->hw_flow,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
 			     obj->name, obj->size);
 		vcrtcm_pcon_info_private->gpu_funcs.pb_free(obj);
 		memset(pbd, 0,
@@ -279,9 +279,9 @@ int vcrtcm_p_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 
 	if (vcrtcm_pcon_info_private->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for pcon %d.%d.%d\n",
-			     vcrtcm_pcon_info_private->hw_major,
-			     vcrtcm_pcon_info_private->hw_minor,
-			     vcrtcm_pcon_info_private->hw_flow);
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 		return vcrtcm_pcon_info_private->gpu_funcs.push(crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
@@ -302,9 +302,9 @@ void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	if (vcrtcm_pcon_info_private->gpu_funcs.hotplug) {
 		vcrtcm_pcon_info_private->gpu_funcs.hotplug(crtc);
 		VCRTCM_DEBUG("pcon %d.%d.%d hotplug\n",
-			     vcrtcm_pcon_info_private->hw_major,
-			     vcrtcm_pcon_info_private->hw_minor,
-			     vcrtcm_pcon_info_private->hw_flow);
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 
 	}
 }

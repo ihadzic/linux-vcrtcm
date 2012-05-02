@@ -35,10 +35,6 @@ struct vcrtcm_pcon_info_private {
 	spinlock_t lock;
 	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
 	int status;
-	/* identifies the driver/hardware that implements this PCON */
-	int hw_major;
-	int hw_minor;
-	int hw_flow;
 	/* records the time when last (emulated) vblank occurred */
 	struct timeval vblank_time;
 	int vblank_time_valid;

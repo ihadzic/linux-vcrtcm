@@ -130,6 +130,10 @@ struct vcrtcm_pcon_info {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_pcon_props props;
+	/* the infamous triple that identifies the PCON */
+	int pcon_major;
+	int pcon_minor;
+	int pcon_flow;
 };
 
 /* descriptor for push buffer; when push-method is used */

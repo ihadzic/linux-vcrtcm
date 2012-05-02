@@ -55,9 +55,9 @@ static void __exit vcrtcm_exit(void)
 	list_for_each_entry_safe(vcrtcm_pcon_info_private, tmp, &vcrtcm_pcon_list, list) {
 		mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 		VCRTCM_INFO("removing pcon %d.%d.%d\n",
-			    vcrtcm_pcon_info_private->hw_major,
-			    vcrtcm_pcon_info_private->hw_minor,
-			    vcrtcm_pcon_info_private->hw_flow);
+			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
+			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 		if (vcrtcm_pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 				    vcrtcm_pcon_info_private->drm_crtc);
@@ -66,7 +66,7 @@ static void __exit vcrtcm_exit(void)
 				    vcrtcm_pcon_info.funcs.
 				    detach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info,
 					   vcrtcm_pcon_info_private->pcon_cookie,
-					   vcrtcm_pcon_info_private->hw_flow);
+					   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 			if (vcrtcm_pcon_info_private->gpu_funcs.detach)
 				vcrtcm_pcon_info_private->
 					gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);
