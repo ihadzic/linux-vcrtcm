@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2011 Alcatel-Lucent, Inc.
-   Author: Bill Katsak <william.katsak@alcatel-lucent.com>
+   Authors: Hans Christian Woithe <hans.woithe@alcatel-lucent.com>
+		Bill Katsak <william.katsak@alcatel-lucent.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,11 +18,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __UDLPCON_UTILS_H__
-#define __UDLPCON_UTILS_H__
-
-#include <linux/console.h>
-#include "udlpcon.h"
+#ifndef __v4l2pim_UTILS_H__
+#define __v4l2pim_UTILS_H__
 
 extern int debug;
 
@@ -41,38 +39,38 @@ extern int debug;
 					fmt, ## args); \
 	} while (0)
 
-int udlpcon_alloc_multiple_pages(struct udlpcon_info *udlpcon_info,
-				gfp_t gfp_mask,
-				struct page **page_array,
-				unsigned int num_pages);
+int v4l2pim_alloc_multiple_pages(struct v4l2pim_info *v4l2pim_info,
+					gfp_t gfp_mask,
+					struct page **page_array,
+					unsigned int num_pages);
 
-void udlpcon_free_multiple_pages(struct udlpcon_info *udlpcon_info,
-				struct page **page_array,
-				unsigned int num_pages);
+void v4l2pim_free_multiple_pages(struct v4l2pim_info *v4l2pim_info,
+					struct page **page_array,
+					unsigned int num_pages);
 
-inline struct page *udlpcon_alloc_page(struct udlpcon_info *udlpcon_info,
+inline struct page *v4l2pim_alloc_page(struct v4l2pim_info *v4l2pim_info,
 				gfp_t gfp_mask);
 
-inline void udlpcon_free_page(struct udlpcon_info *udlpcon_info,
+inline void v4l2pim_free_page(struct v4l2pim_info *v4l2pim_info,
 				struct page *page);
 
-inline void *udlpcon_kmalloc(struct udlpcon_info *udlpcon_info,
+inline void *v4l2pim_kmalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void *udlpcon_kzalloc(struct udlpcon_info *udlpcon_info,
+inline void *v4l2pim_kzalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size,
 			gfp_t gfp_mask);
 
-inline void udlpcon_kfree(struct udlpcon_info *udlpcon_info,
+inline void v4l2pim_kfree(struct v4l2pim_info *v4l2pim_info,
 			void *ptr);
 
-inline void *udlpcon_vmalloc(struct udlpcon_info *udlpcon_info,
+inline void *v4l2pim_vmalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size);
 
-inline void *udlpcon_vzalloc(struct udlpcon_info *udlpcon_info,
+inline void *v4l2pim_vzalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size);
 
-inline void udlpcon_vfree(struct udlpcon_info *udlpcon_info,
+inline void v4l2pim_vfree(struct v4l2pim_info *v4l2pim_info,
 			void *ptr);
 #endif

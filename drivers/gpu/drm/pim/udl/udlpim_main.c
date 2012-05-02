@@ -31,9 +31,9 @@
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 
-#include "udlpcon.h"
-#include "udlpcon_vcrtcm.h"
-#include "udlpcon_utils.h"
+#include "udlpim.h"
+#include "udlpim_vcrtcm.h"
+#include "udlpim_utils.h"
 
 
 /* Module option(s) */
@@ -41,38 +41,38 @@ int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
 int debug; /* Enable the printing of debugging information */
 int enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
 
-struct list_head udlpcon_info_list;
-int udlpcon_major = -1;
-int udlpcon_num_minors = -1;
-int udlpcon_max_minor = -1;
-int udlpcon_fake_vblank_slack = 1;
+struct list_head udlpim_info_list;
+int udlpim_major = -1;
+int udlpim_num_minors = -1;
+int udlpim_max_minor = -1;
+int udlpim_fake_vblank_slack = 1;
 
-struct vcrtcm_pcon_funcs udlpcon_vcrtcm_pcon_funcs = {
-	.attach = udlpcon_attach,
-	.detach = udlpcon_detach,
-	.set_fb = udlpcon_set_fb,
-	.get_fb = udlpcon_get_fb,
-	.dirty_fb = udlpcon_dirty_fb,
-	.wait_fb = udlpcon_wait_fb,
-	.get_fb_status = udlpcon_get_fb_status,
-	.set_fps = udlpcon_set_fps,
-	.get_fps = udlpcon_get_fps,
-	.set_cursor = udlpcon_set_cursor,
-	.get_cursor = udlpcon_get_cursor,
-	.set_dpms = udlpcon_set_dpms,
-	.get_dpms = udlpcon_get_dpms,
-	.connected = udlpcon_connected,
-	.get_modes = udlpcon_get_modes,
-	.check_mode = udlpcon_check_mode,
-	.disable = udlpcon_disable
+struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
+	.attach = udlpim_attach,
+	.detach = udlpim_detach,
+	.set_fb = udlpim_set_fb,
+	.get_fb = udlpim_get_fb,
+	.dirty_fb = udlpim_dirty_fb,
+	.wait_fb = udlpim_wait_fb,
+	.get_fb_status = udlpim_get_fb_status,
+	.set_fps = udlpim_set_fps,
+	.get_fps = udlpim_get_fps,
+	.set_cursor = udlpim_set_cursor,
+	.get_cursor = udlpim_get_cursor,
+	.set_dpms = udlpim_set_dpms,
+	.get_dpms = udlpim_get_dpms,
+	.connected = udlpim_connected,
+	.get_modes = udlpim_get_modes,
+	.check_mode = udlpim_check_mode,
+	.disable = udlpim_disable
 };
 
 
-struct vcrtcm_pcon_props udlpcon_vcrtcm_pcon_props = {
+struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
-static int __init udlpcon_init(void)
+static int __init udlpim_init(void)
 {
 	int ret;
 	dev_t dev;
@@ -81,22 +81,22 @@ static int __init udlpcon_init(void)
 	"(C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	PR_INFO("Push mode enabled");
 
-	INIT_LIST_HEAD(&udlpcon_info_list);
+	INIT_LIST_HEAD(&udlpim_info_list);
 
 	PR_INFO("Allocating/registering dynamic major number");
-	ret = alloc_chrdev_region(&dev, 0, UDLPCON_MAX_DEVICES, "udlpcon");
-	udlpcon_major = MAJOR(dev);
+	ret = alloc_chrdev_region(&dev, 0, UDLPCON_MAX_DEVICES, "udlpim");
+	udlpim_major = MAJOR(dev);
 
 	if (ret) {
 		PR_WARN("Can't get major device number, driver unusable\n");
-		udlpcon_major = -1;
-		udlpcon_num_minors = 0;
+		udlpim_major = -1;
+		udlpim_num_minors = 0;
 	} else {
-		PR_INFO("Using major device number %d\n", udlpcon_major);
+		PR_INFO("Using major device number %d\n", udlpim_major);
 	}
 
-	udlpcon_num_minors = 0;
-	ret = usb_register(&udlpcon_driver);
+	udlpim_num_minors = 0;
+	ret = usb_register(&udlpim_driver);
 
 	if (ret) {
 		PR_ERR("usb_register failed. Error number %d", ret);
@@ -106,23 +106,23 @@ static int __init udlpcon_init(void)
 	return 0;
 }
 
-static void __exit udlpcon_exit(void)
+static void __exit udlpim_exit(void)
 {
-	PR_INFO("Cleaning up udlpcon\n");
-	usb_deregister(&udlpcon_driver);
+	PR_INFO("Cleaning up udlpim\n");
+	usb_deregister(&udlpim_driver);
 
-	if (udlpcon_major >= -1) {
+	if (udlpim_major >= -1) {
 		PR_INFO
 		("Deallocating major device number %d, count %d\n",
-			udlpcon_major, UDLPCON_MAX_DEVICES);
-		unregister_chrdev_region(MKDEV(udlpcon_major, 0), UDLPCON_MAX_DEVICES);
+			udlpim_major, UDLPCON_MAX_DEVICES);
+		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPCON_MAX_DEVICES);
 	}
 
 	return;
 }
 
-module_init(udlpcon_init);
-module_exit(udlpcon_exit);
+module_init(udlpim_init);
+module_exit(udlpim_exit);
 
 module_param(true32bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(true32bpp,

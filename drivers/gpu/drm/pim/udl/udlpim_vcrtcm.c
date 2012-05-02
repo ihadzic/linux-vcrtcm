@@ -19,13 +19,13 @@
 
 #include <vcrtcm/vcrtcm_pcon.h>
 
-#include "udlpcon.h"
-#include "udlpcon_vcrtcm.h"
-#include "udlpcon_utils.h"
+#include "udlpim.h"
+#include "udlpim_vcrtcm.h"
+#include "udlpim_utils.h"
 
 
-static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_flow_info *flow_info, int flag)
+static void udlpim_free_pb(struct udlpim_info *udlpim_info,
+		struct udlpim_flow_info *flow_info, int flag)
 {
 	int i;
 
@@ -49,8 +49,8 @@ static void udlpcon_free_pb(struct udlpcon_info *udlpcon_info,
 	}
 }
 
-static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
-		struct udlpcon_flow_info *flow_info,
+static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
+		struct udlpim_flow_info *flow_info,
 		int requested_num_pages, int flag)
 {
 	int i;
@@ -143,28 +143,28 @@ static int udlpcon_alloc_pb(struct udlpcon_info *udlpcon_info,
 	return r;
 }
 
-int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *udlpcon_info_, int flow)
+int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+			void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
 
-	PR_INFO("Attaching udlpcon %d to pcon %p\n",
-		udlpcon_info->minor, vcrtcm_pcon_info);
+	PR_INFO("Attaching udlpim %d to pcon %p\n",
+		udlpim_info->minor, vcrtcm_pcon_info);
 
-	if (udlpcon_info->udlpcon_flow_info) {
+	if (udlpim_info->udlpim_flow_info) {
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
-		struct udlpcon_flow_info
-			*flow_info = udlpcon_kzalloc(udlpcon_info,
-				sizeof(struct udlpcon_flow_info),
+		struct udlpim_flow_info
+			*flow_info = udlpim_kzalloc(udlpim_info,
+				sizeof(struct udlpim_flow_info),
 				GFP_KERNEL);
 		if (flow_info == NULL) {
 			PR_ERR("attach: no memory\n");
 			return -ENOMEM;
 		}
 
-		flow_info->udlpcon_info = udlpcon_info;
+		flow_info->udlpim_info = udlpim_info;
 		flow_info->vcrtcm_pcon_info = vcrtcm_pcon_info;
 		flow_info->fb_force_xmit = 0;
 		flow_info->fb_xmit_allowed = 0;
@@ -186,69 +186,69 @@ int udlpcon_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		flow_info->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
 
-		udlpcon_info->udlpcon_flow_info =
+		udlpim_info->udlpim_flow_info =
 			flow_info;
 
 		/* Do an initial query of the EDID */
-		udlpcon_query_edid_core(udlpcon_info);
+		udlpim_query_edid_core(udlpim_info);
 
 		/* Start the EDID query thread */
-		queue_delayed_work(udlpcon_info->workqueue,
-					&udlpcon_info->query_edid_work, 0);
+		queue_delayed_work(udlpim_info->workqueue,
+					&udlpim_info->query_edid_work, 0);
 
-		PR_INFO("udlpcon %d now serves pcon %p\n", udlpcon_info->minor,
+		PR_INFO("udlpim %d now serves pcon %p\n", udlpim_info->minor,
 			vcrtcm_pcon_info);
 
 		return 0;
 	}
 }
 
-void udlpcon_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			void *udlpcon_info_, int flow)
+void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+			void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_INFO("Detaching udlpcon %d from pcon %p\n",
-		udlpcon_info->minor, vcrtcm_pcon_info);
+	PR_INFO("Detaching udlpim %d from pcon %p\n",
+		udlpim_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_p_gpu_sync(vcrtcm_pcon_info);
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
-	cancel_delayed_work_sync(&udlpcon_info->fake_vblank_work);
-	cancel_delayed_work_sync(&udlpcon_info->query_edid_work);
+	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
+	cancel_delayed_work_sync(&udlpim_info->query_edid_work);
 
 	if (flow_info->vcrtcm_pcon_info == vcrtcm_pcon_info) {
 		PR_DEBUG("Found descriptor that should be removed.\n");
 
-		udlpcon_free_pb(udlpcon_info, flow_info, UDLPCON_ALLOC_PB_FLAG_FB);
-		udlpcon_free_pb(udlpcon_info, flow_info, UDLPCON_ALLOC_PB_FLAG_CURSOR);
+		udlpim_free_pb(udlpim_info, flow_info, UDLPCON_ALLOC_PB_FLAG_FB);
+		udlpim_free_pb(udlpim_info, flow_info, UDLPCON_ALLOC_PB_FLAG_CURSOR);
 
-		udlpcon_info->udlpcon_flow_info = NULL;
-		udlpcon_kfree(udlpcon_info, flow_info);
+		udlpim_info->udlpim_flow_info = NULL;
+		udlpim_kfree(udlpim_info, flow_info);
 
-		udlpcon_info->main_buffer = NULL;
-		udlpcon_info->cursor = NULL;
-		udlpcon_info->hline_16 = NULL;
-		udlpcon_info->hline_8 = NULL;
+		udlpim_info->main_buffer = NULL;
+		udlpim_info->cursor = NULL;
+		udlpim_info->hline_16 = NULL;
+		udlpim_info->hline_8 = NULL;
 	}
 }
 
-int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
+int udlpim_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpim_info_,
 			int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
-	struct udlpcon_video_mode *udlpcon_video_modes;
-	int udlpcon_mode_count = 0;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
+	struct udlpim_video_mode *udlpim_video_modes;
+	int udlpim_mode_count = 0;
 	int found_mode = 0;
 	int r = 0;
 	int i = 0;
 	int size_in_bytes, requested_num_pages;
 
-	PR_DEBUG("In udlpcon_set_fb, minor %d.\n", udlpcon_info->minor);
+	PR_DEBUG("In udlpim_set_fb, minor %d.\n", udlpim_info->minor);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	/* TODO: Do we need this? */
 	if (!flow_info) {
@@ -256,38 +256,38 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 		return -EINVAL;
 	}
 
-	mutex_lock(&udlpcon_info->buffer_mutex);
+	mutex_lock(&udlpim_info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
-	udlpcon_build_modelist(udlpcon_info,
-			&udlpcon_video_modes, &udlpcon_mode_count);
+	udlpim_build_modelist(udlpim_info,
+			&udlpim_video_modes, &udlpim_mode_count);
 
 	/* Find a matching video mode and switch the DL device to that mode */
-	for (i = 0; i < udlpcon_mode_count; i++) {
+	for (i = 0; i < udlpim_mode_count; i++) {
 		PR_DEBUG("set_fb checking %dx%d\n",
-				udlpcon_video_modes[i].xres,
-				udlpcon_video_modes[i].yres);
+				udlpim_video_modes[i].xres,
+				udlpim_video_modes[i].yres);
 		PR_DEBUG("against %dx%d\n",
 				vcrtcm_fb->hdisplay, vcrtcm_fb->vdisplay);
-		if (udlpcon_video_modes[i].xres == vcrtcm_fb->hdisplay &&
-			udlpcon_video_modes[i].yres == vcrtcm_fb->vdisplay) {
+		if (udlpim_video_modes[i].xres == vcrtcm_fb->hdisplay &&
+			udlpim_video_modes[i].yres == vcrtcm_fb->vdisplay) {
 			/* If the modes match */
-			udlpcon_info->bpp = vcrtcm_fb->bpp;
-			udlpcon_setup_screen(udlpcon_info,
-					&udlpcon_video_modes[i], vcrtcm_fb);
+			udlpim_info->bpp = vcrtcm_fb->bpp;
+			udlpim_setup_screen(udlpim_info,
+					&udlpim_video_modes[i], vcrtcm_fb);
 			found_mode = 1;
 			flow_info->fb_xmit_allowed = 1;
 			break;
 		}
 	}
 
-	udlpcon_free_modelist(udlpcon_info, udlpcon_video_modes);
+	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
 
 	if (!found_mode) {
 		PR_ERR("could not find matching mode...\n");
 		flow_info->fb_xmit_allowed = 0;
-		udlpcon_error_screen(udlpcon_info);
-		mutex_unlock(&udlpcon_info->buffer_mutex);
+		udlpim_error_screen(udlpim_info);
+		mutex_unlock(&udlpim_info->buffer_mutex);
 		return 0;
 	}
 
@@ -302,7 +302,7 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 
 	if (!requested_num_pages) {
 		PR_DEBUG("framebuffer: zero size requested\n");
-		udlpcon_free_pb(udlpcon_info, flow_info,
+		udlpim_free_pb(udlpim_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_FB);
 	} else if (flow_info->pbd_fb[0].num_pages == requested_num_pages) {
 		/* we can safely check index 0 num_pages against */
@@ -316,25 +316,25 @@ int udlpcon_set_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 		PR_INFO("framebuffer: allocating push buffer, "
 				"size=%d, num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
-		udlpcon_free_pb(udlpcon_info, flow_info,
+		udlpim_free_pb(udlpim_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_FB);
 
-		r = udlpcon_alloc_pb(udlpcon_info, flow_info,
+		r = udlpim_alloc_pb(udlpim_info, flow_info,
 				requested_num_pages,
 				UDLPCON_ALLOC_PB_FLAG_FB);
 	}
-	mutex_unlock(&udlpcon_info->buffer_mutex);
+	mutex_unlock(&udlpim_info->buffer_mutex);
 	return r;
 }
 
-int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
+int udlpim_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpim_info_,
 			int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("In udlpcon_get_fb, minor %d.\n", udlpcon_info->minor);
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	PR_DEBUG("In udlpim_get_fb, minor %d.\n", udlpim_info->minor);
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -346,18 +346,18 @@ int udlpcon_get_fb(struct vcrtcm_fb *vcrtcm_fb, void *udlpcon_info_,
 	return 0;
 }
 
-int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
+int udlpim_dirty_fb(struct drm_crtc *drm_crtc, void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("in udlpcon_dirty_fb, minor %d\n", udlpcon_info->minor);
+	PR_DEBUG("in udlpim_dirty_fb, minor %d\n", udlpim_info->minor);
 
-	/* just mark the "force" flag, udlpcon_do_xmit_fb_pull
+	/* just mark the "force" flag, udlpim_do_xmit_fb_pull
 	 * does the rest (when called).
 	 */
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (flow_info)
 		flow_info->fb_force_xmit = 1;
@@ -365,24 +365,24 @@ int udlpcon_dirty_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
 	return 0;
 }
 
-int udlpcon_wait_fb(struct drm_crtc *drm_crtc, void *udlpcon_info_, int flow)
+int udlpim_wait_fb(struct drm_crtc *drm_crtc, void *udlpim_info_, int flow)
 {
 	return 0;
 }
 
-int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
-		void *udlpcon_info_, int flow, u32 *status)
+int udlpim_get_fb_status(struct drm_crtc *drm_crtc,
+		void *udlpim_info_, int flow, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
 	unsigned long flags;
 
 	PR_DEBUG("Queried for status\n");
 
-	spin_lock_irqsave(&udlpcon_info->udlpcon_lock, flags);
-	if (udlpcon_info->status & UDLPCON_IN_DO_XMIT)
+	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
+	if (udlpim_info->status & UDLPCON_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
+	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 	*status = tmp_status;
 
@@ -390,15 +390,15 @@ int udlpcon_get_fb_status(struct drm_crtc *drm_crtc,
 }
 
 
-int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
+int udlpim_set_fps(int fps, void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
-	PR_DEBUG("udlpcon_set_fps, fps %d.\n", fps);
+	PR_DEBUG("udlpim_set_fps, fps %d.\n", fps);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -426,20 +426,20 @@ int udlpcon_set_fps(int fps, void *udlpcon_info_, int flow)
 	}
 
 	/* Schedule initial fake vblank */
-	/*schedule_delayed_work(&udlpcon_info->fake_vblank_work, 0);*/
-	queue_delayed_work(udlpcon_info->workqueue, &udlpcon_info->fake_vblank_work, 0);
+	/*schedule_delayed_work(&udlpim_info->fake_vblank_work, 0);*/
+	queue_delayed_work(udlpim_info->workqueue, &udlpim_info->fake_vblank_work, 0);
 
 	return 0;
 }
 
-int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow)
+int udlpim_get_fps(int *fps, void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("udlpcon_get_fps.\n");
+	PR_DEBUG("udlpim_get_fps.\n");
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -457,24 +457,24 @@ int udlpcon_get_fps(int *fps, void *udlpcon_info_, int flow)
 	}
 }
 
-int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *udlpcon_info_, int flow)
+int udlpim_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
+				void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 	int r = 0;
 	int size_in_bytes, requested_num_pages;
 
-	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
+	PR_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	mutex_lock(&udlpcon_info->buffer_mutex);
+	mutex_lock(&udlpim_info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 
@@ -493,7 +493,7 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 
 	if (!requested_num_pages) {
 		PR_DEBUG("cursor: zero size requested\n");
-		udlpcon_free_pb(udlpcon_info, flow_info,
+		udlpim_free_pb(udlpim_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
 	} else if (flow_info->pbd_cursor[0].num_pages ==
 					requested_num_pages) {
@@ -506,26 +506,26 @@ int udlpcon_set_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 				"num_pages=%d\n",
 				size_in_bytes, requested_num_pages);
 
-		udlpcon_free_pb(udlpcon_info, flow_info,
+		udlpim_free_pb(udlpim_info, flow_info,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
 
-		r = udlpcon_alloc_pb(udlpcon_info, flow_info,
+		r = udlpim_alloc_pb(udlpim_info, flow_info,
 				requested_num_pages,
 				UDLPCON_ALLOC_PB_FLAG_CURSOR);
 	}
-	mutex_unlock(&udlpcon_info->buffer_mutex);
+	mutex_unlock(&udlpim_info->buffer_mutex);
 	return r;
 }
 
-int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
-				void *udlpcon_info_, int flow)
+int udlpim_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
+				void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("In udlpcon_set_cursor, minor %d\n", udlpcon_info->minor);
+	PR_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -538,15 +538,15 @@ int udlpcon_get_cursor(struct vcrtcm_cursor *vcrtcm_cursor,
 	return 0;
 }
 
-int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
+int udlpim_set_dpms(int state, void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("in udlpcon_set_dpms, minor %d, state %d\n",
-			udlpcon_info->minor, state);
+	PR_DEBUG("in udlpim_set_dpms, minor %d, state %d\n",
+			udlpim_info->minor, state);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -556,23 +556,23 @@ int udlpcon_set_dpms(int state, void *udlpcon_info_, int flow)
 	flow_info->dpms_state = state;
 
 	if (state == VCRTCM_DPMS_STATE_ON) {
-		udlpcon_dpms_wakeup(udlpcon_info);
+		udlpim_dpms_wakeup(udlpim_info);
 	} else if (state == VCRTCM_DPMS_STATE_OFF) {
-		udlpcon_dpms_sleep(udlpcon_info);
+		udlpim_dpms_sleep(udlpim_info);
 	}
 
 	return 0;
 }
 
-int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow)
+int udlpim_get_dpms(int *state, void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info;
 
-	PR_DEBUG("in udlpcon_get_dpms, minor %d\n",
-			udlpcon_info->minor);
+	PR_DEBUG("in udlpim_get_dpms, minor %d\n",
+			udlpim_info->minor);
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -584,12 +584,12 @@ int udlpcon_get_dpms(int *state, void *udlpcon_info_, int flow)
 	return 0;
 }
 
-int udlpcon_connected(void *udlpcon_info_, int flow, int *status)
+int udlpim_connected(void *udlpim_info_, int flow, int *status)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	PR_DEBUG("connected: udlpcon_info %p\n", udlpcon_info);
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	PR_DEBUG("connected: udlpim_info %p\n", udlpim_info);
 
-	if (udlpcon_info->monitor_connected) {
+	if (udlpim_info->monitor_connected) {
 		PR_DEBUG("...connected\n");
 		*status = VCRTCM_PCON_CONNECTED;
 	} else {
@@ -599,14 +599,14 @@ int udlpcon_connected(void *udlpcon_info_, int flow, int *status)
 	return 0;
 }
 
-int udlpcon_get_modes(void *udlpcon_info_, int flow, struct vcrtcm_mode **modes,
+int udlpim_get_modes(void *udlpim_info_, int flow, struct vcrtcm_mode **modes,
 		     int *count)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_video_mode *udlpcon_video_modes;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_video_mode *udlpim_video_modes;
 	struct vcrtcm_mode *vcrtcm_mode_list =
-			udlpcon_info->last_vcrtcm_mode_list;
-	int udlpcon_mode_count = 0;
+			udlpim_info->last_vcrtcm_mode_list;
+	int udlpim_mode_count = 0;
 	int vcrtcm_mode_count = 0;
 	int retval = 0;
 	int i = 0;
@@ -614,76 +614,76 @@ int udlpcon_get_modes(void *udlpcon_info_, int flow, struct vcrtcm_mode **modes,
 	*modes = NULL;
 	*count = 0;
 
-	PR_DEBUG("In udlpcon_get_modes\n");
+	PR_DEBUG("In udlpim_get_modes\n");
 
-	retval = udlpcon_build_modelist(udlpcon_info,
-			&udlpcon_video_modes, &udlpcon_mode_count);
+	retval = udlpim_build_modelist(udlpim_info,
+			&udlpim_video_modes, &udlpim_mode_count);
 
 	if (retval < 0)
 		return retval;
 
-	if (udlpcon_mode_count == 0)
+	if (udlpim_mode_count == 0)
 		return 0;
 
 	/* If we get this far, we can return modes. */
 
 	/* Erase our old VCRTCM modelist. */
 	if (vcrtcm_mode_list) {
-		udlpcon_kfree(udlpcon_info, vcrtcm_mode_list);
+		udlpim_kfree(udlpim_info, vcrtcm_mode_list);
 		vcrtcm_mode_list = NULL;
 		vcrtcm_mode_count = 0;
 	}
 
 	/* Build the new vcrtcm_mode list. */
-	vcrtcm_mode_list = udlpcon_kmalloc(udlpcon_info,
-				sizeof(struct vcrtcm_mode) * udlpcon_mode_count,
+	vcrtcm_mode_list = udlpim_kmalloc(udlpim_info,
+				sizeof(struct vcrtcm_mode) * udlpim_mode_count,
 				GFP_KERNEL);
 
-	/* Copy the udlpcon_video_mode list to the vcrtcm_mode list. */
-	for (i = 0; i < udlpcon_mode_count; i++) {
-		vcrtcm_mode_list[i].w = udlpcon_video_modes[i].xres;
-		vcrtcm_mode_list[i].h = udlpcon_video_modes[i].yres;
-		vcrtcm_mode_list[i].refresh = udlpcon_video_modes[i].refresh;
+	/* Copy the udlpim_video_mode list to the vcrtcm_mode list. */
+	for (i = 0; i < udlpim_mode_count; i++) {
+		vcrtcm_mode_list[i].w = udlpim_video_modes[i].xres;
+		vcrtcm_mode_list[i].h = udlpim_video_modes[i].yres;
+		vcrtcm_mode_list[i].refresh = udlpim_video_modes[i].refresh;
 	}
 
-	vcrtcm_mode_count = udlpcon_mode_count;
-	udlpcon_info->last_vcrtcm_mode_list = vcrtcm_mode_list;
+	vcrtcm_mode_count = udlpim_mode_count;
+	udlpim_info->last_vcrtcm_mode_list = vcrtcm_mode_list;
 
 	*modes = vcrtcm_mode_list;
 	*count = vcrtcm_mode_count;
 
-	udlpcon_free_modelist(udlpcon_info, udlpcon_video_modes);
+	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
 
 	return 0;
 }
 
-int udlpcon_check_mode(void *udlpcon_info_, int flow,
+int udlpim_check_mode(void *udlpim_info_, int flow,
 		      struct vcrtcm_mode *mode, int *status)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_video_mode *udlpcon_video_modes;
-	int udlpcon_mode_count = 0;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_video_mode *udlpim_video_modes;
+	int udlpim_mode_count = 0;
 	int retval;
 	int i;
 
-	PR_DEBUG("In udlpcon_check_mode\n");
+	PR_DEBUG("In udlpim_check_mode\n");
 
 	*status = VCRTCM_MODE_BAD;
 
-	retval = udlpcon_build_modelist(udlpcon_info,
-			&udlpcon_video_modes, &udlpcon_mode_count);
+	retval = udlpim_build_modelist(udlpim_info,
+			&udlpim_video_modes, &udlpim_mode_count);
 
 	if (retval < 0)
 		return retval;
 
-	if (udlpcon_mode_count == 0)
+	if (udlpim_mode_count == 0)
 		return 0;
 
-	PR_DEBUG("udlpcon_check_mode: checking %dx%d@%d\n",
+	PR_DEBUG("udlpim_check_mode: checking %dx%d@%d\n",
 			mode->w, mode->h, mode->refresh);
-	for (i = 0; i < udlpcon_mode_count; i++) {
-		struct udlpcon_video_mode *current_mode;
-		current_mode = &udlpcon_video_modes[i];
+	for (i = 0; i < udlpim_mode_count; i++) {
+		struct udlpim_video_mode *current_mode;
+		current_mode = &udlpim_video_modes[i];
 		if (current_mode->xres == mode->w &&
 			current_mode->yres == mode->h &&
 			current_mode->refresh == mode->refresh) {
@@ -692,64 +692,64 @@ int udlpcon_check_mode(void *udlpcon_info_, int flow,
 		}
 	}
 
-	udlpcon_free_modelist(udlpcon_info, udlpcon_video_modes);
+	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
 
 	return 0;
 }
 
-void udlpcon_disable(void *udlpcon_info_, int flow)
+void udlpim_disable(void *udlpim_info_, int flow)
 {
-	struct udlpcon_info *udlpcon_info = (struct udlpcon_info *) udlpcon_info_;
-	struct udlpcon_flow_info *flow_info =
-			udlpcon_info->udlpcon_flow_info;
+	struct udlpim_info *udlpim_info = (struct udlpim_info *) udlpim_info_;
+	struct udlpim_flow_info *flow_info =
+			udlpim_info->udlpim_flow_info;
 
-	mutex_lock(&udlpcon_info->buffer_mutex);
+	mutex_lock(&udlpim_info->buffer_mutex);
 	flow_info->fb_xmit_allowed = 0;
-	mutex_unlock(&udlpcon_info->buffer_mutex);
+	mutex_unlock(&udlpim_info->buffer_mutex);
 }
 
-void udlpcon_fake_vblank(struct work_struct *work)
+void udlpim_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
-	struct udlpcon_info *udlpcon_info =
-		container_of(delayed_work, struct udlpcon_info, fake_vblank_work);
-	struct udlpcon_flow_info *flow_info;
+	struct udlpim_info *udlpim_info =
+		container_of(delayed_work, struct udlpim_info, fake_vblank_work);
+	struct udlpim_flow_info *flow_info;
 	/*static long last_snapshot = 0;*/
 
 	unsigned long jiffies_snapshot = 0;
 	unsigned long next_vblank_jiffies = 0;
 	int next_vblank_jiffies_valid = 0;
 	int next_vblank_delay;
-	int udlpcon_fake_vblank_slack_sane = 0;
+	int udlpim_fake_vblank_slack_sane = 0;
 
-	PR_DEBUG("vblank fake, minor=%d\n", udlpcon_info->minor);
-	udlpcon_fake_vblank_slack_sane =
-			(udlpcon_fake_vblank_slack_sane <= 0) ? 0 : udlpcon_fake_vblank_slack;
+	PR_DEBUG("vblank fake, minor=%d\n", udlpim_info->minor);
+	udlpim_fake_vblank_slack_sane =
+			(udlpim_fake_vblank_slack_sane <= 0) ? 0 : udlpim_fake_vblank_slack;
 
-	if (!udlpcon_info) {
-		PR_ERR("udlpcon_fake_vblank: Cannot find udlpcon_info\n");
+	if (!udlpim_info) {
+		PR_ERR("udlpim_fake_vblank: Cannot find udlpim_info\n");
 		return;
 	}
 
-	flow_info = udlpcon_info->udlpcon_flow_info;
+	flow_info = udlpim_info->udlpim_flow_info;
 
 	if (!flow_info) {
-		PR_ERR("udlpcon_fake_vblank: Cannot find pcon descriptor\n");
+		PR_ERR("udlpim_fake_vblank: Cannot find pcon descriptor\n");
 		return;
 	}
 
 	jiffies_snapshot = jiffies;
 
 	if (flow_info->fb_xmit_period_jiffies > 0) {
-		if (time_after_eq(jiffies_snapshot + udlpcon_fake_vblank_slack_sane,
+		if (time_after_eq(jiffies_snapshot + udlpim_fake_vblank_slack_sane,
 				flow_info->next_vblank_jiffies)) {
 			flow_info->next_vblank_jiffies +=
 					flow_info->fb_xmit_period_jiffies;
 
-			mutex_lock(&udlpcon_info->buffer_mutex);
-			udlpcon_do_xmit_fb_push(flow_info);
-			mutex_unlock(&udlpcon_info->buffer_mutex);
+			mutex_lock(&udlpim_info->buffer_mutex);
+			udlpim_do_xmit_fb_push(flow_info);
+			mutex_unlock(&udlpim_info->buffer_mutex);
 		}
 
 		if (!next_vblank_jiffies_valid) {
@@ -766,32 +766,32 @@ void udlpcon_fake_vblank(struct work_struct *work)
 	if (next_vblank_jiffies_valid) {
 		next_vblank_delay =
 			(int)next_vblank_jiffies - (int)jiffies_snapshot;
-		if (next_vblank_delay <= udlpcon_fake_vblank_slack_sane)
+		if (next_vblank_delay <= udlpim_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
-		if (!queue_delayed_work(udlpcon_info->workqueue,
-					&udlpcon_info->fake_vblank_work,
+		if (!queue_delayed_work(udlpim_info->workqueue,
+					&udlpim_info->fake_vblank_work,
 					next_vblank_delay))
 			PR_WARN("dup fake vblank, minor %d\n",
-				udlpcon_info->minor);
+				udlpim_info->minor);
 	} else
 		PR_DEBUG("Next fake vblank not scheduled\n");
 
 	return;
 }
 
-int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
+int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 {
-	struct udlpcon_info *udlpcon_info = flow_info->udlpcon_info;
+	struct udlpim_info *udlpim_info = flow_info->udlpim_info;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
 	unsigned long flags;
 
-	PR_DEBUG("in udlpcon_do_xmit_fb_push, minor %d\n", udlpcon_info->minor);
+	PR_DEBUG("in udlpim_do_xmit_fb_push, minor %d\n", udlpim_info->minor);
 
-	spin_lock_irqsave(&udlpcon_info->udlpcon_lock, flags);
-	udlpcon_info->status |= UDLPCON_IN_DO_XMIT;
-	spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
+	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
+	udlpim_info->status |= UDLPCON_IN_DO_XMIT;
+	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 	push_buffer_index = flow_info->push_buffer_index;
 
@@ -809,7 +809,7 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
 	     time_after(jiffies_snapshot, flow_info->last_xmit_jiffies +
 			UDLPCON_XMIT_HARD_DEADLINE)) &&
 			have_push_buffer &&
-			udlpcon_info->monitor_connected &&
+			udlpim_info->monitor_connected &&
 			flow_info->fb_xmit_allowed) {
 		/* Someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
@@ -823,23 +823,23 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
 		flow_info->last_xmit_jiffies = jiffies;
 		flow_info->fb_xmit_counter++;
 
-		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
+		PR_DEBUG("udlpim_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
 				flow_info->vcrtcm_fb.pitch,
 				flow_info->vcrtcm_fb.width,
 				flow_info->vcrtcm_fb.height,
 				flow_info->vcrtcm_fb.bpp);
 
-		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
+		PR_DEBUG("udlpim_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
 				flow_info->vcrtcm_fb.viewport_x,
 				flow_info->vcrtcm_fb.viewport_y,
 				flow_info->vcrtcm_fb.hdisplay,
 				flow_info->vcrtcm_fb.vdisplay);
 
-		spin_lock_irqsave(&udlpcon_info->udlpcon_lock, flags);
-		udlpcon_info->status &= ~UDLPCON_IN_DO_XMIT;
-		spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
+		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
+		udlpim_info->status &= ~UDLPCON_IN_DO_XMIT;
+		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
 				&flow_info->pbd_fb[push_buffer_index],
@@ -869,9 +869,9 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		spin_lock_irqsave(&udlpcon_info->udlpcon_lock, flags);
-		udlpcon_info->status &= ~UDLPCON_IN_DO_XMIT;
-		spin_unlock_irqrestore(&udlpcon_info->udlpcon_lock, flags);
+		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
+		udlpim_info->status &= ~UDLPCON_IN_DO_XMIT;
+		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);
 		PR_DEBUG("transmission not happening\n");
@@ -879,14 +879,14 @@ int udlpcon_do_xmit_fb_push(struct udlpcon_flow_info *flow_info)
 
 	if (flow_info->pb_needs_xmit[push_buffer_index]) {
 		unsigned long jiffies_snapshot;
-		PR_DEBUG("udlpcon_do_xmit_fb_push[%d]: initiating USB transfer\n",
+		PR_DEBUG("udlpim_do_xmit_fb_push[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
-		udlpcon_info->main_buffer = flow_info->pb_fb[push_buffer_index];
-		udlpcon_info->cursor = flow_info->pb_cursor[push_buffer_index];
+		udlpim_info->main_buffer = flow_info->pb_fb[push_buffer_index];
+		udlpim_info->cursor = flow_info->pb_cursor[push_buffer_index];
 
 		jiffies_snapshot = jiffies;
-		udlpcon_transmit_framebuffer(udlpcon_info);
+		udlpim_transmit_framebuffer(udlpim_info);
 		PR_DEBUG("transmit over USB took %u ms\n", jiffies_to_msecs(jiffies - jiffies_snapshot));
 
 		flow_info->pb_needs_xmit[push_buffer_index] = 0;

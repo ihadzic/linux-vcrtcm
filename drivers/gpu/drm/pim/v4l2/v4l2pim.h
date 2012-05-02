@@ -19,8 +19,8 @@
 */
 
 
-#ifndef __v4l2pcon_H
-#define __v4l2pcon_H
+#ifndef __v4l2pim_H
+#define __v4l2pim_H
 
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -48,25 +48,25 @@
 
 extern int debug;
 
-extern struct list_head v4l2pcon_info_list;
-extern int v4l2pcon_major;
-extern int v4l2pcon_num_minors;
-extern int v4l2pcon_fake_vblank_slack;
+extern struct list_head v4l2pim_info_list;
+extern int v4l2pim_major;
+extern int v4l2pim_num_minors;
+extern int v4l2pim_fake_vblank_slack;
 
-struct v4l2pcon_fmt {
+struct v4l2pim_fmt {
 	char  *name;
 	uint32_t  fourcc;
 	int   depth;
 	enum v4l2_colorspace colorspace;
 };
 
-struct v4l2pcon_info {
+struct v4l2pim_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct v4l2pcon_flow_info *v4l2pcon_flow_info;
+	struct v4l2pim_flow_info *v4l2pim_flow_info;
 	struct mutex buffer_mutex;
-	spinlock_t v4l2pcon_lock;
+	spinlock_t v4l2pim_lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
@@ -78,7 +78,7 @@ struct v4l2pcon_info {
 	char *main_buffer;
 	char *cursor;
 
-	/* v4l2pcon */
+	/* v4l2pim */
 	uint8_t *shadowbuf;
 	uint32_t shadowbufsize;
 	struct mutex sb_lock;
@@ -94,7 +94,7 @@ struct v4l2pcon_info {
 	struct list_head active;
 	unsigned long generating;
 	struct task_struct *kthread;
-	struct v4l2pcon_fmt *fmt;
+	struct v4l2pim_fmt *fmt;
 
 	/* debug stuff */
 	int page_track;
@@ -102,7 +102,7 @@ struct v4l2pcon_info {
 	int vmalloc_track;
 };
 
-struct v4l2pcon_flow_info {
+struct v4l2pim_flow_info {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -122,11 +122,11 @@ struct v4l2pcon_flow_info {
 
 	int dpms_state;
 
-	struct v4l2pcon_info *v4l2pcon_info;
+	struct v4l2pim_info *v4l2pim_info;
 };
 
-int v4l2pcon_alloc_shadowbuf(struct v4l2pcon_info *v4l2pcon_info,
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
 				unsigned long size);
-void v4l2pcon_free_shadowbuf(struct v4l2pcon_info *v4l2pcon_info);
+void v4l2pim_free_shadowbuf(struct v4l2pim_info *v4l2pim_info);
 
 #endif

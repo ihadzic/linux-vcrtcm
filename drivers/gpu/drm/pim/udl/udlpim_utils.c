@@ -17,10 +17,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "udlpcon.h"
-#include "udlpcon_utils.h"
+#include "udlpim.h"
+#include "udlpim_utils.h"
 
-int udlpcon_alloc_multiple_pages(struct udlpcon_info *udlpcon_info,
+int udlpim_alloc_multiple_pages(struct udlpim_info *udlpim_info,
 				gfp_t gfp_mask,
 				struct page **page_array,
 				unsigned int num_pages)
@@ -29,92 +29,92 @@ int udlpcon_alloc_multiple_pages(struct udlpcon_info *udlpcon_info,
 	int i;
 
 	for (i = 0; i < num_pages; i++) {
-		current_page = udlpcon_alloc_page(udlpcon_info, gfp_mask);
+		current_page = udlpim_alloc_page(udlpim_info, gfp_mask);
 		if (current_page) {
 			page_array[i] = current_page;
 		} else {
-			udlpcon_free_multiple_pages(udlpcon_info, page_array, i);
+			udlpim_free_multiple_pages(udlpim_info, page_array, i);
 			return 1;
 		}
 	}
 	return 0;
 }
-void udlpcon_free_multiple_pages(struct udlpcon_info *udlpcon_info,
+void udlpim_free_multiple_pages(struct udlpim_info *udlpim_info,
 				struct page **page_array,
 				unsigned int num_pages)
 {
 	int i;
 
 	for (i = 0; i < num_pages; i++)
-		udlpcon_free_page(udlpcon_info, page_array[i]);
+		udlpim_free_page(udlpim_info, page_array[i]);
 
 	return;
 }
 
-inline struct page *udlpcon_alloc_page(struct udlpcon_info *udlpcon_info,
+inline struct page *udlpim_alloc_page(struct udlpim_info *udlpim_info,
 				gfp_t gfp_mask)
 {
 	struct page *page = alloc_page(gfp_mask);
 	if (page)
-		udlpcon_info->page_track++;
+		udlpim_info->page_track++;
 	return page;
 }
 
-inline void udlpcon_free_page(struct udlpcon_info *udlpcon_info,
+inline void udlpim_free_page(struct udlpim_info *udlpim_info,
 				struct page *page)
 {
 	__free_page(page);
-	udlpcon_info->page_track--;
+	udlpim_info->page_track--;
 }
 
-inline void *udlpcon_kmalloc(struct udlpcon_info *udlpcon_info,
+inline void *udlpim_kmalloc(struct udlpim_info *udlpim_info,
 			size_t size,
 			gfp_t gfp_mask)
 {
 	void *ptr = kmalloc(size, gfp_mask);
 	if (ptr)
-		udlpcon_info->kmalloc_track++;
+		udlpim_info->kmalloc_track++;
 	return ptr;
 }
 
-inline void *udlpcon_kzalloc(struct udlpcon_info *udlpcon_info,
+inline void *udlpim_kzalloc(struct udlpim_info *udlpim_info,
 			size_t size,
 			gfp_t gfp_mask)
 {
 	void *ptr = kzalloc(size, gfp_mask);
 	if (ptr)
-		udlpcon_info->kmalloc_track++;
+		udlpim_info->kmalloc_track++;
 	return ptr;
 }
 
-inline void udlpcon_kfree(struct udlpcon_info *udlpcon_info,
+inline void udlpim_kfree(struct udlpim_info *udlpim_info,
 			void *ptr)
 {
 	kfree(ptr);
-	udlpcon_info->kmalloc_track--;
+	udlpim_info->kmalloc_track--;
 }
 
-inline void *udlpcon_vmalloc(struct udlpcon_info *udlpcon_info,
+inline void *udlpim_vmalloc(struct udlpim_info *udlpim_info,
 			size_t size)
 {
 	void *ptr = vmalloc(size);
 	if (ptr)
-		udlpcon_info->vmalloc_track++;
+		udlpim_info->vmalloc_track++;
 	return ptr;
 }
 
-inline void *udlpcon_vzalloc(struct udlpcon_info *udlpcon_info,
+inline void *udlpim_vzalloc(struct udlpim_info *udlpim_info,
 			size_t size)
 {
 	void *ptr = vzalloc(size);
 	if (ptr)
-		udlpcon_info->vmalloc_track++;
+		udlpim_info->vmalloc_track++;
 	return ptr;
 }
 
-inline void udlpcon_vfree(struct udlpcon_info *udlpcon_info,
+inline void udlpim_vfree(struct udlpim_info *udlpim_info,
 			void *ptr)
 {
 	vfree(ptr);
-	udlpcon_info->vmalloc_track--;
+	udlpim_info->vmalloc_track--;
 }

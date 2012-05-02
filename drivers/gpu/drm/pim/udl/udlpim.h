@@ -49,18 +49,18 @@ extern int true32bpp;
 extern int debug;
 extern int enable_default_modes;
 
-extern struct usb_driver udlpcon_driver;
-extern struct list_head udlpcon_info_list;
-extern int udlpcon_major;
-extern int udlpcon_num_minors;
-extern int udlpcon_max_minor;
-extern int udlpcon_fake_vblank_slack;
-extern struct vcrtcm_pcon_funcs udlpcon_vcrtcm_pcon_funcs;
-extern struct vcrtcm_pcon_props udlpcon_vcrtcm_pcon_props;
+extern struct usb_driver udlpim_driver;
+extern struct list_head udlpim_info_list;
+extern int udlpim_major;
+extern int udlpim_num_minors;
+extern int udlpim_max_minor;
+extern int udlpim_fake_vblank_slack;
+extern struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs;
+extern struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props;
 
 struct urb_node {
 	struct list_head entry;
-	struct udlpcon_info *dev;
+	struct udlpim_info *dev;
 	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
@@ -74,7 +74,7 @@ struct urb_list {
 	size_t size;
 };
 
-struct udlpcon_video_mode {
+struct udlpim_video_mode {
 	struct list_head list;
 	u32 xres;
 	u32 yres;
@@ -88,7 +88,7 @@ struct udlpcon_video_mode {
 	u32 refresh;
 };
 
-struct udlpcon_scratch_memory_descriptor {
+struct udlpim_scratch_memory_descriptor {
 	struct page **backing_buffer_pages;
 	struct page **hline_16_pages;
 	struct page **hline_8_pages;
@@ -97,13 +97,13 @@ struct udlpcon_scratch_memory_descriptor {
 	unsigned int hline_8_num_pages;
 };
 
-struct udlpcon_info {
+struct udlpim_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct udlpcon_flow_info *udlpcon_flow_info;
+	struct udlpim_flow_info *udlpim_flow_info;
 	struct mutex buffer_mutex;
-	spinlock_t udlpcon_lock;
+	spinlock_t udlpim_lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
@@ -126,11 +126,11 @@ struct udlpcon_info {
 	char *cursor;
 	int bpp;
 
-	struct udlpcon_scratch_memory_descriptor *scratch_memory;
+	struct udlpim_scratch_memory_descriptor *scratch_memory;
 
 	/* supported fb modes */
-	struct udlpcon_video_mode default_video_mode;
-	struct udlpcon_video_mode current_video_mode;
+	struct udlpim_video_mode default_video_mode;
+	struct udlpim_video_mode current_video_mode;
 	struct vcrtcm_mode *last_vcrtcm_mode_list;
 	int monitor_connected;
 
@@ -154,7 +154,7 @@ struct udlpcon_info {
 	int vmalloc_track;
 };
 
-struct udlpcon_flow_info {
+struct udlpim_flow_info {
 	struct list_head list;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -174,21 +174,21 @@ struct udlpcon_flow_info {
 
 	int dpms_state;
 
-	struct udlpcon_info *udlpcon_info;
+	struct udlpim_info *udlpim_info;
 };
 
 
 /* USB/HW functions that VCRTCM functions need access to */
-int udlpcon_setup_screen(struct udlpcon_info *udlpcon_info,
-	struct udlpcon_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
-int udlpcon_error_screen(struct udlpcon_info *udlpcon_info);
-int udlpcon_dpms_sleep(struct udlpcon_info *udlpcon_info);
-int udlpcon_dpms_wakeup(struct udlpcon_info *udlpcon_info);
-int udlpcon_transmit_framebuffer(struct udlpcon_info *udlpcon_info);
-int udlpcon_build_modelist(struct udlpcon_info *udlpcon_info,
-			struct udlpcon_video_mode **modes, int *mode_count);
-int udlpcon_free_modelist(struct udlpcon_info *udlpcon_info,
-			struct udlpcon_video_mode *modes);
-void udlpcon_query_edid_core(struct udlpcon_info *udlpcon_info);
+int udlpim_setup_screen(struct udlpim_info *udlpim_info,
+	struct udlpim_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
+int udlpim_error_screen(struct udlpim_info *udlpim_info);
+int udlpim_dpms_sleep(struct udlpim_info *udlpim_info);
+int udlpim_dpms_wakeup(struct udlpim_info *udlpim_info);
+int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info);
+int udlpim_build_modelist(struct udlpim_info *udlpim_info,
+			struct udlpim_video_mode **modes, int *mode_count);
+int udlpim_free_modelist(struct udlpim_info *udlpim_info,
+			struct udlpim_video_mode *modes);
+void udlpim_query_edid_core(struct udlpim_info *udlpim_info);
 
 #endif

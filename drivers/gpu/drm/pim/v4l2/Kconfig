@@ -1,0 +1,12 @@
+config DRM_VCRTCM_PIM_V4L2
+	tristate "Video for Linux PIM"
+	depends on DRM_VCRTCM && VIDEO_V4L2
+	help
+	 PIM for V4L2.  Instantiated PCONs present their pixel
+	 stream as a V4L2 device in user space. Allows applications
+	 that can take V4L2 input to do something good with the
+	 rendered pixels
+
+	 select 'm' or 'n'; 'y' not tested yet
+
+

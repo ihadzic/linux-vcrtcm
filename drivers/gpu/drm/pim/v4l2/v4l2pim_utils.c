@@ -18,10 +18,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "v4l2pcon.h"
-#include "v4l2pcon_utils.h"
+#include "v4l2pim.h"
+#include "v4l2pim_utils.h"
 
-int v4l2pcon_alloc_multiple_pages(struct v4l2pcon_info *v4l2pcon_info,
+int v4l2pim_alloc_multiple_pages(struct v4l2pim_info *v4l2pim_info,
 				gfp_t gfp_mask,
 				struct page **page_array,
 				unsigned int num_pages)
@@ -30,93 +30,93 @@ int v4l2pcon_alloc_multiple_pages(struct v4l2pcon_info *v4l2pcon_info,
 	int i;
 
 	for (i = 0; i < num_pages; i++) {
-		current_page = v4l2pcon_alloc_page(v4l2pcon_info, gfp_mask);
+		current_page = v4l2pim_alloc_page(v4l2pim_info, gfp_mask);
 		if (current_page) {
 			page_array[i] = current_page;
 		} else {
-			v4l2pcon_free_multiple_pages(v4l2pcon_info,
+			v4l2pim_free_multiple_pages(v4l2pim_info,
 							page_array, i);
 			return 1;
 		}
 	}
 	return 0;
 }
-void v4l2pcon_free_multiple_pages(struct v4l2pcon_info *v4l2pcon_info,
+void v4l2pim_free_multiple_pages(struct v4l2pim_info *v4l2pim_info,
 				struct page **page_array,
 				unsigned int num_pages)
 {
 	int i;
 
 	for (i = 0; i < num_pages; i++)
-		v4l2pcon_free_page(v4l2pcon_info, page_array[i]);
+		v4l2pim_free_page(v4l2pim_info, page_array[i]);
 
 	return;
 }
 
-inline struct page *v4l2pcon_alloc_page(struct v4l2pcon_info *v4l2pcon_info,
+inline struct page *v4l2pim_alloc_page(struct v4l2pim_info *v4l2pim_info,
 				gfp_t gfp_mask)
 {
 	struct page *page = alloc_page(gfp_mask);
 	if (page)
-		v4l2pcon_info->page_track++;
+		v4l2pim_info->page_track++;
 	return page;
 }
 
-inline void v4l2pcon_free_page(struct v4l2pcon_info *v4l2pcon_info,
+inline void v4l2pim_free_page(struct v4l2pim_info *v4l2pim_info,
 				struct page *page)
 {
 	__free_page(page);
-	v4l2pcon_info->page_track--;
+	v4l2pim_info->page_track--;
 }
 
-inline void *v4l2pcon_kmalloc(struct v4l2pcon_info *v4l2pcon_info,
+inline void *v4l2pim_kmalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size,
 			gfp_t gfp_mask)
 {
 	void *ptr = kmalloc(size, gfp_mask);
 	if (ptr)
-		v4l2pcon_info->kmalloc_track++;
+		v4l2pim_info->kmalloc_track++;
 	return ptr;
 }
 
-inline void *v4l2pcon_kzalloc(struct v4l2pcon_info *v4l2pcon_info,
+inline void *v4l2pim_kzalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size,
 			gfp_t gfp_mask)
 {
 	void *ptr = kzalloc(size, gfp_mask);
 	if (ptr)
-		v4l2pcon_info->kmalloc_track++;
+		v4l2pim_info->kmalloc_track++;
 	return ptr;
 }
 
-inline void v4l2pcon_kfree(struct v4l2pcon_info *v4l2pcon_info,
+inline void v4l2pim_kfree(struct v4l2pim_info *v4l2pim_info,
 			void *ptr)
 {
 	kfree(ptr);
-	v4l2pcon_info->kmalloc_track--;
+	v4l2pim_info->kmalloc_track--;
 }
 
-inline void *v4l2pcon_vmalloc(struct v4l2pcon_info *v4l2pcon_info,
+inline void *v4l2pim_vmalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size)
 {
 	void *ptr = vmalloc(size);
 	if (ptr)
-		v4l2pcon_info->vmalloc_track++;
+		v4l2pim_info->vmalloc_track++;
 	return ptr;
 }
 
-inline void *v4l2pcon_vzalloc(struct v4l2pcon_info *v4l2pcon_info,
+inline void *v4l2pim_vzalloc(struct v4l2pim_info *v4l2pim_info,
 			size_t size)
 {
 	void *ptr = vzalloc(size);
 	if (ptr)
-		v4l2pcon_info->vmalloc_track++;
+		v4l2pim_info->vmalloc_track++;
 	return ptr;
 }
 
-inline void v4l2pcon_vfree(struct v4l2pcon_info *v4l2pcon_info,
+inline void v4l2pim_vfree(struct v4l2pim_info *v4l2pim_info,
 			void *ptr)
 {
 	vfree(ptr);
-	v4l2pcon_info->vmalloc_track--;
+	v4l2pim_info->vmalloc_track--;
 }

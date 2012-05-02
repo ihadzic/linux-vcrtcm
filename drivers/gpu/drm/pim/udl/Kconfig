@@ -1,0 +1,12 @@
+config DRM_VCRTCM_PIM_UDL
+	tristate "DisplayLink USB Graphics Adapter PIM"
+	depends on DRM_VCRTCM && FB && USB
+	select FB_MODE_HELPERS
+	help
+	 PIM for DisplayLink USB Graphics Adapter.
+	 Instantiated PCONs send their pixel stream to a
+	 DisplayLink device.  Lets your GPU do the hardware-
+	 accelerated rendering and display the output on a
+	 DisplayLink monitor.
+
+	 select 'm' or 'n'; 'y' not tested yet
