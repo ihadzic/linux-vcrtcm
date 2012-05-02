@@ -29,7 +29,7 @@
 #define VCRTCM_STATUS_PCON_IN_USE 0x01
 
 /* main structure for keeping track of each PCON-CRTC relationship */
-struct vcrtcm_pcon_flow_info_private {
+struct vcrtcm_pcon_info_private {
 	struct list_head list;
 	/* general lock for fields subject to concurrent access */
 	spinlock_t lock;

@@ -44,7 +44,7 @@ module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private, *tmp;
+	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private, *tmp;
 
 	VCRTCM_INFO("unloading module");
 
@@ -52,28 +52,28 @@ static void __exit vcrtcm_exit(void)
 	   even if the PCONs have not explicitly given them up
 	   (we have no other choice) */
 	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry_safe(vcrtcm_pcon_flow_info_private, tmp, &vcrtcm_dev_list, list) {
-		mutex_lock(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.mutex);
+	list_for_each_entry_safe(vcrtcm_pcon_info_private, tmp, &vcrtcm_dev_list, list) {
+		mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 		VCRTCM_INFO("removing pcon %d.%d.%d\n",
-			    vcrtcm_pcon_flow_info_private->hw_major,
-			    vcrtcm_pcon_flow_info_private->hw_minor,
-			    vcrtcm_pcon_flow_info_private->hw_flow);
-		if (vcrtcm_pcon_flow_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
+			    vcrtcm_pcon_info_private->hw_major,
+			    vcrtcm_pcon_info_private->hw_minor,
+			    vcrtcm_pcon_info_private->hw_flow);
+		if (vcrtcm_pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-				    vcrtcm_pcon_flow_info_private->drm_crtc);
-			if (vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.funcs.detach)
-				vcrtcm_pcon_flow_info_private->
+				    vcrtcm_pcon_info_private->drm_crtc);
+			if (vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.detach)
+				vcrtcm_pcon_info_private->
 				    vcrtcm_pcon_info.funcs.
-				    detach(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info,
-					   vcrtcm_pcon_flow_info_private->pcon_cookie,
-					   vcrtcm_pcon_flow_info_private->hw_flow);
-			if (vcrtcm_pcon_flow_info_private->gpu_funcs.detach)
-				vcrtcm_pcon_flow_info_private->
-					gpu_funcs.detach(vcrtcm_pcon_flow_info_private->drm_crtc);
+				    detach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info,
+					   vcrtcm_pcon_info_private->pcon_cookie,
+					   vcrtcm_pcon_info_private->hw_flow);
+			if (vcrtcm_pcon_info_private->gpu_funcs.detach)
+				vcrtcm_pcon_info_private->
+					gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);
 		}
-		list_del(&vcrtcm_pcon_flow_info_private->list);
-		mutex_unlock(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.mutex);
-		kfree(vcrtcm_pcon_flow_info_private);
+		list_del(&vcrtcm_pcon_info_private->list);
+		mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
+		kfree(vcrtcm_pcon_info_private);
 	}
 	mutex_unlock(&vcrtcm_dev_list_mutex);
 
