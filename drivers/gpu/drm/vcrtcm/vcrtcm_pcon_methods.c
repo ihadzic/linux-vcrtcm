@@ -79,7 +79,7 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major = major;
 	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor = minor;
 	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow = flow;
-	vcrtcm_pcon_info_private->pcon_cookie = pcon_cookie;
+	vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie = pcon_cookie;
 	vcrtcm_pcon_info_private->vblank_time_valid = 0;
 	vcrtcm_pcon_info_private->vblank_time.tv_sec = 0;
 	vcrtcm_pcon_info_private->vblank_time.tv_usec = 0;
@@ -131,7 +131,7 @@ void vcrtcm_p_del(int major, int minor, int flow)
 					vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.
 					    detach(&vcrtcm_pcon_info_private->
 						   vcrtcm_pcon_info,
-						   vcrtcm_pcon_info_private->pcon_cookie,
+						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_cookie,
 						   vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 				if (vcrtcm_pcon_info_private->gpu_funcs.detach)
 					vcrtcm_pcon_info_private->

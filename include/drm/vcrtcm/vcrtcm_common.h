@@ -130,6 +130,7 @@ struct vcrtcm_pcon_info {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_pcon_props props;
+	void *pcon_cookie;
 	/* the infamous triple that identifies the PCON */
 	int pcon_major;
 	int pcon_minor;
