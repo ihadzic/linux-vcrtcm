@@ -56,7 +56,7 @@ int v4l2pcon_get_dpms(int *state, void *v4l2pcon_info_, int flow);
 /* Scheduled/delayed work functions */
 void v4l2pcon_fake_vblank(struct work_struct *work);
 void copy_cursor_work(struct work_struct *work);
-int v4l2pcon_do_xmit_fb_pull(struct v4l2pcon_flow_info *vhd);
-int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_flow_info *vhd);
+int v4l2pcon_do_xmit_fb_pull(struct v4l2pcon_flow_info *flow_info);
+int v4l2pcon_do_xmit_fb_push(struct v4l2pcon_flow_info *flow_info);
 
 #endif
