@@ -52,7 +52,7 @@ struct vcrtcm_pcon_info_private {
 	struct vcrtcm_pcon_info vcrtcm_pcon_info;
 };
 
-extern struct list_head vcrtcm_dev_list;
-extern struct mutex vcrtcm_dev_list_mutex;
+extern struct list_head vcrtcm_pcon_list;
+extern struct mutex vcrtcm_pcon_list_mutex;
 
 #endif

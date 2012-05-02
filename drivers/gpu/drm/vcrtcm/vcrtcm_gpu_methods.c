@@ -35,8 +35,8 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private;
 
 	/* find the entry that should be remove */
-	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_dev_list, list) {
+	mutex_lock(&vcrtcm_pcon_list_mutex);
+	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_pcon_list, list) {
 		if ((vcrtcm_pcon_info_private->hw_major == major) &&
 		    (vcrtcm_pcon_info_private->hw_minor == minor) &&
 		    (vcrtcm_pcon_info_private->hw_flow == flow)) {
@@ -51,7 +51,7 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 					     major, minor, flow, drm_crtc);
 				mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.
 					     mutex);
-				mutex_unlock(&vcrtcm_dev_list_mutex);
+				mutex_unlock(&vcrtcm_pcon_list_mutex);
 				return -EBUSY;
 			}
 			spin_unlock_irqrestore(&vcrtcm_pcon_info_private->lock, flags);
@@ -70,7 +70,7 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 					VCRTCM_ERROR("back-end attach call failed\n");
 					mutex_unlock(&vcrtcm_pcon_info_private->
 						     vcrtcm_pcon_info.mutex);
-					mutex_unlock(&vcrtcm_dev_list_mutex);
+					mutex_unlock(&vcrtcm_pcon_list_mutex);
 					return r;
 				}
 			}
@@ -92,12 +92,12 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 					       flags);
 			mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.
 				     mutex);
-			mutex_unlock(&vcrtcm_dev_list_mutex);
+			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return 0;
 
 		}
 	}
-	mutex_unlock(&vcrtcm_dev_list_mutex);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	/* if we got here, then the PCON was not found */
 	VCRTCM_ERROR("pcon %d.%d.%d not found\n", major, minor, flow);

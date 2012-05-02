@@ -33,8 +33,8 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private;
 
 	/* first check whether we are already registered */
-	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_dev_list, list) {
+	mutex_lock(&vcrtcm_pcon_list_mutex);
+	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_pcon_list, list) {
 		if ((vcrtcm_pcon_info_private->hw_major == major) &&
 		    (vcrtcm_pcon_info_private->hw_minor == minor) &&
 		    (vcrtcm_pcon_info_private->hw_flow == flow)) {
@@ -53,11 +53,11 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 			       vcrtcm_pcon_props, sizeof(struct vcrtcm_pcon_props));
 			mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.
 				     mutex);
-			mutex_unlock(&vcrtcm_dev_list_mutex);
+			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return 0;
 		}
 	}
-	mutex_unlock(&vcrtcm_dev_list_mutex);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	/* if we got here, then we are dealing with a new implementation
 	   and we have to allocate and populate the PCON structure */
@@ -92,9 +92,9 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		    vcrtcm_pcon_info_private->hw_minor, vcrtcm_pcon_info_private->hw_flow);
 
 	/* make the new PCON available to the rest of the system */
-	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_add(&vcrtcm_pcon_info_private->list, &vcrtcm_dev_list);
-	mutex_unlock(&vcrtcm_dev_list_mutex);
+	mutex_lock(&vcrtcm_pcon_list_mutex);
+	list_add(&vcrtcm_pcon_info_private->list, &vcrtcm_pcon_list);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	return 0;
 }
@@ -107,8 +107,8 @@ void vcrtcm_p_del(int major, int minor, int flow)
 	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private;
 
 	/* find the entry that should be removed */
-	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_dev_list, list) {
+	mutex_lock(&vcrtcm_pcon_list_mutex);
+	list_for_each_entry(vcrtcm_pcon_info_private, &vcrtcm_pcon_list, list) {
 		if ((vcrtcm_pcon_info_private->hw_major == major) &&
 		    (vcrtcm_pcon_info_private->hw_minor == minor) &&
 		    (vcrtcm_pcon_info_private->hw_flow == flow)) {
@@ -143,11 +143,11 @@ void vcrtcm_p_del(int major, int minor, int flow)
 			mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.
 				     mutex);
 			kfree(vcrtcm_pcon_info_private);
-			mutex_unlock(&vcrtcm_dev_list_mutex);
+			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return;
 		}
 	}
-	mutex_unlock(&vcrtcm_dev_list_mutex);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	/* if we got here, then the caller is attempting to remove something
 	   that does not exist */

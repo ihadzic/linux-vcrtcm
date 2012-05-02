@@ -23,8 +23,8 @@
 #include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
-struct list_head vcrtcm_dev_list;
-struct mutex vcrtcm_dev_list_mutex;
+struct list_head vcrtcm_pcon_list;
+struct mutex vcrtcm_pcon_list_mutex;
 
 int vcrtcm_debug;
 
@@ -33,8 +33,8 @@ static int __init vcrtcm_init(void)
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 
-	mutex_init(&vcrtcm_dev_list_mutex);
-	INIT_LIST_HEAD(&vcrtcm_dev_list);
+	mutex_init(&vcrtcm_pcon_list_mutex);
+	INIT_LIST_HEAD(&vcrtcm_pcon_list);
 
 	VCRTCM_INFO("module loaded");
 	return 0;
@@ -51,8 +51,8 @@ static void __exit vcrtcm_exit(void)
 	/* any remaining virtual CRTC must now be detached and destroyed
 	   even if the PCONs have not explicitly given them up
 	   (we have no other choice) */
-	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry_safe(vcrtcm_pcon_info_private, tmp, &vcrtcm_dev_list, list) {
+	mutex_lock(&vcrtcm_pcon_list_mutex);
+	list_for_each_entry_safe(vcrtcm_pcon_info_private, tmp, &vcrtcm_pcon_list, list) {
 		mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 		VCRTCM_INFO("removing pcon %d.%d.%d\n",
 			    vcrtcm_pcon_info_private->hw_major,
@@ -75,7 +75,7 @@ static void __exit vcrtcm_exit(void)
 		mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
 		kfree(vcrtcm_pcon_info_private);
 	}
-	mutex_unlock(&vcrtcm_dev_list_mutex);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	VCRTCM_INFO("all virtual crtcs gone");
 
