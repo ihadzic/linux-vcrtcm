@@ -201,7 +201,7 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);
 }
 
-static void radeon_sync_callback(struct drm_crtc *crtc)
+static void radeon_wait_fb_callback(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev;
 	struct radeon_device *rdev;
@@ -418,7 +418,7 @@ static void radeon_vcrtcm_hotplug(struct drm_crtc *crtc)
 struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
-	.sync = radeon_sync_callback,
+	.wait_fb = radeon_wait_fb_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
 	.pb_free = radeon_vcrtcm_push_buffer_free,
 	.push = radeon_vcrtcm_push,
@@ -428,7 +428,7 @@ struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
 struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = radeon_emulate_vblank,
-	.sync = radeon_sync_callback,
+	.wait_fb = radeon_wait_fb_callback,
 	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
 	.pb_free = radeon_vcrtcm_push_buffer_free,
 	.push = radeon_vcrtcm_push,

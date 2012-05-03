@@ -200,7 +200,7 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	PR_INFO("Detaching v4l2pim %d from pcon %p\n",
 		v4l2pim_info->minor, vcrtcm_pcon_info);
 
-	vcrtcm_p_gpu_sync(vcrtcm_pcon_info);
+	vcrtcm_p_wait_fb(vcrtcm_pcon_info);
 	flow_info = v4l2pim_info->v4l2pim_flow_info;
 
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);

@@ -155,7 +155,7 @@ EXPORT_SYMBOL(vcrtcm_p_del);
 
 /* The PCON can use this function wait for the GPU to finish rendering
    to the frame.  PCONs typically call this to prevent frame tearing. */
-void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private =
 	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_info_private,
@@ -166,8 +166,8 @@ void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
 		    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor, vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
 	jiffies_snapshot = jiffies;
-	if (vcrtcm_pcon_info_private->gpu_funcs.sync)
-		vcrtcm_pcon_info_private->gpu_funcs.sync(vcrtcm_pcon_info_private->drm_crtc);
+	if (vcrtcm_pcon_info_private->gpu_funcs.wait_fb)
+		vcrtcm_pcon_info_private->gpu_funcs.wait_fb(vcrtcm_pcon_info_private->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
@@ -175,7 +175,7 @@ void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		     (int)(jiffies_snapshot)) * 1000 / HZ);
 
 }
-EXPORT_SYMBOL(vcrtcm_p_gpu_sync);
+EXPORT_SYMBOL(vcrtcm_p_wait_fb);
 
 /* called by the PCON to emulate vblank
    this is the link between the vblank event that happened in

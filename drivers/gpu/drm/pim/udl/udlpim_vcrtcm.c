@@ -210,7 +210,7 @@ void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	PR_INFO("Detaching udlpim %d from pcon %p\n",
 		udlpim_info->minor, vcrtcm_pcon_info);
 
-	vcrtcm_p_gpu_sync(vcrtcm_pcon_info);
+	vcrtcm_p_wait_fb(vcrtcm_pcon_info);
 	flow_info = udlpim_info->udlpim_flow_info;
 
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);

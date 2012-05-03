@@ -150,7 +150,7 @@ struct vcrtcm_gpu_funcs {
 	void (*vblank) (struct drm_crtc *drm_crtc);
 
 	/* synchronization with GPU rendering (e.g. fence wait) */
-	void (*sync) (struct drm_crtc *drm_crtc);
+	void (*wait_fb) (struct drm_crtc *drm_crtc);
 
 	/* allocate push buffer */
 	int (*pb_alloc) (struct drm_device *dev,
