@@ -153,10 +153,8 @@ void vcrtcm_p_del(int major, int minor, int flow)
 }
 EXPORT_SYMBOL(vcrtcm_p_del);
 
-/* called by the PCON to synchronize with GPU rendering
-   whenever the PCON wants to wait for the GPU
-   to finish some work before proceeding (typically
-   to avoid frame tearing during transmission) */
+/* The PCON can use this function wait for the GPU to finish rendering
+   to the frame.  PCONs typically call this to prevent frame tearing. */
 void vcrtcm_p_gpu_sync(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private =

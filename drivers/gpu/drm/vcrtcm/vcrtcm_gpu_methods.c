@@ -239,11 +239,11 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_page_flip);
 
-/* GPU driver calls this function whenever the the framebuffer
-   associated with a given CRTC has changed to request transmission
-   the transmission policy and scheduling is totally up to the
-   backend implementation
-   NOTE: this function may block */
+/* GPU driver calls this function whenever the framebuffer
+   associated with a given CRTC has changed.  The PCON can
+   handle that change however it likes.  PCONs that do transmission
+   will typically simply record that the frame is dirty and then
+   transmit it at the next vblank.  NOTE: this function may block */
 int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
@@ -272,10 +272,11 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
 
-/* GPU driver can use this function to synchronize with the
-   PCON transmission (e.g. wait for the transmission to
-   complete). whether the wait will actually occur or not
-   totally depends on the policy implemented in the backend
+/* GPU driver can use this function to wait for the PCON
+   to finish processing the frame.  The PCON can define
+   "finish processing" however it likes.  PCONs that do
+   transmission will typically wait until the frame is
+   finished being inserted into the transmission pipeline.
    NOTE: this function may block */
 int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
@@ -328,7 +329,7 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fb_status);
 
-/* sets the frame rate for frame buffer transmission */
+/* sets the frame rate */
 int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 {
 	int r;
@@ -355,7 +356,7 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fps);
 
-/* reads the frame rate for frame buffer transmission */
+/* reads the frame rate */
 int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 {
 	int r;
@@ -667,8 +668,8 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_check_mode);
 
-/* disable the transmission on specified PCON
- * called when CRTC associated with the PCON is
+/* disable the specified PCON.
+ * called when the CRTC associated with the PCON is
  * disabled from userland
  */
 void vcrtcm_g_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
