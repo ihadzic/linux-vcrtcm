@@ -141,7 +141,7 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 	list_for_each_entry(push_vblank_pending,
 			    &rdev->vbl_emu_drv.pending_queue,
 			    list) {
-		if (push_vblank_pending->radeon_fence->signaled) {
+		if (radeon_fence_signaled(push_vblank_pending->radeon_fence)) {
 			push_vblank_pending->end_jiffies = jiffies;
 			if (push_vblank_pending->radeon_crtc->vcrtcm_dev_hal)
 				vcrtcm_set_vblank_time(push_vblank_pending->

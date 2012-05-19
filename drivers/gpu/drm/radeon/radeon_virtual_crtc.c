@@ -1213,7 +1213,7 @@ void radeon_vbl_emu_cleanup_work(struct work_struct *work)
 				  (push_vblank_pending->end_jiffies-
 				  push_vblank_pending->start_jiffies)*1000/HZ);
 			list_del(&push_vblank_pending->list);
-			WARN_ON(!push_vblank_pending->radeon_fence->signaled);
+			WARN_ON(!radeon_fence_signaled(push_vblank_pending->radeon_fence));
 			radeon_fence_unref(&push_vblank_pending->radeon_fence);
 			kfree(push_vblank_pending);
 		}

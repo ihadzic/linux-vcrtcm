@@ -211,8 +211,10 @@ static void radeon_sync_callback(struct drm_crtc *crtc)
 	DRM_DEBUG("crtc_id %d\n", radeon_crtc->crtc_id);
 	ddev = radeon_crtc->base.dev;
 	rdev = ddev->dev_private;
+	mutex_lock(&rdev->ring_lock);
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_last(rdev, i);
+		radeon_fence_wait_empty_locked(rdev, i);
+	mutex_unlock(&rdev->ring_lock);
 }
 
 static int
