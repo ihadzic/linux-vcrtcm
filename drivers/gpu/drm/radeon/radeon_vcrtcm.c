@@ -283,7 +283,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_cursor)
 {
 	struct radeon_device *rdev = scrtc->dev->dev_private;
-	struct radeon_fence *fence = NULL;
+	struct radeon_fence *fence_c, *fence_fb;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
@@ -300,6 +300,17 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		return -ENOENT;
 	srfb = to_radeon_framebuffer(sfb);
 	sfbbo = srfb->obj;
+
+	r = radeon_fence_create(rdev, &fence_c,
+				radeon_copy_dma_ring_index(rdev));
+	if (r)
+		return r;
+	r = radeon_fence_create(rdev, &fence_fb,
+				radeon_copy_dma_ring_index(rdev));
+	if (r) {
+		radeon_fence_unref(&fence_c);
+		return r;
+	}
 
 	/* copy the mouse cursor first (if we have one) */
 	if (dbuf_cursor && scbo) {
@@ -319,24 +330,17 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			DRM_DEBUG("pushing cursor: %d pages "
 				  "from %llx to %llx\n",
 				  num_pages, saddr, daddr);
-			radeon_copy(rdev, saddr, daddr, num_pages, NULL);
+			radeon_copy(rdev, saddr, daddr, num_pages, fence_c);
 		}
 	}
-
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
-	/* vblank, so we need a fence and pending vblank queue element */
+	/* vblank, so we need a pending vblank queue element */
 	if ((srcrtc->crtc_id >= rdev->num_crtc) && radeon_vbl_emu_async) {
 		push_vblank_pending =
 			kmalloc(sizeof(struct push_vblank_pending), GFP_KERNEL);
 		if (!push_vblank_pending)
 			return -ENOMEM;
-		r = radeon_fence_create(rdev, &fence,
-					RADEON_RING_TYPE_GFX_INDEX);
-		if (r) {
-			kfree(push_vblank_pending);
-			return r;
-		}
-		push_vblank_pending->radeon_fence = fence;
+		push_vblank_pending->radeon_fence = fence_fb;
 		push_vblank_pending->vblank_sent = 0;
 		push_vblank_pending->radeon_crtc = srcrtc;
 		push_vblank_pending->start_jiffies = jiffies;
@@ -364,15 +368,12 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 
 	DRM_DEBUG("pushing framebuffer: %d pages from %llx to %llx\n",
 		  num_pages, saddr, daddr);
-	if (radeon_vbl_emu_async)
-		radeon_copy(rdev, saddr, daddr, num_pages, fence);
-	else
-		radeon_copy(rdev, saddr, daddr, num_pages, NULL);
+	radeon_copy(rdev, saddr, daddr, num_pages, fence_fb);
 
 	if (radeon_vbl_emu_async) {
 		if (srcrtc->crtc_id >= rdev->num_crtc) {
 			unsigned long flags;
-			BUG_ON(!fence);
+			BUG_ON(!fence_fb);
 			BUG_ON(!push_vblank_pending);
 			/* we don't wait for fence here, but we put it in */
 			/* a queue; when the fence is signaled, the queue */
@@ -401,6 +402,8 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 		if (srcrtc->vcrtcm_dev_hal)
 			vcrtcm_set_vblank_time(srcrtc->vcrtcm_dev_hal);
 		radeon_emulate_vblank(scrtc);
+		radeon_fence_unref(&fence_c);
+		radeon_fence_unref(&fence_fb);
 	}
 	return 0;
 }
