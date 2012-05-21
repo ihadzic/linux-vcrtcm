@@ -96,11 +96,10 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 					     GFP_KERNEL);
 		if (!ppgtt->pt_dma_addr)
 			goto err_pt_alloc;
-	}
 
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		dma_addr_t pt_addr;
-		if (dev_priv->mm.gtt->needs_dmar) {
+		for (i = 0; i < ppgtt->num_pd_entries; i++) {
+			dma_addr_t pt_addr;
+
 			pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i],
 					       0, 4096,
 					       PCI_DMA_BIDIRECTIONAL);
@@ -112,8 +111,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 			}
 			ppgtt->pt_dma_addr[i] = pt_addr;
-		} else
-			pt_addr = page_to_phys(ppgtt->pt_pages[i]);
+		}
 	}
 
 	ppgtt->scratch_page_dma_addr = dev_priv->mm.gtt->scratch_page_dma;
@@ -319,7 +317,7 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 	if (unlikely(dev_priv->mm.gtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev, false)) {
+		if (i915_gpu_idle(dev_priv->dev)) {
 			DRM_ERROR("Couldn't idle GPU\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);

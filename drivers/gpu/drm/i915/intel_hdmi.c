@@ -136,7 +136,7 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 
 	val &= ~VIDEO_DIP_SELECT_MASK;
 
-	I915_WRITE(VIDEO_DIP_CTL, val | port | flags);
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
 
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VIDEO_DIP_DATA, *data);
@@ -220,13 +220,17 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 	intel_hdmi->write_infoframe(encoder, frame);
 }
 
-static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
+static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
+					 struct drm_display_mode *adjusted_mode)
 {
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
 		.ver = DIP_VERSION_AVI,
 		.len = DIP_LEN_AVI,
 	};
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
+		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
 
 	intel_set_infoframe(encoder, &avi_if);
 }
@@ -290,7 +294,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
 
-	intel_hdmi_set_avi_infoframe(encoder);
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
 

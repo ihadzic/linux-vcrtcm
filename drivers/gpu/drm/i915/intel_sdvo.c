@@ -443,9 +443,17 @@ static const char *cmd_status_names[] = {
 static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 				 const void *args, int args_len)
 {
-	u8 buf[args_len*2 + 2], status;
-	struct i2c_msg msgs[args_len + 3];
-	int i, ret;
+	u8 *buf, status;
+	struct i2c_msg *msgs;
+	int i, ret = true;
+
+	buf = (u8 *)kzalloc(args_len * 2 + 2, GFP_KERNEL);
+	if (!buf)
+		return false;
+
+	msgs = kcalloc(args_len + 3, sizeof(*msgs), GFP_KERNEL);
+	if (!msgs)
+		return false;
 
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
@@ -479,15 +487,19 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
-		return false;
+		ret = false;
+		goto out;
 	}
 	if (ret != i+3) {
 		/* failure in I2C transfer */
 		DRM_DEBUG_KMS("I2c transfer returned %d/%d\n", ret, i+3);
-		return false;
+		ret = false;
 	}
 
-	return true;
+out:
+	kfree(msgs);
+	kfree(buf);
+	return ret;
 }
 
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
@@ -733,21 +745,26 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	uint16_t width, height;
 	uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
 	uint16_t h_sync_offset, v_sync_offset;
+	int mode_clock;
 
-	width = mode->crtc_hdisplay;
-	height = mode->crtc_vdisplay;
+	width = mode->hdisplay;
+	height = mode->vdisplay;
 
 	/* do some mode translations */
-	h_blank_len = mode->crtc_hblank_end - mode->crtc_hblank_start;
-	h_sync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	h_blank_len = mode->htotal - mode->hdisplay;
+	h_sync_len = mode->hsync_end - mode->hsync_start;
 
-	v_blank_len = mode->crtc_vblank_end - mode->crtc_vblank_start;
-	v_sync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	v_blank_len = mode->vtotal - mode->vdisplay;
+	v_sync_len = mode->vsync_end - mode->vsync_start;
 
-	h_sync_offset = mode->crtc_hsync_start - mode->crtc_hblank_start;
-	v_sync_offset = mode->crtc_vsync_start - mode->crtc_vblank_start;
+	h_sync_offset = mode->hsync_start - mode->hdisplay;
+	v_sync_offset = mode->vsync_start - mode->vdisplay;
 
-	dtd->part1.clock = mode->clock / 10;
+	mode_clock = mode->clock;
+	mode_clock /= intel_mode_get_pixel_multiplier(mode) ?: 1;
+	mode_clock /= 10;
+	dtd->part1.clock = mode_clock;
+
 	dtd->part1.h_active = width & 0xff;
 	dtd->part1.h_blank = h_blank_len & 0xff;
 	dtd->part1.h_high = (((width >> 8) & 0xf) << 4) |
@@ -998,7 +1015,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
-	struct intel_sdvo_dtd input_dtd;
+	struct intel_sdvo_dtd input_dtd, output_dtd;
 	int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
 	int rate;
 
@@ -1023,20 +1040,13 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 					  intel_sdvo->attached_output))
 		return;
 
-	/* We have tried to get input timing in mode_fixup, and filled into
-	 * adjusted_mode.
-	 */
-	if (intel_sdvo->is_tv || intel_sdvo->is_lvds) {
-		input_dtd = intel_sdvo->input_dtd;
-	} else {
-		/* Set the output timing to the screen */
-		if (!intel_sdvo_set_target_output(intel_sdvo,
-						  intel_sdvo->attached_output))
-			return;
-
-		intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-		(void) intel_sdvo_set_output_timing(intel_sdvo, &input_dtd);
-	}
+	/* lvds has a special fixed output timing. */
+	if (intel_sdvo->is_lvds)
+		intel_sdvo_get_dtd_from_mode(&output_dtd,
+					     intel_sdvo->sdvo_lvds_fixed_mode);
+	else
+		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
+	(void) intel_sdvo_set_output_timing(intel_sdvo, &output_dtd);
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
@@ -1054,6 +1064,10 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	    !intel_sdvo_set_tv_format(intel_sdvo))
 		return;
 
+	/* We have tried to get input timing in mode_fixup, and filled into
+	 * adjusted_mode.
+	 */
+	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
 	(void) intel_sdvo_set_input_timing(intel_sdvo, &input_dtd);
 
 	switch (pixel_multiplier) {
@@ -1258,7 +1272,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 						    dev_priv->crt_ddc_pin));
 }
 
-enum drm_connector_status
+static enum drm_connector_status
 intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
@@ -1563,9 +1577,6 @@ end:
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
 			intel_sdvo->sdvo_lvds_fixed_mode =
 				drm_mode_duplicate(connector->dev, newmode);
-
-			drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode,
-					      0);
 
 			intel_sdvo->is_lvds = true;
 			break;

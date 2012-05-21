@@ -128,6 +128,7 @@ int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
 int radeon_msi = -1;
+int radeon_lockup_timeout = 10000;
 int radeon_num_virt_crtcs;
 int radeon_vbl_emu_async;
 int radeon_fb_virt_crtc = 1;
@@ -180,6 +181,9 @@ module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, radeon_msi, int, 0444);
+
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (defaul 10000 = 10 seconds, 0 = disable)");
+module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
 MODULE_PARM_DESC(num_virt_crtcs, "Number of virtual crtcs to allocate");
 module_param_named(num_virt_crtcs, radeon_num_virt_crtcs, int, 0644);

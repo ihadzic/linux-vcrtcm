@@ -230,6 +230,10 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
+	/* some R4xx chips have the wrong frev */
+	if (rdev->family <= CHIP_RV410)
+		frev = 1;
+
 	switch (frev) {
 	case 1:
 		switch (crev) {
@@ -1922,7 +1926,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
 		r600_hdmi_enable(encoder);
-		r600_hdmi_setmode(encoder, adjusted_mode);
+		if (ASIC_IS_DCE4(rdev))
+			evergreen_hdmi_setmode(encoder, adjusted_mode);
+		else
+			r600_hdmi_setmode(encoder, adjusted_mode);
 	}
 }
 

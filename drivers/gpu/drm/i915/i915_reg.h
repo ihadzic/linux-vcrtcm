@@ -29,6 +29,9 @@
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 
+#define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
+#define _MASKED_BIT_DISABLE(a) ((a) << 16)
+
 /*
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
@@ -79,6 +82,7 @@
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
+#define  GRDOM_RESET_ENABLE (1<<0)
 
 #define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
 #define   GEN6_MBC_SNPCR_SHIFT	21
@@ -126,6 +130,13 @@
 #define   ECOCHK_SNB_BIT		(1<<10)
 #define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
+
+#define GAC_ECO_BITS			0x14090
+#define   ECOBITS_PPGTT_CACHE64B	(3<<8)
+#define   ECOBITS_PPGTT_CACHE4B		(0<<8)
+
+#define GAB_CTL				0x24000
+#define   GAB_CTL_CONT_AFTER_PAGEFAULT	(1<<8)
 
 /* VGA stuff */
 
@@ -224,6 +235,7 @@
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
+#define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
 #define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
@@ -417,8 +429,6 @@
 #define ARB_MODE		0x04030
 #define   ARB_MODE_SWIZZLE_SNB	(1<<4)
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
-#define   ARB_MODE_ENABLE(x)	GFX_MODE_ENABLE(x)
-#define   ARB_MODE_DISABLE(x)	GFX_MODE_DISABLE(x)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
 #define DONE_REG		0x40b0
@@ -490,6 +500,7 @@
  */
 # define _3D_CHICKEN2_WM_READ_PIPELINED			(1 << 14)
 #define _3D_CHICKEN3	0x02090
+#define  _3D_CHICKEN_SF_DISABLE_FASTCLIP_CULL		(1 << 5)
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
@@ -504,9 +515,6 @@
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
 #define   GFX_PPGTT_ENABLE		(1<<9)
-
-#define GFX_MODE_ENABLE(bit) (((bit) << 16) | (bit))
-#define GFX_MODE_DISABLE(bit) (((bit) << 16) | (0))
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -563,7 +571,6 @@
 #define LM_BURST_LENGTH     0x00000700
 #define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
-#define   MI_ARB_MASK_SHIFT	  16	/* shift for enable bits */
 
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
@@ -628,9 +635,9 @@
 #define   MI_ARB_DISPLAY_PRIORITY_B_A		(1 << 0)	/* display B > display A */
 
 #define CACHE_MODE_0	0x02120 /* 915+ only */
-#define   CM0_MASK_SHIFT          16
 #define   CM0_IZ_OPT_DISABLE      (1<<6)
 #define   CM0_ZR_OPT_DISABLE      (1<<5)
+#define	  CM0_STC_EVICT_DISABLE_LRA_SNB	(1<<5)
 #define   CM0_DEPTH_EVICT_DISABLE (1<<4)
 #define   CM0_COLOR_EVICT_DISABLE (1<<3)
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
@@ -681,6 +688,21 @@
 #define   GEN6_BSD_USER_INTERRUPT	(1 << 12)
 
 #define GEN6_BSD_RNCID			0x12198
+
+#define GEN7_FF_THREAD_MODE		0x20a0
+#define   GEN7_FF_SCHED_MASK		0x0077070
+#define   GEN7_FF_TS_SCHED_HS1		(0x5<<16)
+#define   GEN7_FF_TS_SCHED_HS0		(0x3<<16)
+#define   GEN7_FF_TS_SCHED_LOAD_BALANCE	(0x1<<16)
+#define   GEN7_FF_TS_SCHED_HW		(0x0<<16) /* Default */
+#define   GEN7_FF_VS_SCHED_HS1		(0x5<<12)
+#define   GEN7_FF_VS_SCHED_HS0		(0x3<<12)
+#define   GEN7_FF_VS_SCHED_LOAD_BALANCE	(0x1<<12) /* Default */
+#define   GEN7_FF_VS_SCHED_HW		(0x0<<12)
+#define   GEN7_FF_DS_SCHED_HS1		(0x5<<4)
+#define   GEN7_FF_DS_SCHED_HS0		(0x3<<4)
+#define   GEN7_FF_DS_SCHED_LOAD_BALANCE	(0x1<<4)  /* Default */
+#define   GEN7_FF_DS_SCHED_HW		(0x0<<4)
 
 /*
  * Framebuffer compression (915+ only)
@@ -2860,6 +2882,13 @@
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
 
+/* Display/Sprite base address macros */
+#define DISP_BASEADDR_MASK	(0xfffff000)
+#define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
+#define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
+#define I915_MODIFY_DISPBASE(reg, gfx_addr) \
+		(I915_WRITE(reg, gfx_addr | I915_LO_DISPBASE(I915_READ(reg))))
+
 /* VBIOS flags */
 #define SWF00			0x71410
 #define SWF01			0x71414
@@ -3192,11 +3221,14 @@
 #define DE_PCH_EVENT_IVB		(1<<28)
 #define DE_DP_A_HOTPLUG_IVB		(1<<27)
 #define DE_AUX_CHANNEL_A_IVB		(1<<26)
+#define DE_SPRITEC_FLIP_DONE_IVB	(1<<14)
+#define DE_PLANEC_FLIP_DONE_IVB		(1<<13)
+#define DE_PIPEC_VBLANK_IVB		(1<<10)
 #define DE_SPRITEB_FLIP_DONE_IVB	(1<<9)
-#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
 #define DE_PLANEB_FLIP_DONE_IVB		(1<<8)
-#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
+#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
+#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */
@@ -3370,15 +3402,15 @@
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
-#define PCH_DPLL(pipe) (pipe == 0 ?  _PCH_DPLL_A : _PCH_DPLL_B)
+#define _PCH_DPLL(pll) (pll == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
 #define  FP_CB_TUNE		(0x3<<22)
 #define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
 #define _PCH_FPB1                0xc604c
-#define PCH_FP0(pipe) (pipe == 0 ? _PCH_FPA0 : _PCH_FPB0)
-#define PCH_FP1(pipe) (pipe == 0 ? _PCH_FPA1 : _PCH_FPB1)
+#define _PCH_FP0(pll) (pll == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define _PCH_FP1(pll) (pll == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           0xc606c
 
@@ -3648,6 +3680,9 @@
 #define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2<<8)
 #define  FDI_LINK_TRAIN_NORMAL_CPT		(3<<8)
 #define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3<<8)
+/* LPT */
+#define  FDI_PORT_WIDTH_2X_LPT			(1<<19)
+#define  FDI_PORT_WIDTH_1X_LPT			(0<<19)
 
 #define _FDI_RXA_MISC            0xf0010
 #define _FDI_RXB_MISC            0xf1010
@@ -3891,6 +3926,10 @@
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
+#define GEN6_UCGCTL1				0x9400
+# define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
+# define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
+
 #define GEN6_UCGCTL2				0x9404
 # define GEN6_RCZUNIT_CLOCK_GATE_DISABLE		(1 << 13)
 # define GEN6_RCPBUNIT_CLOCK_GATE_DISABLE		(1 << 12)
@@ -3969,6 +4008,11 @@
 #define  GEN6_PM_DEFERRED_EVENTS		(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
+
+#define GEN6_GT_GFX_RC6_LOCKED			0x138104
+#define GEN6_GT_GFX_RC6				0x138108
+#define GEN6_GT_GFX_RC6p			0x13810C
+#define GEN6_GT_GFX_RC6pp			0x138110
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
@@ -4170,6 +4214,10 @@
 #define  WRPLL_PLL_SELECT_SSC			(0x01<<28)
 #define  WRPLL_PLL_SELECT_NON_SCC		(0x02<<28)
 #define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+/* WRPLL divider programming */
+#define  WRPLL_DIVIDER_REFERENCE(x)		((x)<<0)
+#define  WRPLL_DIVIDER_POST(x)			((x)<<8)
+#define  WRPLL_DIVIDER_FEEDBACK(x)		((x)<<16)
 
 /* Port clock selection */
 #define PORT_CLK_SEL_A			0x46100

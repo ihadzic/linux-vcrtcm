@@ -811,7 +811,7 @@ intel_tv_mode_lookup(const char *tv_format)
 {
 	int i;
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(tv_modes[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		if (!strcmp(tv_format, tv_mode->name))
@@ -1249,11 +1249,8 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	int type;
 
 	mode = reported_modes[0];
-	drm_mode_set_crtcinfo(&mode, 0);
 
-	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
-		type = intel_tv_detect_type(intel_tv, connector);
-	} else if (force) {
+	if (force) {
 		struct intel_load_detect_pipe tmp;
 
 		if (intel_get_load_detect_pipe(&intel_tv->base, connector,
