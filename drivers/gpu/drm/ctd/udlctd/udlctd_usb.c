@@ -628,9 +628,9 @@ void udlctd_query_edid_core(struct udlctd_info *udlctd_info)
 	udlctd_info->monitor_connected = new_edid ? 1 : 0;
 	spin_unlock_irqrestore(&udlctd_info->udlctd_lock, flags);
 
-	if (uvhd && ((!old_edid && !new_edid) ||
-		(old_edid && new_edid &&
-			memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
+	if (uvhd && ((!old_edid && new_edid) ||
+		(old_edid && !new_edid) || (old_edid && new_edid &&
+		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		PR_DEBUG("Calling hotplug.\n");
 		vcrtcm_hotplug(uvhd->vcrtcm_dev_hal);
 	}
