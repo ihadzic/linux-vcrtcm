@@ -243,6 +243,8 @@ struct drm_i915_display_funcs {
 	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
 				 uint32_t sprite_width, int pixel_size);
 	void (*sanitize_pm)(struct drm_device *dev);
+	void (*update_linetime_wm)(struct drm_device *dev, int pipe,
+				 struct drm_display_mode *mode);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode,
@@ -408,9 +410,7 @@ typedef struct drm_i915_private {
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
-	uint32_t last_acthd;
-	uint32_t last_acthd_bsd;
-	uint32_t last_acthd_blt;
+	uint32_t last_acthd[I915_NUM_RINGS];
 	uint32_t last_instdone;
 	uint32_t last_instdone1;
 
@@ -818,6 +818,11 @@ typedef struct drm_i915_private {
 	struct drm_property *force_audio_property;
 } drm_i915_private_t;
 
+/* Iterate over initialised rings */
+#define for_each_ring(ring__, dev_priv__, i__) \
+	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
+		if (((ring__) = &(dev_priv__)->ring[(i__)]), intel_ring_initialized((ring__)))
+
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
 	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
@@ -935,6 +940,8 @@ struct drm_i915_gem_object {
 	struct scatterlist *sg_list;
 	int num_sg;
 
+	/* prime dma-buf support */
+	struct sg_table *sg_table;
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */
@@ -1240,6 +1247,8 @@ int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
+int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
+				  gfp_t gfpmask);
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
@@ -1336,6 +1345,13 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
 
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
+
+struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
+
+struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *gem_obj, int flags);
+
 
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
