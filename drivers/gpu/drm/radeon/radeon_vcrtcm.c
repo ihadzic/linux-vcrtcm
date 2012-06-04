@@ -234,7 +234,7 @@ radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
 
 	/* create an object and pin it */
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_GTT, &rbo);
+			     RADEON_GEM_DOMAIN_GTT, NULL, &rbo);
 	if (r)
 		return r;
 	r = radeon_bo_reserve(rbo, false);
