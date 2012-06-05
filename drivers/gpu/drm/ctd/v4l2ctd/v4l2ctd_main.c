@@ -978,6 +978,7 @@ static struct v4l2ctd_info *v4l2ctd_create_minor(int minor)
 	*vfd = v4l2ctd_template;
 	vfd->lock = &v4l2ctd_info->mlock;
 	vfd->v4l2_dev = &v4l2ctd_info->v4l2_dev;
+	vfd->minor = minor;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		goto rel_dev;
