@@ -32,43 +32,43 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 		  struct vcrtcm_pcon_info **vcrtcm_pcon_info)
 {
 
-	struct vcrtcm_dev_info *vcrtcm_dev_info;
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private;
 
 	/* find the entry that should be remove */
 	mutex_lock(&vcrtcm_dev_list_mutex);
-	list_for_each_entry(vcrtcm_dev_info, &vcrtcm_dev_list, list) {
-		if ((vcrtcm_dev_info->hw_major == major) &&
-		    (vcrtcm_dev_info->hw_minor == minor) &&
-		    (vcrtcm_dev_info->hw_flow == flow)) {
+	list_for_each_entry(vcrtcm_pcon_flow_info_private, &vcrtcm_dev_list, list) {
+		if ((vcrtcm_pcon_flow_info_private->hw_major == major) &&
+		    (vcrtcm_pcon_flow_info_private->hw_minor == minor) &&
+		    (vcrtcm_pcon_flow_info_private->hw_flow == flow)) {
 			unsigned long flags;
-			mutex_lock(&vcrtcm_dev_info->vcrtcm_pcon_info.mutex);
-			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-			if (vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
-				spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+			mutex_lock(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.mutex);
+			spin_lock_irqsave(&vcrtcm_pcon_flow_info_private->lock, flags);
+			if (vcrtcm_pcon_flow_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
+				spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock,
 							flags);
 				VCRTCM_ERROR("pcon %d.%d.%d already attached "
 					     "to crtc_drm %p\n",
 					     major, minor, flow, drm_crtc);
-				mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
+				mutex_unlock(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.
 					     mutex);
 				mutex_unlock(&vcrtcm_dev_list_mutex);
 				return -EBUSY;
 			}
-			spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+			spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
 			/* if we got here, then we have found the PCON
 			   and it's free for us to attach to */
 
 			/* call the device specific back-end of attach */
-			if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.attach) {
+			if (vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.funcs.attach) {
 				int r;
-				r = vcrtcm_dev_info->
+				r = vcrtcm_pcon_flow_info_private->
 				    vcrtcm_pcon_info.funcs.
-				    attach(&vcrtcm_dev_info->vcrtcm_pcon_info,
-					   vcrtcm_dev_info->pcon_cookie,
-					   vcrtcm_dev_info->hw_flow);
+				    attach(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info,
+					   vcrtcm_pcon_flow_info_private->pcon_cookie,
+					   vcrtcm_pcon_flow_info_private->hw_flow);
 				if (r) {
 					VCRTCM_ERROR("back-end attach call failed\n");
-					mutex_unlock(&vcrtcm_dev_info->
+					mutex_unlock(&vcrtcm_pcon_flow_info_private->
 						     vcrtcm_pcon_info.mutex);
 					mutex_unlock(&vcrtcm_dev_list_mutex);
 					return r;
@@ -76,21 +76,21 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 			}
 			/* nothing can fail now, go ahead and
 			   populate the structure */
-			vcrtcm_dev_info->hw_major = major;
-			vcrtcm_dev_info->hw_minor = minor;
-			vcrtcm_dev_info->hw_flow = flow;
-			vcrtcm_dev_info->drm_crtc = drm_crtc;
-			vcrtcm_dev_info->gpu_funcs = *gpu_funcs;
+			vcrtcm_pcon_flow_info_private->hw_major = major;
+			vcrtcm_pcon_flow_info_private->hw_minor = minor;
+			vcrtcm_pcon_flow_info_private->hw_flow = flow;
+			vcrtcm_pcon_flow_info_private->drm_crtc = drm_crtc;
+			vcrtcm_pcon_flow_info_private->gpu_funcs = *gpu_funcs;
 
 			/* point the GPU driver to PCON we have just attached */
-			*vcrtcm_pcon_info = &vcrtcm_dev_info->vcrtcm_pcon_info;
+			*vcrtcm_pcon_info = &vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info;
 
 			/* very last thing to do: change the status */
-			spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-			vcrtcm_dev_info->status |= VCRTCM_STATUS_PCON_IN_USE;
-			spin_unlock_irqrestore(&vcrtcm_dev_info->lock,
+			spin_lock_irqsave(&vcrtcm_pcon_flow_info_private->lock, flags);
+			vcrtcm_pcon_flow_info_private->status |= VCRTCM_STATUS_PCON_IN_USE;
+			spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock,
 					       flags);
-			mutex_unlock(&vcrtcm_dev_info->vcrtcm_pcon_info.
+			mutex_unlock(&vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.
 				     mutex);
 			mutex_unlock(&vcrtcm_dev_list_mutex);
 			return 0;
@@ -121,32 +121,32 @@ EXPORT_SYMBOL(vcrtcm_g_attach);
 int vcrtcm_g_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 	unsigned long flags;
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
-	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if (!vcrtcm_dev_info->status) {
-		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+	spin_lock_irqsave(&vcrtcm_pcon_flow_info_private->lock, flags);
+	if (!vcrtcm_pcon_flow_info_private->status) {
+		spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
 		VCRTCM_WARNING("pcon already detached\n");
 		mutex_unlock(&vcrtcm_pcon_info->mutex);
 		return -EINVAL;
 	}
-	vcrtcm_dev_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
-	if (vcrtcm_dev_info->vcrtcm_pcon_info.funcs.detach)
-		vcrtcm_dev_info->
-		    vcrtcm_pcon_info.funcs.detach(&vcrtcm_dev_info->
+	vcrtcm_pcon_flow_info_private->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+	spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
+	if (vcrtcm_pcon_flow_info_private->vcrtcm_pcon_info.funcs.detach)
+		vcrtcm_pcon_flow_info_private->
+		    vcrtcm_pcon_info.funcs.detach(&vcrtcm_pcon_flow_info_private->
 						vcrtcm_pcon_info,
-						vcrtcm_dev_info->pcon_cookie,
-						vcrtcm_dev_info->hw_flow);
-	if (vcrtcm_dev_info->gpu_funcs.detach)
-		vcrtcm_dev_info->gpu_funcs.detach(vcrtcm_dev_info->drm_crtc);
-	memset(&vcrtcm_dev_info->gpu_funcs, 0,
+						vcrtcm_pcon_flow_info_private->pcon_cookie,
+						vcrtcm_pcon_flow_info_private->hw_flow);
+	if (vcrtcm_pcon_flow_info_private->gpu_funcs.detach)
+		vcrtcm_pcon_flow_info_private->gpu_funcs.detach(vcrtcm_pcon_flow_info_private->drm_crtc);
+	memset(&vcrtcm_pcon_flow_info_private->gpu_funcs, 0,
 	       sizeof(struct vcrtcm_gpu_funcs));
-	vcrtcm_dev_info->drm_crtc = NULL;
+	vcrtcm_pcon_flow_info_private->drm_crtc = NULL;
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 	return 0;
 
@@ -166,24 +166,24 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_fb) {
 		VCRTCM_DEBUG("calling set_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_fb(vcrtcm_fb,
-						 vcrtcm_dev_info->pcon_cookie,
-						 vcrtcm_dev_info->hw_flow);
+						 vcrtcm_pcon_flow_info_private->pcon_cookie,
+						 vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+			       vcrtcm_pcon_flow_info_private->hw_major,
+			       vcrtcm_pcon_flow_info_private->hw_minor,
+			       vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -198,24 +198,24 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_fb) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_fb(vcrtcm_fb,
-						 vcrtcm_dev_info->pcon_cookie,
-						 vcrtcm_dev_info->hw_flow);
+						 vcrtcm_pcon_flow_info_private->pcon_cookie,
+						 vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing get_fb backend, pcon %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+			       vcrtcm_pcon_flow_info_private->hw_major,
+			       vcrtcm_pcon_flow_info_private->hw_minor,
+			       vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -238,16 +238,16 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     u32 ioaddr)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	/* this method is intended to be called from ISR, so no */
 	/* semaphore grabbing allowed */
 	if (vcrtcm_pcon_info->funcs.page_flip)
 		r = vcrtcm_pcon_info->funcs.page_flip(ioaddr,
-						    vcrtcm_dev_info->pcon_cookie,
-						    vcrtcm_dev_info->hw_flow);
+						    vcrtcm_pcon_flow_info_private->pcon_cookie,
+						    vcrtcm_pcon_flow_info_private->hw_flow);
 	else
 		r = 0;
 	return r;
@@ -262,8 +262,8 @@ EXPORT_SYMBOL(vcrtcm_g_page_flip);
 int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	/* see the long comment in wait_fb implementation about
@@ -271,17 +271,17 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.dirty_fb) {
 		VCRTCM_DEBUG("calling dirty_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_dev_info->drm_crtc,
-						  vcrtcm_dev_info->pcon_cookie,
-						  vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.dirty_fb(vcrtcm_pcon_flow_info_private->drm_crtc,
+						  vcrtcm_pcon_flow_info_private->pcon_cookie,
+						  vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -297,23 +297,23 @@ EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
 int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.wait_fb) {
 		VCRTCM_DEBUG("calling wait_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.wait_fb(vcrtcm_dev_info->drm_crtc,
-						  vcrtcm_dev_info->pcon_cookie,
-						  vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.wait_fb(vcrtcm_pcon_flow_info_private->drm_crtc,
+						  vcrtcm_pcon_flow_info_private->pcon_cookie,
+						  vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing wait_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -326,24 +326,24 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			 u32 *status)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	if (vcrtcm_pcon_info->funcs.get_fb_status) {
 		VCRTCM_DEBUG("calling get_fb_status backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.get_fb_status(vcrtcm_dev_info->drm_crtc,
-							vcrtcm_dev_info->pcon_cookie,
-							vcrtcm_dev_info->hw_flow,
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.get_fb_status(vcrtcm_pcon_flow_info_private->drm_crtc,
+							vcrtcm_pcon_flow_info_private->pcon_cookie,
+							vcrtcm_pcon_flow_info_private->hw_flow,
 							status);
 	} else {
 		VCRTCM_WARNING("missing get_fb_status backend, pcon %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+			       vcrtcm_pcon_flow_info_private->hw_major,
+			       vcrtcm_pcon_flow_info_private->hw_minor,
+			       vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	return r;
@@ -354,24 +354,24 @@ EXPORT_SYMBOL(vcrtcm_g_get_fb_status);
 int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_fps) {
 		VCRTCM_DEBUG("calling set_fps backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_fps(fps,
-						  vcrtcm_dev_info->pcon_cookie,
-						  vcrtcm_dev_info->hw_flow);
+						  vcrtcm_pcon_flow_info_private->pcon_cookie,
+						  vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing set_fps backend, pcon %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+			       vcrtcm_pcon_flow_info_private->hw_major,
+			       vcrtcm_pcon_flow_info_private->hw_minor,
+			       vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -383,24 +383,24 @@ EXPORT_SYMBOL(vcrtcm_g_set_fps);
 int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_fps) {
 		VCRTCM_DEBUG("calling get_fps backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_fps(fps,
-						  vcrtcm_dev_info->pcon_cookie,
-						  vcrtcm_dev_info->hw_flow);
+						  vcrtcm_pcon_flow_info_private->pcon_cookie,
+						  vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_WARNING("missing get_fps backend, pcon %d.%d.%d\n",
-			       vcrtcm_dev_info->hw_major,
-			       vcrtcm_dev_info->hw_minor,
-			       vcrtcm_dev_info->hw_flow);
+			       vcrtcm_pcon_flow_info_private->hw_major,
+			       vcrtcm_pcon_flow_info_private->hw_minor,
+			       vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -420,25 +420,25 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_cursor) {
 		VCRTCM_DEBUG("calling set_cursor backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_cursor(vcrtcm_cursor,
-						     vcrtcm_dev_info->
+						     vcrtcm_pcon_flow_info_private->
 						     pcon_cookie,
-						     vcrtcm_dev_info->hw_flow);
+						     vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing set_cursor backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -453,25 +453,25 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_cursor) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_cursor(vcrtcm_cursor,
-						     vcrtcm_dev_info->
+						     vcrtcm_pcon_flow_info_private->
 						     pcon_cookie,
-						     vcrtcm_dev_info->hw_flow);
+						     vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing get_fb backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -483,24 +483,24 @@ EXPORT_SYMBOL(vcrtcm_g_get_cursor);
 int vcrtcm_g_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.set_dpms) {
 		VCRTCM_DEBUG("calling set_dpms backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.set_dpms(state,
-						   vcrtcm_dev_info->pcon_cookie,
-						   vcrtcm_dev_info->hw_flow);
+						   vcrtcm_pcon_flow_info_private->pcon_cookie,
+						   vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -512,24 +512,24 @@ EXPORT_SYMBOL(vcrtcm_g_set_dpms);
 int vcrtcm_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 {
 	int r;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
-	    container_of(vcrtcm_pcon_info, struct vcrtcm_dev_info,
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
+	    container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_flow_info_private,
 			 vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_dpms) {
 		VCRTCM_DEBUG("calling get_dpms backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = vcrtcm_pcon_info->funcs.get_dpms(state,
-						   vcrtcm_dev_info->pcon_cookie,
-						   vcrtcm_dev_info->hw_flow);
+						   vcrtcm_pcon_flow_info_private->pcon_cookie,
+						   vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing get_dpms backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		r = 0;
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
@@ -543,18 +543,18 @@ int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 {
 	int r;
 	unsigned long flags;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 		container_of(vcrtcm_pcon_info,
-			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
+			     struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 
-	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if ((vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) &&
-	    (vcrtcm_dev_info->vblank_time_valid)) {
-		*vblank_time = vcrtcm_dev_info->vblank_time;
+	spin_lock_irqsave(&vcrtcm_pcon_flow_info_private->lock, flags);
+	if ((vcrtcm_pcon_flow_info_private->status & VCRTCM_STATUS_PCON_IN_USE) &&
+	    (vcrtcm_pcon_flow_info_private->vblank_time_valid)) {
+		*vblank_time = vcrtcm_pcon_flow_info_private->vblank_time;
 		r = 0;
 	} else
 		r = -EAGAIN;
-	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+	spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
@@ -565,19 +565,19 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
 void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	unsigned long flags;
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 		container_of(vcrtcm_pcon_info,
-			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
+			     struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 
-	spin_lock_irqsave(&vcrtcm_dev_info->lock, flags);
-	if (!vcrtcm_dev_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+	spin_lock_irqsave(&vcrtcm_pcon_flow_info_private->lock, flags);
+	if (!vcrtcm_pcon_flow_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
-		spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+		spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
 		return;
 	}
-	do_gettimeofday(&vcrtcm_dev_info->vblank_time);
-	vcrtcm_dev_info->vblank_time_valid = 1;
-	spin_unlock_irqrestore(&vcrtcm_dev_info->lock, flags);
+	do_gettimeofday(&vcrtcm_pcon_flow_info_private->vblank_time);
+	vcrtcm_pcon_flow_info_private->vblank_time_valid = 1;
+	spin_unlock_irqrestore(&vcrtcm_pcon_flow_info_private->lock, flags);
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
@@ -589,25 +589,25 @@ EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
  */
 int vcrtcm_g_pcon_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 {
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 		container_of(vcrtcm_pcon_info,
-			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
+			     struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 	int r;
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.connected) {
 		VCRTCM_DEBUG("calling connected backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_dev_info->pcon_cookie,
-						    vcrtcm_dev_info->hw_flow,
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.connected(vcrtcm_pcon_flow_info_private->pcon_cookie,
+						    vcrtcm_pcon_flow_info_private->hw_flow,
 						    status);
 	} else {
 		VCRTCM_DEBUG("missing connected backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		*status = VCRTCM_PCON_CONNECTED;
 		r = 0;
 	}
@@ -644,26 +644,26 @@ static struct vcrtcm_mode common_modes[17] = {
 int vcrtcm_g_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		     struct vcrtcm_mode **modes, int *count)
 {
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 		container_of(vcrtcm_pcon_info,
-			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
+			     struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 	int r;
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.get_modes) {
 		VCRTCM_DEBUG("calling get_modes backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_dev_info->pcon_cookie,
-						    vcrtcm_dev_info->hw_flow,
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.get_modes(vcrtcm_pcon_flow_info_private->pcon_cookie,
+						    vcrtcm_pcon_flow_info_private->hw_flow,
 						    modes,
 						    count);
 	} else {
 		VCRTCM_DEBUG("missing get_modes backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		*count = sizeof(common_modes) / sizeof(struct vcrtcm_mode);
 		*modes = common_modes;
 		r = 0;
@@ -682,26 +682,26 @@ EXPORT_SYMBOL(vcrtcm_g_get_modes);
 int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		      struct vcrtcm_mode *mode, int *status)
 {
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 		container_of(vcrtcm_pcon_info,
-			     struct vcrtcm_dev_info, vcrtcm_pcon_info);
+			     struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 	int r;
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 	if (vcrtcm_pcon_info->funcs.check_mode) {
 		VCRTCM_DEBUG("calling check_mode backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
-		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_dev_info->pcon_cookie,
-						     vcrtcm_dev_info->hw_flow,
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
+		r = vcrtcm_pcon_info->funcs.check_mode(vcrtcm_pcon_flow_info_private->pcon_cookie,
+						     vcrtcm_pcon_flow_info_private->hw_flow,
 						     mode,
 						     status);
 	} else {
 		VCRTCM_DEBUG("missing check_mode backend, pcon %d.%d.%d\n",
-			     vcrtcm_dev_info->hw_major,
-			     vcrtcm_dev_info->hw_minor,
-			     vcrtcm_dev_info->hw_flow);
+			     vcrtcm_pcon_flow_info_private->hw_major,
+			     vcrtcm_pcon_flow_info_private->hw_minor,
+			     vcrtcm_pcon_flow_info_private->hw_flow);
 		*status = VCRTCM_MODE_OK;
 		r = 0;
 	}
@@ -717,25 +717,25 @@ EXPORT_SYMBOL(vcrtcm_g_check_mode);
  */
 void vcrtcm_g_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct vcrtcm_dev_info *vcrtcm_dev_info =
+	struct vcrtcm_pcon_flow_info_private *vcrtcm_pcon_flow_info_private =
 			container_of(vcrtcm_pcon_info,
-				struct vcrtcm_dev_info, vcrtcm_pcon_info);
+				struct vcrtcm_pcon_flow_info_private, vcrtcm_pcon_info);
 
 	mutex_lock(&vcrtcm_pcon_info->mutex);
 
 	if (vcrtcm_pcon_info->funcs.disable) {
 		VCRTCM_DEBUG("calling disable backend, pcon %d.%d.%d\n",
-			vcrtcm_dev_info->hw_major,
-			vcrtcm_dev_info->hw_minor,
-			vcrtcm_dev_info->hw_flow);
+			vcrtcm_pcon_flow_info_private->hw_major,
+			vcrtcm_pcon_flow_info_private->hw_minor,
+			vcrtcm_pcon_flow_info_private->hw_flow);
 
-		vcrtcm_pcon_info->funcs.disable(vcrtcm_dev_info->pcon_cookie,
-					      vcrtcm_dev_info->hw_flow);
+		vcrtcm_pcon_info->funcs.disable(vcrtcm_pcon_flow_info_private->pcon_cookie,
+					      vcrtcm_pcon_flow_info_private->hw_flow);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %d.%d.%d\n",
-			vcrtcm_dev_info->hw_major,
-			vcrtcm_dev_info->hw_minor,
-			vcrtcm_dev_info->hw_flow);
+			vcrtcm_pcon_flow_info_private->hw_major,
+			vcrtcm_pcon_flow_info_private->hw_minor,
+			vcrtcm_pcon_flow_info_private->hw_flow);
 	}
 	mutex_unlock(&vcrtcm_pcon_info->mutex);
 
