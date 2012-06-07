@@ -150,7 +150,7 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	PR_INFO("Attaching udlpim %d to pcon %p\n",
 		udlpim_info->minor, vcrtcm_pcon_info);
 
-	if (udlpim_info->udlpim_flow_info) {
+	if (udlpim_info->flow_info) {
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
@@ -185,7 +185,7 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		flow_info->vcrtcm_cursor.flag =
 			VCRTCM_CURSOR_FLAG_HIDE;
 
-		udlpim_info->udlpim_flow_info =
+		udlpim_info->flow_info =
 			flow_info;
 
 		/* Do an initial query of the EDID */
@@ -211,7 +211,7 @@ void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		udlpim_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_p_wait_fb(vcrtcm_pcon_info);
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
 	cancel_delayed_work_sync(&udlpim_info->query_edid_work);
@@ -222,7 +222,7 @@ void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
 		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 
-		udlpim_info->udlpim_flow_info = NULL;
+		udlpim_info->flow_info = NULL;
 		udlpim_kfree(udlpim_info, flow_info);
 
 		udlpim_info->main_buffer = NULL;
@@ -245,7 +245,7 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 
 	PR_DEBUG("In udlpim_set_fb, minor %d.\n", udlpim_info->minor);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	/* TODO: Do we need this? */
 	if (!flow_info) {
@@ -330,7 +330,7 @@ int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	struct udlpim_flow_info *flow_info;
 
 	PR_DEBUG("In udlpim_get_fb, minor %d.\n", udlpim_info->minor);
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -353,7 +353,7 @@ int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *
 	 * does the rest (when called).
 	 */
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (flow_info)
 		flow_info->fb_force_xmit = 1;
@@ -393,7 +393,7 @@ int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 
 	PR_DEBUG("udlpim_set_fps, fps %d.\n", fps);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -434,7 +434,7 @@ int udlpim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 
 	PR_DEBUG("udlpim_get_fps.\n");
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -461,7 +461,7 @@ int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 
 	PR_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -518,7 +518,7 @@ int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 
 	PR_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -539,7 +539,7 @@ int udlpim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	PR_DEBUG("in udlpim_set_dpms, minor %d, state %d\n",
 			udlpim_info->minor, state);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -565,7 +565,7 @@ int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 	PR_DEBUG("in udlpim_get_dpms, minor %d\n",
 			udlpim_info->minor);
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -693,7 +693,7 @@ void udlpim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info =
-			udlpim_info->udlpim_flow_info;
+			udlpim_info->flow_info;
 
 	mutex_lock(&udlpim_info->buffer_mutex);
 	flow_info->fb_xmit_allowed = 0;
@@ -724,7 +724,7 @@ void udlpim_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("udlpim_fake_vblank: Cannot find pcon descriptor\n");

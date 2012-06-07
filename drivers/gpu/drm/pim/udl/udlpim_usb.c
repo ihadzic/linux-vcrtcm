@@ -184,7 +184,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	udlpim_info->workqueue =
 			alloc_workqueue("udlpim_workers", WQ_MEM_RECLAIM, 5);
 
-	udlpim_info->udlpim_flow_info = NULL;
+	udlpim_info->flow_info = NULL;
 	udlpim_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlpim_info->fake_vblank_work, udlpim_fake_vblank);
@@ -390,7 +390,7 @@ int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info)
 	int yres = udlpim_info->current_video_mode.yres;
 	int bytes_per_pixel = udlpim_info->bpp / 8;
 	struct vcrtcm_fb *vcrtcm_fb =
-			&udlpim_info->udlpim_flow_info->vcrtcm_fb;
+			&udlpim_info->flow_info->vcrtcm_fb;
 
 	start_cycles = get_cycles();
 
@@ -580,7 +580,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 
 	PR_DEBUG("In udlpim_query_edid\n");
 
-	flow_info = udlpim_info->udlpim_flow_info;
+	flow_info = udlpim_info->flow_info;
 
 	new_edid = udlpim_kmalloc(udlpim_info, EDID_LENGTH, GFP_KERNEL);
 
@@ -889,7 +889,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb
 				urb->transfer_buffer_length;
 
 	struct udlpim_flow_info *flow_info =
-			udlpim_info->udlpim_flow_info;
+			udlpim_info->flow_info;
 	struct vcrtcm_cursor *vcrtcm_cursor = &flow_info->vcrtcm_cursor;
 	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
 
@@ -917,7 +917,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb
 	/*
 	 * Overlay the cursor
 	 */
-	if (udlpim_info->udlpim_flow_info && udlpim_info->cursor) {
+	if (udlpim_info->flow_info && udlpim_info->cursor) {
 		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
 		    line_num >= vcrtcm_cursor->location_y &&
 		    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
