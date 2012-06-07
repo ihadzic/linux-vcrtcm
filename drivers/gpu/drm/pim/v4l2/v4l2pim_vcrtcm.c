@@ -149,7 +149,7 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	PR_INFO("Attaching vl2pcon %d to pcon %p\n",
 		v4l2pim_info->minor, vcrtcm_pcon_info);
 
-	if (v4l2pim_info->v4l2pim_flow_info) {
+	if (v4l2pim_info->flow_info) {
 		PR_ERR("attach: minor already served\n");
 		return -EBUSY;
 	} else {
@@ -183,7 +183,7 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 		flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 
-		v4l2pim_info->v4l2pim_flow_info = flow_info;
+		v4l2pim_info->flow_info = flow_info;
 
 		PR_INFO("v4l2pim %d now serves pcon %p\n", v4l2pim_info->minor,
 			vcrtcm_pcon_info);
@@ -201,7 +201,7 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		v4l2pim_info->minor, vcrtcm_pcon_info);
 
 	vcrtcm_p_wait_fb(vcrtcm_pcon_info);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
 
@@ -211,7 +211,7 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PIM_ALLOC_PB_FLAG_FB);
 		v4l2pim_free_pb(v4l2pim_info, flow_info, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 
-		v4l2pim_info->v4l2pim_flow_info = NULL;
+		v4l2pim_info->flow_info = NULL;
 		v4l2pim_kfree(v4l2pim_info, flow_info);
 
 		v4l2pim_info->main_buffer = NULL;
@@ -229,7 +229,7 @@ int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *
 
 	PR_DEBUG("In v4l2pim_set_fb, minor %d.\n", v4l2pim_info->minor);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	/* TODO: Do we need this? */
 	if (!flow_info) {
@@ -291,7 +291,7 @@ int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *
 	struct v4l2pim_flow_info *flow_info;
 
 	PR_DEBUG("In v4l2pim_get_fb, minor %d.\n", v4l2pim_info->minor);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -314,7 +314,7 @@ int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc 
 	 * does the rest (when called).
 	 */
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (flow_info)
 		flow_info->fb_force_xmit = 1;
@@ -353,7 +353,7 @@ int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 
 	PR_DEBUG("v4l2pim_set_fps, fps %d.\n", fps);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -394,7 +394,7 @@ int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 
 	PR_DEBUG("v4l2pim_get_fps.\n");
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -421,7 +421,7 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_
 
 	PR_DEBUG("In v4l2pim_set_cursor, minor %d\n", v4l2pim_info->minor);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -478,7 +478,7 @@ int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_
 
 	PR_DEBUG("In v4l2pim_set_cursor, minor %d\n", v4l2pim_info->minor);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -499,7 +499,7 @@ int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	PR_DEBUG("in v4l2pim_set_dpms, minor %d, state %d\n",
 			v4l2pim_info->minor, state);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -519,7 +519,7 @@ int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 	PR_DEBUG("in v4l2pim_get_dpms, minor %d\n",
 			v4l2pim_info->minor);
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("Cannot find pcon descriptor\n");
@@ -535,7 +535,7 @@ void v4l2pim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *)vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info =
-			v4l2pim_info->v4l2pim_flow_info;
+			v4l2pim_info->flow_info;
 
 	mutex_lock(&v4l2pim_info->buffer_mutex);
 	flow_info->fb_xmit_allowed = 0;
@@ -567,7 +567,7 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 		return;
 	}
 
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		PR_ERR("v4l2pim_fake_vblank: Cannot find pcon descriptor\n");

@@ -137,7 +137,7 @@ v4l2pim_fillbuff(struct v4l2pim_info *v4l2pim_info, struct videobuf_buffer *vb)
 	dst = videobuf_to_vmalloc(vb);
 	if (!dst)
 		return;
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return;
 
@@ -317,7 +317,7 @@ buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	uint32_t fbsize;
 
 	v4l2pim_info = vq->priv_data;
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -349,7 +349,7 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	int ret;
 
 	v4l2pim_info = vq->priv_data;
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -435,7 +435,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -469,7 +469,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	enum v4l2_field field;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -509,7 +509,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -544,7 +544,7 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -567,7 +567,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -594,7 +594,7 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
@@ -698,7 +698,7 @@ vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	int fps;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 	fps = HZ / flow_info->fb_xmit_period_jiffies;
@@ -721,7 +721,7 @@ vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	struct v4l2pim_flow_info *flow_info;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 
@@ -741,7 +741,7 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	uint32_t i;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 
@@ -768,7 +768,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	int fps;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->v4l2pim_flow_info;
+	flow_info = v4l2pim_info->flow_info;
 	if (!flow_info)
 		return -EINVAL;
 
@@ -997,7 +997,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 
 	v4l2pim_info->workqueue = create_workqueue("v4l2pim_workers");
 
-	v4l2pim_info->v4l2pim_flow_info = NULL;
+	v4l2pim_info->flow_info = NULL;
 
 	INIT_DELAYED_WORK(&v4l2pim_info->fake_vblank_work, v4l2pim_fake_vblank);
 
