@@ -1069,6 +1069,10 @@ static int __init v4l2pim_init(void)
 		PR_INFO("successfully registered minor %d\n", v4l2pim_info->minor);
 	}
 
+	if (V4L2PIM_VID_LIMIT_MAX < vid_limit)
+		vid_limit = V4L2PIM_VID_LIMIT_MAX;
+	PR_INFO("Maximum stream memory allowable is %d\n", vid_limit);
+
 	PR_INFO("v4l2 PCON Loaded\n");
 
 	return 0;
@@ -1127,6 +1131,8 @@ MODULE_PARM_DESC(debug, "Enable debugging information.");
 module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(num_minors, "Number of minors (default=1)");
 module_param_named(num_minors, v4l2pim_num_minors, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
+module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("v4l2 PCON");
