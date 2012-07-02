@@ -165,8 +165,8 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 	radeon_crtc->vcrtcm_pcon_info = NULL;
 }
 
-void radeon_emulate_vblank_locked(struct radeon_device *rdev,
-				  struct radeon_crtc *radeon_crtc)
+void radeon_emulate_vblank_core(struct radeon_device *rdev,
+				struct radeon_crtc *radeon_crtc)
 {
 	struct drm_device *ddev = rdev->ddev;
 
@@ -195,7 +195,7 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	struct drm_device *ddev = radeon_crtc->base.dev;
 	struct radeon_device *rdev = ddev->dev_private;
 
-	radeon_emulate_vblank_locked(rdev, radeon_crtc);
+	radeon_emulate_vblank_core(rdev, radeon_crtc);
 }
 
 static void radeon_wait_fb_callback(struct drm_crtc *crtc)

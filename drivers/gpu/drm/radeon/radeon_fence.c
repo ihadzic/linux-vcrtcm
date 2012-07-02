@@ -150,7 +150,7 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 			if (push_vblank_pending->radeon_crtc->vcrtcm_pcon_info)
 				vcrtcm_g_set_vblank_time(push_vblank_pending->
 					radeon_crtc->vcrtcm_pcon_info);
-			radeon_emulate_vblank_locked(rdev,
+			radeon_emulate_vblank_core(rdev,
 				push_vblank_pending->radeon_crtc);
 			push_vblank_pending->vblank_sent = 1;
 		}

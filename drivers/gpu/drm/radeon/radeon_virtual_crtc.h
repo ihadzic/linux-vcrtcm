@@ -57,6 +57,6 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc);
 int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 				       struct drm_gem_object *obj,
 				       uint64_t cursor_gpuaddr);
-void radeon_emulate_vblank_locked(struct radeon_device *rdev,
-				  struct radeon_crtc *radeon_crtc);
+void radeon_emulate_vblank_core(struct radeon_device *rdev,
+				struct radeon_crtc *radeon_crtc);
 #endif
