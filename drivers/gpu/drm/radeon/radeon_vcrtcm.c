@@ -280,7 +280,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_cursor)
 {
 	struct radeon_device *rdev = scrtc->dev->dev_private;
-	struct radeon_fence *fence_c, *fence_fb;
+	struct radeon_fence *fence_c = NULL, *fence_fb = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
