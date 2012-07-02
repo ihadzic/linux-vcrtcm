@@ -709,6 +709,7 @@ void r600_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned enable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -729,28 +730,22 @@ void r600_hpd_init(struct radeon_device *rdev)
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HPD1_CONTROL, tmp);
-				rdev->irq.hpd[0] = true;
 				break;
 			case RADEON_HPD_2:
 				WREG32(DC_HPD2_CONTROL, tmp);
-				rdev->irq.hpd[1] = true;
 				break;
 			case RADEON_HPD_3:
 				WREG32(DC_HPD3_CONTROL, tmp);
-				rdev->irq.hpd[2] = true;
 				break;
 			case RADEON_HPD_4:
 				WREG32(DC_HPD4_CONTROL, tmp);
-				rdev->irq.hpd[3] = true;
 				break;
 				/* DCE 3.2 */
 			case RADEON_HPD_5:
 				WREG32(DC_HPD5_CONTROL, tmp);
-				rdev->irq.hpd[4] = true;
 				break;
 			case RADEON_HPD_6:
 				WREG32(DC_HPD6_CONTROL, tmp);
-				rdev->irq.hpd[5] = true;
 				break;
 			default:
 				break;
@@ -759,85 +754,73 @@ void r600_hpd_init(struct radeon_device *rdev)
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HOT_PLUG_DETECT1_CONTROL, DC_HOT_PLUG_DETECTx_EN);
-				rdev->irq.hpd[0] = true;
 				break;
 			case RADEON_HPD_2:
 				WREG32(DC_HOT_PLUG_DETECT2_CONTROL, DC_HOT_PLUG_DETECTx_EN);
-				rdev->irq.hpd[1] = true;
 				break;
 			case RADEON_HPD_3:
 				WREG32(DC_HOT_PLUG_DETECT3_CONTROL, DC_HOT_PLUG_DETECTx_EN);
-				rdev->irq.hpd[2] = true;
 				break;
 			default:
 				break;
 			}
 		}
+		enable |= 1 << radeon_connector->hpd.hpd;
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
-	if (rdev->irq.installed)
-		r600_irq_set(rdev);
+	radeon_irq_kms_enable_hpd(rdev, enable);
 }
 
 void r600_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned disable = 0;
 
-	if (ASIC_IS_DCE3(rdev)) {
-		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		if (ASIC_IS_DCE3(rdev)) {
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HPD1_CONTROL, 0);
-				rdev->irq.hpd[0] = false;
 				break;
 			case RADEON_HPD_2:
 				WREG32(DC_HPD2_CONTROL, 0);
-				rdev->irq.hpd[1] = false;
 				break;
 			case RADEON_HPD_3:
 				WREG32(DC_HPD3_CONTROL, 0);
-				rdev->irq.hpd[2] = false;
 				break;
 			case RADEON_HPD_4:
 				WREG32(DC_HPD4_CONTROL, 0);
-				rdev->irq.hpd[3] = false;
 				break;
 				/* DCE 3.2 */
 			case RADEON_HPD_5:
 				WREG32(DC_HPD5_CONTROL, 0);
-				rdev->irq.hpd[4] = false;
 				break;
 			case RADEON_HPD_6:
 				WREG32(DC_HPD6_CONTROL, 0);
-				rdev->irq.hpd[5] = false;
 				break;
 			default:
 				break;
 			}
-		}
-	} else {
-		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		} else {
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HOT_PLUG_DETECT1_CONTROL, 0);
-				rdev->irq.hpd[0] = false;
 				break;
 			case RADEON_HPD_2:
 				WREG32(DC_HOT_PLUG_DETECT2_CONTROL, 0);
-				rdev->irq.hpd[1] = false;
 				break;
 			case RADEON_HPD_3:
 				WREG32(DC_HOT_PLUG_DETECT3_CONTROL, 0);
-				rdev->irq.hpd[2] = false;
 				break;
 			default:
 				break;
 			}
 		}
+		disable |= 1 << radeon_connector->hpd.hpd;
 	}
+	radeon_irq_kms_disable_hpd(rdev, disable);
 }
 
 /*
@@ -1376,113 +1359,51 @@ int r600_asic_reset(struct radeon_device *rdev)
 	return r600_gpu_soft_reset(rdev);
 }
 
-static u32 r600_get_tile_pipe_to_backend_map(u32 num_tile_pipes,
-					     u32 num_backends,
-					     u32 backend_disable_mask)
+u32 r6xx_remap_render_backend(struct radeon_device *rdev,
+			      u32 tiling_pipe_num,
+			      u32 max_rb_num,
+			      u32 total_max_rb_num,
+			      u32 disabled_rb_mask)
 {
-	u32 backend_map = 0;
-	u32 enabled_backends_mask;
-	u32 enabled_backends_count;
-	u32 cur_pipe;
-	u32 swizzle_pipe[R6XX_MAX_PIPES];
-	u32 cur_backend;
-	u32 i;
+	u32 rendering_pipe_num, rb_num_width, req_rb_num;
+	u32 pipe_rb_ratio, pipe_rb_remain;
+	u32 data = 0, mask = 1 << (max_rb_num - 1);
+	unsigned i, j;
 
-	if (num_tile_pipes > R6XX_MAX_PIPES)
-		num_tile_pipes = R6XX_MAX_PIPES;
-	if (num_tile_pipes < 1)
-		num_tile_pipes = 1;
-	if (num_backends > R6XX_MAX_BACKENDS)
-		num_backends = R6XX_MAX_BACKENDS;
-	if (num_backends < 1)
-		num_backends = 1;
+	/* mask out the RBs that don't exist on that asic */
+	disabled_rb_mask |= (0xff << max_rb_num) & 0xff;
 
-	enabled_backends_mask = 0;
-	enabled_backends_count = 0;
-	for (i = 0; i < R6XX_MAX_BACKENDS; ++i) {
-		if (((backend_disable_mask >> i) & 1) == 0) {
-			enabled_backends_mask |= (1 << i);
-			++enabled_backends_count;
+	rendering_pipe_num = 1 << tiling_pipe_num;
+	req_rb_num = total_max_rb_num - r600_count_pipe_bits(disabled_rb_mask);
+	BUG_ON(rendering_pipe_num < req_rb_num);
+
+	pipe_rb_ratio = rendering_pipe_num / req_rb_num;
+	pipe_rb_remain = rendering_pipe_num - pipe_rb_ratio * req_rb_num;
+
+	if (rdev->family <= CHIP_RV740) {
+		/* r6xx/r7xx */
+		rb_num_width = 2;
+	} else {
+		/* eg+ */
+		rb_num_width = 4;
+	}
+
+	for (i = 0; i < max_rb_num; i++) {
+		if (!(mask & disabled_rb_mask)) {
+			for (j = 0; j < pipe_rb_ratio; j++) {
+				data <<= rb_num_width;
+				data |= max_rb_num - i - 1;
+			}
+			if (pipe_rb_remain) {
+				data <<= rb_num_width;
+				data |= max_rb_num - i - 1;
+				pipe_rb_remain--;
+			}
 		}
-		if (enabled_backends_count == num_backends)
-			break;
+		mask >>= 1;
 	}
 
-	if (enabled_backends_count == 0) {
-		enabled_backends_mask = 1;
-		enabled_backends_count = 1;
-	}
-
-	if (enabled_backends_count != num_backends)
-		num_backends = enabled_backends_count;
-
-	memset((uint8_t *)&swizzle_pipe[0], 0, sizeof(u32) * R6XX_MAX_PIPES);
-	switch (num_tile_pipes) {
-	case 1:
-		swizzle_pipe[0] = 0;
-		break;
-	case 2:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		break;
-	case 3:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		break;
-	case 4:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		swizzle_pipe[3] = 3;
-		break;
-	case 5:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		swizzle_pipe[3] = 3;
-		swizzle_pipe[4] = 4;
-		break;
-	case 6:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 5;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		break;
-	case 7:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 6;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		swizzle_pipe[6] = 5;
-		break;
-	case 8:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 6;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		swizzle_pipe[6] = 5;
-		swizzle_pipe[7] = 7;
-		break;
-	}
-
-	cur_backend = 0;
-	for (cur_pipe = 0; cur_pipe < num_tile_pipes; ++cur_pipe) {
-		while (((1 << cur_backend) & enabled_backends_mask) == 0)
-			cur_backend = (cur_backend + 1) % R6XX_MAX_BACKENDS;
-
-		backend_map |= (u32)(((cur_backend & 3) << (swizzle_pipe[cur_pipe] * 2)));
-
-		cur_backend = (cur_backend + 1) % R6XX_MAX_BACKENDS;
-	}
-
-	return backend_map;
+	return data;
 }
 
 int r600_count_pipe_bits(uint32_t val)
@@ -1500,7 +1421,6 @@ void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
-	u32 backend_map;
 	u32 cc_rb_backend_disable;
 	u32 cc_gc_shader_pipe_config;
 	u32 tmp;
@@ -1511,8 +1431,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 	u32 sq_thread_resource_mgmt = 0;
 	u32 sq_stack_resource_mgmt_1 = 0;
 	u32 sq_stack_resource_mgmt_2 = 0;
+	u32 disabled_rb_mask;
 
-	/* FIXME: implement */
+	rdev->config.r600.tiling_group_size = 256;
 	switch (rdev->family) {
 	case CHIP_R600:
 		rdev->config.r600.max_pipes = 4;
@@ -1616,10 +1537,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= GROUP_SIZE((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
-	if ((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
-		rdev->config.r600.tiling_group_size = 512;
-	else
-		rdev->config.r600.tiling_group_size = 256;
+
 	tmp = (ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 	if (tmp > 3) {
 		tiling_config |= ROW_TILING(3);
@@ -1631,31 +1549,35 @@ void r600_gpu_init(struct radeon_device *rdev)
 	tiling_config |= BANK_SWAPS(1);
 
 	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE) & 0x00ff0000;
-	cc_rb_backend_disable |=
-		BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
+	tmp = R6XX_MAX_BACKENDS -
+		r600_count_pipe_bits((cc_rb_backend_disable >> 16) & R6XX_MAX_BACKENDS_MASK);
+	if (tmp < rdev->config.r600.max_backends) {
+		rdev->config.r600.max_backends = tmp;
+	}
 
-	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffffff00;
-	cc_gc_shader_pipe_config |=
-		INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
-	cc_gc_shader_pipe_config |=
-		INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
+	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0x00ffff00;
+	tmp = R6XX_MAX_PIPES -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 8) & R6XX_MAX_PIPES_MASK);
+	if (tmp < rdev->config.r600.max_pipes) {
+		rdev->config.r600.max_pipes = tmp;
+	}
+	tmp = R6XX_MAX_SIMDS -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
+	if (tmp < rdev->config.r600.max_simds) {
+		rdev->config.r600.max_simds = tmp;
+	}
 
-	backend_map = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
-							(R6XX_MAX_BACKENDS -
-							 r600_count_pipe_bits((cc_rb_backend_disable &
-									       R6XX_MAX_BACKENDS_MASK) >> 16)),
-							(cc_rb_backend_disable >> 16));
+	disabled_rb_mask = (RREG32(CC_RB_BACKEND_DISABLE) >> 16) & R6XX_MAX_BACKENDS_MASK;
+	tmp = (tiling_config & PIPE_TILING__MASK) >> PIPE_TILING__SHIFT;
+	tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.r600.max_backends,
+					R6XX_MAX_BACKENDS, disabled_rb_mask);
+	tiling_config |= tmp << 16;
+	rdev->config.r600.backend_map = tmp;
+
 	rdev->config.r600.tile_config = tiling_config;
-	rdev->config.r600.backend_map = backend_map;
-	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
 	WREG32(HDP_TILING_CONFIG, tiling_config & 0xffff);
-
-	/* Setup pipes */
-	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
-	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
-	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);
@@ -1900,6 +1822,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_CL_ENHANCE, (CLIP_VTX_REORDER_ENA |
 			       NUM_CLIP_SEQ(3)));
 	WREG32(PA_SC_ENHANCE, FORCE_EOV_MAX_CLK_CNT(4095));
+	WREG32(VC_ENHANCE, 0);
 }
 
 
@@ -2369,17 +2292,18 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
 		   unsigned num_gpu_pages,
-		   struct radeon_fence *fence)
+		   struct radeon_fence **fence)
 {
+	struct radeon_semaphore *sem = NULL;
 	struct radeon_sa_bo *vb = NULL;
 	int r;
 
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages, &vb);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages, fence, &vb, &sem);
 	if (r) {
 		return r;
 	}
 	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
-	r600_blit_done_copy(rdev, fence, vb);
+	r600_blit_done_copy(rdev, fence, vb, sem);
 	return 0;
 }
 
@@ -2487,6 +2411,12 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -2520,12 +2450,6 @@ int r600_resume(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
 		rdev->accel_working = false;
-		return r;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: audio resume failed\n");
 		return r;
 	}
 
@@ -2638,9 +2562,6 @@ int r600_init(struct radeon_device *rdev)
 		rdev->accel_working = false;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r)
-		return r; /* TODO error handling */
 	return 0;
 }
 
@@ -2670,7 +2591,7 @@ void r600_fini(struct radeon_device *rdev)
  */
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
 
 	/* FIXME: implement */
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
@@ -2920,7 +2841,6 @@ void r600_disable_interrupts(struct radeon_device *rdev)
 	WREG32(IH_RB_RPTR, 0);
 	WREG32(IH_RB_WPTR, 0);
 	rdev->ih.enabled = false;
-	rdev->ih.wptr = 0;
 	rdev->ih.rptr = 0;
 }
 
@@ -3105,18 +3025,18 @@ int r600_irq_set(struct radeon_device *rdev)
 		hdmi1 = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
 
-	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
+	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		DRM_DEBUG("r600_irq_set: sw int\n");
 		cp_int_cntl |= RB_INT_ENABLE;
 		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
 	if (rdev->irq.crtc_vblank_int[0] ||
-	    rdev->irq.pflip[0]) {
+	    atomic_read(&rdev->irq.pflip[0])) {
 		DRM_DEBUG("r600_irq_set: vblank 0\n");
 		mode_int |= D1MODE_VBLANK_INT_MASK;
 	}
 	if (rdev->irq.crtc_vblank_int[1] ||
-	    rdev->irq.pflip[1]) {
+	    atomic_read(&rdev->irq.pflip[1])) {
 		DRM_DEBUG("r600_irq_set: vblank 1\n");
 		mode_int |= D2MODE_VBLANK_INT_MASK;
 	}
@@ -3372,7 +3292,6 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 rptr;
 	u32 src_id, src_data;
 	u32 ring_index;
-	unsigned long flags;
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
 
@@ -3384,24 +3303,21 @@ int r600_irq_process(struct radeon_device *rdev)
 		RREG32(IH_RB_WPTR);
 
 	wptr = r600_get_ih_wptr(rdev);
+
+restart_ih:
+	/* is somebody else already processing irqs? */
+	if (atomic_xchg(&rdev->ih.lock, 1))
+		return IRQ_NONE;
+
 	rptr = rdev->ih.rptr;
 	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
-	spin_lock_irqsave(&rdev->ih.lock, flags);
-
-	if (rptr == wptr) {
-		spin_unlock_irqrestore(&rdev->ih.lock, flags);
-		return IRQ_NONE;
-	}
-
-restart_ih:
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
 
 	/* display interrupts */
 	r600_irq_ack(rdev);
 
-	rdev->ih.wptr = wptr;
 	while (rptr != wptr) {
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
@@ -3418,7 +3334,7 @@ restart_ih:
 						rdev->pm.vblank_sync = true;
 						wake_up(&rdev->irq.vblank_queue);
 					}
-					if (rdev->irq.pflip[0])
+					if (atomic_read(&rdev->irq.pflip[0]))
 						radeon_crtc_handle_flip(rdev, 0);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
@@ -3444,7 +3360,7 @@ restart_ih:
 						rdev->pm.vblank_sync = true;
 						wake_up(&rdev->irq.vblank_queue);
 					}
-					if (rdev->irq.pflip[1])
+					if (atomic_read(&rdev->irq.pflip[1]))
 						radeon_crtc_handle_flip(rdev, 1);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
@@ -3543,7 +3459,6 @@ restart_ih:
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
-			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 			break;
 		default:
@@ -3555,17 +3470,19 @@ restart_ih:
 		rptr += 16;
 		rptr &= rdev->ih.ptr_mask;
 	}
-	/* make sure wptr hasn't changed while processing */
-	wptr = r600_get_ih_wptr(rdev);
-	if (wptr != rdev->ih.wptr)
-		goto restart_ih;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
 	if (queue_hdmi)
 		schedule_work(&rdev->audio_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
-	spin_unlock_irqrestore(&rdev->ih.lock, flags);
+	atomic_set(&rdev->ih.lock, 0);
+
+	/* make sure wptr hasn't changed while processing */
+	wptr = r600_get_ih_wptr(rdev);
+	if (wptr != rptr)
+		goto restart_ih;
+
 	return IRQ_HANDLED;
 }
 

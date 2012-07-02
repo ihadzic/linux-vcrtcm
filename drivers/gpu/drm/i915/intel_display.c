@@ -910,9 +910,10 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 
 /* For ILK+ */
 static void assert_pch_pll(struct drm_i915_private *dev_priv,
-			   struct intel_crtc *intel_crtc, bool state)
+			   struct intel_pch_pll *pll,
+			   struct intel_crtc *crtc,
+			   bool state)
 {
-	int reg;
 	u32 val;
 	bool cur_state;
 
@@ -921,30 +922,37 @@ static void assert_pch_pll(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (!intel_crtc->pch_pll) {
-		WARN(1, "asserting PCH PLL enabled with no PLL\n");
+	if (WARN (!pll,
+		  "asserting PCH PLL %s with no PLL\n", state_string(state)))
 		return;
-	}
 
-	if (HAS_PCH_CPT(dev_priv->dev)) {
+	val = I915_READ(pll->pll_reg);
+	cur_state = !!(val & DPLL_VCO_ENABLE);
+	WARN(cur_state != state,
+	     "PCH PLL state for reg %x assertion failure (expected %s, current %s), val=%08x\n",
+	     pll->pll_reg, state_string(state), state_string(cur_state), val);
+
+	/* Make sure the selected PLL is correctly attached to the transcoder */
+	if (crtc && HAS_PCH_CPT(dev_priv->dev)) {
 		u32 pch_dpll;
 
 		pch_dpll = I915_READ(PCH_DPLL_SEL);
-
-		/* Make sure the selected PLL is enabled to the transcoder */
-		WARN(!((pch_dpll >> (4 * intel_crtc->pipe)) & 8),
-		     "transcoder %d PLL not enabled\n", intel_crtc->pipe);
+		cur_state = pll->pll_reg == _PCH_DPLL_B;
+		if (!WARN(((pch_dpll >> (4 * crtc->pipe)) & 1) != cur_state,
+			  "PLL[%d] not attached to this transcoder %d: %08x\n",
+			  cur_state, crtc->pipe, pch_dpll)) {
+			cur_state = !!(val >> (4*crtc->pipe + 3));
+			WARN(cur_state != state,
+			     "PLL[%d] not %s on this transcoder %d: %08x\n",
+			     pll->pll_reg == _PCH_DPLL_B,
+			     state_string(state),
+			     crtc->pipe,
+			     val);
+		}
 	}
-
-	reg = intel_crtc->pch_pll->pll_reg;
-	val = I915_READ(reg);
-	cur_state = !!(val & DPLL_VCO_ENABLE);
-	WARN(cur_state != state,
-	     "PCH PLL state assertion failure (expected %s, current %s)\n",
-	     state_string(state), state_string(cur_state));
 }
-#define assert_pch_pll_enabled(d, p) assert_pch_pll(d, p, true)
-#define assert_pch_pll_disabled(d, p) assert_pch_pll(d, p, false)
+#define assert_pch_pll_enabled(d, p, c) assert_pch_pll(d, p, c, true)
+#define assert_pch_pll_disabled(d, p, c) assert_pch_pll(d, p, c, false)
 
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
@@ -1424,7 +1432,7 @@ static void intel_enable_pch_pll(struct intel_crtc *intel_crtc)
 	assert_pch_refclk_enabled(dev_priv);
 
 	if (pll->active++ && pll->on) {
-		assert_pch_pll_enabled(dev_priv, intel_crtc);
+		assert_pch_pll_enabled(dev_priv, pll, NULL);
 		return;
 	}
 
@@ -1460,12 +1468,12 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 		      intel_crtc->base.base.id);
 
 	if (WARN_ON(pll->active == 0)) {
-		assert_pch_pll_disabled(dev_priv, intel_crtc);
+		assert_pch_pll_disabled(dev_priv, pll, NULL);
 		return;
 	}
 
 	if (--pll->active) {
-		assert_pch_pll_enabled(dev_priv, intel_crtc);
+		assert_pch_pll_enabled(dev_priv, pll, NULL);
 		return;
 	}
 
@@ -1495,7 +1503,9 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 	BUG_ON(dev_priv->info->gen < 5);
 
 	/* Make sure PCH DPLL is enabled */
-	assert_pch_pll_enabled(dev_priv, to_intel_crtc(crtc));
+	assert_pch_pll_enabled(dev_priv,
+			       to_intel_crtc(crtc)->pch_pll,
+			       to_intel_crtc(crtc));
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -4395,25 +4405,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 						    &clock,
 						    &reduced_clock);
 	}
-	/* SDVO TV has fixed PLL values depend on its clock range,
-	   this mirrors vbios setting. */
-	if (is_sdvo && is_tv) {
-		if (adjusted_mode->clock >= 100000
-		    && adjusted_mode->clock < 140500) {
-			clock.p1 = 2;
-			clock.p2 = 10;
-			clock.n = 3;
-			clock.m1 = 16;
-			clock.m2 = 8;
-		} else if (adjusted_mode->clock >= 140500
-			   && adjusted_mode->clock <= 200000) {
-			clock.p1 = 1;
-			clock.p2 = 10;
-			clock.n = 6;
-			clock.m1 = 12;
-			clock.m2 = 8;
-		}
-	}
+
+	if (is_sdvo && is_tv)
+		i9xx_adjust_sdvo_tv_clock(adjusted_mode, &clock);
+
 
 	/* FDI link */
 	pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
@@ -4421,16 +4416,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* CPU eDP doesn't require FDI link, so just set DP M/N
 	   according to current link config */
 	if (is_cpu_edp) {
-		target_clock = mode->clock;
 		intel_edp_link_config(edp_encoder, &lane, &link_bw);
 	} else {
-		/* [e]DP over FDI requires target mode clock
-		   instead of link clock */
-		if (is_dp)
-			target_clock = mode->clock;
-		else
-			target_clock = adjusted_mode->clock;
-
 		/* FDI is a binary signal running at ~2.7GHz, encoding
 		 * each output octet as 10 bits. The actual frequency
 		 * is stored as a divider into a 100MHz clock, and the
@@ -4440,6 +4427,14 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 */
 		link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 	}
+
+	/* [e]DP over FDI requires target mode clock instead of link clock. */
+	if (edp_encoder)
+		target_clock = intel_edp_target_clock(edp_encoder, mode);
+	else if (is_dp)
+		target_clock = mode->clock;
+	else
+		target_clock = adjusted_mode->clock;
 
 	/* determine panel color depth */
 	temp = I915_READ(PIPECONF(pipe));
@@ -4652,16 +4647,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_lvds && has_reduced_clock && i915_powersave) {
 			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp2);
 			intel_crtc->lowfreq_avail = true;
-			if (HAS_PIPE_CXSR(dev)) {
-				DRM_DEBUG_KMS("enabling CxSR downclocking\n");
-				pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-			}
 		} else {
 			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp);
-			if (HAS_PIPE_CXSR(dev)) {
-				DRM_DEBUG_KMS("disabling CxSR downclocking\n");
-				pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
-			}
 		}
 	}
 
@@ -6148,17 +6135,34 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	uint32_t plane_bit = 0;
 	int ret;
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
+	switch(intel_crtc->plane) {
+	case PLANE_A:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_A;
+		break;
+	case PLANE_B:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_B;
+		break;
+	case PLANE_C:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_C;
+		break;
+	default:
+		WARN_ONCE(1, "unknown plane in flip command\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		goto err_unpin;
 
-	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
 	intel_ring_emit(ring, (obj->gtt_offset));
 	intel_ring_emit(ring, (MI_NOOP));
@@ -6531,7 +6535,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(HDMIC) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMIC);
 
-		if (I915_READ(HDMID) & PORT_DETECTED)
+		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMID);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)

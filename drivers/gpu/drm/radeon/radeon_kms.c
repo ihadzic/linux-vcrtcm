@@ -284,7 +284,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_MAX_PIPES:
 		if (rdev->family >= CHIP_TAHITI)
-			value = rdev->config.si.max_pipes_per_simd;
+			value = rdev->config.si.max_cu_per_sh;
 		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.max_pipes_per_simd;
 		else if (rdev->family >= CHIP_CEDAR)
@@ -406,6 +406,8 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	unsigned long irqflags;
+	int r;
 
 	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
@@ -424,14 +426,18 @@ int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 		return 0;
 	} else {
 		DRM_DEBUG("vblank enabled for physical crtc_id %d\n", crtc);
+		spin_lock_irqsave(&rdev->irq.lock, irqflags);
 		rdev->irq.crtc_vblank_int[crtc] = true;
-		return radeon_irq_set(rdev);
+		r = radeon_irq_set(rdev);
+		spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
+		return r;
 	}
 }
 
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	unsigned long irqflags;
 
 	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
@@ -449,8 +455,10 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 		}
 	} else {
 		DRM_DEBUG("vblank disabled for physical crtc_id %d\n", crtc);
+		spin_lock_irqsave(&rdev->irq.lock, irqflags);
 		rdev->irq.crtc_vblank_int[crtc] = false;
 		radeon_irq_set(rdev);
+		spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
 	}
 }
 

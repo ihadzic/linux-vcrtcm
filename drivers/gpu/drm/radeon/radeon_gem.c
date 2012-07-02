@@ -93,7 +93,7 @@ int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (!domain) {
 		/* Do nothings */
-		printk(KERN_WARNING "Set domain withou domain !\n");
+		printk(KERN_WARNING "Set domain without domain !\n");
 		return 0;
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
@@ -159,11 +159,9 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 static int radeon_gem_handle_lockup(struct radeon_device *rdev, int r)
 {
 	if (r == -EDEADLK) {
-		radeon_mutex_lock(&rdev->cs_mutex);
 		r = radeon_gpu_reset(rdev);
 		if (!r)
 			r = -EAGAIN;
-		radeon_mutex_unlock(&rdev->cs_mutex);
 	}
 	return r;
 }
