@@ -113,3 +113,11 @@ inline void pimmgr_vfree(void *ptr)
 	atomic_dec(&pimmgr_vmalloc_count);
 }
 
+void pimmgr_print_alloc_stats()
+{
+	PR_INFO("kmalloc count: %i\n", atomic_read(&pimmgr_kmalloc_count));
+	PR_INFO("vmalloc count: %i\n", atomic_read(&pimmgr_vmalloc_count));
+	PR_INFO("page count: %i\n", atomic_read(&pimmgr_page_count));
+}
+
+

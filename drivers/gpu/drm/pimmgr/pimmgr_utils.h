@@ -65,4 +65,6 @@ inline void *pimmgr_vzalloc(size_t size);
 
 inline void pimmgr_vfree(void *ptr);
 
+void pimmgr_print_alloc_stats(void);
+
 #endif
