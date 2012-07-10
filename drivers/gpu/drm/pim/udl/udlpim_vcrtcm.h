@@ -23,7 +23,7 @@
 /* VCRTCM interface function prototypes */
 
 int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);

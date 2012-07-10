@@ -202,7 +202,7 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	}
 }
 
-void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
@@ -230,6 +230,7 @@ void udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		udlpim_info->hline_16 = NULL;
 		udlpim_info->hline_8 = NULL;
 	}
+	return 0;
 }
 
 int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)
