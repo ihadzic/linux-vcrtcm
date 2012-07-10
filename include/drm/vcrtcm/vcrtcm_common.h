@@ -79,7 +79,7 @@ struct vcrtcm_pcon_info;
 /* functional interface to PCON */
 struct vcrtcm_pcon_funcs {
 	int (*attach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-	void (*detach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+	int (*detach) (struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 	int (*set_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 	int (*get_fb) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 	int (*page_flip) (struct vcrtcm_pcon_info *vcrtcm_pcon_info, u32 ioaddr);
