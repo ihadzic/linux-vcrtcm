@@ -192,7 +192,7 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	}
 }
 
-void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
 	struct v4l2pim_info *v4l2pim_info = (struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
@@ -217,6 +217,7 @@ void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		v4l2pim_info->main_buffer = NULL;
 		v4l2pim_info->cursor = NULL;
 	}
+	return 0;
 }
 
 int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)

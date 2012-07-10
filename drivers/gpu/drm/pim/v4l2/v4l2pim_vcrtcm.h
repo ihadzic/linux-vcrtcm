@@ -24,7 +24,7 @@
 /* VCRTCM interface function prototypes */
 
 int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-void v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);
