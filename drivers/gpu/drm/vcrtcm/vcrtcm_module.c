@@ -54,12 +54,10 @@ static void __exit vcrtcm_exit(void)
 	 */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
 	list_for_each_entry_safe(pcon_info_private, tmp,
-				 &vcrtcm_pcon_list, list) {
+				&vcrtcm_pcon_list, list) {
 		mutex_lock(&pcon_info_private->pcon_info.mutex);
-		VCRTCM_INFO("removing pcon %d.%d.%d\n",
-			    pcon_info_private->pcon_info.pcon_major,
-			    pcon_info_private->pcon_info.pcon_minor,
-			    pcon_info_private->pcon_info.pcon_flow);
+		VCRTCM_INFO("removing pcon %u\n",
+			    pcon_info_private->pcon_info.pconid);
 		if (pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 				    pcon_info_private->drm_crtc);

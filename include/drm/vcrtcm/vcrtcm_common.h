@@ -129,10 +129,8 @@ struct vcrtcm_pcon_info {
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_pcon_props props;
 	void *pcon_cookie;
-	/* the infamous triple that identifies the PCON */
-	int pcon_major;
-	int pcon_minor;
-	int pcon_flow;
+	/* This is a compound of a PIM id and PIM-local PCON id */
+	uint32_t pconid;
 };
 
 /* descriptor for push buffer; when push-method is used */

@@ -32,7 +32,8 @@
 #include "vcrtcm_common.h"
 
 /* setup/config functions */
-int vcrtcm_g_attach(int major, int minor, int flow, struct drm_crtc *drm_crtc,
+int vcrtcm_g_attach(uint32_t pconid,
+		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
 		  struct vcrtcm_pcon_info **pcon_info);
 int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info);

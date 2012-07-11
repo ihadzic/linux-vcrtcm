@@ -32,10 +32,10 @@
 #include "vcrtcm_common.h"
 
 /* setup/config functions */
-int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
-		  struct vcrtcm_pcon_props *pcon_props,
-		  int major, int minor, int flow, void *pcon_cookie);
-int vcrtcm_p_del(int major, int minor, int flow);
+int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
+		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
+		  uint32_t pconid, void *pcon_cookie);
+int vcrtcm_p_del(uint32_t pconid);
 
 /* functions for use by PCON in operational state */
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
