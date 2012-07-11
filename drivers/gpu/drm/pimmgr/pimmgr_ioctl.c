@@ -20,6 +20,7 @@
 #include "pimmgr.h"
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
+#include "vcrtcm/vcrtcm_pcon.h"
 
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -69,9 +70,8 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints)
 
 	pconid = CREATE_PCONID(info->id, pcon->local_id);
 
-	/*
-	 * Call vcrtcm_p_add after we finish adapting its API.
-	 */
+	if (vcrtcm_p_add(&pcon->funcs, &pcon->props, pconid, pcon->cookie))
+		return 0;
 
 	return pconid;
 }
@@ -89,6 +89,7 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	if (!info)
 		return 0;
 
+	vcrtcm_p_del(pconid);
 	info->funcs.destroy(local_pcon_id, info->data);
 
 	return 1;
