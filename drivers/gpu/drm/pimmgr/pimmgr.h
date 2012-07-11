@@ -22,7 +22,7 @@
 
 #include <linux/module.h>
 #include "vcrtcm/vcrtcm_common.h"
-
+#define PIM_NAME_LEN 33
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 22
 
@@ -30,8 +30,9 @@
 	((pim_id << PCON_LOCAL_ID_LEN) | \
 	(pcon_local_id))
 
-#define PCONID_PIMID(pcon_id) (pcon_id >> PCON_LOCAL_ID_LEN)
-#define PCONID_LOCALID(pcon_id) ((pcon_id << PIM_ID_LEN) >> PIM_ID_LEN)
+#define PCONID_PIMID(pcon_id) (((uint32_t) pcon_id) >> PCON_LOCAL_ID_LEN)
+#define PCONID_LOCALID(pcon_id) \
+	((((uint32_t)pcon_id) << PIM_ID_LEN) >> PIM_ID_LEN)
 
 /* List of registered PIMs */
 extern struct list_head pim_list;
@@ -40,34 +41,33 @@ extern struct mutex pim_list_mutex;
 struct pcon_instance_info {
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_pcon_props props;
-	void *pcon_cookie;
-	unsigned pcon_local_id;
+	void *cookie;
+	uint32_t local_id;
 
-	struct list_head list;
+	struct list_head instance_list;
 };
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
-	/* Should return a new pcon_instance_info structure */
-	/* upon success. Should return NULL upon failure. */
-	struct pcon_instance_info *(*instantiate)(void *pim_private,
-							char *hint_string);
+	/* Return a new pcon_instance_info structure */
+	/* upon success. Return NULL upon failure. */
+	struct pcon_instance_info *(*instantiate)(void *data, uint32_t hints);
 
-	/* Should deallocate the given PCON instance and free resources used. */
-	void (*destroy)(void *pim_private, struct pcon_instance_info *instance);
+	/* Deallocate the given PCON instance and free resources used. */
+	void (*destroy)(uint32_t local_pcon_id, void *data);
 };
 
 struct pim_info {
-	char name[33];
-	unsigned pim_id;
+	char name[PIM_NAME_LEN];
+	uint32_t id;
 	struct pim_funcs funcs;
-	void *pim_private;
+	void *data;
 
-	struct list_head list;
+	struct list_head pim_list;
 };
 
 /* Called from inside a new PIM to register with pimmgr. */
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *pim_private);
+int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
 
 /* Called from inside a new PIM to unregister from pimmgr. */
 void pimmgr_pim_unregister(char *name);
@@ -75,8 +75,19 @@ void pimmgr_pim_unregister(char *name);
 
 /* These will be the approximate functions called from the */
 /* userspace IOCTL handler */
+long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
 void *pimmgr_ioctl_getinfo(void);
-unsigned pimmgr_ioctl_instantiate_pcon(char *type);
-void pimmgr_ioctl_destroy_pcon(unsigned pconid);
+int pimmgr_ioctl_destroy_pcon(uint32_t pconid);
+
+struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
+					void *data);
+void update_pim_info(char *name, struct pim_funcs *funcs, void *data);
+struct pim_info *find_pim_info_by_name(char *name);
+struct pim_info *find_pim_info_by_id(uint32_t pim_id);
+void destroy_pim_info(struct pim_info *info);
+void add_pim_info(struct pim_info *info);
+void remove_pim_info(struct pim_info *info);
+int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
+void pimmgr_pim_unregister(char *name);
 
 #endif

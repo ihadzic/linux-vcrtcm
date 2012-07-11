@@ -22,16 +22,15 @@
 #include <linux/list.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include "pimmgr.h"
 #include "pimmgr_utils.h"
+#include "pimmgr_ioctl.h"
 
 int pimmgr_debug = 1;
 
-static const struct file_operations pimmgr_fops = {
-	.owner = THIS_MODULE,
-};
-
+static const struct file_operations pimmgr_fops;
 struct list_head	pim_list;
 struct mutex		pim_list_mutex;
 
@@ -84,9 +83,9 @@ static void pimmgr_exit(void)
 {
 	struct pim_info *info, *tmp;
 
-	list_for_each_entry_safe(info, tmp, &pim_list, list) {
+	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
 		/* Free list entry. */
-		list_del(&info->list);
+		list_del(&info->pim_list);
 	}
 
 	if (cdev)
@@ -102,6 +101,17 @@ static void pimmgr_exit(void)
 	pimmgr_print_alloc_stats();
 	PR_INFO("pimmgr unloaded\n");
 }
+
+long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	return pimmgr_ioctl_core(filp, cmd, arg);
+}
+
+
+static const struct file_operations pimmgr_fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = pimmgr_ioctl,
+};
 
 module_init(pimmgr_init);
 module_exit(pimmgr_exit);
