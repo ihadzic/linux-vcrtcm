@@ -23,6 +23,7 @@
 #include <linux/usb.h>
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/pimmgr.h>
 #include <edid.h>
 
 #include "udlpim.h"
@@ -176,6 +177,8 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 		udlpim_max_minor++;
 	}
 
+	udlpim_info->used = 0;
+
 	mutex_init(&udlpim_info->buffer_mutex);
 	spin_lock_init(&udlpim_info->udlpim_lock);
 
@@ -210,14 +213,14 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	VCRTCM_INFO("DisplayLink USB device attached.\n");
 	VCRTCM_INFO("successfully registered"
 		" minor %d\n", udlpim_info->minor);
-
+/*
 	UDLPIM_DEBUG("Calling vcrtcm_p_add for udlpim %p major %d minor %d\n",
 		udlpim_info, udlpim_major, udlpim_info->minor);
 	if (vcrtcm_p_add(&udlpim_vcrtcm_pcon_funcs, &udlpim_vcrtcm_pcon_props,
 			  udlpim_major, udlpim_info->minor, 0, udlpim_info))
 		VCRTCM_WARNING("vcrtcm_p_add failed, udlpim major %d, minor %d,"
 			" won't work\n", udlpim_major, udlpim_info->minor);
-
+*/
 	list_add(&udlpim_info->list, &udlpim_info_list);
 
 	return 0;
@@ -254,12 +257,15 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	/* unregister with VCRTCM */
-	UDLPIM_DEBUG("Calling vcrtcm_p_del for "
+	/* UDLPIM_DEBUG("Calling vcrtcm_p_del for "
 		"udlpim %p, major %d, minor %d\n",
-		udlpim_info, udlpim_major, udlpim_info->minor);
+		udlpim_info, udlpim_major, udlpim_info->minor); */
 
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
-	vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0);
+	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
+
+	if (udlpim_info->used)
+		pimmgr_pcon_invalidate("udl", (uint32_t) udlpim_info->minor);
 
 	/* release reference taken by kref_init in probe() */
 	/* TODO: Deal with reference count stuff. Perhaps have reference count

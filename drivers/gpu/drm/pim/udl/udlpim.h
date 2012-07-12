@@ -104,6 +104,8 @@ struct udlpim_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
+	int used;
+
 	struct udlpim_flow_info *flow_info;
 	struct mutex buffer_mutex;
 	spinlock_t udlpim_lock;

@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/pimmgr.h>
 
 #include "udlpim.h"
 #include "udlpim_vcrtcm.h"
@@ -70,6 +71,15 @@ struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
+static int udlpim_instantiate(struct pcon_instance_info *instance_info,
+				void *data, uint32_t hints);
+static void udlpim_destroy(uint32_t local_pcon_id, void *data);
+
+static struct pim_funcs udlpim_pim_funcs = {
+	.instantiate = udlpim_instantiate,
+	.destroy = udlpim_destroy
+};
+
 static int __init udlpim_init(void)
 {
 	int ret;
@@ -101,6 +111,8 @@ static int __init udlpim_init(void)
 		return ret;
 	}
 
+	pimmgr_pim_register("udl", &udlpim_pim_funcs, NULL);
+
 	return 0;
 }
 
@@ -116,7 +128,40 @@ static void __exit udlpim_exit(void)
 		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
 	}
 
+	pimmgr_pim_unregister("udl");
+
 	return;
+}
+
+static int udlpim_instantiate(struct pcon_instance_info *instance_info,
+				void *data, uint32_t hints)
+{
+	struct udlpim_info *info;
+
+	list_for_each_entry(info, &udlpim_info_list, list) {
+		if (!info->used) {
+			instance_info->funcs = &udlpim_vcrtcm_pcon_funcs;
+			instance_info->props = &udlpim_vcrtcm_pcon_props;
+			instance_info->cookie = info;
+			instance_info->local_id = (uint32_t) info->minor;
+			info->used = 1;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static void udlpim_destroy(uint32_t local_pcon_id, void *data)
+{
+	struct udlpim_info *info;
+
+	list_for_each_entry(info, &udlpim_info_list, list) {
+		if (((uint32_t) info->minor) == local_pcon_id) {
+			info->used = 0;
+			return;
+		}
+	}
 }
 
 module_init(udlpim_init);
