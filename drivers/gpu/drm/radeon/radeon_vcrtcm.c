@@ -368,8 +368,8 @@ struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 	.hotplug = radeon_vcrtcm_hotplug
 };
 
-static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc, int major,
-				int minor, int flow)
+static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
+					uint32_t pconid)
 {
 	int r;
 	struct drm_crtc *crtc = &radeon_crtc->base;
@@ -380,11 +380,11 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc, int major,
 		return -EBUSY;
 
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
-		r = vcrtcm_g_attach(major, minor, flow, crtc,
+		r = vcrtcm_g_attach(pconid, crtc,
 				  &physical_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_pcon_info);
 	else
-		r = vcrtcm_g_attach(major, minor, flow, crtc,
+		r = vcrtcm_g_attach(pconid, crtc,
 				  &virtual_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_pcon_info);
 
@@ -567,9 +567,7 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 	case RADEON_VCRTCM_CTL_OP_CODE_ATTACH:
 		DRM_DEBUG("attach\n");
 		r = radeon_vcrtcm_g_attach(radeon_crtc,
-					 rvcd->arg1.major,
-					 rvcd->arg2.minor,
-					 rvcd->arg3.flow);
+					 rvcd->arg1.pconid);
 		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_DETACH:
