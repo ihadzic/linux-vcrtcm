@@ -19,8 +19,9 @@
 
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/pimmgr.h>
 
-#include "pimmgr.h"
 #include "pimmgr_utils.h"
 
 static uint32_t next_pimid;
@@ -121,6 +122,7 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data)
 
 	return 1;
 }
+EXPORT_SYMBOL(pimmgr_pim_register);
 
 void pimmgr_pim_unregister(char *name)
 {
@@ -130,5 +132,22 @@ void pimmgr_pim_unregister(char *name)
 		return;
 
 	remove_pim_info(info);
-
 }
+EXPORT_SYMBOL(pimmgr_pim_unregister);
+
+void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
+{
+	struct pim_info *info;
+	uint32_t pconid;
+
+	info = find_pim_info_by_name(name);
+	if (!info)
+		return;
+
+	pconid = CREATE_PCONID(info->id, pcon_local_id);
+
+	PR_INFO("Invalidating pcon, info %p, pconid %u\n", info, pconid);
+
+	vcrtcm_p_del(pconid);
+}
+EXPORT_SYMBOL(pimmgr_pcon_invalidate);

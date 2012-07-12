@@ -21,7 +21,8 @@
 #define __PIMMGR_H__
 
 #include <linux/module.h>
-#include "vcrtcm/vcrtcm_common.h"
+#include <vcrtcm/vcrtcm_common.h>
+
 #define PIM_NAME_LEN 33
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 22
@@ -39,8 +40,8 @@ extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
 
 struct pcon_instance_info {
-	struct vcrtcm_pcon_funcs funcs;
-	struct vcrtcm_pcon_props props;
+	struct vcrtcm_pcon_funcs *funcs;
+	struct vcrtcm_pcon_props *props;
 	void *cookie;
 	uint32_t local_id;
 
@@ -51,7 +52,8 @@ struct pcon_instance_info {
 struct pim_funcs {
 	/* Return a new pcon_instance_info structure */
 	/* upon success. Return NULL upon failure. */
-	struct pcon_instance_info *(*instantiate)(void *data, uint32_t hints);
+	int (*instantiate)(struct pcon_instance_info *instance_info,
+				void *data, uint32_t hints);
 
 	/* Deallocate the given PCON instance and free resources used. */
 	void (*destroy)(uint32_t local_pcon_id, void *data);
@@ -72,11 +74,15 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
 /* Called from inside a new PIM to unregister from pimmgr. */
 void pimmgr_pim_unregister(char *name);
 
+/* Called from inside a PIM if a PCON becomes invalid */
+/* (due to disconnect, etc.) */
+void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
 
 /* These will be the approximate functions called from the */
 /* userspace IOCTL handler */
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
 void *pimmgr_ioctl_getinfo(void);
+uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints);
 int pimmgr_ioctl_destroy_pcon(uint32_t pconid);
 
 struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,

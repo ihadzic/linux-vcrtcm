@@ -17,10 +17,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "pimmgr.h"
+#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/pimmgr.h>
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
-#include "vcrtcm/vcrtcm_pcon.h"
+
 
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -54,24 +55,32 @@ long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints)
 {
 	struct pim_info *info;
-	struct pcon_instance_info *pcon;
+	struct pcon_instance_info pcon;
 	uint32_t pconid;
+	int value = 0;
 
 	PR_INFO("in instantiate pcon...\n");
 	info = find_pim_info_by_name(name);
 
-	if (!info)
-		return 0;
+	if (!info) {
+		PR_INFO("Invalid pim identifier\n");
+		return -1;
+	}
 
-	pcon = info->funcs.instantiate(info->data, hints);
+	value = info->funcs.instantiate(&pcon, info->data, hints);
 
-	if (!pcon)
-		return 0;
+	if (!value) {
+		PR_INFO("No pcons of type %s available...\n", name);
+		return -2;
+	}
+	pconid = CREATE_PCONID(info->id, pcon.local_id);
 
-	pconid = CREATE_PCONID(info->id, pcon->local_id);
+	PR_INFO("New pcon created, id %u\n", pconid);
 
-	if (vcrtcm_p_add(&pcon->funcs, &pcon->props, pconid, pcon->cookie))
-		return 0;
+	if (vcrtcm_p_add(pcon.funcs, pcon.props, pconid, pcon.cookie)) {
+		PR_INFO("Error registering pcon with vcrtcm\n");
+		return -3;
+}
 
 	return pconid;
 }

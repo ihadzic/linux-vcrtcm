@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include "pimmgr.h"
+#include <vcrtcm/pimmgr.h>
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
 
