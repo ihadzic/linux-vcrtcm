@@ -22,6 +22,200 @@
 #include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
+/*
+ * Callback from DMABUF when dma_buf object is attached and mapped
+ * (typically as the result of registering the push buffer with PRIME).
+ * Because PCON owns the buffer, it is responsible for mapping it
+ * into GPU driver's space, which is taken careo of by this (common)
+ * VCRTCM function.
+ */
+static struct sg_table
+*vcrtcm_dma_buf_map(struct dma_buf_attachment *attachment,
+		    enum dma_data_direction dir)
+{
+	struct vcrtcm_push_buffer_descriptor *pbd = attachment->dmabuf->priv;
+	struct vcrtcm_pcon_info *pcon_info = pbd->owner_pcon;
+	struct vcrtcm_pcon_info_private *pcon_info_private =
+		container_of(pcon_info, struct vcrtcm_pcon_info_private,
+			     vcrtcm_pcon_info);
+	struct drm_crtc *crtc = pcon_info_private->drm_crtc;
+	struct drm_device *dev = crtc->dev;
+	struct sg_table *sg;
+	int nents;
+
+	mutex_lock(&dev->struct_mutex);
+	sg = drm_prime_pages_to_sg(pbd->pages, pbd->num_pages);
+	/* REVISIT: do something if nents is not equal to requested nents */
+	nents = dma_map_sg(attachment->dev, sg->sgl, sg->nents, dir);
+	mutex_unlock(&dev->struct_mutex);
+	return sg;
+}
+
+/*
+ * Callback from DMABUF when dma_buf object is detached and unmapped
+ * (typically as the result of unregistering the push buffer with PRIME)
+ * Because PCON owns the buffer, it is responsible for unmapping it
+ * from GPU driver's space, which is taken care of by this (common)
+ * VCRTCM function.
+ */
+static void vcrtcm_dma_buf_unmap(struct dma_buf_attachment *attachment,
+				 struct sg_table *sg,
+				 enum dma_data_direction dir)
+{
+	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
+	sg_free_table(sg);
+	kfree(sg);
+}
+
+/*
+ * Callback from DMABUF when dma_buf object goes away.
+ */
+static void vcrtcm_dma_buf_release(struct dma_buf *dma_buf)
+{
+	struct vcrtcm_push_buffer_descriptor *pbd = dma_buf->priv;
+	struct drm_gem_object *obj = pbd->gpu_private;
+
+	if (obj->export_dma_buf == dma_buf) {
+		VCRTCM_DEBUG("unreference obj %p\n", obj);
+		obj->export_dma_buf = NULL;
+		drm_gem_object_unreference_unlocked(obj);
+	}
+}
+
+static void *vcrtcm_dma_buf_kmap(struct dma_buf *dma_buf,
+				 unsigned long page_num)
+{
+	return NULL;
+}
+
+static void *vcrtcm_dma_buf_kmap_atomic(struct dma_buf *dma_buf,
+					unsigned long page_num)
+{
+	return NULL;
+}
+
+static void vcrtcm_dma_buf_kunmap(struct dma_buf *dma_buf,
+				  unsigned long page_num, void *addr)
+{
+}
+
+static void vcrtcm_dma_buf_kunmap_atomic(struct dma_buf *dma_buf,
+					 unsigned long page_num, void *addr)
+{
+}
+
+static int vcrtcm_dma_buf_mmap(struct dma_buf *dma_buf,
+			       struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
+static void *vcrtcm_dma_buf_vmap(struct dma_buf *dma_buf)
+{
+	return NULL;
+}
+
+static void vcrtcm_dma_buf_vunmap(struct dma_buf *dma_buf, void *vaddr)
+{
+}
+
+static const struct dma_buf_ops vcrtcm_dma_buf_ops = {
+	.map_dma_buf = vcrtcm_dma_buf_map,
+	.unmap_dma_buf = vcrtcm_dma_buf_unmap,
+	.release = vcrtcm_dma_buf_release,
+	.kmap = vcrtcm_dma_buf_kmap,
+	.kmap_atomic = vcrtcm_dma_buf_kmap_atomic,
+	.kunmap = vcrtcm_dma_buf_kunmap,
+	.kunmap_atomic = vcrtcm_dma_buf_kunmap_atomic,
+	.mmap = vcrtcm_dma_buf_mmap,
+	.vmap = vcrtcm_dma_buf_vmap,
+	.vunmap = vcrtcm_dma_buf_vunmap
+};
+
+/*
+ * called by PCON to register the push buffer with PRIME infrastructure.
+ * PCON must allocate the backing store for the push buffer and VCRTCM
+ * takes care of turning that into a GEM object that GPU can use
+ * as copy destination. Populates the dma_buf and gpu_private fields
+ * of the push buffer descriptor (pbd) that are not known by PCON
+ * before this function is called.
+ */
+int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
+			    struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	struct vcrtcm_pcon_info_private *pcon_info_private =
+		container_of(pcon_info, struct vcrtcm_pcon_info_private,
+			     vcrtcm_pcon_info);
+	struct drm_crtc *crtc = pcon_info_private->drm_crtc;
+	struct drm_device *dev = crtc->dev;
+	struct dma_buf *dma_buf;
+	int r = 0;
+	int size = PAGE_SIZE * pbd->num_pages;
+	struct drm_gem_object *obj;
+
+	dma_buf = dma_buf_export(pbd, &vcrtcm_dma_buf_ops,
+				 size, VCRTCM_DMA_BUF_PERMS);
+	if (IS_ERR(dma_buf)) {
+		r = PTR_ERR(dma_buf);
+		goto out_err0;
+	}
+	pbd->dma_buf = dma_buf;
+	/* this will cause a callback into vcrtcm_dma_buf_map */
+	obj = dev->driver->gem_prime_import(dev, dma_buf);
+	if (IS_ERR(obj)) {
+		r = PTR_ERR(obj);
+		goto out_err1;
+	}
+	pbd->gpu_private = obj;
+	VCRTCM_DEBUG("pcon %d.%d.%d push buffer GEM object name=%d, size=%d\n",
+		     pcon_info_private->vcrtcm_pcon_info.pcon_major,
+		     pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+		     pcon_info_private->vcrtcm_pcon_info.pcon_flow,
+		     obj->name, obj->size);
+	return r;
+
+out_err1:
+	dma_buf_put(dma_buf);
+out_err0:
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_register_prime);
+
+/*
+ * Called by PCON to unregister the push buffer with PRIME infrastructure.
+ * Typically PCON calls this function when freeing the push buffer or
+ * replacing a pre-existing push buffer with a different one (i.e.,
+ * of different size).
+ */
+void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
+			       struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	struct vcrtcm_pcon_info_private *pcon_info_private =
+		container_of(pcon_info, struct vcrtcm_pcon_info_private,
+			     vcrtcm_pcon_info);
+	struct drm_crtc *crtc = pcon_info_private->drm_crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_gem_object *obj = pbd->gpu_private;
+
+	VCRTCM_DEBUG("pcon %d.%d.%d freeing GEM object name=%d, size=%d\n",
+		     pcon_info_private->vcrtcm_pcon_info.pcon_major,
+		     pcon_info_private->vcrtcm_pcon_info.pcon_minor,
+		     pcon_info_private->vcrtcm_pcon_info.pcon_flow,
+		     obj->name, obj->size);
+	/*
+	 * This call is magic: It will free the GEM object, which will
+	 * result in a call to drm_prime_gem_destroy (assuming that there
+	 * is PRIME import associated with the object), which in turn
+	 * will call vcrtcm_dma_buf_unmap to cleanup the mapping. It will
+	 * also destroy the dma_buf object if the last attachment is
+	 * dropped (which is de-facto always, because in VCRTCM there
+	 * is always only one attachment.
+	 */
+	dev->driver->gem_free_object(obj);
+}
+EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
+
+
 /* called by the pixel consumer (PCON) to
    register itself implementation with vcrtcm; the PCON can also provide
    pointers to back-end functions (functions that get called after

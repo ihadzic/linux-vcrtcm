@@ -28,6 +28,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <linux/dma-buf.h>
 
 /* framebuffer/CRTC (emulated) registers */
 struct vcrtcm_fb {
@@ -135,7 +136,11 @@ struct vcrtcm_pcon_info {
 /* of course, we need an object pointer so that we can return the buffer */
 /* when we don't need it any more */
 struct vcrtcm_push_buffer_descriptor {
+	/* populated by VCRTCM */
 	void *gpu_private;
+	struct dma_buf *dma_buf;
+	/* populated by PCON */
+	struct vcrtcm_pcon_info *owner_pcon;
 	struct page **pages;
 	unsigned long num_pages;
 };

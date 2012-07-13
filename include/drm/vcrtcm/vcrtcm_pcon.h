@@ -44,6 +44,10 @@ int vcrtcm_p_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 			     struct vcrtcm_push_buffer_descriptor *pbd);
+int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
+			    struct vcrtcm_push_buffer_descriptor *pbd);
+void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
+			       struct vcrtcm_push_buffer_descriptor *pbd);
 int vcrtcm_p_push(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd);

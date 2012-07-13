@@ -27,6 +27,7 @@
    that use it: GPU driver and pixel consumer (PCON) */
 
 #define VCRTCM_STATUS_PCON_IN_USE 0x01
+#define VCRTCM_DMA_BUF_PERMS 0600
 
 /* main structure for keeping track of each PCON-CRTC relationship */
 struct vcrtcm_pcon_info_private {
