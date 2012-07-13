@@ -23,24 +23,34 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
+#include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/pimmgr.h>
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
+#include "pimmgr_sysfs.h"
 
 int pimmgr_debug = 1;
 
 static const struct file_operations pimmgr_fops;
 struct list_head	pim_list;
 struct mutex		pim_list_mutex;
+struct list_head	pcon_instance_list;
 
 dev_t dev;
 struct cdev *cdev;
-struct class *class;
+struct class *vcrtcm_class;
+struct device *pimmgr_device;
+
+struct kobj_type empty_ktype;
 
 static int pimmgr_init(void)
 {
+	int ret = 0;
 	INIT_LIST_HEAD(&pim_list);
+	INIT_LIST_HEAD(&pcon_instance_list);
 	mutex_init(&pim_list_mutex);
 
 	cdev = cdev_alloc();
@@ -48,9 +58,8 @@ static int pimmgr_init(void)
 	if (!cdev)
 		goto error;
 
-	class = class_create(THIS_MODULE, "pimmgr");
-
-	if (!class)
+	vcrtcm_class = vcrtcm_sysfs_get_class();
+	if (!vcrtcm_class)
 		goto error;
 
 	alloc_chrdev_region(&dev, 0, 1, "pimmgr");
@@ -59,8 +68,21 @@ static int pimmgr_init(void)
 	cdev->owner = THIS_MODULE;
 	cdev_add(cdev, dev, 1);
 
-	device_create(class, NULL, dev, NULL, "pimmgr");
+	pimmgr_device = device_create(vcrtcm_class, NULL, dev, NULL, "pimmgr");
 
+	memset(&pims_kobj, 0, sizeof(struct kobject));
+	memset(&pcons_kobj, 0, sizeof(struct kobject));
+	memset(&empty_ktype, 0, sizeof(struct kobj_type));
+
+	ret = kobject_init_and_add(&pims_kobj, &empty_ktype,
+					&pimmgr_device->kobj, "pims");
+	if (ret < 0)
+		PR_ERR("Error creating sysfs pim node...\n");
+
+	ret = kobject_init_and_add(&pcons_kobj, &empty_ktype,
+					&pimmgr_device->kobj, "pcons");
+	if (ret < 0)
+		PR_ERR("Error creating sysfs pcon node...\n");
 
 	PR_INFO("Bell Labs PIM Manager (pimmgr)\n");
 	PR_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
@@ -73,8 +95,8 @@ error:
 	if (cdev)
 		cdev_del(cdev);
 
-	if (class)
-		class_destroy(class);
+	/* if(vcrtcm_class) */
+	/*	class_destroy(vcrtcm_class); */
 
 	return -ENOMEM;
 }
@@ -84,17 +106,15 @@ static void pimmgr_exit(void)
 	struct pim_info *info, *tmp;
 
 	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
-		/* Free list entry. */
 		list_del(&info->pim_list);
+		pimmgr_kfree(info);
 	}
 
 	if (cdev)
 		cdev_del(cdev);
 
-	if (class) {
-		device_destroy(class, dev);
-		class_destroy(class);
-	}
+	if (vcrtcm_class)
+		device_destroy(vcrtcm_class, dev);
 
 	unregister_chrdev_region(dev, 1);
 

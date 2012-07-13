@@ -21,6 +21,8 @@
 #define __PIMMGR_H__
 
 #include <linux/module.h>
+#include <linux/sysfs.h>
+#include <linux/kobject.h>
 #include <vcrtcm/vcrtcm_common.h>
 
 #define PIM_NAME_LEN 33
@@ -38,15 +40,9 @@
 /* List of registered PIMs */
 extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
+extern struct list_head pcon_instance_list;
 
-struct pcon_instance_info {
-	struct vcrtcm_pcon_funcs *funcs;
-	struct vcrtcm_pcon_props *props;
-	void *cookie;
-	uint32_t local_id;
-
-	struct list_head instance_list;
-};
+struct pcon_instance_info;
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
@@ -64,8 +60,20 @@ struct pim_info {
 	uint32_t id;
 	struct pim_funcs funcs;
 	void *data;
+	struct kobject kobj;
 
 	struct list_head pim_list;
+};
+
+struct pcon_instance_info {
+	struct pim_info *pim;
+	struct vcrtcm_pcon_funcs *funcs;
+	struct vcrtcm_pcon_props *props;
+	void *cookie;
+	uint32_t local_id;
+
+	struct kobject kobj;
+	struct list_head instance_list;
 };
 
 /* Called from inside a new PIM to register with pimmgr. */
@@ -93,7 +101,10 @@ struct pim_info *find_pim_info_by_id(uint32_t pim_id);
 void destroy_pim_info(struct pim_info *info);
 void add_pim_info(struct pim_info *info);
 void remove_pim_info(struct pim_info *info);
+struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
+							uint32_t local_id);
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
 void pimmgr_pim_unregister(char *name);
+
 
 #endif

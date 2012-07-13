@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/pimmgr.h>
-
+#include "pimmgr_sysfs.h"
 #include "pimmgr_utils.h"
 
 static uint32_t next_pimid;
@@ -40,6 +40,7 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
 	strncpy(info->name, name, PIM_NAME_LEN);
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
 	info->data = data;
+	memset(&info->kobj, 0, sizeof(struct kobject));
 
 	return info;
 }
@@ -103,6 +104,20 @@ void remove_pim_info(struct pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
+struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
+							uint32_t local_id)
+{
+	struct pcon_instance_info *instance;
+
+	list_for_each_entry(instance, &pcon_instance_list, instance_list)
+	{
+		if (instance->pim == pim && instance->local_id == local_id)
+			return instance;
+	}
+
+	return NULL;
+}
+
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data)
 {
 	struct pim_info *info;
@@ -114,11 +129,11 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data)
 	}
 
 	info = create_pim_info(name, funcs, data);
-	create_pim_info(name, funcs, data);
 	if (!info)
 		return -ENOMEM;
 
 	add_pim_info(info);
+	vcrtcm_sysfs_add_pim(info);
 
 	return 1;
 }
@@ -132,22 +147,31 @@ void pimmgr_pim_unregister(char *name)
 		return;
 
 	remove_pim_info(info);
+	vcrtcm_sysfs_del_pim(info);
+	destroy_pim_info(info);
 }
 EXPORT_SYMBOL(pimmgr_pim_unregister);
 
 void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
 {
 	struct pim_info *info;
+	struct pcon_instance_info *pcon;
 	uint32_t pconid;
 
 	info = find_pim_info_by_name(name);
 	if (!info)
 		return;
 
-	pconid = CREATE_PCONID(info->id, pcon_local_id);
+	pcon = find_pcon_instance_info(info, pcon_local_id);
+	if (!pcon)
+		return;
 
+	pconid = CREATE_PCONID(info->id, pcon_local_id);
 	PR_INFO("Invalidating pcon, info %p, pconid %u\n", info, pconid);
 
+	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_p_del(pconid);
+	list_del(&pcon->instance_list);
+	pimmgr_kfree(pcon);
 }
 EXPORT_SYMBOL(pimmgr_pcon_invalidate);

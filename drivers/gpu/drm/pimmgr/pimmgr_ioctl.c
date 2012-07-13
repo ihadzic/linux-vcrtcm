@@ -21,7 +21,7 @@
 #include <vcrtcm/pimmgr.h>
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
-
+#include "pimmgr_sysfs.h"
 
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -55,7 +55,7 @@ long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints)
 {
 	struct pim_info *info;
-	struct pcon_instance_info pcon;
+	struct pcon_instance_info *pcon;
 	uint32_t pconid;
 	int value = 0;
 
@@ -67,39 +67,58 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints)
 		return -1;
 	}
 
-	value = info->funcs.instantiate(&pcon, info->data, hints);
+	pcon = pimmgr_kzalloc(sizeof(struct pcon_instance_info), GFP_KERNEL);
+	if (!pcon) {
+		PR_INFO("Could not allocate memory\n");
+		return -ENOMEM;
+	}
+
+	pcon->pim = info;
+	value = info->funcs.instantiate(pcon, info->data, hints);
 
 	if (!value) {
 		PR_INFO("No pcons of type %s available...\n", name);
+		pimmgr_kfree(pcon);
 		return -2;
 	}
-	pconid = CREATE_PCONID(info->id, pcon.local_id);
+	pconid = CREATE_PCONID(info->id, pcon->local_id);
 
 	PR_INFO("New pcon created, id %u\n", pconid);
 
-	if (vcrtcm_p_add(pcon.funcs, pcon.props, pconid, pcon.cookie)) {
+	if (vcrtcm_p_add(pcon->funcs, pcon->props, pconid, pcon->cookie)) {
 		PR_INFO("Error registering pcon with vcrtcm\n");
+		pimmgr_kfree(pcon);
 		return -3;
-}
+	}
 
+	vcrtcm_sysfs_add_pcon(pcon);
+	list_add_tail(&pcon->instance_list, &pcon_instance_list);
 	return pconid;
 }
 
 int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 {
 	struct pim_info *info;
+	struct pcon_instance_info *instance;
+
 	uint32_t pim_id = PCONID_PIMID(pconid);
 	uint32_t local_pcon_id = PCONID_LOCALID(pconid);
 
 	PR_INFO("in destroy pcon id %u...\n", pconid);
 
 	info = find_pim_info_by_id(pim_id);
-
 	if (!info)
 		return 0;
 
+	instance = find_pcon_instance_info(info, local_pcon_id);
+	if (!instance)
+		return 0;
+
+	vcrtcm_sysfs_del_pcon(instance);
 	vcrtcm_p_del(pconid);
 	info->funcs.destroy(local_pcon_id, info->data);
+	list_del(&instance->instance_list);
+	pimmgr_kfree(instance);
 
 	return 1;
 }
