@@ -61,11 +61,13 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 	if (radeon_crtc->vcrtcm_pcon_info) {
 		struct vcrtcm_pcon_props *pcon_props =
 			&radeon_crtc->vcrtcm_pcon_info->props;
-		DRM_INFO("crtc %d has vcrtcm HAL, calling vcrtcm_g_set_fb\n",
+		DRM_INFO("crtc %d PCON attached, calling vcrtcm_g_set_fb\n",
 			 radeon_crtc->crtc_id);
 		radeon_crtc->vcrtcm_push_fb = fb;
-		/* tell the vcrtcm HAL the address and geometry of the */
-		/* frame buffer associated with this CRTC */
+		/*
+		 * tell the PCON the address and geometry of the
+		 * frame buffer associated with this CRTC
+		 */
 		tmp = fb_location - rdev->mc.vram_start;
 		vcrtcm_fb.ioaddr = rdev->mc.aper_base + tmp;
 		DRM_INFO("frame buffer I/O address 0x%08x\n",
@@ -98,11 +100,13 @@ int radeon_vcrtcm_wait(struct radeon_device *rdev)
 	struct virtual_crtc *virtual_crtc;
 	int i, r;
 
-	/* REVISIT: this is extremely conservative (we wait for every */
-	/* HAL of every CRTC, but we have no choice */
-	/* once we start supporting multiple VMs, we will wait only */
-	/* for those HALs that are serving CRTCs of the VM that sent this */
-	/* batch of IBs. */
+	/*
+	 * REVISIT: this is extremely conservative (we wait for every
+	 * PCON of every CRTC, but we have no choice
+	 * once we start supporting multiple VMs, we will wait only
+	 * for those PCONs that are serving CRTCs of the VM that sent this
+	 * batch of IBs.
+	 */
 
 	/* first wait for all real CRTCs */
 	for (i = 0; i < rdev->num_crtc; i++) {
@@ -160,7 +164,7 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	DRM_INFO("dereferencing HAL pointer from crtc_id %d\n",
+	DRM_INFO("dereferencing PCON pointer from crtc_id %d\n",
 		 radeon_crtc->crtc_id);
 	radeon_crtc->vcrtcm_pcon_info = NULL;
 }

@@ -241,9 +241,11 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	/* if this CRTC has a vcrtcm HAL attached to it,
-	   detach it at this point (ignore the error code)
-	   since there is nothing we can do about it */
+	/*
+	 * if this CRTC has a PCON attached to it,
+	 * detach it at this point (ignore the error code)
+	 * since there is nothing we can do about it
+	 */
 	radeon_vcrtcm_detach(radeon_crtc);
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);

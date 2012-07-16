@@ -1072,9 +1072,10 @@ static void radeon_virtual_crtc_destroy(struct drm_crtc *crtc)
 
 	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
 
-	/* if this CRTC has a vcrtcm HAL attached to it, */
-	/* detach it at this point; ignore the error code */
-	/* since there is nothing we can do about it anyway */
+	/*
+	 * if this CRTC has a PCON attached to it, detach it at this point;
+	 * ignore the error code since there is nothing we can do about it.
+	 */
 	radeon_vcrtcm_detach(radeon_crtc);
 
 	list_for_each_entry_safe(virtual_crtc, tmp,
