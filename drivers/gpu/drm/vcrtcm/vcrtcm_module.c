@@ -20,6 +20,8 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <vcrtcm/vcrtcm_sysfs.h>
+#include "vcrtcm_utils.h"
 #include "vcrtcm_private.h"
 
 struct list_head vcrtcm_pcon_list;
@@ -35,6 +37,7 @@ static int __init vcrtcm_init(void)
 	mutex_init(&vcrtcm_pcon_list_mutex);
 	INIT_LIST_HEAD(&vcrtcm_pcon_list);
 
+	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
 	VCRTCM_INFO("module loaded");
 	return 0;
 }
@@ -74,6 +77,9 @@ static void __exit vcrtcm_exit(void)
 		kfree(pcon_info_private);
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
+
+	if (vcrtcm_class)
+		class_destroy(vcrtcm_class);
 
 	VCRTCM_INFO("all virtual crtcs gone");
 
