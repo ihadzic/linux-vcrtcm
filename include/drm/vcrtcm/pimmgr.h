@@ -83,13 +83,12 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
 void pimmgr_pim_unregister(char *name);
 
 /* Called from inside a PIM if a PCON becomes invalid */
-/* (due to disconnect, etc.) */
+/* (due to disconneWct, etc.) */
 void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
 
 /* These will be the approximate functions called from the */
 /* userspace IOCTL handler */
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
-void *pimmgr_ioctl_getinfo(void);
 uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints);
 int pimmgr_ioctl_destroy_pcon(uint32_t pconid);
 
