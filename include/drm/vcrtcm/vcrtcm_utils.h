@@ -18,21 +18,36 @@
 */
 
 
-/* Various utility macros, constants and functions
-   for Virtual CRTC Manager */
+/*
+ * Various utility macros, constants and functions for Virtual CRTC
+ * Manager and PIMs
+ */
 
 #ifndef __VCRTCM_UTILS_H__
 #define __VCRTCM_UTILS_H__
 
-extern int vcrtcm_debug;
+#include <linux/module.h>
 
-#define VCRTCM_INFO(fmt, args...) printk(KERN_INFO "[vcrtcm] " fmt, ## args)
-#define VCRTCM_ERROR(fmt, args...) printk(KERN_ERR "[vcrtcm] " fmt, ## args)
-#define VCRTCM_WARNING(fmt, args...) printk(KERN_WARNING "[vcrtcm] " fmt, ## args)
-#define VCRTCM_DEBUG(fmt, args...)					\
+#ifdef MODULE
+#define VCRTCM_NAME (THIS_MODULE->name)
+#else
+#define VCRTCM_NAME "????"
+#endif
+
+#define VCRTCM_INFO(fmt, args...)					\
+	pr_info("[%s] " fmt, VCRTCM_NAME, ## args)
+
+#define VCRTCM_ERROR(fmt, args...)					\
+	pr_err("[%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
+
+#define VCRTCM_WARNING(fmt, args...)					\
+	pr_warn("[%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
+
+#define VCRTCM_DBG(msg_level, current_level, fmt, args...)		\
 	do {								\
-		if (vcrtcm_debug)					\
-			printk(KERN_DEBUG "[vcrtcm] " fmt, ## args);	\
+		if (unlikely(current_level >= msg_level))		\
+			pr_debug("[%s:%s] " fmt,			\
+				 VCRTCM_NAME, __func__, ## args);	\
 	} while (0)
 
 #endif

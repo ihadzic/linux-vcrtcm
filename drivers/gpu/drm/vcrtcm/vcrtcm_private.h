@@ -22,9 +22,12 @@
 #define __VCRTCM_PRIVATE_H__
 
 #include <vcrtcm/vcrtcm_common.h>
+#include <vcrtcm/vcrtcm_utils.h>
 
-/* Private data structures for Virtual CRTC Manager and modules
-   that use it: GPU driver and pixel consumer (PCON) */
+/*
+ * Private data structures for Virtual CRTC Manager and modules
+ * that use it: GPU driver and pixel consumer (PCON)
+ */
 
 #define VCRTCM_STATUS_PCON_IN_USE 0x01
 #define VCRTCM_DMA_BUF_PERMS 0600
@@ -49,5 +52,8 @@ struct vcrtcm_pcon_info_private {
 
 extern struct list_head vcrtcm_pcon_list;
 extern struct mutex vcrtcm_pcon_list_mutex;
+extern int vcrtcm_debug;
+
+#define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)
 
 #endif
