@@ -27,15 +27,18 @@
 
 #define PIM_NAME_LEN 33
 #define PIM_ID_LEN 10
-#define PCON_LOCAL_ID_LEN 22
+#define PCON_LOCAL_ID_LEN 21
+#define HIGH_BIT (1 << (sizeof(uint32_t)*8 - 1))
 
 #define CREATE_PCONID(pim_id, pcon_local_id) \
-	((pim_id << PCON_LOCAL_ID_LEN) | \
-	(pcon_local_id))
+		(HIGH_BIT | \
+		(pim_id << PCON_LOCAL_ID_LEN) | \
+		(pcon_local_id))
 
-#define PCONID_PIMID(pcon_id) (((uint32_t) pcon_id) >> PCON_LOCAL_ID_LEN)
+#define PCONID_PIMID(pcon_id) \
+		((((uint32_t) pcon_id) << 1) >> (PCON_LOCAL_ID_LEN + 1))
 #define PCONID_LOCALID(pcon_id) \
-	((((uint32_t)pcon_id) << PIM_ID_LEN) >> PIM_ID_LEN)
+		((((uint32_t)pcon_id) << (PIM_ID_LEN + 1)) >> (PIM_ID_LEN + 1))
 
 /* List of registered PIMs */
 extern struct list_head pim_list;
