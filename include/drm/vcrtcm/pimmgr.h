@@ -26,6 +26,8 @@
 #include <vcrtcm/vcrtcm_common.h>
 
 #define PIM_NAME_LEN 33
+#define PCON_DESC_LEN 128
+
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 21
 #define HIGH_BIT (1 << (sizeof(uint32_t)*8 - 1))
@@ -39,6 +41,7 @@
 		((((uint32_t) pcon_id) << 1) >> (PCON_LOCAL_ID_LEN + 1))
 #define PCONID_LOCALID(pcon_id) \
 		((((uint32_t)pcon_id) << (PIM_ID_LEN + 1)) >> (PIM_ID_LEN + 1))
+#define PCONID_VALID(pcon_id) (((uint32_t) pcon_id) & HIGH_BIT)
 
 /* List of registered PIMs */
 extern struct list_head pim_list;

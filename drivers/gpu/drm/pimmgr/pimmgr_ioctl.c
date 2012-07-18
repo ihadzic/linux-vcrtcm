@@ -133,6 +133,9 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 
 	PR_INFO("in destroy pcon id %u...\n", pconid);
 
+	if (!PCONID_VALID(pconid))
+		return PIMMGR_ERR_INVALID_PCON;
+
 	info = find_pim_info_by_id(pim_id);
 	if (!info)
 		return PIMMGR_ERR_INVALID_PCON;
