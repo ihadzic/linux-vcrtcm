@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 
 #define UDLPIM_MAX_DEVICES 64 /* This is currently a hard limitation. */
 #define UDLPIM_FPS_HARD_LIMIT 100
@@ -43,6 +44,8 @@
 
 #define UDLPIM_EDID_QUERY_TIME HZ
 #define UDLPIM_EDID_QUERY_TRIES 3
+
+#define UDLPIM_DEBUG(fmt, args...) VCRTCM_DBG(1, debug, fmt, ## args)
 
 /* Module options */
 extern int true32bpp;
@@ -149,9 +152,9 @@ struct udlpim_info {
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
 
 	/* debug stuff */
-	int page_track;
-	int kmalloc_track;
-	int vmalloc_track;
+	atomic_t page_track;
+	atomic_t kmalloc_track;
+	atomic_t vmalloc_track;
 };
 
 struct udlpim_flow_info {

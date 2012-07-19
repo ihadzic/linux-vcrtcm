@@ -28,9 +28,6 @@
 #include "udlpim.h"
 #include "udlpim_vcrtcm.h"
 #include "udlpim_usb.h"
-#include "udlpim_utils.h"
-
-
 
 /*
  * There are many DisplayLink-based graphics products, all with unique PIDs.
@@ -97,7 +94,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	udlpim_info = kzalloc(sizeof(struct udlpim_info), GFP_KERNEL);
 
 	if (udlpim_info == NULL) {
-		PR_ERR("udlpim_usb_probe: failed alloc of udlpim_info\n");
+		VCRTCM_ERROR("udlpim_usb_probe: failed alloc of udlpim_info\n");
 		goto error;
 	}
 
@@ -105,26 +102,30 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	kref_init(&udlpim_info->kref); /* matching kref_put in udb .disconnect fn */
 	/*kref_get(&udlpim_info->kref); */ /* matching kref_put in vcrtcm detach */
 
+	atomic_set(&udlpim_info->kmalloc_track, 0);
+	atomic_set(&udlpim_info->vmalloc_track, 0);
+	atomic_set(&udlpim_info->page_track, 0);
+
 	udlpim_info->udev = usbdev;
 	udlpim_info->gdev = &usbdev->dev;  /* generic struct device */
 	usb_set_intfdata(interface, udlpim_info);
 
-	PR_INFO("%s %s - serial #%s\n",
+	VCRTCM_INFO("%s %s - serial #%s\n",
 		usbdev->manufacturer, usbdev->product, usbdev->serial);
-	PR_INFO("vid_%04x&pid_%04x&rev_%04x driver's udlpim_info struct at %p\n",
+	VCRTCM_INFO("vid_%04x&pid_%04x&rev_%04x driver's udlpim_info struct at %p\n",
 		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
 		usbdev->descriptor.bcdDevice, udlpim_info);
 
 	udlpim_info->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
 
 	if (!udlpim_parse_vendor_descriptor(udlpim_info, usbdev)) {
-		PR_ERR("Firmware not recognized. Assume incompatible device.\n");
+		VCRTCM_ERROR("Firmware not recognized. Assume incompatible device.\n");
 		goto error;
 	}
 
 	if (!udlpim_alloc_urb_list(udlpim_info, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		retval = -ENOMEM;
-		PR_ERR("udlpim_alloc_urb_list failed\n");
+		VCRTCM_ERROR("udlpim_alloc_urb_list failed\n");
 		goto error;
 	}
 
@@ -166,7 +167,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 
 		/* If we ready have too many minors, error out. */
 		if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
-			PR_ERR("Maximum number of minors already assigned. "
+			VCRTCM_ERROR("Maximum number of minors already assigned. "
 				"Device will be unusable.\n");
 			goto error;
 		}
@@ -206,15 +207,15 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	udlpim_set_video_mode(udlpim_info, &udlpim_info->default_video_mode);
 	udlpim_blank_hw_fb(udlpim_info, UDLPIM_BLANK_COLOR);
 
-	PR_INFO("DisplayLink USB device attached.\n");
-	PR_INFO("successfully registered"
+	VCRTCM_INFO("DisplayLink USB device attached.\n");
+	VCRTCM_INFO("successfully registered"
 		" minor %d\n", udlpim_info->minor);
 
-	PR_DEBUG("Calling vcrtcm_p_add for udlpim %p major %d minor %d\n",
+	UDLPIM_DEBUG("Calling vcrtcm_p_add for udlpim %p major %d minor %d\n",
 		udlpim_info, udlpim_major, udlpim_info->minor);
 	if (vcrtcm_p_add(&udlpim_vcrtcm_pcon_funcs, &udlpim_vcrtcm_pcon_props,
 			  udlpim_major, udlpim_info->minor, 0, udlpim_info))
-		PR_WARN("vcrtcm_p_add failed, udlpim major %d, minor %d,"
+		VCRTCM_WARNING("vcrtcm_p_add failed, udlpim major %d, minor %d,"
 			" won't work\n", udlpim_major, udlpim_info->minor);
 
 	list_add(&udlpim_info->list, &udlpim_info_list);
@@ -223,7 +224,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 
 error:
 	if (udlpim_info) {
-		PR_ERR("Got to error in probe");
+		VCRTCM_ERROR("Got to error in probe");
 		/* Ref for framebuffer */
 		kref_put(&udlpim_info->kref, udlpim_free);
 		/* vcrtcm reference */
@@ -241,7 +242,7 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 
 	udlpim_info = usb_get_intfdata(interface);
 
-	PR_DEBUG("USB disconnect starting\n");
+	UDLPIM_DEBUG("USB disconnect starting\n");
 
 	/* TODO: Do we need this? Maybe we can just detach and be done */
 	/* we virtualize until everyone is done with it, then we free */
@@ -253,7 +254,7 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	/* unregister with VCRTCM */
-	PR_DEBUG("Calling vcrtcm_p_del for "
+	UDLPIM_DEBUG("Calling vcrtcm_p_del for "
 		"udlpim %p, major %d, minor %d\n",
 		udlpim_info, udlpim_major, udlpim_info->minor);
 
@@ -280,20 +281,24 @@ void udlpim_free(struct kref *kref)
 	if (udlpim_info->urbs.count > 0)
 		udlpim_free_urb_list(udlpim_info);
 
-	PR_DEBUG("freeing edid: %p\n", udlpim_info->edid);
+	UDLPIM_DEBUG("freeing edid: %p\n", udlpim_info->edid);
 	if (udlpim_info->edid)
-		udlpim_kfree(udlpim_info, udlpim_info->edid);
+		vcrtcm_kfree(udlpim_info->edid, &udlpim_info->kmalloc_track);
 
 	if (udlpim_info->last_vcrtcm_mode_list)
-		udlpim_kfree(udlpim_info, udlpim_info->last_vcrtcm_mode_list);
+		vcrtcm_kfree(udlpim_info->last_vcrtcm_mode_list,
+			&udlpim_info->kmalloc_track);
 
 	udlpim_unmap_scratch_memory(udlpim_info);
 	udlpim_free_scratch_memory(udlpim_info);
 
-	PR_WARN("freeing udlpim_info data %p\n", udlpim_info);
-	PR_DEBUG("page_track : %d\n", udlpim_info->page_track);
-	PR_DEBUG("kmalloc_track: %d\n", udlpim_info->kmalloc_track);
-	PR_DEBUG("vmalloc_track: %d\n", udlpim_info->vmalloc_track);
+	VCRTCM_WARNING("freeing udlpim_info data %p\n", udlpim_info);
+	UDLPIM_DEBUG("page_track : %d\n",
+		atomic_read(&udlpim_info->page_track));
+	UDLPIM_DEBUG("kmalloc_track: %d\n",
+		atomic_read(&udlpim_info->kmalloc_track));
+	UDLPIM_DEBUG("vmalloc_track: %d\n",
+		atomic_read(&udlpim_info->vmalloc_track));
 
 	list_del(&udlpim_info->list);
 
@@ -323,32 +328,32 @@ int udlpim_setup_screen(struct udlpim_info *udlpim_info,
 			vcrtcm_fb->pitch, vcrtcm_fb->vdisplay);
 
 	if (result) {
-		PR_ERR("Could not alloc scratch memory.\n");
+		VCRTCM_ERROR("Could not alloc scratch memory.\n");
 		return 1;
 	}
 
 	result = udlpim_map_scratch_memory(udlpim_info);
 
 	if (result) {
-		PR_ERR("Could not map scratch memory.\n");
+		VCRTCM_ERROR("Could not map scratch memory.\n");
 		return 1;
 	}
 
 	result = udlpim_set_video_mode(udlpim_info, mode);
 
 	if (result) {
-		PR_ERR("Could not set screen mode\n");
+		VCRTCM_ERROR("Could not set screen mode\n");
 		return 1;
 	}
 
 	result = udlpim_blank_hw_fb(udlpim_info, UDLPIM_BLANK_COLOR);
 
 	if (result) {
-		PR_ERR("Could not blank HW framebuffer\n");
+		VCRTCM_ERROR("Could not blank HW framebuffer\n");
 		return 1;
 	}
 
-	PR_DEBUG("Done with setup_screen\n");
+	UDLPIM_DEBUG("Done with setup_screen\n");
 	return 0;
 }
 
@@ -447,10 +452,11 @@ int udlpim_build_modelist(struct udlpim_info *udlpim_info,
 	INIT_LIST_HEAD(&modelist);
 	memset(&monspecs, 0, sizeof(monspecs));
 
-	PR_DEBUG("In build_modelist\n");
+	UDLPIM_DEBUG("In build_modelist\n");
 
 	/* Allocate a buffer for a local copy of the EDID */
-	edid_copy = udlpim_kmalloc(udlpim_info, EDID_LENGTH, GFP_KERNEL);
+	edid_copy = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL,
+		&udlpim_info->kmalloc_track);
 	if (!edid_copy)
 		goto error;
 
@@ -504,13 +510,13 @@ int udlpim_build_modelist(struct udlpim_info *udlpim_info,
 	if (monspecs.modedb)
 		fb_destroy_modedb(monspecs.modedb);
 
-	udlpim_video_modes = udlpim_kmalloc(udlpim_info,
-			sizeof(struct udlpim_video_mode) * num_modes,
-			GFP_KERNEL);
-	PR_DEBUG("Size of modelist %d\n", num_modes);
+	udlpim_video_modes =
+		vcrtcm_kmalloc(sizeof(struct udlpim_video_mode) * num_modes,
+			GFP_KERNEL, &udlpim_info->kmalloc_track);
+	UDLPIM_DEBUG("Size of modelist %d\n", num_modes);
 
 	if (!udlpim_video_modes) {
-		PR_ERR("Could not allocate memory for modelist\n");
+		VCRTCM_ERROR("Could not allocate memory for modelist\n");
 		goto error;
 	}
 
@@ -542,7 +548,7 @@ int udlpim_build_modelist(struct udlpim_info *udlpim_info,
 	fb_destroy_modelist(&modelist);
 
 	/* Free the local EDID buffer */
-	udlpim_kfree(udlpim_info, edid_copy);
+	vcrtcm_kfree(edid_copy, &udlpim_info->kmalloc_track);
 
 	*modes = udlpim_video_modes;
 	*mode_count = i;
@@ -551,7 +557,7 @@ int udlpim_build_modelist(struct udlpim_info *udlpim_info,
 error:
 	fb_destroy_modelist(&modelist);
 	if (edid_copy)
-		udlpim_kfree(udlpim_info, edid_copy);
+		vcrtcm_kfree(edid_copy, &udlpim_info->kmalloc_track);
 	*modes = NULL;
 	*mode_count = 0;
 	return -ENOMEM;
@@ -561,7 +567,7 @@ int udlpim_free_modelist(struct udlpim_info *udlpim_info,
 		struct udlpim_video_mode *modes)
 {
 	if (modes)
-		udlpim_kfree(udlpim_info, modes);
+		vcrtcm_kfree(modes, &udlpim_info->kmalloc_track);
 
 	return 0;
 }
@@ -578,14 +584,15 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 	int i;
 	unsigned long flags;
 
-	PR_DEBUG("In udlpim_query_edid\n");
+	UDLPIM_DEBUG("In udlpim_query_edid\n");
 
 	flow_info = udlpim_info->flow_info;
 
-	new_edid = udlpim_kmalloc(udlpim_info, EDID_LENGTH, GFP_KERNEL);
+	new_edid = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL,
+		&udlpim_info->kmalloc_track);
 
 	if (!new_edid) {
-		PR_ERR("Could not allocate memory for EDID query.\n");
+		VCRTCM_ERROR("Could not allocate memory for EDID query.\n");
 		return;
 	}
 
@@ -618,7 +625,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 	}
 
 	if (!new_edid_valid) {
-		udlpim_kfree(udlpim_info, new_edid);
+		vcrtcm_kfree(new_edid, &udlpim_info->kmalloc_track);
 		new_edid = NULL;
 	}
 
@@ -631,12 +638,12 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 	if (flow_info && ((!old_edid && new_edid) ||
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
-		PR_DEBUG("Calling hotplug.\n");
+		UDLPIM_DEBUG("Calling hotplug.\n");
 		vcrtcm_p_hotplug(flow_info->vcrtcm_pcon_info);
 	}
 
 	if (old_edid)
-		udlpim_kfree(udlpim_info, old_edid);
+		vcrtcm_kfree(old_edid, &udlpim_info->kmalloc_track);
 }
 
 /******************************************************************************
@@ -728,9 +735,9 @@ static void udlpim_compress_hline_16(
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
 
-			/* PR_DEBUG("pixel16: %x\n", *pixel); */
+			/* UDLPIM_DEBUG("pixel16: %x\n", *pixel); */
 			*(uint16_t *)cmd = cpu_to_be16p(pixel);
-			/* PR_DEBUG("cmd16: %x\n", *cmd); */
+			/* UDLPIM_DEBUG("cmd16: %x\n", *cmd); */
 			cmd += 2;
 			pixel++;
 
@@ -764,7 +771,7 @@ static void udlpim_compress_hline_16(
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
-		PR_DEBUG("16 padded with %d\n", cmd_buffer_end-cmd);
+		UDLPIM_DEBUG("16 padded with %d\n", cmd_buffer_end-cmd);
 		/* Fill leftover bytes with no-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
@@ -855,7 +862,7 @@ static void udlpim_compress_hline_8(
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
-		PR_DEBUG("8 padded with %d\n", cmd_buffer_end-cmd);
+		UDLPIM_DEBUG("8 padded with %d\n", cmd_buffer_end-cmd);
 		/* Fill leftover bytes with no-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
@@ -1075,10 +1082,10 @@ static int udlpim_blank_hw_fb(struct udlpim_info *udlpim_info, unsigned color)
 	cmd = (u8 *) urb->transfer_buffer;
 	cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
 
-	hline_16 = udlpim_kmalloc(udlpim_info,
-				sizeof(uint16_t) * xres, GFP_KERNEL);
-	hline_8 = udlpim_kmalloc(udlpim_info,
-				sizeof(uint8_t) * xres, GFP_KERNEL);
+	hline_16 = vcrtcm_kmalloc(sizeof(uint16_t) * xres, GFP_KERNEL,
+			&udlpim_info->kmalloc_track);
+	hline_8 = vcrtcm_kmalloc(sizeof(uint8_t) * xres, GFP_KERNEL,
+			&udlpim_info->kmalloc_track);
 
 	split_pixel_argb32(&blank_color32, &blank_color16, &blank_color8);
 
@@ -1133,8 +1140,8 @@ static int udlpim_blank_hw_fb(struct udlpim_info *udlpim_info, unsigned color)
 		udlpim_urb_completion(urb);
 	}
 
-	udlpim_kfree(udlpim_info, hline_16);
-	udlpim_kfree(udlpim_info, hline_8);
+	vcrtcm_kfree(hline_16, &udlpim_info->kmalloc_track);
+	vcrtcm_kfree(hline_8, &udlpim_info->kmalloc_track);
 
 	return 0;
 }
@@ -1168,7 +1175,8 @@ static int udlpim_parse_vendor_descriptor(struct udlpim_info *udlpim_info,
 
 	u8 total_len = 0;
 
-	buf = udlpim_kzalloc(udlpim_info, MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
+	buf = vcrtcm_kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL,
+			&udlpim_info->kmalloc_track);
 	if (!buf)
 		return false;
 	desc = buf;
@@ -1176,7 +1184,7 @@ static int udlpim_parse_vendor_descriptor(struct udlpim_info *udlpim_info,
 	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
-		PR_INFO("vendor descriptor length:%x data:%02x %02x %02x %02x" \
+		VCRTCM_INFO("vendor descriptor length:%x data:%02x %02x %02x %02x" \
 			"%02x %02x %02x %02x %02x %02x %02x\n",
 			total_len, desc[0],
 			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
@@ -1205,7 +1213,7 @@ static int udlpim_parse_vendor_descriptor(struct udlpim_info *udlpim_info,
 			case 0x0200: { /* max_area */
 				u32 max_area;
 				max_area = le32_to_cpu(*((u32 *)desc));
-				PR_WARN("DL chip limited to %d pixel modes\n",
+				VCRTCM_WARNING("DL chip limited to %d pixel modes\n",
 					max_area);
 				udlpim_info->sku_pixel_limit = max_area;
 				break;
@@ -1221,10 +1229,10 @@ static int udlpim_parse_vendor_descriptor(struct udlpim_info *udlpim_info,
 
 unrecognized:
 	/* allow driver to load for now even if firmware unrecognized */
-	PR_ERR("Unrecognized vendor firmware descriptor\n");
+	VCRTCM_ERROR("Unrecognized vendor firmware descriptor\n");
 
 success:
-	udlpim_kfree(udlpim_info, buf);
+	vcrtcm_kfree(buf, &udlpim_info->kmalloc_track);
 	return true;
 }
 
@@ -1237,7 +1245,7 @@ static int udlpim_get_edid(struct udlpim_info *udlpim_info,
 	int ret;
 	char *rbuf;
 
-	rbuf = udlpim_kmalloc(udlpim_info, 2, GFP_KERNEL);
+	rbuf = vcrtcm_kmalloc(2, GFP_KERNEL, &udlpim_info->kmalloc_track);
 	if (!rbuf)
 		return 0;
 
@@ -1247,14 +1255,14 @@ static int udlpim_get_edid(struct udlpim_info *udlpim_info,
 				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
 				    HZ);
 		if (ret < 1) {
-			PR_ERR("Read EDID byte %d failed err %x\n", i, ret);
+			VCRTCM_ERROR("Read EDID byte %d failed err %x\n", i, ret);
 			i--;
 			break;
 		}
 		edid[i] = rbuf[1];
 	}
 
-	udlpim_kfree(udlpim_info, rbuf);
+	vcrtcm_kfree(rbuf, &udlpim_info->kmalloc_track);
 
 	return i;
 }
@@ -1267,12 +1275,12 @@ static int udlpim_is_valid_mode(struct udlpim_info *udlpim_info,
 				int xres, int yres)
 {
 	if (xres * yres > udlpim_info->sku_pixel_limit) {
-		PR_WARN("%dx%d beyond chip capabilities\n",
+		VCRTCM_WARNING("%dx%d beyond chip capabilities\n",
 		       xres, yres);
 		return 0;
 	}
 
-	PR_DEBUG("%dx%d valid mode\n", xres, yres);
+	UDLPIM_DEBUG("%dx%d valid mode\n", xres, yres);
 
 	return 1;
 }
@@ -1298,16 +1306,14 @@ static int udlpim_alloc_scratch_memory(struct udlpim_info *udlpim_info,
 	if (line_bytes * num_lines % PAGE_SIZE > 0)
 		bb_num_pages++;
 
-	bb_pages = udlpim_kmalloc(udlpim_info,
-				sizeof(struct page *) * bb_num_pages,
-				GFP_KERNEL);
+	bb_pages = vcrtcm_kmalloc(sizeof(struct page *) * bb_num_pages,
+				GFP_KERNEL, &udlpim_info->kmalloc_track);
 
 	if (!bb_pages)
 		goto bb_err;
 
-	result = udlpim_alloc_multiple_pages(udlpim_info,
-						GFP_KERNEL,
-						bb_pages, bb_num_pages);
+	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, bb_pages,
+			bb_num_pages, &udlpim_info->page_track);
 
 	if (result > 0)
 		goto bb_err;
@@ -1319,17 +1325,15 @@ static int udlpim_alloc_scratch_memory(struct udlpim_info *udlpim_info,
 	if ((line_bytes / 2) % PAGE_SIZE > 0)
 		hline_16_num_pages++;
 
-	hline_16_pages = udlpim_kmalloc(udlpim_info,
-				sizeof(struct page *) * hline_16_num_pages,
-				GFP_KERNEL);
+	hline_16_pages =
+		vcrtcm_kmalloc(sizeof(struct page *) * hline_16_num_pages,
+			GFP_KERNEL, &udlpim_info->kmalloc_track);
 
 	if (!hline_16_pages)
 		goto hline_16_err;
 
-	result = udlpim_alloc_multiple_pages(udlpim_info,
-						GFP_KERNEL,
-						hline_16_pages,
-						hline_16_num_pages);
+	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, hline_16_pages,
+			hline_16_num_pages, &udlpim_info->page_track);
 
 	if (result > 0)
 		goto hline_16_err;
@@ -1340,17 +1344,15 @@ static int udlpim_alloc_scratch_memory(struct udlpim_info *udlpim_info,
 	if ((line_bytes / 4) % PAGE_SIZE > 0)
 		hline_8_num_pages++;
 
-	hline_8_pages = udlpim_kmalloc(udlpim_info,
-				sizeof(struct page *) * hline_8_num_pages,
-				GFP_KERNEL);
+	hline_8_pages =
+		vcrtcm_kmalloc(sizeof(struct page *) * hline_8_num_pages,
+				GFP_KERNEL, &udlpim_info->kmalloc_track);
 
 	if (!hline_8_pages)
 		goto hline_8_err;
 
-	result = udlpim_alloc_multiple_pages(udlpim_info,
-						GFP_KERNEL,
-						hline_8_pages,
-						hline_8_num_pages);
+	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, hline_8_pages,
+			hline_8_num_pages, &udlpim_info->page_track);
 
 	if (result > 0)
 		goto hline_8_err;
@@ -1366,32 +1368,32 @@ static int udlpim_alloc_scratch_memory(struct udlpim_info *udlpim_info,
 
 hline_8_err:
 	if (hline_8_pages)
-		udlpim_kfree(udlpim_info, hline_8_pages);
+		vcrtcm_kfree(hline_8_pages, &udlpim_info->kmalloc_track);
 
-	udlpim_free_multiple_pages(udlpim_info,
-					hline_16_pages,
-					hline_16_num_pages);
-	PR_ERR("Error during hline_8 scratch memory allocation\n");
+	vcrtcm_free_multiple_pages(hline_16_pages, hline_16_num_pages,
+				&udlpim_info->page_track);
+	VCRTCM_ERROR("Error during hline_8 scratch memory allocation\n");
 hline_16_err:
 	if (hline_16_pages)
-		udlpim_kfree(udlpim_info, hline_16_pages);
+		vcrtcm_kfree(hline_16_pages, &udlpim_info->kmalloc_track);
 
-	udlpim_free_multiple_pages(udlpim_info, bb_pages, bb_num_pages);
+	vcrtcm_free_multiple_pages(bb_pages, bb_num_pages,
+				&udlpim_info->page_track);
 
-	PR_ERR("Error during hline_16 scratch memory allocation\n");
+	VCRTCM_ERROR("Error during hline_16 scratch memory allocation\n");
 
 bb_err:
 	if (bb_pages)
-		udlpim_kfree(udlpim_info, bb_pages);
+		vcrtcm_kfree(bb_pages, &udlpim_info->kmalloc_track);
 
-	PR_ERR("Error during backing buffer scratch memory allocation\n");
+	VCRTCM_ERROR("Error during backing buffer scratch memory allocation\n");
 	return -ENOMEM;
 
 success:
 
-	scratch_memory = udlpim_kzalloc(udlpim_info,
-			sizeof(struct udlpim_scratch_memory_descriptor),
-			GFP_KERNEL);
+	scratch_memory =
+		vcrtcm_kzalloc(sizeof(struct udlpim_scratch_memory_descriptor),
+			GFP_KERNEL, &udlpim_info->kmalloc_track);
 
 	scratch_memory->backing_buffer_pages = bb_pages;
 	scratch_memory->backing_buffer_num_pages = bb_num_pages;
@@ -1402,9 +1404,9 @@ success:
 
 	udlpim_info->scratch_memory = scratch_memory;
 
-	PR_DEBUG("Allocated backing buffer: %u pages\n", bb_num_pages);
-	PR_DEBUG("Allocated hline_16 buffer: %u pages\n", hline_16_num_pages);
-	PR_DEBUG("Allocated hline_8 buffer: %u pages\n", hline_8_num_pages);
+	UDLPIM_DEBUG("Allocated backing buffer: %u pages\n", bb_num_pages);
+	UDLPIM_DEBUG("Allocated hline_16 buffer: %u pages\n", hline_16_num_pages);
+	UDLPIM_DEBUG("Allocated hline_8 buffer: %u pages\n", hline_8_num_pages);
 
 	return 0;
 }
@@ -1418,29 +1420,29 @@ static void udlpim_free_scratch_memory(struct udlpim_info *udlpim_info)
 		return;
 
 	if (scratch_memory->backing_buffer_pages) {
-		udlpim_free_multiple_pages(udlpim_info,
-				scratch_memory->backing_buffer_pages,
-				scratch_memory->backing_buffer_num_pages);
-		udlpim_kfree(udlpim_info,
-				scratch_memory->backing_buffer_pages);
+		vcrtcm_free_multiple_pages(scratch_memory->backing_buffer_pages,
+				scratch_memory->backing_buffer_num_pages,
+				&udlpim_info->page_track);
+		vcrtcm_kfree(scratch_memory->backing_buffer_pages,
+				&udlpim_info->kmalloc_track);
 	}
 
 	if (scratch_memory->hline_16_pages) {
-		udlpim_free_multiple_pages(udlpim_info,
-				scratch_memory->hline_16_pages,
-				scratch_memory->hline_16_num_pages);
-		udlpim_kfree(udlpim_info,
-				scratch_memory->hline_16_pages);
+		vcrtcm_free_multiple_pages(scratch_memory->hline_16_pages,
+				scratch_memory->hline_16_num_pages,
+				&udlpim_info->page_track);
+		vcrtcm_kfree(scratch_memory->hline_16_pages,
+				&udlpim_info->kmalloc_track);
 	}
 	if (scratch_memory->hline_8_pages) {
-		udlpim_free_multiple_pages(udlpim_info,
-				scratch_memory->hline_8_pages,
-				scratch_memory->hline_8_num_pages);
-		udlpim_kfree(udlpim_info,
-				scratch_memory->hline_8_pages);
+		vcrtcm_free_multiple_pages(scratch_memory->hline_8_pages,
+				scratch_memory->hline_8_num_pages,
+				&udlpim_info->page_track);
+		vcrtcm_kfree(scratch_memory->hline_8_pages,
+				&udlpim_info->kmalloc_track);
 	}
 
-	udlpim_kfree(udlpim_info, scratch_memory);
+	vcrtcm_kfree(scratch_memory, &udlpim_info->kmalloc_track);
 
 	return;
 }
@@ -1467,7 +1469,7 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 
 	memset(udlpim_info->backing_buffer, blank_pixel_32,
 			scratch_memory->backing_buffer_num_pages * PAGE_SIZE);
-	PR_DEBUG("Mapped backing buffer pages, starting at: %p\n",
+	UDLPIM_DEBUG("Mapped backing buffer pages, starting at: %p\n",
 				udlpim_info->backing_buffer);
 
 	if (!udlpim_info->backing_buffer)
@@ -1480,7 +1482,7 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 
 	memset(udlpim_info->hline_16, blank_pixel_16,
 			scratch_memory->hline_16_num_pages * PAGE_SIZE);
-	PR_DEBUG("Mapped hline_16 pages, starting at: %p\n",
+	UDLPIM_DEBUG("Mapped hline_16 pages, starting at: %p\n",
 				udlpim_info->hline_16);
 
 	if (!udlpim_info->hline_16)
@@ -1494,7 +1496,7 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 
 	memset(udlpim_info->hline_8, blank_pixel_8,
 			scratch_memory->hline_8_num_pages * PAGE_SIZE);
-	PR_DEBUG("Mapped hline_8 pages, starting at: %p\n",
+	UDLPIM_DEBUG("Mapped hline_8 pages, starting at: %p\n",
 				udlpim_info->hline_8);
 
 	if (!udlpim_info->hline_8)
@@ -1560,7 +1562,7 @@ static int udlpim_set_video_mode(struct udlpim_info *udlpim_info,
 	if (!urb)
 		return -ENOMEM;
 
-	PR_INFO("Setting video mode to %dx%d.\n", mode->xres, mode->yres);
+	VCRTCM_INFO("Setting video mode to %dx%d.\n", mode->xres, mode->yres);
 
 	buf = (char *) urb->transfer_buffer;
 
@@ -1592,7 +1594,7 @@ static int udlpim_set_video_mode(struct udlpim_info *udlpim_info,
 	retval = udlpim_submit_urb(udlpim_info, urb, writesize);
 
 	if (retval) {
-		PR_ERR("Error setting hardware mode.\n");
+		VCRTCM_ERROR("Error setting hardware mode.\n");
 		return 1;
 	}
 
@@ -1797,7 +1799,7 @@ static void udlpim_urb_completion(struct urb *urb)
 		if (!(urb->status == -ENOENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN)) {
-			PR_ERR("%s - nonzero write bulk status received: %d\n",
+			VCRTCM_ERROR("%s - nonzero write bulk status received: %d\n",
 				__func__, urb->status);
 			atomic_set(&udlpim_info->lost_pixels, 1);
 		}
@@ -1853,7 +1855,7 @@ static void udlpim_free_urb_list(struct udlpim_info *udlpim_info)
 		usb_free_coherent(urb->dev, udlpim_info->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		udlpim_kfree(udlpim_info, node);
+		vcrtcm_kfree(node, &udlpim_info->kmalloc_track);
 	}
 
 }
@@ -1871,7 +1873,8 @@ static int udlpim_alloc_urb_list(struct udlpim_info *udlpim_info, int count, siz
 	INIT_LIST_HEAD(&udlpim_info->urbs.list);
 
 	while (i < count) {
-		unode = udlpim_kzalloc(udlpim_info, sizeof(struct urb_node), GFP_KERNEL);
+		unode = vcrtcm_kzalloc(sizeof(struct urb_node), GFP_KERNEL,
+				&udlpim_info->kmalloc_track);
 		if (!unode)
 			break;
 		unode->dev = udlpim_info;
@@ -1881,7 +1884,7 @@ static int udlpim_alloc_urb_list(struct udlpim_info *udlpim_info, int count, siz
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			udlpim_kfree(udlpim_info, unode);
+			vcrtcm_kfree(unode, &udlpim_info->kmalloc_track);
 			break;
 		}
 		unode->urb = urb;
@@ -1889,7 +1892,7 @@ static int udlpim_alloc_urb_list(struct udlpim_info *udlpim_info, int count, siz
 		buf = usb_alloc_coherent(udlpim_info->udev, MAX_TRANSFER, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			udlpim_kfree(udlpim_info, unode);
+			vcrtcm_kfree(unode, &udlpim_info->kmalloc_track);
 			usb_free_urb(urb);
 			break;
 		}
@@ -1925,7 +1928,7 @@ static struct urb *udlpim_get_urb(struct udlpim_info *udlpim_info)
 	ret = down_timeout(&udlpim_info->urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
 		atomic_set(&udlpim_info->lost_pixels, 1);
-		PR_WARN("wait for urb interrupted: %x available: %d\n",
+		VCRTCM_WARNING("wait for urb interrupted: %x available: %d\n",
 		       ret, udlpim_info->urbs.available);
 		goto error;
 	}
@@ -1957,7 +1960,7 @@ static int udlpim_submit_urb(struct udlpim_info *udlpim_info, struct urb *urb, s
 	if (ret) {
 		udlpim_urb_completion(urb); /* because no one else will */
 		atomic_set(&udlpim_info->lost_pixels, 1);
-		PR_ERR("usb_submit_urb error %x\n", ret);
+		VCRTCM_ERROR("usb_submit_urb error %x\n", ret);
 	}
 	return ret;
 }

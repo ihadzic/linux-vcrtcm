@@ -33,8 +33,6 @@
 
 #include "udlpim.h"
 #include "udlpim_vcrtcm.h"
-#include "udlpim_utils.h"
-
 
 /* Module option(s) */
 int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
@@ -77,29 +75,29 @@ static int __init udlpim_init(void)
 	int ret;
 	dev_t dev;
 
-	PR_INFO("DisplayLink USB PCON, "
+	VCRTCM_INFO("DisplayLink USB PCON, "
 	"(C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	PR_INFO("Push mode enabled");
+	VCRTCM_INFO("Push mode enabled");
 
 	INIT_LIST_HEAD(&udlpim_info_list);
 
-	PR_INFO("Allocating/registering dynamic major number");
+	VCRTCM_INFO("Allocating/registering dynamic major number");
 	ret = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_DEVICES, "udlpim");
 	udlpim_major = MAJOR(dev);
 
 	if (ret) {
-		PR_WARN("Can't get major device number, driver unusable\n");
+		VCRTCM_WARNING("Can't get major device number, driver unusable\n");
 		udlpim_major = -1;
 		udlpim_num_minors = 0;
 	} else {
-		PR_INFO("Using major device number %d\n", udlpim_major);
+		VCRTCM_INFO("Using major device number %d\n", udlpim_major);
 	}
 
 	udlpim_num_minors = 0;
 	ret = usb_register(&udlpim_driver);
 
 	if (ret) {
-		PR_ERR("usb_register failed. Error number %d", ret);
+		VCRTCM_ERROR("usb_register failed. Error number %d", ret);
 		return ret;
 	}
 
@@ -108,11 +106,11 @@ static int __init udlpim_init(void)
 
 static void __exit udlpim_exit(void)
 {
-	PR_INFO("Cleaning up udlpim\n");
+	VCRTCM_INFO("Cleaning up udlpim\n");
 	usb_deregister(&udlpim_driver);
 
 	if (udlpim_major >= -1) {
-		PR_INFO
+		VCRTCM_INFO
 		("Deallocating major device number %d, count %d\n",
 			udlpim_major, UDLPIM_MAX_DEVICES);
 		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
