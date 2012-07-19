@@ -137,9 +137,16 @@ static int udlpim_instantiate(struct pcon_instance_info *instance_info,
 				void *data, uint32_t hints)
 {
 	struct udlpim_info *info;
+	struct usb_device *usbdev;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
 		if (!info->used) {
+			usbdev = info->udev;
+			scnprintf(instance_info->description, PCON_DESC_LEN,
+					"%s %s - Serial #%s",
+					usbdev->manufacturer,
+					usbdev->product,
+					usbdev->serial);
 			instance_info->funcs = &udlpim_vcrtcm_pcon_funcs;
 			instance_info->props = &udlpim_vcrtcm_pcon_props;
 			instance_info->cookie = info;
