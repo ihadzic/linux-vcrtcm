@@ -292,7 +292,6 @@ void udlpim_free(struct kref *kref)
 	udlpim_unmap_scratch_memory(udlpim_info);
 	udlpim_free_scratch_memory(udlpim_info);
 
-	VCRTCM_WARNING("freeing udlpim_info data %p\n", udlpim_info);
 	UDLPIM_DEBUG("page_track : %d\n",
 		atomic_read(&udlpim_info->page_track));
 	UDLPIM_DEBUG("kmalloc_track: %d\n",
