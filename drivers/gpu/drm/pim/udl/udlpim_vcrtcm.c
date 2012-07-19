@@ -42,102 +42,109 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 		if (pbd->num_pages) {
 			BUG_ON(!pbd->gpu_private);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
+			vcrtcm_p_unregister_prime(flow_info->vcrtcm_pcon_info,
+						pbd);
+			vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
+						&udlpim_info->page_track);
+			vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
+			memset(pbd, 0,
+				sizeof(struct vcrtcm_push_buffer_descriptor));
+			pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
 		}
 	}
 }
 
 static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 		struct udlpim_flow_info *flow_info,
-		int requested_num_pages, int flag)
+		int num_pages, int flag)
 {
 	int i;
 	int r = 0;
-	struct vcrtcm_push_buffer_descriptor *pbd = NULL;
+	struct vcrtcm_push_buffer_descriptor *pbd, *old_pbd = NULL;
+	void *pb, *old_pb = NULL;
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
 			pbd = &flow_info->pbd_fb[i];
 		else
 			pbd = &flow_info->pbd_cursor[i];
-
-		pbd->num_pages = requested_num_pages;
-		r = vcrtcm_p_push_buffer_alloc(flow_info->vcrtcm_pcon_info, pbd);
+		pbd->pages = vcrtcm_kzalloc(num_pages * sizeof(struct page *),
+				GFP_KERNEL, &udlpim_info->kmalloc_track);
+		if (!pbd->pages) {
+			VCRTCM_ERROR("%s[%d]: pages pointer alloc failed\n",
+					UDLPIM_ALLOC_PB_STRING(flag), i);
+			r = -ENOMEM;
+			goto out_err0;
+		}
+		r = vcrtcm_alloc_multiple_pages(GFP_KERNEL | __GFP_HIGHMEM,
+						pbd->pages, num_pages,
+						&udlpim_info->page_track);
 		if (r) {
 			VCRTCM_ERROR("%s[%d]: push buffer alloc_failed\n",
 					UDLPIM_ALLOC_PB_STRING(flag), i);
-			memset(pbd, 0,
-				sizeof(struct vcrtcm_push_buffer_descriptor));
-			break;
+			goto out_err1;
 		}
-
-		if (pbd->num_pages != requested_num_pages) {
-			VCRTCM_ERROR("%s[%d]: incorrect size allocated\n",
-					UDLPIM_ALLOC_PB_STRING(flag), i);
-			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info, pbd);
-			/* incorrect size in most cases means too few pages */
-			/* so it makes sense to return ENOMEM here */
+		UDLPIM_DEBUG("%s[%d]: allocated %d pages\n",
+			UDLPIM_ALLOC_PB_STRING(flag), i, num_pages);
+		pbd->num_pages = num_pages;
+		pb = vm_map_ram(pbd->pages, num_pages, 0, PAGE_KERNEL);
+		if (pb == NULL) {
+			VCRTCM_ERROR("%s[%d]: vm_map_ram failed\n",
+				UDLPIM_ALLOC_PB_STRING(flag), i);
 			r = -ENOMEM;
-			break;
+			goto out_err2;
 		}
-
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
+			flow_info->pb_fb[i] = pb;
+		else
+			flow_info->pb_cursor[i] = pb;
+		/* register_prime will finish up the construction of pbd */
+		r = vcrtcm_p_register_prime(flow_info->vcrtcm_pcon_info, pbd);
+		if (r) {
+			VCRTCM_ERROR("%s[%d]: export to VCRTCM failed\n",
+				UDLPIM_ALLOC_PB_STRING(flag), i);
+				goto out_err3;
+		}
 		flow_info->pb_needs_xmit[i] = 0;
-		UDLPIM_DEBUG("%s[%d]: allocated %lu pages\n",
-				UDLPIM_ALLOC_PB_STRING(flag),
-				i, pbd->num_pages);
-
-		/* we have the buffer, now we need to map it */
-		/* (and that can fail too) */
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
-			flow_info->pb_fb[i] =
-				vm_map_ram(flow_info->pbd_fb[i].pages,
-					flow_info->pbd_fb[i].num_pages,
-					0, PAGE_KERNEL);
-
-			if (flow_info->pb_fb[i] == NULL) {
-				/* If we couldn't map it, we need to */
-				/* free the buffer */
-				vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
-							&flow_info->pbd_fb[i]);
-				/* TODO: Is this right to return ENOMEM? */
-				r = -ENOMEM;
-				break;
-			}
-		} else {
-			flow_info->pb_cursor[i] =
-				vm_map_ram(flow_info->pbd_cursor[i].pages,
-					flow_info->pbd_cursor[i].num_pages,
-					0, PAGE_KERNEL);
-
-			if (flow_info->pb_cursor[i] == NULL) {
-				/* If we couldn't map it, we need to */
-				/* free the buffer */
-				vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
-							&flow_info->pbd_cursor[i]);
-				/* TODO: Is this right to return ENOMEM? */
-				r = -ENOMEM;
-				break;
-			}
-		}
+		old_pbd = pbd;
+		old_pb = pb;
 	}
+	if (!r)
+		return r;
 
-	if (r && (i == 1)) {
-		/* allocation failed in the second iteration */
-		/* of the loop, we must release the buffer */
-		/* allocated in the first one before returning*/
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
-			vm_unmap_ram(flow_info->pbd_fb[0].pages,
-				flow_info->pbd_fb[0].num_pages);
-			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
-						&flow_info->pbd_fb[0]);
-		} else {
-			vm_unmap_ram(flow_info->pbd_cursor[0].pages,
-					flow_info->pbd_cursor[0].num_pages);
-			vcrtcm_p_push_buffer_free(flow_info->vcrtcm_pcon_info,
-						&flow_info->pbd_cursor[0]);
-		}
+out_err3:
+	vm_unmap_ram(pbd->pages, num_pages);
+	if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
+		flow_info->pb_fb[i] = NULL;
+	else
+		flow_info->pb_cursor[i] = NULL;
+out_err2:
+	vcrtcm_free_multiple_pages(pbd->pages, num_pages,
+				&udlpim_info->page_track);
+out_err1:
+	vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
+	memset(pbd, 0, sizeof(struct vcrtcm_push_buffer_descriptor));
+	pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
+out_err0:
+	if (i == 1) {
+		/*
+		 * allocation failed in the second iteration
+		 * of the loop, we must release the buffer
+		 * allocated in the first one before returning
+		 */
+		BUG_ON(!old_pbd || !old_pb);
+		vm_unmap_ram(old_pbd->pages, num_pages);
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
+			flow_info->pb_fb[0] = NULL;
+		else
+			flow_info->pb_cursor[0] = NULL;
+		vcrtcm_free_multiple_pages(old_pbd->pages, num_pages,
+					&udlpim_info->page_track);
+		vcrtcm_kfree(old_pbd->pages, &udlpim_info->kmalloc_track);
+		memset(old_pbd, 0,
+			sizeof(struct vcrtcm_push_buffer_descriptor));
+		old_pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
 	}
-
 	return r;
 }
 
@@ -174,6 +181,10 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
 		memset(&flow_info->pbd_cursor, 0,
 			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
+		flow_info->pbd_fb[0].owner_pcon = vcrtcm_pcon_info;
+		flow_info->pbd_fb[1].owner_pcon = vcrtcm_pcon_info;
+		flow_info->pbd_cursor[0].owner_pcon = vcrtcm_pcon_info;
+		flow_info->pbd_cursor[1].owner_pcon = vcrtcm_pcon_info;
 		flow_info->pb_fb[0] = 0;
 		flow_info->pb_fb[1] = 0;
 		flow_info->pb_cursor[0] = 0;
