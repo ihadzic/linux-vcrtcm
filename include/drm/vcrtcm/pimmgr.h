@@ -26,7 +26,7 @@
 #include <vcrtcm/vcrtcm_common.h>
 
 #define PIM_NAME_LEN 33
-#define PCON_DESC_LEN 128
+#define PCON_DESC_LEN 512
 
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 21
@@ -72,6 +72,7 @@ struct pim_info {
 };
 
 struct pcon_instance_info {
+	char description[PCON_DESC_LEN];
 	struct pim_info *pim;
 	struct vcrtcm_pcon_funcs *funcs;
 	struct vcrtcm_pcon_props *props;
@@ -111,6 +112,5 @@ struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
 							uint32_t local_id);
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
 void pimmgr_pim_unregister(char *name);
-
 
 #endif

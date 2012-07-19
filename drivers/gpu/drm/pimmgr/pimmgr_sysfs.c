@@ -52,7 +52,12 @@ struct attribute pcon_desc_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute *pcon_attributes[] = { &pcon_desc_attr };
+struct attribute pcon_localid_attr = {
+	.name = "localid",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
+struct attribute *pcon_attributes[] = { &pcon_desc_attr, &pcon_localid_attr};
 
 struct kobj_type pcon_type = {
 	.sysfs_ops = &pcon_ops,
@@ -90,17 +95,15 @@ ssize_t pcon_show(struct kobject *kobj, struct attribute *attr, char *buf)
 	if (!pcon)
 		return 0;
 
-	pim = pcon->pim;
-	if (!pim)
-		return 0;
+	if (attr == &pcon_desc_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon->description);
+	} else if (attr == &pcon_localid_attr) {
+		pim = pcon->pim;
+		if (!pim)
+			return 0;
 
-	if (pcon) {
-		return scnprintf(buf,
-				PAGE_SIZE,
-				"pconid %u, local_id %u on pim %s\n",
-				CREATE_PCONID(pim->id, pcon->local_id),
-				pcon->local_id,
-				pim->name);
+		return scnprintf(buf, PAGE_SIZE, "%s:%u\n", pim->name,
+							pcon->local_id);
 	}
 
 	return 0;
@@ -123,6 +126,7 @@ int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 
 	return ret;
 }
+
 void vcrtcm_sysfs_del_pim(struct pim_info *pim)
 {
 	kobject_del(&pim->kobj);
