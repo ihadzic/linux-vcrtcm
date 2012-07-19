@@ -192,8 +192,8 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		queue_delayed_work(udlpim_info->workqueue,
 					&udlpim_info->query_edid_work, 0);
 
-		VCRTCM_INFO("udlpim %d now serves pcon %p\n", udlpim_info->minor,
-			vcrtcm_pcon_info);
+		VCRTCM_INFO("udlpim %d now serves pcon %p\n",
+			udlpim_info->minor, vcrtcm_pcon_info);
 
 		return 0;
 	}
