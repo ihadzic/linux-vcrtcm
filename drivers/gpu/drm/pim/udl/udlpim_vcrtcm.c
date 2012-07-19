@@ -150,7 +150,8 @@ out_err0:
 
 int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 
 	VCRTCM_INFO("Attaching udlpim %d to pcon %p\n",
 		udlpim_info->minor, vcrtcm_pcon_info);
@@ -212,7 +213,8 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	VCRTCM_INFO("Detaching udlpim %d from pcon %p\n",
@@ -282,9 +284,11 @@ static int udlpim_realloc_pb(struct udlpim_info *udlpim_info,
 	return r;
 }
 
-int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)
+int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
@@ -346,9 +350,11 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	return r;
 }
 
-int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb)
+int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("minor %d.\n", udlpim_info->minor);
@@ -364,9 +370,11 @@ int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	return 0;
 }
 
-int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc)
+int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		    struct drm_crtc *drm_crtc)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
@@ -383,15 +391,18 @@ int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *
 	return 0;
 }
 
-int udlpim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc)
+int udlpim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		   struct drm_crtc *drm_crtc)
 {
 	return 0;
 }
 
-int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status)
+int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+			 struct drm_crtc *drm_crtc, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	unsigned long flags;
 
 	UDLPIM_DEBUG("\n");
@@ -409,7 +420,8 @@ int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_c
 
 int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
@@ -451,7 +463,8 @@ int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 
 int udlpim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("\n");
@@ -474,9 +487,11 @@ int udlpim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 	}
 }
 
-int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor)
+int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 	int r = 0;
 	int size;
@@ -502,9 +517,11 @@ int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 	return r;
 }
 
-int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor)
+int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
@@ -524,7 +541,8 @@ int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 
 int udlpim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("minor %d, state %d\n", udlpim_info->minor, state);
@@ -549,7 +567,8 @@ int udlpim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 
 int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
 	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
@@ -568,7 +587,8 @@ int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 
 int udlpim_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	UDLPIM_DEBUG("udlpim_info %p\n", udlpim_info);
 
 	if (udlpim_info->monitor_connected) {
@@ -581,10 +601,11 @@ int udlpim_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 	return 0;
 }
 
-int udlpim_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode **modes,
-		     int *count)
+int udlpim_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		     struct vcrtcm_mode **modes, int *count)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_video_mode *udlpim_video_modes;
 	struct vcrtcm_mode *vcrtcm_mode_list =
 			udlpim_info->last_vcrtcm_mode_list;
@@ -639,9 +660,11 @@ int udlpim_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mo
 	return 0;
 }
 
-int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode *mode, int *status)
+int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+		      struct vcrtcm_mode *mode, int *status)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
 	int retval;
@@ -680,7 +703,8 @@ int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_m
 
 void udlpim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 {
-	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
+	struct udlpim_info *udlpim_info =
+		(struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info =
 			udlpim_info->flow_info;
 
