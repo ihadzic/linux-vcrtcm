@@ -221,7 +221,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 		VCRTCM_WARNING("vcrtcm_p_add failed, udlpim major %d, minor %d,"
 			" won't work\n", udlpim_major, udlpim_info->minor);
 */
-	list_add(&udlpim_info->list, &udlpim_info_list);
+	list_add_tail(&udlpim_info->list, &udlpim_info_list);
 
 	return 0;
 
