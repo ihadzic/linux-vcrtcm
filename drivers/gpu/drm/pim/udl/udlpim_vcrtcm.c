@@ -293,7 +293,7 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	int i = 0;
 	int size;
 
-	UDLPIM_DEBUG("In udlpim_set_fb, minor %d.\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d.\n", udlpim_info->minor);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -311,7 +311,7 @@ int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 
 	/* Find a matching video mode and switch the DL device to that mode */
 	for (i = 0; i < udlpim_mode_count; i++) {
-		UDLPIM_DEBUG("set_fb checking %dx%d\n",
+		UDLPIM_DEBUG("checking %dx%d\n",
 				udlpim_video_modes[i].xres,
 				udlpim_video_modes[i].yres);
 		UDLPIM_DEBUG("against %dx%d\n",
@@ -351,7 +351,7 @@ int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *v
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("In udlpim_get_fb, minor %d.\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d.\n", udlpim_info->minor);
 	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
@@ -369,7 +369,7 @@ int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("in udlpim_dirty_fb, minor %d\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
 
 	/* just mark the "force" flag, udlpim_do_xmit_fb_pull
 	 * does the rest (when called).
@@ -394,7 +394,7 @@ int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_c
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	unsigned long flags;
 
-	UDLPIM_DEBUG("Queried for status\n");
+	UDLPIM_DEBUG("\n");
 
 	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
 	if (udlpim_info->status & UDLPIM_IN_DO_XMIT)
@@ -413,7 +413,7 @@ int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 	struct udlpim_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
-	UDLPIM_DEBUG("udlpim_set_fps, fps %d.\n", fps);
+	UDLPIM_DEBUG("fps %d.\n", fps);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -454,7 +454,7 @@ int udlpim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("udlpim_get_fps.\n");
+	UDLPIM_DEBUG("\n");
 
 	flow_info = udlpim_info->flow_info;
 
@@ -481,7 +481,7 @@ int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 	int r = 0;
 	int size;
 
-	UDLPIM_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -507,7 +507,7 @@ int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_c
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("In udlpim_set_cursor, minor %d\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -527,8 +527,7 @@ int udlpim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("in udlpim_set_dpms, minor %d, state %d\n",
-			udlpim_info->minor, state);
+	UDLPIM_DEBUG("minor %d, state %d\n", udlpim_info->minor, state);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -553,8 +552,7 @@ int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct udlpim_flow_info *flow_info;
 
-	UDLPIM_DEBUG("in udlpim_get_dpms, minor %d\n",
-			udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
 
 	flow_info = udlpim_info->flow_info;
 
@@ -571,7 +569,7 @@ int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 int udlpim_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status)
 {
 	struct udlpim_info *udlpim_info = (struct udlpim_info *) vcrtcm_pcon_info->pcon_cookie;
-	UDLPIM_DEBUG("connected: udlpim_info %p\n", udlpim_info);
+	UDLPIM_DEBUG("udlpim_info %p\n", udlpim_info);
 
 	if (udlpim_info->monitor_connected) {
 		UDLPIM_DEBUG("...connected\n");
@@ -598,7 +596,7 @@ int udlpim_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mo
 	*modes = NULL;
 	*count = 0;
 
-	UDLPIM_DEBUG("In udlpim_get_modes\n");
+	UDLPIM_DEBUG("\n");
 
 	retval = udlpim_build_modelist(udlpim_info,
 			&udlpim_video_modes, &udlpim_mode_count);
@@ -649,7 +647,7 @@ int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_m
 	int retval;
 	int i;
 
-	UDLPIM_DEBUG("In udlpim_check_mode\n");
+	UDLPIM_DEBUG("\n");
 
 	*status = VCRTCM_MODE_BAD;
 
@@ -662,7 +660,7 @@ int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_m
 	if (udlpim_mode_count == 0)
 		return 0;
 
-	UDLPIM_DEBUG("udlpim_check_mode: checking %dx%d@%d\n",
+	UDLPIM_DEBUG("checking %dx%d@%d\n",
 			mode->w, mode->h, mode->refresh);
 	for (i = 0; i < udlpim_mode_count; i++) {
 		struct udlpim_video_mode *current_mode;
@@ -706,19 +704,19 @@ void udlpim_fake_vblank(struct work_struct *work)
 	int next_vblank_delay;
 	int udlpim_fake_vblank_slack_sane = 0;
 
-	UDLPIM_DEBUG("vblank fake, minor=%d\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor=%d\n", udlpim_info->minor);
 	udlpim_fake_vblank_slack_sane =
 			(udlpim_fake_vblank_slack_sane <= 0) ? 0 : udlpim_fake_vblank_slack;
 
 	if (!udlpim_info) {
-		VCRTCM_ERROR("udlpim_fake_vblank: Cannot find udlpim_info\n");
+		VCRTCM_ERROR("Cannot find udlpim_info\n");
 		return;
 	}
 
 	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
-		VCRTCM_ERROR("udlpim_fake_vblank: Cannot find pcon descriptor\n");
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return;
 	}
 
@@ -770,7 +768,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 	int r = 0;
 	unsigned long flags;
 
-	UDLPIM_DEBUG("in udlpim_do_xmit_fb_push, minor %d\n", udlpim_info->minor);
+	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
 
 	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
 	udlpim_info->status |= UDLPIM_IN_DO_XMIT;
@@ -806,14 +804,14 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		flow_info->last_xmit_jiffies = jiffies;
 		flow_info->fb_xmit_counter++;
 
-		UDLPIM_DEBUG("udlpim_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
+		UDLPIM_DEBUG("[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
 				flow_info->vcrtcm_fb.pitch,
 				flow_info->vcrtcm_fb.width,
 				flow_info->vcrtcm_fb.height,
 				flow_info->vcrtcm_fb.bpp);
 
-		UDLPIM_DEBUG("udlpim_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
+		UDLPIM_DEBUG("[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
 				flow_info->vcrtcm_fb.viewport_x,
 				flow_info->vcrtcm_fb.viewport_y,
@@ -862,7 +860,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 
 	if (flow_info->pb_needs_xmit[push_buffer_index]) {
 		unsigned long jiffies_snapshot;
-		UDLPIM_DEBUG("udlpim_do_xmit_fb_push[%d]: initiating USB transfer\n",
+		UDLPIM_DEBUG("[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
 		udlpim_info->main_buffer = flow_info->pb_fb[push_buffer_index];
@@ -870,8 +868,8 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 
 		jiffies_snapshot = jiffies;
 		udlpim_transmit_framebuffer(udlpim_info);
-		UDLPIM_DEBUG("transmit over USB took %u ms\n", jiffies_to_msecs(jiffies - jiffies_snapshot));
-
+		UDLPIM_DEBUG("transmit over USB took %u ms\n",
+			     jiffies_to_msecs(jiffies - jiffies_snapshot));
 		flow_info->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
