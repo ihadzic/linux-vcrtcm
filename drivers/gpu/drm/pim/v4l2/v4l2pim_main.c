@@ -35,12 +35,10 @@
 #include <media/v4l2-common.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
-#include "v4l2pim_utils.h"
-#include "vcrtcm/vcrtcm_pcon.h"
-
 
 #define V4L2PIM_MAJOR_VERSION 0
 #define V4L2PIM_MINOR_VERSION 2
@@ -810,13 +808,12 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
 	if (size % PAGE_SIZE > 0)
 		num_pages++;
 
-	pages = v4l2pim_kmalloc(v4l2pim_info,
-				sizeof(struct page *) * num_pages,
-				GFP_KERNEL);
+	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages, GFP_KERNEL,
+			       &v4l2pim_info->kmalloc_track);
 	if (!pages)
 		goto sb_alloc_err;
-	result = v4l2pim_alloc_multiple_pages(v4l2pim_info, GFP_KERNEL,
-						pages, num_pages);
+	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages, num_pages,
+					&v4l2pim_info->page_track);
 	if (result != 0)
 		goto sb_alloc_mpages_err;
 	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
@@ -832,10 +829,10 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
 	return 0;
 
 sb_alloc_map_err:
-	v4l2pim_free_multiple_pages(v4l2pim_info, pages, num_pages);
+	vcrtcm_free_multiple_pages(pages, num_pages, &v4l2pim_info->page_track);
 sb_alloc_mpages_err:
 	if (pages)
-		v4l2pim_kfree(v4l2pim_info, pages);
+		vcrtcm_kfree(pages, &v4l2pim_info->kmalloc_track);
 sb_alloc_err:
 
 	return -ENOMEM;
@@ -850,10 +847,11 @@ void v4l2pim_free_shadowbuf(struct v4l2pim_info *v4l2pim_info)
 
 	vm_unmap_ram(v4l2pim_info->shadowbuf,
 			v4l2pim_info->shadowbuf_num_pages);
-	v4l2pim_free_multiple_pages(v4l2pim_info,
-					v4l2pim_info->shadowbuf_pages,
-					v4l2pim_info->shadowbuf_num_pages);
-	v4l2pim_kfree(v4l2pim_info, v4l2pim_info->shadowbuf_pages);
+	vcrtcm_free_multiple_pages(v4l2pim_info->shadowbuf_pages,
+				v4l2pim_info->shadowbuf_num_pages,
+				&v4l2pim_info->page_track);
+	vcrtcm_kfree(v4l2pim_info->shadowbuf_pages,
+			&v4l2pim_info->kmalloc_track);
 
 	v4l2pim_info->shadowbuf = NULL;
 	v4l2pim_info->shadowbufsize = 0;
@@ -946,13 +944,15 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 
 	v4l2pim_info = kzalloc(sizeof(struct v4l2pim_info), GFP_KERNEL);
 	if (!v4l2pim_info) {
-		PR_ERR("failed alloc of v4l2pim_info\n");
+		VCRTCM_ERROR("failed alloc of v4l2pim_info\n");
 		return NULL;
 	}
 
 	mutex_init(&v4l2pim_info->mlock);
 	spin_lock_init(&v4l2pim_info->slock);
-
+	atomic_set(&v4l2pim_info->kmalloc_track, 0);
+	atomic_set(&v4l2pim_info->page_track, 0);
+	atomic_set(&v4l2pim_info->vmalloc_track, 0);
 	v4l2pim_info->shadowbuf = NULL;
 	v4l2pim_info->shadowbufsize = 0;
 	mutex_init(&v4l2pim_info->sb_lock);
@@ -1023,7 +1023,7 @@ static int __init v4l2pim_init(void)
 	int minor, num_created;
 	int r;
 
-	PR_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
+	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 
 	INIT_LIST_HEAD(&v4l2pim_info_list);
 
@@ -1048,32 +1048,32 @@ static int __init v4l2pim_init(void)
 	}
 
 	v4l2pim_num_minors = num_created;
-	PR_INFO("Allocating/registering dynamic major number");
+	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, v4l2pim_num_minors, "v4l2pim");
 	v4l2pim_major = MAJOR(dev);
 	if (r) {
-		PR_ERR("Can't get major device number, driver unusable\n");
+		VCRTCM_ERROR("Can't get major device number, driver unusable\n");
 		v4l2pim_major = -1;
 		v4l2pim_num_minors = 0;
 		return 0;
 	}
-	PR_INFO("Using major device number %d\n", v4l2pim_major);
+	VCRTCM_INFO("Using major device number %d\n", v4l2pim_major);
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		PR_DEBUG("Calling vcrtcm_p_add for v4l2pim %p major %d minor %d\n",
+		V4L2PIM_DEBUG("Calling vcrtcm_p_add for v4l2pim %p major %d minor %d\n",
 				v4l2pim_info, v4l2pim_major, v4l2pim_info->minor);
 		if (vcrtcm_p_add(&v4l2pim_vcrtcm_pcon_funcs, &v4l2pim_vcrtcm_pcon_props,
 				  v4l2pim_major, v4l2pim_info->minor, 0, v4l2pim_info))
-			PR_WARN("vcrtcm_p_add failed, v4l2pim major %d, minor %d, "
+			VCRTCM_WARNING("vcrtcm_p_add failed, v4l2pim major %d, minor %d, "
 				"won't work\n", v4l2pim_major, v4l2pim_info->minor);
-		PR_INFO("successfully registered minor %d\n", v4l2pim_info->minor);
+		VCRTCM_INFO("successfully registered minor %d\n", v4l2pim_info->minor);
 	}
 
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit)
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
-	PR_INFO("Maximum stream memory allowable is %d\n", vid_limit);
+	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
 
-	PR_INFO("v4l2 PCON Loaded\n");
+	VCRTCM_INFO("v4l2 PCON Loaded\n");
 
 	return 0;
 }
@@ -1081,14 +1081,14 @@ static int __init v4l2pim_init(void)
 static void __exit v4l2pim_exit(void)
 {
 	struct v4l2pim_info *v4l2pim_info, *tmp;
-	PR_INFO("Cleaning up v4l2pim\n");
+	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
 		if (v4l2pim_major >= -1) {
 			video_unregister_device(v4l2pim_info->vfd);
 			v4l2_device_unregister(&v4l2pim_info->v4l2_dev);
 
 			/* unregister with VCRTCM */
-			PR_DEBUG("Calling vcrtcm_p_del for "
+			V4L2PIM_DEBUG("Calling vcrtcm_p_del for "
 				"v4l2pim %p, major %d, minor %d\n",
 				v4l2pim_info, v4l2pim_major,
 				v4l2pim_info->minor);
@@ -1103,17 +1103,17 @@ static void __exit v4l2pim_exit(void)
 			unregister_chrdev_region(MKDEV(v4l2pim_major, 0),
 							v4l2pim_num_minors);
 
-			PR_DEBUG("freeing main buffer: %p, cursor %p\n",
+			V4L2PIM_DEBUG("freeing main buffer: %p, cursor %p\n",
 					v4l2pim_info->main_buffer,
 					v4l2pim_info->cursor);
-			PR_DEBUG("freeing v4l2pim_info data %p\n",
+			V4L2PIM_DEBUG("freeing v4l2pim_info data %p\n",
 				v4l2pim_info);
-			PR_DEBUG("page_track : %d\n",
-				v4l2pim_info->page_track);
-			PR_DEBUG("kmalloc_track: %d\n",
-				v4l2pim_info->kmalloc_track);
-			PR_DEBUG("vmalloc_track: %d\n",
-				v4l2pim_info->vmalloc_track);
+			V4L2PIM_DEBUG("page_track : %d\n",
+				atomic_read(&v4l2pim_info->page_track));
+			V4L2PIM_DEBUG("kmalloc_track: %d\n",
+				atomic_read(&v4l2pim_info->kmalloc_track));
+			V4L2PIM_DEBUG("vmalloc_track: %d\n",
+				atomic_read(&v4l2pim_info->vmalloc_track));
 
 			list_del(&v4l2pim_info->list);
 			kfree(v4l2pim_info);

@@ -33,7 +33,8 @@
 #include <media/videobuf-vmalloc.h>
 #include <linux/videodev2.h>
 
-#include "vcrtcm/vcrtcm_pcon.h"
+#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 
 #define V4L2PIM_MAX_MINOR 255
 
@@ -46,6 +47,8 @@
 #define V4L2PIM_ALLOC_PB_FLAG_FB 0x0
 #define V4L2PIM_ALLOC_PB_FLAG_CURSOR 0x1
 #define V4L2PIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
+
+#define V4L2PIM_DEBUG(fmt, args...) VCRTCM_DBG(1, debug, fmt, ## args)
 
 extern int debug;
 
@@ -98,9 +101,9 @@ struct v4l2pim_info {
 	struct v4l2pim_fmt *fmt;
 
 	/* debug stuff */
-	int page_track;
-	int kmalloc_track;
-	int vmalloc_track;
+	atomic_t page_track;
+	atomic_t kmalloc_track;
+	atomic_t vmalloc_track;
 };
 
 struct v4l2pim_flow_info {
