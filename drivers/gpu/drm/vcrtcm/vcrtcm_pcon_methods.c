@@ -400,56 +400,6 @@ void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
-/* called by the PCON to allocate a push buffer */
-int vcrtcm_p_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			     struct vcrtcm_push_buffer_descriptor *pbd)
-{
-	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private =
-		container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_info_private,
-			     vcrtcm_pcon_info);
-	struct drm_crtc *crtc = vcrtcm_pcon_info_private->drm_crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_gem_object *obj;
-
-	if (vcrtcm_pcon_info_private->gpu_funcs.pb_alloc) {
-		int r;
-		r = vcrtcm_pcon_info_private->gpu_funcs.pb_alloc(dev, pbd);
-		obj = pbd->gpu_private;
-		VCRTCM_DEBUG("pcon %d.%d.%d "
-			     "allocated push buffer name=%d, size=%d\n",
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-			     obj->name, obj->size);
-		return r;
-	} else
-		return -ENOMEM;
-}
-EXPORT_SYMBOL(vcrtcm_p_push_buffer_alloc);
-
-/* called by the PCON to free up a push buffer */
-void vcrtcm_p_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			     struct vcrtcm_push_buffer_descriptor *pbd)
-{
-	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private =
-		container_of(vcrtcm_pcon_info, struct vcrtcm_pcon_info_private,
-			     vcrtcm_pcon_info);
-	struct drm_gem_object *obj = pbd->gpu_private;
-
-	if (vcrtcm_pcon_info_private->gpu_funcs.pb_free) {
-		VCRTCM_DEBUG("pcon %d.%d.%d "
-			     "freeing push buffer name=%d, size=%d\n",
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
-			     vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow,
-			     obj->name, obj->size);
-		vcrtcm_pcon_info_private->gpu_funcs.pb_free(obj);
-		memset(pbd, 0,
-		       sizeof(struct vcrtcm_push_buffer_descriptor));
-	}
-}
-EXPORT_SYMBOL(vcrtcm_p_push_buffer_free);
-
 /* called by the PCON to request GPU push of the */
 /* frame buffer pixels; pushes the frame buffer associated with  */
 /* the ctrc that is attached to the specified hal into the push buffer */

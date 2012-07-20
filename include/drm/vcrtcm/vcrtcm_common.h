@@ -157,13 +157,6 @@ struct vcrtcm_gpu_funcs {
 	/* synchronization with GPU rendering (e.g. fence wait) */
 	void (*wait_fb) (struct drm_crtc *drm_crtc);
 
-	/* allocate push buffer */
-	int (*pb_alloc) (struct drm_device *dev,
-			 struct vcrtcm_push_buffer_descriptor *pbd);
-
-	/* return push buffer NB: may not be NULL if pb_alloc exists */
-	void (*pb_free) (struct drm_gem_object *obj);
-
 	/* PCON requests from GPU to push the buffer to it */
 	int (*push) (struct drm_crtc *scrtc,
 		     struct drm_gem_object *dbuf_fb,

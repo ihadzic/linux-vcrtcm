@@ -40,10 +40,6 @@ void vcrtcm_p_del(int major, int minor, int flow);
 /* functions for use by PCON in operational state */
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
 void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int vcrtcm_p_push_buffer_alloc(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			     struct vcrtcm_push_buffer_descriptor *pbd);
-void vcrtcm_p_push_buffer_free(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
-			     struct vcrtcm_push_buffer_descriptor *pbd);
 int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
 			    struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
