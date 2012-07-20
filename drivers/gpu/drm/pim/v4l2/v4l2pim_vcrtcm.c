@@ -233,15 +233,66 @@ int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	return 0;
 }
 
+static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
+			      struct v4l2pim_flow_info *flow_info,
+			      int size, int flag)
+{
+	int num_pages, r = 0;
+	struct vcrtcm_push_buffer_descriptor *pbd0, *pbd1;
+
+	if (flag ==  V4L2PIM_ALLOC_PB_FLAG_FB) {
+		pbd0 = &flow_info->pbd_fb[0];
+		pbd1 = &flow_info->pbd_fb[1];
+	} else {
+		pbd0 = &flow_info->pbd_cursor[0];
+		pbd1 = &flow_info->pbd_cursor[1];
+	}
+
+	num_pages = size / PAGE_SIZE;
+	if (size % PAGE_SIZE)
+		num_pages++;
+	BUG_ON(pbd0->num_pages != pbd1->num_pages);
+	if (!num_pages) {
+		V4L2PIM_DEBUG("%s: zero size requested\n",
+			      V4L2PIM_ALLOC_PB_STRING(flag));
+		v4l2pim_free_pb(v4l2pim_info, flow_info, flag);
+	} else if (pbd0->num_pages == num_pages) {
+		V4L2PIM_DEBUG("%s: reusing existing push buffer\n",
+			      V4L2PIM_ALLOC_PB_STRING(flag));
+	} else {
+		/*
+		 * if we got here, then we either don't have the
+		 * push buffer or we have one of the wrong size
+		 */
+		V4L2PIM_DEBUG("%s: allocating push buffer "
+			      "size=%d, num_pages=%d\n",
+			      V4L2PIM_ALLOC_PB_STRING(flag), size, num_pages);
+		v4l2pim_free_pb(v4l2pim_info, flow_info, flag);
+		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info, num_pages, flag);
+		if (flag ==  V4L2PIM_ALLOC_PB_FLAG_FB) {
+			uint32_t w, h, sb_size;
+
+			/* this should get freed later */
+			w = flow_info->vcrtcm_fb.hdisplay;
+			h = flow_info->vcrtcm_fb.vdisplay;
+			sb_size = w * h * (flow_info->vcrtcm_fb.bpp >> 3);
+			mutex_lock(&v4l2pim_info->sb_lock);
+			v4l2pim_alloc_shadowbuf(v4l2pim_info, sb_size);
+			mutex_unlock(&v4l2pim_info->sb_lock);
+		}
+	}
+
+	return r;
+}
+
 int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
 	struct v4l2pim_info *v4l2pim_info =
 		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
-	uint32_t w, h, sb_size;
 	int r = 0;
-	int size_in_bytes, requested_num_pages;
+	int size;
 
 	V4L2PIM_DEBUG("In v4l2pim_set_fb, minor %d.\n", v4l2pim_info->minor);
 
@@ -256,46 +307,9 @@ int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	mutex_lock(&v4l2pim_info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
-	size_in_bytes = flow_info->vcrtcm_fb.pitch *
-			flow_info->vcrtcm_fb.vdisplay;
-
-	requested_num_pages = size_in_bytes / PAGE_SIZE;
-	if (size_in_bytes % PAGE_SIZE)
-		requested_num_pages++;
-
-	BUG_ON(flow_info->pbd_fb[0].num_pages != flow_info->pbd_fb[1].num_pages);
-
-	if (!requested_num_pages) {
-		V4L2PIM_DEBUG("framebuffer: zero size requested\n");
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_FB);
-	} else if (flow_info->pbd_fb[0].num_pages == requested_num_pages) {
-		/* we can safely check index 0 num_pages against */
-		/* index 1 num_pages because we checked that they */
-		/* are equal above. */
-		V4L2PIM_DEBUG("framebuffer: "
-			"reusing existing push buffer\n");
-	} else {
-		/* if we are here, we either have no push buffer */
-		/* or we have the wrong size (i.e. mode changed) */
-		VCRTCM_INFO("framebuffer: allocating push buffer, "
-				"size=%d, num_pages=%d\n",
-				size_in_bytes, requested_num_pages);
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_FB);
-
-		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info,
-				requested_num_pages,
-				V4L2PIM_ALLOC_PB_FLAG_FB);
-		/* shadowbuf init */
-		/* this should get freed later */
-		w = flow_info->vcrtcm_fb.hdisplay;
-		h = flow_info->vcrtcm_fb.vdisplay;
-		sb_size = w * h * (flow_info->vcrtcm_fb.bpp >> 3);
-		mutex_lock(&v4l2pim_info->sb_lock);
-		v4l2pim_alloc_shadowbuf(v4l2pim_info, sb_size);
-		mutex_unlock(&v4l2pim_info->sb_lock);
-	}
+	size = flow_info->vcrtcm_fb.pitch * flow_info->vcrtcm_fb.vdisplay;
+	r = v4l2pim_realloc_pb(v4l2pim_info, flow_info, size,
+			       V4L2PIM_ALLOC_PB_FLAG_FB);
 	flow_info->fb_xmit_allowed = 1;
 	mutex_unlock(&v4l2pim_info->buffer_mutex);
 	return r;
@@ -445,10 +459,9 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 	int r = 0;
-	int size_in_bytes, requested_num_pages;
+	int size;
 
 	V4L2PIM_DEBUG("In v4l2pim_set_cursor, minor %d\n", v4l2pim_info->minor);
-
 	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
@@ -459,42 +472,11 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	mutex_lock(&v4l2pim_info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
-
-	/* calculate the push buffer size for cursor */
-	size_in_bytes =
-			flow_info->vcrtcm_cursor.height *
-			flow_info->vcrtcm_cursor.width *
-			(flow_info->vcrtcm_cursor.bpp >> 3);
-
-	requested_num_pages = size_in_bytes / PAGE_SIZE;
-	if (size_in_bytes % PAGE_SIZE)
-		requested_num_pages++;
-
-	BUG_ON(flow_info->pbd_cursor[0].num_pages !=
-		flow_info->pbd_cursor[1].num_pages);
-
-	if (!requested_num_pages) {
-		V4L2PIM_DEBUG("cursor: zero size requested\n");
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-	} else if (flow_info->pbd_cursor[0].num_pages ==
-					requested_num_pages) {
-		V4L2PIM_DEBUG("cursor : reusing existing push buffer\n");
-	} else {
-		/* if we got here, then we either dont have the */
-		/* push buffer or we ahve one of the wrong size */
-		/* (i.e. cursor size changed) */
-		VCRTCM_INFO("cursor: allocating push buffer size=%d, "
-				"num_pages=%d\n",
-				size_in_bytes, requested_num_pages);
-
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-
-		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info,
-				requested_num_pages,
-				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-	}
+	size = flow_info->vcrtcm_cursor.height *
+		flow_info->vcrtcm_cursor.width *
+		(flow_info->vcrtcm_cursor.bpp >> 3);
+	r = v4l2pim_realloc_pb(v4l2pim_info, flow_info, size,
+			       V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	mutex_unlock(&v4l2pim_info->buffer_mutex);
 	return r;
 }
