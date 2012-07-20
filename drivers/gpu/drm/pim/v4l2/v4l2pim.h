@@ -36,9 +36,10 @@
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
-#define V4L2PIM_MAX_MINOR 255
+#define V4L2PIM_PIM_NAME "v4l2"
+#define V4L2PIM_MAX_MINORS 64
 
-#define V4L2PIM_VID_LIMIT_MAX 256
+#define V4L2PIM_VID_LIMIT_MAX 64
 #define V4L2PIM_FPS_HARD_LIMIT 100
 #define V4L2PIM_XMIT_HARD_DEADLINE (HZ/10)
 

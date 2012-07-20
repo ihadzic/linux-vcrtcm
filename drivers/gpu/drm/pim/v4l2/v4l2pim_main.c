@@ -36,6 +36,7 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/pimmgr.h>
 
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
@@ -46,9 +47,15 @@
 #define V4L2PIM_VERSION \
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
+/* PIM functions */
+static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
+					void *data, uint32_t hints);
+static void v4l2pim_destroy(uint32_t local_pcon_id, void *data);
+
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
-int v4l2pim_num_minors = 1;
+int v4l2pim_num_minors;
+int v4l2pim_max_minor = -1;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
 int debug; /* Enable the printing of debugging information */
@@ -952,15 +959,56 @@ static struct vcrtcm_pcon_props v4l2pim_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
-static struct v4l2pim_info *v4l2pim_create_minor(int minor)
+static struct pim_funcs v4l2pim_pim_funcs = {
+	.instantiate = v4l2pim_instantiate,
+	.destroy = v4l2pim_destroy
+};
+
+static struct v4l2pim_info *v4l2pim_create_minor(void)
 {
 	struct v4l2pim_info *v4l2pim_info;
 	struct video_device *vfd;
 	unsigned long flags;
 	int ret;
+	int new_minor = -1;
 
 	v4l2pim_info = NULL;
 	vfd = NULL;
+
+	if (v4l2pim_num_minors == V4L2PIM_MAX_MINORS)
+		return NULL;
+
+	/* Assign a minor number */
+	/* TODO: Refactor this code into a utility somehow? */
+	if (v4l2pim_num_minors <= v4l2pim_max_minor) {
+		/* This case occurs if one or more minor that is less than */
+		/* the maximum minor currently assigned becomes available. */
+		/* In this case we want to reuse the lower number(s). */
+		/* Note that this implementation will only work as long as */
+		/* the total number of minors is less than 64. For this */
+		/* reason we set V4L2PIM_MAX_MINORS to 64 in v42pim.h */
+		uint64_t used_minors = 0;
+		struct v4l2pim_info *ptr;
+		int i;
+
+		list_for_each_entry(ptr, &v4l2pim_info_list, list) {
+			used_minors |= (1 << ptr->minor);
+		}
+
+		for (i = 0; i < v4l2pim_max_minor; i++) {
+			if (!(used_minors & (1 << i))) {
+				new_minor = i;
+				break;
+			}
+		}
+		BUG_ON(new_minor < 0);
+		v4l2pim_num_minors++;
+	} else {
+		/* This handles the trivial case where there are no earlier */
+		/* minors that have gone away. */
+		new_minor = v4l2pim_num_minors++;
+		v4l2pim_max_minor++;
+	}
 
 	v4l2pim_info = kzalloc(sizeof(struct v4l2pim_info), GFP_KERNEL);
 	if (!v4l2pim_info) {
@@ -983,7 +1031,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 
 	snprintf(v4l2pim_info->v4l2_dev.name,
 			sizeof(v4l2pim_info->v4l2_dev.name),
-			"v4l2pim-%03d", minor);
+			"v4l2pim-%03d", new_minor);
 	ret = v4l2_device_register(NULL, &v4l2pim_info->v4l2_dev);
 	if (ret)
 		goto free_info;
@@ -1000,7 +1048,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 	*vfd = v4l2pim_template;
 	vfd->lock = &v4l2pim_info->mlock;
 	vfd->v4l2_dev = &v4l2pim_info->v4l2_dev;
-	vfd->minor = minor;
+	vfd->minor = new_minor;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		goto rel_dev;
@@ -1011,7 +1059,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 	mutex_init(&v4l2pim_info->buffer_mutex);
 	spin_lock_init(&v4l2pim_info->v4l2pim_lock);
 
-	v4l2pim_info->minor = minor;
+	v4l2pim_info->minor = new_minor;
 	INIT_LIST_HEAD(&v4l2pim_info->list);
 
 	init_waitqueue_head(&v4l2pim_info->xmit_sync_queue);
@@ -1026,7 +1074,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 	spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
 	v4l2pim_info->status = 0;
 	spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
-
+	list_add(&v4l2pim_info->list, &v4l2pim_info_list);
 	return v4l2pim_info;
 rel_dev:
 	video_device_release(vfd);
@@ -1038,40 +1086,82 @@ free_info:
 
 }
 
-static int __init v4l2pim_init(void)
+void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
+{
+	video_unregister_device(v4l2pim_info->vfd);
+	v4l2_device_unregister(&v4l2pim_info->v4l2_dev);
+	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
+	mutex_lock(&v4l2pim_info->sb_lock);
+	if (v4l2pim_info->shadowbuf)
+		v4l2pim_free_shadowbuf(v4l2pim_info);
+	mutex_unlock(&v4l2pim_info->sb_lock);
+
+	V4L2PIM_DEBUG("freeing main buffer: %p, cursor %p\n",
+			v4l2pim_info->main_buffer,
+					v4l2pim_info->cursor);
+	V4L2PIM_DEBUG("freeing v4l2pim_info data %p\n",
+			v4l2pim_info);
+	V4L2PIM_DEBUG("page_track : %d\n",
+			atomic_read(&v4l2pim_info->page_track));
+	V4L2PIM_DEBUG("kmalloc_track: %d\n",
+			atomic_read(&v4l2pim_info->kmalloc_track));
+	V4L2PIM_DEBUG("vmalloc_track: %d\n",
+			atomic_read(&v4l2pim_info->vmalloc_track));
+
+	list_del(&v4l2pim_info->list);
+	kfree(v4l2pim_info);
+
+	if (v4l2pim_info->minor == v4l2pim_max_minor)
+		v4l2pim_max_minor--;
+	v4l2pim_num_minors--;
+}
+
+static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
+					void *data, uint32_t hints)
 {
 	struct v4l2pim_info *v4l2pim_info;
+
+	v4l2pim_info = v4l2pim_create_minor();
+
+	if (!v4l2pim_info)
+		return 0;
+
+	scnprintf(instance_info->description, PCON_DESC_LEN,
+			"Video4Linux2 PCON - Device /dev/video%i",
+			v4l2pim_info->minor);
+	instance_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;
+	instance_info->props = &v4l2pim_vcrtcm_pcon_props;
+	instance_info->cookie = v4l2pim_info;
+	instance_info->local_id = (uint32_t) v4l2pim_info->minor;
+
+	return 1;
+}
+
+static void v4l2pim_destroy(uint32_t local_pcon_id, void *data)
+{
+	struct v4l2pim_info *v4l2pim_info;
+
+	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
+		if (((uint32_t) v4l2pim_info->minor) == local_pcon_id) {
+			V4L2PIM_DEBUG("Destroying pcon, local id %u\n",
+							local_pcon_id);
+			v4l2pim_destroy_minor(v4l2pim_info);
+			return;
+		}
+	}
+}
+
+static int __init v4l2pim_init(void)
+{
 	dev_t dev;
-	int minor, num_created;
 	int r;
 
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 
 	INIT_LIST_HEAD(&v4l2pim_info_list);
 
-	if (v4l2pim_num_minors < 0)
-		v4l2pim_num_minors = 0;
-	if (v4l2pim_num_minors > V4L2PIM_MAX_MINOR)
-		v4l2pim_num_minors = V4L2PIM_MAX_MINOR;
-
-	num_created = 0;
-	for (minor = 0; minor < v4l2pim_num_minors; minor++) {
-		v4l2pim_info = v4l2pim_create_minor(minor);
-		if (!v4l2pim_info)
-			break;
-		list_add(&v4l2pim_info->list, &v4l2pim_info_list);
-		num_created++;
-	}
-
-	if (list_empty(&v4l2pim_info_list)) {
-		v4l2pim_major = -1;
-		v4l2pim_num_minors = 0;
-		return 0;
-	}
-
-	v4l2pim_num_minors = num_created;
 	VCRTCM_INFO("Allocating/registering dynamic major number");
-	r = alloc_chrdev_region(&dev, 0, v4l2pim_num_minors, "v4l2pim");
+	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, "v4l2pim");
 	v4l2pim_major = MAJOR(dev);
 	if (r) {
 		VCRTCM_ERROR("Can't get major device number, driver unusable\n");
@@ -1081,19 +1171,12 @@ static int __init v4l2pim_init(void)
 	}
 	VCRTCM_INFO("Using major device number %d\n", v4l2pim_major);
 
-	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		V4L2PIM_DEBUG("Calling vcrtcm_p_add for v4l2pim %p major %d minor %d\n",
-				v4l2pim_info, v4l2pim_major, v4l2pim_info->minor);
-		if (vcrtcm_p_add(&v4l2pim_vcrtcm_pcon_funcs, &v4l2pim_vcrtcm_pcon_props,
-				  v4l2pim_major, v4l2pim_info->minor, 0, v4l2pim_info))
-			VCRTCM_WARNING("vcrtcm_p_add failed, v4l2pim major %d, minor %d, "
-				"won't work\n", v4l2pim_major, v4l2pim_info->minor);
-		VCRTCM_INFO("successfully registered minor %d\n", v4l2pim_info->minor);
-	}
-
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit)
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
+
+	VCRTCM_INFO("Registering with pimmgr\n");
+	pimmgr_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, NULL);
 
 	VCRTCM_INFO("v4l2 PCON Loaded\n");
 
@@ -1105,43 +1188,17 @@ static void __exit v4l2pim_exit(void)
 	struct v4l2pim_info *v4l2pim_info, *tmp;
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
-		if (v4l2pim_major >= -1) {
-			video_unregister_device(v4l2pim_info->vfd);
-			v4l2_device_unregister(&v4l2pim_info->v4l2_dev);
+		/* unregister with VCRTCM */
+		V4L2PIM_DEBUG("Calling pimmgr_pcon_invalidate for "
+		"v4l2pim %p, major %d, minor %d\n",
+		v4l2pim_info, v4l2pim_major,
+		v4l2pim_info->minor);
 
-			/* unregister with VCRTCM */
-			V4L2PIM_DEBUG("Calling vcrtcm_p_del for "
-				"v4l2pim %p, major %d, minor %d\n",
-				v4l2pim_info, v4l2pim_major,
-				v4l2pim_info->minor);
-			cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
-			vcrtcm_p_del(v4l2pim_major, v4l2pim_info->minor, 0);
-
-			mutex_lock(&v4l2pim_info->sb_lock);
-			if (v4l2pim_info->shadowbuf)
-				v4l2pim_free_shadowbuf(v4l2pim_info);
-			mutex_unlock(&v4l2pim_info->sb_lock);
-
-			unregister_chrdev_region(MKDEV(v4l2pim_major, 0),
-							v4l2pim_num_minors);
-
-			V4L2PIM_DEBUG("freeing main buffer: %p, cursor %p\n",
-					v4l2pim_info->main_buffer,
-					v4l2pim_info->cursor);
-			V4L2PIM_DEBUG("freeing v4l2pim_info data %p\n",
-				v4l2pim_info);
-			V4L2PIM_DEBUG("page_track : %d\n",
-				atomic_read(&v4l2pim_info->page_track));
-			V4L2PIM_DEBUG("kmalloc_track: %d\n",
-				atomic_read(&v4l2pim_info->kmalloc_track));
-			V4L2PIM_DEBUG("vmalloc_track: %d\n",
-				atomic_read(&v4l2pim_info->vmalloc_track));
-
-			list_del(&v4l2pim_info->list);
-			kfree(v4l2pim_info);
-			v4l2pim_num_minors--;
-		}
+		pimmgr_pcon_invalidate(V4L2PIM_PIM_NAME,
+					(uint32_t) v4l2pim_info->minor);
+		v4l2pim_destroy_minor(v4l2pim_info);
 	}
+	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
 
 	return;
 }
@@ -1151,8 +1208,6 @@ module_exit(v4l2pim_exit);
 
 MODULE_PARM_DESC(debug, "Enable debugging information.");
 module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(num_minors, "Number of minors (default=1)");
-module_param_named(num_minors, v4l2pim_num_minors, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
