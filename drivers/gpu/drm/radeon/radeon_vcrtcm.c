@@ -218,67 +218,6 @@ static void radeon_wait_fb_callback(struct drm_crtc *crtc)
 	mutex_unlock(&rdev->ring_lock);
 }
 
-static int
-radeon_vcrtcm_push_buffer_alloc(struct drm_device *dev,
-				struct vcrtcm_push_buffer_descriptor *pbd)
-{
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_bo *rbo;
-	struct ttm_tt *ttm;
-	int size, r;
-	uint64_t addr;
-
-	/* get the requested size and do some sanity check */
-	size = PAGE_SIZE * pbd->num_pages;
-	if (!size)
-		return -EINVAL;
-
-	/* create an object and pin it */
-	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_GTT, NULL, &rbo);
-	if (r)
-		return r;
-	r = radeon_bo_reserve(rbo, false);
-	if (unlikely(r)) {
-		radeon_bo_unref(&rbo);
-		return r;
-	}
-	/* NB: we don't store GPU address of the bo because that's */
-	/* radeon-specific stuff and we don't want to expose the PCON */
-	/* to it; push callback (that actually does the copy) */
-	/* will have to re-retrieve it each time it is called */
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_GTT, &addr);
-	DRM_DEBUG("vcrtcm push buffer allocated name=%d, gpu_addr=0x%llx\n",
-		  rbo->gem_base.name, addr);
-	if (r) {
-		radeon_bo_unreserve(rbo);
-		radeon_bo_unref(&rbo);
-		return r;
-	}
-
-	ttm = rbo->tbo.ttm;
-	radeon_bo_unreserve(rbo);
-
-	/* extract information that the PCON cares about */
-	/* so that it can get to it without calling any DRM/TTM/GEM funcs */
-	pbd->gpu_private = &rbo->gem_base;
-	pbd->num_pages = ttm->num_pages;
-	pbd->pages = ttm->pages;
-
-	return 0;
-}
-
-static void radeon_vcrtcm_push_buffer_free(struct drm_gem_object *obj)
-{
-	struct radeon_bo *rbo = gem_to_radeon_bo(obj);
-
-	DRM_DEBUG("vcrtcm push buffer freed name=%d\n", obj->name);
-	radeon_bo_reserve(rbo, false);
-	radeon_bo_unpin(rbo);
-	radeon_bo_unreserve(rbo);
-	radeon_bo_unref(&rbo);
-}
-
 static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_fb,
 			      struct drm_gem_object *dbuf_cursor)
@@ -417,8 +356,6 @@ struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.wait_fb = radeon_wait_fb_callback,
-	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
-	.pb_free = radeon_vcrtcm_push_buffer_free,
 	.push = radeon_vcrtcm_push,
 	.hotplug = NULL /* real CRTC has its own hotplug */
 };
@@ -427,8 +364,6 @@ struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = radeon_emulate_vblank,
 	.wait_fb = radeon_wait_fb_callback,
-	.pb_alloc = radeon_vcrtcm_push_buffer_alloc,
-	.pb_free = radeon_vcrtcm_push_buffer_free,
 	.push = radeon_vcrtcm_push,
 	.hotplug = radeon_vcrtcm_hotplug
 };
