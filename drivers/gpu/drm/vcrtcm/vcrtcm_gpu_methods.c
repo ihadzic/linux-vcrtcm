@@ -143,8 +143,13 @@ int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info)
 
 		r = pcon_info_private->
 		    pcon_info.funcs.detach(&pcon_info_private->pcon_info);
-		if (r)
+		if (r) {
+			spin_lock_irqsave(&pcon_info_private->lock, flags);
+			pcon_info_private->status |= VCRTCM_STATUS_PCON_IN_USE;
+			spin_unlock_irqrestore(&pcon_info_private->lock, flags);
+			mutex_unlock(&pcon_info->mutex);
 			return r;
+		}
 	}
 	if (pcon_info_private->gpu_funcs.detach)
 		pcon_info_private->gpu_funcs.detach(pcon_info_private->drm_crtc);
