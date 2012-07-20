@@ -577,9 +577,28 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	return videobuf_poll_stream(file, &v4l2pim_info->vb_vidq, wait);
 }
 
-static int v4l2pim_close(struct file *file)
+static int v4l2pim_open(struct file *file)
 {
+	struct v4l2pim_info *v4l2pim_info;
+
+	if (!try_module_get(THIS_MODULE))
+		return -EBUSY;
+
+	v4l2pim_info = video_drvdata(file);
+	atomic_inc(&v4l2pim_info->users);
+
+	return 0;
+}
+
+static int v4l2pim_release(struct file *file)
+{
+	struct v4l2pim_info *v4l2pim_info;
+
 	v4l2pim_stop_generating(file);
+	v4l2pim_info = video_drvdata(file);
+	atomic_dec(&v4l2pim_info->users);
+	module_put(THIS_MODULE);
+
 	return 0;
 }
 
@@ -867,7 +886,8 @@ void v4l2pim_free_shadowbuf(struct v4l2pim_info *v4l2pim_info)
 
 static const struct v4l2_file_operations v4l2pim_fops = {
 	.owner		= THIS_MODULE,
-	.release        = v4l2pim_close,
+	.open		= v4l2pim_open,
+	.release        = v4l2pim_release,
 	.read           = v4l2pim_read,
 	.poll		= v4l2pim_poll,
 	.unlocked_ioctl = video_ioctl2, /* V4L2 ioctl handler */
@@ -950,9 +970,11 @@ static struct v4l2pim_info *v4l2pim_create_minor(int minor)
 
 	mutex_init(&v4l2pim_info->mlock);
 	spin_lock_init(&v4l2pim_info->slock);
+
 	atomic_set(&v4l2pim_info->kmalloc_track, 0);
 	atomic_set(&v4l2pim_info->page_track, 0);
 	atomic_set(&v4l2pim_info->vmalloc_track, 0);
+	atomic_set(&v4l2pim_info->users, 0);
 	v4l2pim_info->shadowbuf = NULL;
 	v4l2pim_info->shadowbufsize = 0;
 	mutex_init(&v4l2pim_info->sb_lock);

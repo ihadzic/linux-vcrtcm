@@ -73,6 +73,7 @@ struct v4l2pim_info {
 	spinlock_t v4l2pim_lock;
 	int enabled_queue;
 	unsigned long status;
+	atomic_t users;
 	wait_queue_head_t xmit_sync_queue;
 
 	struct workqueue_struct *workqueue;

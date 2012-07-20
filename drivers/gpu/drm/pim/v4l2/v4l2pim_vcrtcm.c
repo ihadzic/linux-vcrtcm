@@ -208,6 +208,12 @@ int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
 	struct v4l2pim_flow_info *flow_info;
 
+	if (atomic_read(&v4l2pim_info->users) > 0) {
+		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %p, file open",
+			v4l2pim_info->minor, vcrtcm_pcon_info);
+		return -EBUSY;
+	}
+
 	VCRTCM_INFO("Detaching v4l2pim %d from pcon %p\n",
 		v4l2pim_info->minor, vcrtcm_pcon_info);
 
