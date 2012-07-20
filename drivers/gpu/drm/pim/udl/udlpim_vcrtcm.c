@@ -191,11 +191,9 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		flow_info->pb_cursor[0] = 0;
 		flow_info->pb_cursor[1] = 0;
 
-		flow_info->vcrtcm_cursor.flag =
-			VCRTCM_CURSOR_FLAG_HIDE;
+		flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 
-		udlpim_info->flow_info =
-			flow_info;
+		udlpim_info->flow_info = flow_info;
 
 		/* Do an initial query of the EDID */
 		udlpim_query_edid_core(udlpim_info);
