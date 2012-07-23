@@ -100,7 +100,11 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	}
 
 	pcon->pim = info;
-	value = info->funcs.instantiate(pcon, info->data, hints);
+
+	if (info->funcs.instantiate)
+		value = info->funcs.instantiate(pcon, info->data, hints);
+	else
+		PR_INFO("No instantiate function...\n");
 
 	if (!value) {
 		PR_INFO("No pcons of type %s available...\n", name);
@@ -150,7 +154,12 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 		return PIMMGR_ERR_CANNOT_DESTROY;
 
 	vcrtcm_sysfs_del_pcon(instance);
-	info->funcs.destroy(local_pcon_id, info->data);
+
+	if (info->funcs.destroy)
+		info->funcs.destroy(local_pcon_id, info->data);
+	else
+		PR_INFO("No destroy function...\n");
+
 	list_del(&instance->instance_list);
 	pimmgr_kfree(instance);
 	return 0;
