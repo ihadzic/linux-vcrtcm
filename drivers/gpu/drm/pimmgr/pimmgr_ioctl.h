@@ -31,6 +31,7 @@
 #define PIMMGR_ERR_CANNOT_REGISTER 3
 #define PIMMGR_ERR_INVALID_PCON 4
 #define PIMMGR_ERR_NOMEM 5
+#define PIMMGR_ERR_CANNOT_DESTROY 6
 
 struct pimmgr_ioctl_args {
 	union {

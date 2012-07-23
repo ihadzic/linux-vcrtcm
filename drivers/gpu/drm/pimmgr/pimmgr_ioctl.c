@@ -127,6 +127,7 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 {
 	struct pim_info *info;
 	struct pcon_instance_info *instance;
+	int r = 0;
 
 	uint32_t pim_id = PCONID_PIMID(pconid);
 	uint32_t local_pcon_id = PCONID_LOCALID(pconid);
@@ -144,8 +145,11 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	if (!instance)
 		return PIMMGR_ERR_INVALID_PCON;
 
+	r = vcrtcm_p_del(pconid);
+	if (r)
+		return PIMMGR_ERR_CANNOT_DESTROY;
+
 	vcrtcm_sysfs_del_pcon(instance);
-	vcrtcm_p_del(pconid);
 	info->funcs.destroy(local_pcon_id, info->data);
 	list_del(&instance->instance_list);
 	pimmgr_kfree(instance);
