@@ -302,9 +302,10 @@ EXPORT_SYMBOL(vcrtcm_p_add);
  * called by the pixel consumer (PCON)
  * (typically on exit) to unregister its implementation with PCON
  */
-void vcrtcm_p_del(int major, int minor, int flow)
+int vcrtcm_p_del(int major, int minor, int flow)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private;
+	int r = 0;
 
 	/* find the entry that should be removed */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
@@ -327,12 +328,24 @@ void vcrtcm_p_del(int major, int minor, int flow)
 				VCRTCM_INFO("pcon in use by CRTC %p, "
 					    "forcing detach\n",
 					    pcon_info_private->drm_crtc);
-				if (pcon_info_private->pcon_info.funcs.detach)
-					pcon_info_private->pcon_info.funcs.
-					    detach(&pcon_info_private->pcon_info);
+				if (pcon_info_private->pcon_info.funcs.detach) {
+					r = pcon_info_private->pcon_info.funcs.
+						detach(&pcon_info_private->pcon_info);
+					if (r) {
+						VCRTCM_ERROR("could not force detach on CRTC %p\n",
+							pcon_info_private->drm_crtc);
+						spin_lock_irqsave(&pcon_info_private->lock, flags);
+						pcon_info_private->status
+							|= VCRTCM_STATUS_PCON_IN_USE;
+						spin_unlock_irqrestore(&pcon_info_private->lock, flags);
+						mutex_unlock(&pcon_info_private->pcon_info.mutex);
+						mutex_unlock(&vcrtcm_pcon_list_mutex);
+						return r;
+					}
+				}
 				if (pcon_info_private->gpu_funcs.detach)
-					pcon_info_private->
-						gpu_funcs.detach(pcon_info_private->drm_crtc);
+					pcon_info_private->gpu_funcs.
+						detach(pcon_info_private->drm_crtc);
 			} else
 				spin_unlock_irqrestore(&pcon_info_private->lock,
 						       flags);
@@ -341,7 +354,7 @@ void vcrtcm_p_del(int major, int minor, int flow)
 				     mutex);
 			kfree(pcon_info_private);
 			mutex_unlock(&vcrtcm_pcon_list_mutex);
-			return;
+			return 0;
 		}
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
@@ -352,6 +365,7 @@ void vcrtcm_p_del(int major, int minor, int flow)
 	 */
 	VCRTCM_WARNING("requested pcon %d.%d.%d not found\n",
 		       major, minor, flow);
+	return -EINVAL;
 }
 EXPORT_SYMBOL(vcrtcm_p_del);
 
