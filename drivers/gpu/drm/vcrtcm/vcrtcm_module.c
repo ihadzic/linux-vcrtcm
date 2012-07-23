@@ -43,7 +43,7 @@ module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	struct vcrtcm_pcon_info_private *vcrtcm_pcon_info_private, *tmp;
+	struct vcrtcm_pcon_info_private *pcon_info_private, *tmp;
 
 	VCRTCM_INFO("unloading module");
 
@@ -51,26 +51,27 @@ static void __exit vcrtcm_exit(void)
 	   even if the PCONs have not explicitly given them up
 	   (we have no other choice) */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_for_each_entry_safe(vcrtcm_pcon_info_private, tmp, &vcrtcm_pcon_list, list) {
-		mutex_lock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
+	list_for_each_entry_safe(pcon_info_private, tmp,
+				 &vcrtcm_pcon_list, list) {
+		mutex_lock(&pcon_info_private->pcon_info.mutex);
 		VCRTCM_INFO("removing pcon %d.%d.%d\n",
-			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_major,
-			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_minor,
-			    vcrtcm_pcon_info_private->vcrtcm_pcon_info.pcon_flow);
-		if (vcrtcm_pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
+			    pcon_info_private->pcon_info.pcon_major,
+			    pcon_info_private->pcon_info.pcon_minor,
+			    pcon_info_private->pcon_info.pcon_flow);
+		if (pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-				    vcrtcm_pcon_info_private->drm_crtc);
-			if (vcrtcm_pcon_info_private->vcrtcm_pcon_info.funcs.detach)
-				vcrtcm_pcon_info_private->
-				    vcrtcm_pcon_info.funcs.
-				    detach(&vcrtcm_pcon_info_private->vcrtcm_pcon_info);
-			if (vcrtcm_pcon_info_private->gpu_funcs.detach)
-				vcrtcm_pcon_info_private->
-					gpu_funcs.detach(vcrtcm_pcon_info_private->drm_crtc);
+				    pcon_info_private->drm_crtc);
+			if (pcon_info_private->pcon_info.funcs.detach)
+				pcon_info_private->
+				    pcon_info.funcs.
+				    detach(&pcon_info_private->pcon_info);
+			if (pcon_info_private->gpu_funcs.detach)
+				pcon_info_private->gpu_funcs.detach(
+					pcon_info_private->drm_crtc);
 		}
-		list_del(&vcrtcm_pcon_info_private->list);
-		mutex_unlock(&vcrtcm_pcon_info_private->vcrtcm_pcon_info.mutex);
-		kfree(vcrtcm_pcon_info_private);
+		list_del(&pcon_info_private->list);
+		mutex_unlock(&pcon_info_private->pcon_info.mutex);
+		kfree(pcon_info_private);
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 

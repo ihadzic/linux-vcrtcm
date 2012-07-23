@@ -47,7 +47,7 @@ struct vcrtcm_pcon_info_private {
 	/* functional interface to GPU driver */
 	struct vcrtcm_gpu_funcs gpu_funcs;
 	/* public PCON information */
-	struct vcrtcm_pcon_info vcrtcm_pcon_info;
+	struct vcrtcm_pcon_info pcon_info;
 };
 
 extern struct list_head vcrtcm_pcon_list;
