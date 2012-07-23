@@ -58,6 +58,8 @@ struct pim_funcs {
 				void *data, uint32_t hints);
 
 	/* Deallocate the given PCON instance and free resources used. */
+	/* We can assume that the given PCON is has been detached and */
+	/* removed from VCRTCM before this is called. */
 	void (*destroy)(uint32_t local_pcon_id, void *data);
 };
 
