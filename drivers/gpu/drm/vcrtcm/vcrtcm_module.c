@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
-#include "vcrtcm_utils.h"
+#include <vcrtcm/vcrtcm_utils.h>
 #include "vcrtcm_private.h"
 
 struct list_head vcrtcm_pcon_list;
