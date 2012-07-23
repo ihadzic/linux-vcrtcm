@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2011 Alcatel-Lucent, Inc.
-   Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ * Copyright (C) 2011 Alcatel-Lucent, Inc.
+ * Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 
 #include <linux/module.h>
@@ -215,10 +215,12 @@ void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
 
-/* called by the pixel consumer (PCON) to
-   register itself implementation with vcrtcm; the PCON can also provide
-   pointers to back-end functions (functions that get called after
-   generic PCON function is executed) */
+/*
+ * called by the pixel consumer (PCON) to
+ * register itself implementation with vcrtcm; the PCON can also provide
+ * pointers to back-end functions (functions that get called after
+ * generic PCON function is executed)
+ */
 int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 		  struct vcrtcm_pcon_props *pcon_props,
 		  int major, int minor, int flow, void *pcon_cookie)
@@ -231,9 +233,11 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 		if ((pcon_info_private->pcon_info.pcon_major == major) &&
 		    (pcon_info_private->pcon_info.pcon_minor == minor) &&
 		    (pcon_info_private->pcon_info.pcon_flow == flow)) {
-			/* if the PCON already exists, we just overwrite
-			   the provided functions (assuming that the PCON
-			   that called us knows what it's doing */
+			/*
+			 * if the PCON already exists, we just overwrite
+			 * the provided functions (assuming that the PCON
+			 * that called us knows what it's doing
+			 */
 			mutex_lock(&pcon_info_private->pcon_info.mutex);
 			VCRTCM_WARNING("found an existing pcon %d.%d.%d, "
 				       "refreshing its implementation\n",
@@ -249,15 +253,19 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
-	/* if we got here, then we are dealing with a new implementation
-	   and we have to allocate and populate the PCON structure */
+	/*
+	 * If we got here, then we are dealing with a new implementation
+	 * and we have to allocate and populate the PCON structure
+	 */
 	pcon_info_private =
 		kmalloc(sizeof(struct vcrtcm_pcon_info_private), GFP_KERNEL);
 	if (pcon_info_private == NULL)
 		return -ENOMEM;
 
-	/* populate the PCON structures (no need to hold the mutex
-	   because no one else sees this structure yet) */
+	/*
+	 * populate the PCON structures (no need to hold the mutex
+	 *  because no one else sees this structure yet)
+	 */
 	spin_lock_init(&pcon_info_private->lock);
 	mutex_init(&pcon_info_private->pcon_info.mutex);
 	pcon_info_private->pcon_info.funcs = *pcon_funcs;
@@ -290,8 +298,10 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 }
 EXPORT_SYMBOL(vcrtcm_p_add);
 
-/* called by the pixel consumer (PCON)
-   (typically on exit) to unregister its implementation with PCON */
+/*
+ * called by the pixel consumer (PCON)
+ * (typically on exit) to unregister its implementation with PCON
+ */
 void vcrtcm_p_del(int major, int minor, int flow)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private;
@@ -336,15 +346,19 @@ void vcrtcm_p_del(int major, int minor, int flow)
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
-	/* if we got here, then the caller is attempting to remove something
-	   that does not exist */
+	/*
+	 * if we got here, then the caller is attempting to remove something
+	 * that does not exist
+	 */
 	VCRTCM_WARNING("requested pcon %d.%d.%d not found\n",
 		       major, minor, flow);
 }
 EXPORT_SYMBOL(vcrtcm_p_del);
 
-/* The PCON can use this function wait for the GPU to finish rendering
-   to the frame.  PCONs typically call this to prevent frame tearing. */
+/*
+ * The PCON can use this function wait for the GPU to finish rendering
+ * to the frame.  PCONs typically call this to prevent frame tearing.
+ */
 void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private =
@@ -368,10 +382,12 @@ void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb);
 
-/* called by the PCON to emulate vblank
-   this is the link between the vblank event that happened in
-   the PCON but is emulated by the virtual
-   CRTC implementation in the GPU-hardware-specific driver */
+/*
+ * called by the PCON to emulate vblank
+ * this is the link between the vblank event that happened in
+ * the PCON but is emulated by the virtual
+ * CRTC implementation in the GPU-hardware-specific driver
+ */
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private =
@@ -398,10 +414,12 @@ void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
-/* called by the PCON to request GPU push of the */
-/* frame buffer pixels; pushes the frame buffer associated with  */
-/* the ctrc that is attached to the specified hal into the push buffer */
-/* defined by pbd */
+/*
+ * called by the PCON to request GPU push of the
+ * frame buffer pixels; pushes the frame buffer associated with
+ * the ctrc that is attached to the specified hal into the push buffer
+ * defined by pbd
+ */
 int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd)
@@ -425,7 +443,8 @@ int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_p_push);
 
-/* called by the PCON to signal hotplug event on a CRTC
+/*
+ * called by the PCON to signal hotplug event on a CRTC
  * attached to the specified PCON
  */
 void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info)

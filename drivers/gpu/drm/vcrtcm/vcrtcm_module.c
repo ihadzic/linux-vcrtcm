@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2011 Alcatel-Lucent, Inc.
-   Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ * Copyright (C) 2011 Alcatel-Lucent, Inc.
+ * Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 
 #include <linux/module.h>
@@ -47,9 +47,11 @@ static void __exit vcrtcm_exit(void)
 
 	VCRTCM_INFO("unloading module");
 
-	/* any remaining virtual CRTC must now be detached and destroyed
-	   even if the PCONs have not explicitly given them up
-	   (we have no other choice) */
+	/*
+	 * any remaining virtual CRTC must now be detached and destroyed
+	 * even if the PCONs have not explicitly given them up
+	 * (we have no other choice)
+	 */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
 	list_for_each_entry_safe(pcon_info_private, tmp,
 				 &vcrtcm_pcon_list, list) {

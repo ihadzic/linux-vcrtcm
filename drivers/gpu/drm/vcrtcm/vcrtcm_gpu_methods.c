@@ -1,30 +1,32 @@
 /*
-   Copyright (C) 2011 Alcatel-Lucent, Inc.
-   Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ *  Copyright (C) 2011 Alcatel-Lucent, Inc.
+ *  Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #include <linux/module.h>
 #include "vcrtcm_private.h"
 
-/* called by the GPU driver to attach its CRTC to the
-   pixel consumer (PCON)
-   GPU driver *must* supply the pointer to its own drm_crtc
-   structure that describes the CRTC and the pointer to a
-   callback function to be called on detach */
+/*
+ * called by the GPU driver to attach its CRTC to the
+ * pixel consumer (PCON)
+ * GPU driver *must* supply the pointer to its own drm_crtc
+ * structure that describes the CRTC and the pointer to a
+ * callback function to be called on detach
+ */
 int vcrtcm_g_attach(int major, int minor, int flow,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_funcs,
@@ -54,8 +56,10 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 				return -EBUSY;
 			}
 			spin_unlock_irqrestore(&pcon_info_private->lock, flags);
-			/* if we got here, then we have found the PCON
-			   and it's free for us to attach to */
+			/*
+			 * if we got here, then we have found the PCON
+			 * and it's free for us to attach to
+			 */
 
 			/* call the device specific back-end of attach */
 			if (pcon_info_private->pcon_info.funcs.attach) {
@@ -71,15 +75,14 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 					return r;
 				}
 			}
-			/* nothing can fail now, go ahead and
-			   populate the structure */
+			/* nothing can fail now, populate the structure */
 			pcon_info_private->pcon_info.pcon_major = major;
 			pcon_info_private->pcon_info.pcon_minor = minor;
 			pcon_info_private->pcon_info.pcon_flow = flow;
 			pcon_info_private->drm_crtc = drm_crtc;
 			pcon_info_private->gpu_funcs = *gpu_funcs;
 
-			/* point the GPU driver to PCON we have just attached */
+			/* point the GPU driver to PCON we've just attached */
 			*pcon_info = &pcon_info_private->pcon_info;
 
 			/* very last thing to do: change the status */
@@ -102,19 +105,21 @@ int vcrtcm_g_attach(int major, int minor, int flow,
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
 
-/* called by the GPU driver to detach its CRTC from the
-   pixel consumer (PCON)
-   GPU driver must supply the PCON it is detaching
-   this function will also work if someoby else's
-   PCON is provided for detaching but this is not expected
-   to be used by the GPU driver (although VCRTCM may do
-   this if the PCON disappears from the system)
-
-   after doing local cleanup, the detach function will
-   make a callback into the driver to finish up the
-   GPU driver-side cleanup (at least the GPU must
-   set the pointer to PCON to NULL and it may need to do
-   additional (driver-dependent) cleanup */
+/*
+ * called by the GPU driver to detach its CRTC from the
+ * pixel consumer (PCON)
+ * GPU driver must supply the PCON it is detaching
+ * this function will also work if someoby else's
+ * PCON is provided for detaching but this is not expected
+ * to be used by the GPU driver (although VCRTCM may do
+ * this if the PCON disappears from the system)
+ *
+ * after doing local cleanup, the detach function will
+ * make a callback into the driver to finish up the
+ * GPU driver-side cleanup (at least the GPU must
+ * set the pointer to PCON to NULL and it may need to do
+ * additional (driver-dependent) cleanup
+ */
 int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info)
 {
 
@@ -152,15 +157,17 @@ int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_g_detach);
 
-/* Emulates write/setup access to registers that
-   define where the frame buffer associated with
-   the CRTC is and what its geometry is
-
-   GPU driver should pass the parameters (content to be written into
-   emulated registers); registers must be implemented
-   in the backend function; this function simply passes
-   the register content and flow information to the back-end
-   and lets the PCON deal with it */
+/*
+ * Emulates write/setup access to registers that
+ * define where the frame buffer associated with
+ * the CRTC is and what its geometry is
+ *
+ * GPU driver should pass the parameters (content to be written into
+ * emulated registers); registers must be implemented
+ * in the backend function; this function simply passes
+ * the register content and flow information to the back-end
+ * and lets the PCON deal with it
+ */
 int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb)
 {
 	int r;
@@ -187,9 +194,11 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb)
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fb);
 
-/* The opposite of vcrtcm_g_set_fb; GPU driver can read the content
-   of the emulated registers (implemented in the GTD driver) into
-   a structure pointed by fb argument. */
+/*
+ * The opposite of vcrtcm_g_set_fb; GPU driver can read the content
+ * of the emulated registers (implemented in the GTD driver) into
+ * a structure pointed by fb argument
+ */
 int vcrtcm_get_fb(struct vcrtcm_pcon_info *pcon_info,
 		  struct vcrtcm_fb *fb)
 {
@@ -217,22 +226,26 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_get_fb);
 
-/* Emulates a page-flip call for a virtual CRTC
-   similar to vcrtcm_g_set_fb, but only the ioaddr is modified
-   and the backend is expected to make sure that frame tearing
-   is avoided
-
-   GPU driver should pass the IO address of where the new frame buffer
-   is; backend must be able to deal with the address (FIXME: we may need
-   a 64-bit address); the function will return 0 if the flip was
-   done right away, VCRTCM_PFLIP_DEFERRED if the flip could not be
-   done immediately (backend must chache it and execute when possible)
-   or an error code when if the flip can't be done at all */
+/*
+ * Emulates a page-flip call for a virtual CRTC
+ * similar to vcrtcm_g_set_fb, but only the ioaddr is modified
+ * and the backend is expected to make sure that frame tearing
+ * is avoided
+ *
+ * GPU driver should pass the IO address of where the new frame buffer
+ * is; backend must be able to deal with the address (FIXME: we may need
+ * a 64-bit address); the function will return 0 if the flip was
+ * done right away, VCRTCM_PFLIP_DEFERRED if the flip could not be
+ * done immediately (backend must chache it and execute when possible)
+ * or an error code when if the flip can't be done at all
+ */
 int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *pcon_info, u32 ioaddr)
 {
 	int r;
-	/* this method is intended to be called from ISR, so no */
-	/* semaphore grabbing allowed */
+	/*
+	 * this method is intended to be called from ISR, so no
+	 * semaphore grabbing allowed
+	 */
 	if (pcon_info->funcs.page_flip)
 		r = pcon_info->funcs.page_flip(pcon_info, ioaddr);
 	else
@@ -241,11 +254,13 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *pcon_info, u32 ioaddr)
 }
 EXPORT_SYMBOL(vcrtcm_g_page_flip);
 
-/* GPU driver calls this function whenever the framebuffer
-   associated with a given CRTC has changed.  The PCON can
-   handle that change however it likes.  PCONs that do transmission
-   will typically simply record that the frame is dirty and then
-   transmit it at the next vblank.  NOTE: this function may block */
+/*
+ * GPU driver calls this function whenever the framebuffer
+ * associated with a given CRTC has changed.  The PCON can
+ * handle that change however it likes.  PCONs that do transmission
+ * will typically simply record that the frame is dirty and then
+ * transmit it at the next vblank.  NOTE: this function may block
+ */
 int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *pcon_info)
 {
 	int r;
@@ -253,8 +268,6 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *pcon_info)
 	    container_of(pcon_info, struct vcrtcm_pcon_info_private,
 			 pcon_info);
 
-	/* see the long comment in wait_fb implementation about
-	   blocking and mutexes */
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.dirty_fb) {
 		VCRTCM_DEBUG("calling dirty_fb backend, pcon %d.%d.%d\n",
@@ -275,18 +288,21 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
 
-/* GPU driver can use this function to wait for the PCON
-   to finish processing the frame.  The PCON can define
-   "finish processing" however it likes.  PCONs that do
-   transmission will typically wait until the frame is
-   finished being inserted into the transmission pipeline.
-   NOTE: this function may block */
+/*
+ * GPU driver can use this function to wait for the PCON
+ * to finish processing the frame.  The PCON can define
+ * "finish processing" however it likes.  PCONs that do
+ * transmission will typically wait until the frame is
+ * finished being inserted into the transmission pipeline.
+ * NOTE: this function may block
+ */
 int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *pcon_info)
 {
 	int r;
 	struct vcrtcm_pcon_info_private *pcon_info_private =
 	    container_of(pcon_info, struct vcrtcm_pcon_info_private,
 			 pcon_info);
+
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.wait_fb) {
 		VCRTCM_DEBUG("calling wait_fb backend, pcon %d.%d.%d\n",
@@ -389,14 +405,16 @@ int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *pcon_info, int *fps)
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fps);
 
-/* Emulates write/setup access to registers that
-   control the hardware cursor
-
-   GPU driver should pass the parameters (content to be written into
-   emulated registers); registers must be implemented
-   in the backend function; this function simply passes
-   the register content and flow information to the back-end
-   and lets the PCON deal with it */
+/*
+ * Emulates write/setup access to registers that
+ * control the hardware cursor.
+ *
+ * GPU driver should pass the parameters (content to be written into
+ * emulated registers); registers must be implemented
+ * in the backend function; this function simply passes
+ * the register content and flow information to the back-end
+ * and lets the PCON deal with it
+ */
 int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *pcon_info,
 		      struct vcrtcm_cursor *cursor)
 {
@@ -424,9 +442,11 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_set_cursor);
 
-/* The opposite of vcrtcm_g_set_cursor; GPU driver can read the content
-   of the emulated registers (implemented in the GTD driver) into
-   a structure pointed by cursor argument. */
+/*
+ * The opposite of vcrtcm_g_set_cursor; GPU driver can read the content
+ * of the emulated registers (implemented in the GTD driver) into
+ * a structure pointed by cursor argument.
+ */
 int vcrtcm_g_get_cursor(struct vcrtcm_pcon_info *pcon_info,
 		      struct vcrtcm_cursor *cursor)
 {
@@ -530,9 +550,11 @@ int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
 
-/* set new (fake) vblank time; used when vblank emulation */
-/* is generated internally by the GPU without involving the PCON */
-/* (typically after a successful push) */
+/*
+ * set new (fake) vblank time; used when vblank emulation
+ * is generated internally by the GPU without involving the PCON
+ * (typically after a successful push)
+ */
 void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon_info *pcon_info)
 {
 	unsigned long flags;
@@ -553,7 +575,8 @@ void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
 
-/* check if the attached PCON is in the connected state
+/*
+ * check if the attached PCON is in the connected state
  * some PCONs can be always connected (typically software
  * emulators), but some can feed real display devices
  * and may want to query the device they are driving for status
@@ -606,7 +629,8 @@ static struct vcrtcm_mode common_modes[17] = {
 	{1920, 1200, 60}
 };
 
-/* get the list of modes that the attached PCON supports
+/*
+ * get the list of modes that the attached PCON supports
  * if the PCON does not implement the backend function, assume
  * that it can support anything and use a list of common modes
  */
@@ -641,7 +665,8 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon_info *pcon_info,
 EXPORT_SYMBOL(vcrtcm_g_get_modes);
 
 
-/* check if the mode is acceprable by the attached PCON
+/*
+ * check if the mode is acceprable by the attached PCON
  * if backed function is not implemented, assume the PCON
  * accepts everything and the mode is OK
  */
@@ -674,9 +699,9 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_g_check_mode);
 
-/* disable the specified PCON.
- * called when the CRTC associated with the PCON is
- * disabled from userland
+/*
+ * disable the specified PCON. Called when the CRTC associated with
+ * the PCON is disabled from userland
  */
 void vcrtcm_g_disable(struct vcrtcm_pcon_info *pcon_info)
 {
