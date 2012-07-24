@@ -45,9 +45,10 @@
 
 #define VCRTCM_DBG(msg_level, current_level, fmt, args...)		\
 	do {								\
-		if (unlikely(current_level >= msg_level))		\
-			pr_debug("[%s:%s] " fmt,			\
-				 VCRTCM_NAME, __func__, ## args);	\
+		if (unlikely(current_level >= msg_level)) {		\
+			printk(KERN_DEBUG "[%s:%s] " fmt,		\
+			       VCRTCM_NAME, __func__, ## args);		\
+		}							\
 	} while (0)
 
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
