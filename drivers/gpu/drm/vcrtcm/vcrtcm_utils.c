@@ -24,6 +24,81 @@
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
+int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
+{
+	int num_chunks = (num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
+	void *ptr;
+	int i = 0;
+
+	if (!gen)
+		return -EINVAL;
+
+	ptr = kmalloc(sizeof(VCRTCM_ID_GEN_MASK_TYPE) * num_chunks, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	gen->used_ids = ptr;
+	for (i = 0; i < num_chunks; i++)
+		gen->used_ids[i] = (VCRTCM_ID_GEN_MASK_TYPE) 0;
+	gen->num_ids = num_ids;
+	gen->used_count = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_id_generator_init);
+
+void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen)
+{
+	if (!gen)
+		return;
+
+	kfree(gen->used_ids);
+
+	gen->num_ids = 0;
+	gen->used_count = 0;
+
+	return;
+}
+EXPORT_SYMBOL(vcrtcm_id_generator_destroy);
+
+int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen)
+{
+	int i, j;
+	int num_chunks = (gen->num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
+
+	if (!gen)
+		return -EINVAL;
+	if (gen->used_count == gen->num_ids)
+		return -EBUSY;
+
+	for (i = 0; i < num_chunks; i++) {
+		for (j = 0; j < VCRTCM_ID_GEN_MASK_LEN_BITS; j++) {
+			if (!(gen->used_ids[i] & (1 << j))) {
+				gen->used_ids[i] |= (1 << j);
+				gen->used_count++;
+				return (i*VCRTCM_ID_GEN_MASK_LEN_BITS) + j;
+			}
+		}
+	}
+
+	return -EBUSY;
+}
+EXPORT_SYMBOL(vcrtcm_id_generator_get);
+
+void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id)
+{
+	int chunk = id / VCRTCM_ID_GEN_MASK_LEN_BITS;
+	int offset = id % VCRTCM_ID_GEN_MASK_LEN_BITS;
+
+	if (!gen)
+		return;
+
+	gen->used_ids[chunk] &= ~(1 << offset);
+	gen->used_count--;
+
+	return;
+}
+EXPORT_SYMBOL(vcrtcm_id_generator_put);
 
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				struct page **page_array,
