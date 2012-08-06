@@ -37,6 +37,9 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
 	info = (struct pim_info *) pimmgr_kmalloc(sizeof(struct pim_info),
 							GFP_KERNEL);
 
+	if (!info)
+		return NULL;
+
 	strncpy(info->name, name, PIM_NAME_LEN);
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
 	info->data = data;
