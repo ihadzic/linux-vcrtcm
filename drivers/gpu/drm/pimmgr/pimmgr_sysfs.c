@@ -118,6 +118,10 @@ ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 {
 	int ret = 0;
+
+	if (!pim)
+		return -EINVAL;
+
 	ret = kobject_init_and_add(&pim->kobj, &pim_type,
 					&pims_kobj, "%s", pim->name);
 
@@ -129,12 +133,19 @@ int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 
 void vcrtcm_sysfs_del_pim(struct pim_info *pim)
 {
+	if (!pim)
+		return;
+
 	kobject_del(&pim->kobj);
 }
 
 int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon)
 {
 	int ret = 0;
+
+	if (!pcon)
+		return -EINVAL;
+
 	ret = kobject_init_and_add(&pcon->kobj, &pcon_type, &pcons_kobj, "%u",
 		CREATE_PCONID(pcon->pim->id, pcon->local_id));
 	if (ret < 0) {
@@ -156,6 +167,9 @@ int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon)
 }
 void vcrtcm_sysfs_del_pcon(struct pcon_instance_info *pcon)
 {
+	if (!pcon)
+		return;
+
 	sysfs_remove_link(&pcon->pim->kobj, pcon->kobj.name);
 	kobject_del(&pcon->kobj);
 }
