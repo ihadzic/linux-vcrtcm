@@ -58,6 +58,7 @@ struct vcrtcm_id_generator {
 	int num_ids;
 	int used_count;
 	uint64_t *used_ids;
+	struct mutex mutex;
 };
 
 int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids);

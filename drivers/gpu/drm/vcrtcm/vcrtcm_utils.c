@@ -42,6 +42,7 @@ int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 		gen->used_ids[i] = (VCRTCM_ID_GEN_MASK_TYPE) 0;
 	gen->num_ids = num_ids;
 	gen->used_count = 0;
+	mutex_init(&gen->mutex);
 
 	return 0;
 }
@@ -68,19 +69,24 @@ int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen)
 
 	if (!gen)
 		return -EINVAL;
-	if (gen->used_count == gen->num_ids)
+
+	mutex_lock(&gen->mutex);
+	if (gen->used_count == gen->num_ids) {
+		mutex_unlock(&gen->mutex);
 		return -EBUSY;
+	}
 
 	for (i = 0; i < num_chunks; i++) {
 		for (j = 0; j < VCRTCM_ID_GEN_MASK_LEN_BITS; j++) {
 			if (!(gen->used_ids[i] & (1 << j))) {
 				gen->used_ids[i] |= (1 << j);
 				gen->used_count++;
+				mutex_unlock(&gen->mutex);
 				return (i*VCRTCM_ID_GEN_MASK_LEN_BITS) + j;
 			}
 		}
 	}
-
+	mutex_unlock(&gen->mutex);
 	return -EBUSY;
 }
 EXPORT_SYMBOL(vcrtcm_id_generator_get);
@@ -93,8 +99,10 @@ void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id)
 	if (!gen)
 		return;
 
+	mutex_lock(&gen->mutex);
 	gen->used_ids[chunk] &= ~(1 << offset);
 	gen->used_count--;
+	mutex_unlock(&gen->mutex);
 
 	return;
 }
