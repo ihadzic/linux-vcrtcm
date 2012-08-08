@@ -33,7 +33,10 @@ struct attribute pim_desc_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute *pim_attributes[] = { &pim_desc_attr };
+struct attribute *pim_attributes[] = {
+	&pim_desc_attr,
+	NULL
+};
 
 struct kobj_type pim_type = {
 	.sysfs_ops = &pim_ops,
@@ -57,7 +60,11 @@ struct attribute pcon_localid_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute *pcon_attributes[] = { &pcon_desc_attr, &pcon_localid_attr};
+struct attribute *pcon_attributes[] = {
+	&pcon_desc_attr,
+	&pcon_localid_attr,
+	NULL
+};
 
 struct kobj_type pcon_type = {
 	.sysfs_ops = &pcon_ops,
