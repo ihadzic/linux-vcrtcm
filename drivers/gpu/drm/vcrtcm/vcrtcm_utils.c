@@ -65,11 +65,12 @@ EXPORT_SYMBOL(vcrtcm_id_generator_destroy);
 int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen)
 {
 	int i, j;
-	int num_chunks = (gen->num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
+	int num_chunks = 0;
 
 	if (!gen)
 		return -EINVAL;
 
+	num_chunks = (gen->num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
 	mutex_lock(&gen->mutex);
 	if (gen->used_count == gen->num_ids) {
 		mutex_unlock(&gen->mutex);
