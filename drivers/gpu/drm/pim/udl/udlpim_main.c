@@ -43,8 +43,10 @@ int enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
 struct list_head udlpim_info_list;
 int udlpim_major = -1;
 int udlpim_num_minors = -1;
-int udlpim_max_minor = -1;
 int udlpim_fake_vblank_slack = 1;
+
+/* Use to generate minor numbers */
+struct vcrtcm_id_generator udlpim_minor_id_generator;
 
 struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.attach = udlpim_attach,
@@ -91,6 +93,9 @@ static int __init udlpim_init(void)
 
 	INIT_LIST_HEAD(&udlpim_info_list);
 
+	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
+					UDLPIM_MAX_DEVICES);
+
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	ret = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_DEVICES, "udlpim");
 	udlpim_major = MAJOR(dev);
@@ -128,6 +133,7 @@ static void __exit udlpim_exit(void)
 		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
 	}
 
+	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
 	pimmgr_pim_unregister("udl");
 
 	return;

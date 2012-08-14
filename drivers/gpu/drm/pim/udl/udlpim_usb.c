@@ -23,6 +23,7 @@
 #include <linux/usb.h>
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
 #include <edid.h>
 
@@ -87,6 +88,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	struct udlpim_info *udlpim_info;
 
 	int retval = -ENOMEM;
+	int new_minor = -1;
 	unsigned long flags;
 
 	/* usb initialization */
@@ -135,48 +137,24 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	/* Do non-USB/VCRTCM driver setup */
 	INIT_LIST_HEAD(&udlpim_info->list);
 
-	/* Assign a minor number */
-	if (udlpim_num_minors <= udlpim_max_minor) {
-		/* This case occurs if one or more minor that is less than */
-		/* the maximum minor currently assigned becomes available. */
-		/* In this case we want to reuse the lower number(s). */
-		/* Note that this implementation will only work as long as */
-		/* the total number of minors is less than 64. For this */
-		/* reason we set UDLPIM_MAX_DEVICES to 64 in udlpim.h */
-		int new_minor = -1;
-		uint64_t used_minors = 0;
-		struct udlpim_info *ptr;
-		int i;
-
-		list_for_each_entry(ptr, &udlpim_info_list, list) {
-			used_minors |= (1 << ptr->minor);
-		}
-
-		for (i = 0; i < udlpim_max_minor; i++) {
-			if (!(used_minors & (1 << i))) {
-				new_minor = i;
-				break;
-			}
-		}
-		BUG_ON(new_minor < 0);
-		udlpim_info->minor = new_minor;
-		udlpim_num_minors++;
-
-	} else {
-		/* This handles the trivial case where there are no earlier */
-		/* minors that have gone away. */
-
-		/* If we ready have too many minors, error out. */
-		if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
-			VCRTCM_ERROR("Maximum number of minors already assigned. "
-				"Device will be unusable.\n");
-			goto error;
-		}
-
-		udlpim_info->minor = udlpim_num_minors++;
-		udlpim_max_minor++;
+	/* If we ready have too many minors, error out. */
+	if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
+		VCRTCM_ERROR("Maximum number of minors already assigned. "
+			"Device will be unusable.\n");
+		goto error;
 	}
 
+	/* Assign a minor number */
+	new_minor = vcrtcm_id_generator_get(&udlpim_minor_id_generator,
+						VCRTCM_ID_REUSE);
+	if (new_minor < 0) {
+		VCRTCM_ERROR("Problem getting new minor number. "
+				"Device will be unusable.\n");
+		goto error;
+	}
+
+	udlpim_info->minor = new_minor;
+	udlpim_num_minors++;
 	udlpim_info->used = 0;
 
 	mutex_init(&udlpim_info->buffer_mutex);
@@ -267,6 +245,10 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	if (udlpim_info->used)
 		pimmgr_pcon_invalidate("udl", (uint32_t) udlpim_info->minor);
 
+	/* Return minor number */
+	vcrtcm_id_generator_put(&udlpim_minor_id_generator, udlpim_info->minor);
+	udlpim_num_minors--;
+
 	/* release reference taken by kref_init in probe() */
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
 	until udlpim_vcrtcm_detach completes */
@@ -306,12 +288,6 @@ void udlpim_free(struct kref *kref)
 		atomic_read(&udlpim_info->vmalloc_track));
 
 	list_del(&udlpim_info->list);
-
-	if (udlpim_max_minor == udlpim_info->minor)
-		udlpim_max_minor--;
-
-	udlpim_num_minors--;
-
 	kfree(udlpim_info);
 }
 
