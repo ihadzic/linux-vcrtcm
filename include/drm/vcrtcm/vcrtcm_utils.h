@@ -53,17 +53,20 @@
 
 #define VCRTCM_ID_GEN_MASK_TYPE uint32_t
 #define VCRTCM_ID_GEN_MASK_LEN_BITS (sizeof(VCRTCM_ID_GEN_MASK_TYPE) * 8)
+#define VCRTCM_ID_REUSE 1
+#define VCRTCM_ID_INCREASING 2
 
 struct vcrtcm_id_generator {
 	int num_ids;
 	int used_count;
+	int increasing_pos;
 	uint64_t *used_ids;
 	struct mutex mutex;
 };
 
 int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids);
 void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen);
-int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen);
+int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen, int behavior);
 void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id);
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				struct page **page_array,

@@ -42,6 +42,7 @@ int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 		gen->used_ids[i] = (VCRTCM_ID_GEN_MASK_TYPE) 0;
 	gen->num_ids = num_ids;
 	gen->used_count = 0;
+	gen->increasing_pos = -1;
 	mutex_init(&gen->mutex);
 
 	return 0;
@@ -57,33 +58,56 @@ void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen)
 
 	gen->num_ids = 0;
 	gen->used_count = 0;
+	gen->increasing_pos = 0;
 
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_id_generator_destroy);
 
-int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen)
+int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen, int behavior)
 {
 	int i, j;
 	int num_chunks = 0;
+	int start_id, start_chunk, start_offset;
+	int new_id = -1;
 
 	if (!gen)
 		return -EINVAL;
+	if (behavior != VCRTCM_ID_REUSE && behavior != VCRTCM_ID_INCREASING)
+		return -EINVAL;
 
-	num_chunks = (gen->num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
 	mutex_lock(&gen->mutex);
 	if (gen->used_count == gen->num_ids) {
 		mutex_unlock(&gen->mutex);
 		return -EBUSY;
 	}
 
-	for (i = 0; i < num_chunks; i++) {
-		for (j = 0; j < VCRTCM_ID_GEN_MASK_LEN_BITS; j++) {
+	if (behavior == VCRTCM_ID_INCREASING &&
+			(gen->increasing_pos+1) < gen->num_ids) {
+		start_id = gen->increasing_pos+1;
+	} else if (behavior == VCRTCM_ID_INCREASING) {
+		gen->increasing_pos = -1;
+		start_id = 0;
+	} else if (behavior == VCRTCM_ID_REUSE) {
+		start_id = 0;
+	}
+
+	num_chunks = (gen->num_ids / VCRTCM_ID_GEN_MASK_LEN_BITS) + 1;
+	start_chunk = start_id / VCRTCM_ID_GEN_MASK_LEN_BITS;
+	start_offset = start_id % VCRTCM_ID_GEN_MASK_LEN_BITS;
+
+	for (i = start_chunk; i < num_chunks; i++) {
+		for (j = (i == start_chunk ? start_offset : 0);
+				j < VCRTCM_ID_GEN_MASK_LEN_BITS;
+				j++) {
 			if (!(gen->used_ids[i] & (1 << j))) {
 				gen->used_ids[i] |= (1 << j);
 				gen->used_count++;
+				new_id = (i*VCRTCM_ID_GEN_MASK_LEN_BITS) + j;
+				if (gen->increasing_pos < new_id)
+					gen->increasing_pos = new_id;
 				mutex_unlock(&gen->mutex);
-				return (i*VCRTCM_ID_GEN_MASK_LEN_BITS) + j;
+				return new_id;
 			}
 		}
 	}
