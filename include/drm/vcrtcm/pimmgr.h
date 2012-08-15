@@ -52,14 +52,17 @@ struct pcon_instance_info;
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
-	/* Return a new pcon_instance_info structure */
-	/* upon success. Return NULL upon failure. */
+	/* Create a new PCON instance and populate a pcon_instance_info
+	 * structure with information about the new instance.
+	 * Return 1 upon success. Return 0 upon failure.
+	 */
 	int (*instantiate)(struct pcon_instance_info *instance_info,
 				void *data, uint32_t hints);
 
-	/* Deallocate the given PCON instance and free resources used. */
-	/* We can assume that the given PCON is has been detached and */
-	/* removed from VCRTCM before this is called. */
+	/* Deallocate the given PCON instance and free resources used.
+	 * The PIM can assume that the given PCON has been detached
+	 * and removed from VCRTCM before this function is called.
+	 */
 	void (*destroy)(uint32_t local_pcon_id, void *data);
 };
 
@@ -95,12 +98,14 @@ void pimmgr_pim_unregister(char *name);
 /* (due to disconneWct, etc.) */
 void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
 
-/* These will be the approximate functions called from the */
-/* userspace IOCTL handler */
+/* This is the main function called from the userspace IOCTL handler. */
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
 
+/* Functions to find PIM info structs. */
 struct pim_info *find_pim_info_by_name(char *name);
 struct pim_info *find_pim_info_by_id(uint32_t pim_id);
+
+/* Function to find an individual PCON instance info struct. */
 struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
 							uint32_t local_id);
 
