@@ -20,10 +20,19 @@
 #ifndef __PIMMGR_PRIVATE_H__
 #define __PIMMGR_PRIVATE_H__
 
+#define PIMMGR_DEBUG(fmt, args...) VCRTCM_DBG(1, pimmgr_debug, fmt, ## args)
+
+/* Debug flag */
+extern int pimmgr_debug;
+
 /* List of registered PIMs */
 extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
 extern struct list_head pcon_instance_list;
+
+/* Counter for tracking kmallocs. */
+extern atomic_t pimmgr_kmalloc_track;
+
 
 /* This is the main function called from the userspace IOCTL handler. */
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);

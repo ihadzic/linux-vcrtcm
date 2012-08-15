@@ -20,10 +20,10 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
 #include "pimmgr_private.h"
 #include "pimmgr_sysfs.h"
-#include "pimmgr_utils.h"
 
 static uint32_t next_pimid;
 
@@ -35,8 +35,9 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
 	if (!name || !funcs)
 		return NULL;
 
-	info = (struct pim_info *) pimmgr_kmalloc(sizeof(struct pim_info),
-							GFP_KERNEL);
+	info = (struct pim_info *) vcrtcm_kmalloc(sizeof(struct pim_info),
+							GFP_KERNEL,
+							&pimmgr_kmalloc_track);
 
 	if (!info)
 		return NULL;
@@ -89,7 +90,7 @@ void update_pim_info(char *name, struct pim_funcs *funcs, void *data)
 void destroy_pim_info(struct pim_info *info)
 {
 	if (info)
-		pimmgr_kfree(info);
+		vcrtcm_kfree(info, &pimmgr_kmalloc_track);
 }
 
 void add_pim_info(struct pim_info *info)
@@ -171,11 +172,11 @@ void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
 		return;
 
 	pconid = CREATE_PCONID(info->id, pcon_local_id);
-	PR_INFO("Invalidating pcon, info %p, pconid %u\n", info, pconid);
+	VCRTCM_INFO("Invalidating pcon, info %p, pconid %u\n", info, pconid);
 
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_p_del(pconid);
 	list_del(&pcon->instance_list);
-	pimmgr_kfree(pcon);
+	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 }
 EXPORT_SYMBOL(pimmgr_pcon_invalidate);

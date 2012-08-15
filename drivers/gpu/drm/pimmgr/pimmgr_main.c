@@ -27,13 +27,14 @@
 #include <linux/sysfs.h>
 
 #include <vcrtcm/vcrtcm_sysfs.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
 #include "pimmgr_private.h"
-#include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
 #include "pimmgr_sysfs.h"
 
 int pimmgr_debug = 1;
+atomic_t pimmgr_kmalloc_track = ATOMIC_INIT(0);
 
 static const struct file_operations pimmgr_fops;
 struct list_head	pim_list;
@@ -78,17 +79,17 @@ static int pimmgr_init(void)
 	ret = kobject_init_and_add(&pims_kobj, &empty_ktype,
 					&pimmgr_device->kobj, "pims");
 	if (ret < 0)
-		PR_ERR("Error creating sysfs pim node...\n");
+		VCRTCM_ERROR("Error creating sysfs pim node...\n");
 
 	ret = kobject_init_and_add(&pcons_kobj, &empty_ktype,
 					&pimmgr_device->kobj, "pcons");
 	if (ret < 0)
-		PR_ERR("Error creating sysfs pcon node...\n");
+		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
 
-	PR_INFO("Bell Labs PIM Manager (pimmgr)\n");
-	PR_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
-	PR_INFO("pimmgr driver loaded, major %d, minor %d\n",
-					MAJOR(dev), MINOR(dev));
+	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
+	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
+	VCRTCM_INFO("pimmgr driver loaded, major %d, minor %d\n",
+						MAJOR(dev), MINOR(dev));
 
 	return 0;
 error:
@@ -108,7 +109,7 @@ static void pimmgr_exit(void)
 
 	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
 		list_del(&info->pim_list);
-		pimmgr_kfree(info);
+		vcrtcm_kfree(info, &pimmgr_kmalloc_track);
 	}
 
 	if (cdev)
@@ -119,8 +120,8 @@ static void pimmgr_exit(void)
 
 	unregister_chrdev_region(dev, 1);
 
-	pimmgr_print_alloc_stats();
-	PR_INFO("pimmgr unloaded\n");
+	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&pimmgr_kmalloc_track));
+	VCRTCM_INFO("pimmgr unloaded\n");
 }
 
 long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

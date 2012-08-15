@@ -18,9 +18,9 @@
  */
 
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
 #include "pimmgr_private.h"
-#include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
 #include "pimmgr_sysfs.h"
 
@@ -33,17 +33,18 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	uint32_t new_pconid;
 	int value = 0;
 
-	PR_INFO("in instantiate pcon...\n");
+	VCRTCM_INFO("in instantiate pcon...\n");
 	info = find_pim_info_by_name(name);
 
 	if (!info) {
-		PR_INFO("Invalid pim identifier\n");
+		VCRTCM_INFO("Invalid pim identifier\n");
 		return PIMMGR_ERR_INVALID_PIM;
 	}
 
-	pcon = pimmgr_kzalloc(sizeof(struct pcon_instance_info), GFP_KERNEL);
+	pcon = vcrtcm_kzalloc(sizeof(struct pcon_instance_info), GFP_KERNEL,
+					&pimmgr_kmalloc_track);
 	if (!pcon) {
-		PR_INFO("Could not allocate memory\n");
+		VCRTCM_INFO("Could not allocate memory\n");
 		return PIMMGR_ERR_NOMEM;
 	}
 
@@ -52,20 +53,20 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	if (info->funcs.instantiate)
 		value = info->funcs.instantiate(pcon, info->data, hints);
 	else
-		PR_INFO("No instantiate function...\n");
+		VCRTCM_INFO("No instantiate function...\n");
 
 	if (!value) {
-		PR_INFO("No pcons of type %s available...\n", name);
-		pimmgr_kfree(pcon);
+		VCRTCM_INFO("No pcons of type %s available...\n", name);
+		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 		return PIMMGR_ERR_NOT_AVAILABLE;
 	}
 	new_pconid = CREATE_PCONID(info->id, pcon->local_id);
 
-	PR_INFO("New pcon created, id %u\n", new_pconid);
+	VCRTCM_INFO("New pcon created, id %u\n", new_pconid);
 
 	if (vcrtcm_p_add(pcon->funcs, pcon->props, new_pconid, pcon->cookie)) {
-		PR_INFO("Error registering pcon with vcrtcm\n");
-		pimmgr_kfree(pcon);
+		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
+		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 		return PIMMGR_ERR_CANNOT_REGISTER;
 	}
 
@@ -84,7 +85,7 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	uint32_t pim_id = PCONID_PIMID(pconid);
 	uint32_t local_pcon_id = PCONID_LOCALID(pconid);
 
-	PR_INFO("in destroy pcon id %u...\n", pconid);
+	VCRTCM_INFO("in destroy pcon id %u...\n", pconid);
 
 	if (!PCONID_VALID(pconid))
 		return PIMMGR_ERR_INVALID_PCON;
@@ -106,10 +107,10 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	if (info->funcs.destroy)
 		info->funcs.destroy(local_pcon_id, info->data);
 	else
-		PR_INFO("No destroy function...\n");
+		VCRTCM_INFO("No destroy function...\n");
 
 	list_del(&instance->instance_list);
-	pimmgr_kfree(instance);
+	vcrtcm_kfree(instance, &pimmgr_kmalloc_track);
 	return 0;
 }
 
@@ -118,7 +119,7 @@ long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct pimmgr_ioctl_args ioctl_args;
 	long result = 0;
 
-	PR_DEBUG("IOCTL entered...\n");
+	PIMMGR_DEBUG("IOCTL entered...\n");
 
 	if (!access_ok(VERIFY_READ, arg, sizeof(struct pimmgr_ioctl_args)))
 		return -EFAULT;
@@ -161,7 +162,7 @@ long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		return 0;
 	} else
-		PR_INFO("Bad IOCTL\n");
+		VCRTCM_INFO("Bad IOCTL\n");
 
 	return 0;
 }

@@ -17,9 +17,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <vcrtcm/vcrtcm_utils.h>
 #include "pimmgr.h"
 #include "pimmgr_sysfs.h"
-#include "pimmgr_utils.h"
 
 struct kobject pims_kobj;
 
@@ -133,7 +133,7 @@ int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 					&pims_kobj, "%s", pim->name);
 
 	if (ret < 0)
-		PR_ERR("Error adding pim to sysfs\n");
+		VCRTCM_ERROR("Error adding pim to sysfs\n");
 
 	return ret;
 }
@@ -156,19 +156,19 @@ int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon)
 	ret = kobject_init_and_add(&pcon->kobj, &pcon_type, &pcons_kobj, "%u",
 		CREATE_PCONID(pcon->pim->id, pcon->local_id));
 	if (ret < 0) {
-		PR_ERR("Error adding pcon to sysfs\n");
+		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;
 	}
 
 	ret = sysfs_create_link(&pcon->pim->kobj, &pcon->kobj,
 						pcon->kobj.name);
 	if (ret < 0)
-		PR_ERR("Error linking pcon to pim in sysfs\n");
+		VCRTCM_ERROR("Error linking pcon to pim in sysfs\n");
 
 	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj,
 						pcon->pim->kobj.name);
 	if (ret < 0)
-		PR_ERR("Error linking pim to pcon in sysfs\n");
+		VCRTCM_ERROR("Error linking pim to pcon in sysfs\n");
 
 	return 1;
 }
