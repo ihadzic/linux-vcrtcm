@@ -43,11 +43,6 @@
 		((((uint32_t)pcon_id) << (PIM_ID_LEN + 1)) >> (PIM_ID_LEN + 1))
 #define PCONID_VALID(pcon_id) (((uint32_t) pcon_id) & HIGH_BIT)
 
-/* List of registered PIMs */
-extern struct list_head pim_list;
-extern struct mutex pim_list_mutex;
-extern struct list_head pcon_instance_list;
-
 struct pcon_instance_info;
 
 /* Each PIM must implement these functions. */
@@ -97,16 +92,5 @@ void pimmgr_pim_unregister(char *name);
 /* Called from inside a PIM if a PCON becomes invalid */
 /* (due to disconneWct, etc.) */
 void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
-
-/* This is the main function called from the userspace IOCTL handler. */
-long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
-
-/* Functions to find PIM info structs. */
-struct pim_info *find_pim_info_by_name(char *name);
-struct pim_info *find_pim_info_by_id(uint32_t pim_id);
-
-/* Function to find an individual PCON instance info struct. */
-struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
-							uint32_t local_id);
 
 #endif

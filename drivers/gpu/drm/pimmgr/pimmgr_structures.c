@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/pimmgr.h>
+#include "pimmgr_private.h"
 #include "pimmgr_sysfs.h"
 #include "pimmgr_utils.h"
 

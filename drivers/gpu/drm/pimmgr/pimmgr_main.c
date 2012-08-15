@@ -28,6 +28,7 @@
 
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/pimmgr.h>
+#include "pimmgr_private.h"
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
 #include "pimmgr_sysfs.h"

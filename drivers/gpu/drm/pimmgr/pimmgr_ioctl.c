@@ -19,6 +19,7 @@
 
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/pimmgr.h>
+#include "pimmgr_private.h"
 #include "pimmgr_utils.h"
 #include "pimmgr_ioctl.h"
 #include "pimmgr_sysfs.h"
