@@ -98,21 +98,10 @@ void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
 /* These will be the approximate functions called from the */
 /* userspace IOCTL handler */
 long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
-uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
-							uint32_t *pconid);
-int pimmgr_ioctl_destroy_pcon(uint32_t pconid);
 
-struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
-					void *data);
-void update_pim_info(char *name, struct pim_funcs *funcs, void *data);
 struct pim_info *find_pim_info_by_name(char *name);
 struct pim_info *find_pim_info_by_id(uint32_t pim_id);
-void destroy_pim_info(struct pim_info *info);
-void add_pim_info(struct pim_info *info);
-void remove_pim_info(struct pim_info *info);
 struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
 							uint32_t local_id);
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
-void pimmgr_pim_unregister(char *name);
 
 #endif
