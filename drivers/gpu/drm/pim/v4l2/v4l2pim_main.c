@@ -36,6 +36,7 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
 
 #include "v4l2pim.h"
@@ -55,10 +56,12 @@ static void v4l2pim_destroy(uint32_t local_pcon_id, void *data);
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
 int v4l2pim_num_minors;
-int v4l2pim_max_minor = -1;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
 int debug; /* Enable the printing of debugging information */
+
+/* ID generator for allocating minor numbers */
+static struct vcrtcm_id_generator v4l2pim_minor_id_generator;
 
 /* NOTE: applications will set their preferred format.  That does not mean it
  *	 is our preferred format.  We would like applications to use bgr32 but
@@ -979,36 +982,10 @@ static struct v4l2pim_info *v4l2pim_create_minor(void)
 		return NULL;
 
 	/* Assign a minor number */
-	/* TODO: Refactor this code into a utility somehow? */
-	if (v4l2pim_num_minors <= v4l2pim_max_minor) {
-		/* This case occurs if one or more minor that is less than */
-		/* the maximum minor currently assigned becomes available. */
-		/* In this case we want to reuse the lower number(s). */
-		/* Note that this implementation will only work as long as */
-		/* the total number of minors is less than 64. For this */
-		/* reason we set V4L2PIM_MAX_MINORS to 64 in v42pim.h */
-		uint64_t used_minors = 0;
-		struct v4l2pim_info *ptr;
-		int i;
-
-		list_for_each_entry(ptr, &v4l2pim_info_list, list) {
-			used_minors |= (1 << ptr->minor);
-		}
-
-		for (i = 0; i < v4l2pim_max_minor; i++) {
-			if (!(used_minors & (1 << i))) {
-				new_minor = i;
-				break;
-			}
-		}
-		BUG_ON(new_minor < 0);
-		v4l2pim_num_minors++;
-	} else {
-		/* This handles the trivial case where there are no earlier */
-		/* minors that have gone away. */
-		new_minor = v4l2pim_num_minors++;
-		v4l2pim_max_minor++;
-	}
+	new_minor = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
+						VCRTCM_ID_REUSE);
+	if (new_minor < 0)
+		return NULL;
 
 	v4l2pim_info = kzalloc(sizeof(struct v4l2pim_info), GFP_KERNEL);
 	if (!v4l2pim_info) {
@@ -1108,12 +1085,12 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 	V4L2PIM_DEBUG("vmalloc_track: %d\n",
 			atomic_read(&v4l2pim_info->vmalloc_track));
 
+	vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
+					v4l2pim_info->minor);
+	v4l2pim_num_minors--;
+
 	list_del(&v4l2pim_info->list);
 	kfree(v4l2pim_info);
-
-	if (v4l2pim_info->minor == v4l2pim_max_minor)
-		v4l2pim_max_minor--;
-	v4l2pim_num_minors--;
 }
 
 static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
@@ -1159,6 +1136,8 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 
 	INIT_LIST_HEAD(&v4l2pim_info_list);
+	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
+					V4L2PIM_MAX_MINORS);
 
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, "v4l2pim");
@@ -1199,6 +1178,7 @@ static void __exit v4l2pim_exit(void)
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
+	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
 
 	return;
 }
