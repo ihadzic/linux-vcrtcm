@@ -21,57 +21,83 @@
 #include "pimmgr.h"
 #include "pimmgr_sysfs.h"
 
-struct kobject pims_kobj;
+/* Prototypes of sysfs property read/write functions. */
+static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
+static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
 
-const struct sysfs_ops pim_ops = {
+/* Empty kobj_type to use for the "pims" and "pcons" directory. */
+static struct kobj_type empty_type;
+
+/* Kobject for "pims" directory. */
+static struct kobject pims_kobj;
+
+/* Kobject for "pcons" directory. */
+static struct kobject pcons_kobj;
+
+/* Operations to read/write properties on a PIM entry. */
+static const struct sysfs_ops pim_ops = {
 	.show = pim_show,
 	.store = pim_store
 };
 
-struct attribute pim_desc_attr = {
+/* PIM description attribute. */
+static struct attribute pim_desc_attr = {
 	.name = "description",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute *pim_attributes[] = {
+/* Array of PIM attributes. */
+static struct attribute *pim_attributes[] = {
 	&pim_desc_attr,
 	NULL
 };
 
-struct kobj_type pim_type = {
+/* Definition of PIM kobj_type. */
+static struct kobj_type pim_type = {
 	.sysfs_ops = &pim_ops,
 	.default_attrs = pim_attributes,
 };
 
-struct kobject pcons_kobj;
-
-const struct sysfs_ops pcon_ops = {
+/* Operations to read/write properties on a PCON entry. */
+static const struct sysfs_ops pcon_ops = {
 	.show = pcon_show,
 	.store = pcon_store
 };
 
-struct attribute pcon_desc_attr = {
+/* PCON description attribute. */
+static struct attribute pcon_desc_attr = {
 	.name = "description",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute pcon_localid_attr = {
+/* PCON localid attribute. */
+static struct attribute pcon_localid_attr = {
 	.name = "localid",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-struct attribute *pcon_attributes[] = {
+/* Array of PCON attributes. */
+static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_localid_attr,
 	NULL
 };
 
-struct kobj_type pcon_type = {
+/* Definition of PCON kobj_type. */
+static struct kobj_type pcon_type = {
 	.sysfs_ops = &pcon_ops,
 	.default_attrs = pcon_attributes,
 };
 
-ssize_t pim_show(struct kobject *kobj, struct attribute *attr, char *buf)
+/* Implementation of the function to read PIM properties. */
+static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
 {
 	struct pim_info *pim = (struct pim_info *)
 				container_of(kobj, struct pim_info, kobj);
@@ -85,14 +111,16 @@ ssize_t pim_show(struct kobject *kobj, struct attribute *attr, char *buf)
 	return 0;
 }
 
-
-ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
-					const char *buf, size_t size)
+/* Implementation of the function to write PIM properties (unused). */
+static ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
 {
 	return 0;
 }
 
-ssize_t pcon_show(struct kobject *kobj, struct attribute *attr, char *buf)
+/* Implementation of the function to read PCON properties. */
+static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
 {
 	struct pimmgr_pcon_info *pcon;
 	struct pim_info *pim;
@@ -116,12 +144,39 @@ ssize_t pcon_show(struct kobject *kobj, struct attribute *attr, char *buf)
 	return 0;
 }
 
-ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
-					const char *buf, size_t size)
+/* Implementation of the function to write PCON properties (unused). */
+static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
 {
 	return 0;
 }
 
+/* Initialize the pimmgr sysfs stuff (called from init). */
+void pimmgr_sysfs_init(struct device *pimmgr_device)
+{
+	int ret = 0;
+
+	if (!pimmgr_device) {
+		VCRTCM_ERROR("Invalid device, could not set up sysfs...\n");
+		return;
+	}
+
+	memset(&pims_kobj, 0, sizeof(struct kobject));
+	memset(&pcons_kobj, 0, sizeof(struct kobject));
+	memset(&empty_type, 0, sizeof(struct kobj_type));
+
+	ret = kobject_init_and_add(&pims_kobj, &empty_type,
+					&pimmgr_device->kobj, "pims");
+	if (ret < 0)
+		VCRTCM_ERROR("Error creating sysfs pim node...\n");
+
+	ret = kobject_init_and_add(&pcons_kobj, &empty_type,
+					&pimmgr_device->kobj, "pcons");
+	if (ret < 0)
+		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
+}
+
+/* Add a PIM's info to sysfs. */
 int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 {
 	int ret = 0;
@@ -138,6 +193,7 @@ int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 	return ret;
 }
 
+/* Delete a PIM's info from sysfs. */
 void vcrtcm_sysfs_del_pim(struct pim_info *pim)
 {
 	if (!pim)
@@ -146,6 +202,7 @@ void vcrtcm_sysfs_del_pim(struct pim_info *pim)
 	kobject_del(&pim->kobj);
 }
 
+/* Add a PCON's info to sysfs. */
 int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon)
 {
 	int ret = 0;
@@ -172,6 +229,8 @@ int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon)
 
 	return 1;
 }
+
+/* Delete a PCON's info from sysfs. */
 void vcrtcm_sysfs_del_pcon(struct pimmgr_pcon_info *pcon)
 {
 	if (!pcon)

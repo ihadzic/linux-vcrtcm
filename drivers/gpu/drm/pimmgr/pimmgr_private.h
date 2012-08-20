@@ -45,4 +45,7 @@ struct pim_info *find_pim_info_by_id(uint32_t pim_id);
 struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 							uint32_t local_id);
 
+/* Function to initialize the pimmgr sysfs stuff */
+void pimmgr_sysfs_init(struct device *pimmgr_device);
+
 #endif

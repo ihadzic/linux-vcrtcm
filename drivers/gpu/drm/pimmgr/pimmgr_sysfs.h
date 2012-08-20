@@ -26,18 +26,6 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include "pimmgr.h"
 
-ssize_t pim_show(struct kobject *kobj, struct attribute *attr, char *buf);
-ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
-					const char *buf, size_t size);
-ssize_t pcon_show(struct kobject *kobj, struct attribute *attr, char *buf);
-ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
-					const char *buf, size_t size);
-
-extern struct kobject pims_kobj;
-extern struct kobject pcons_kobj;
-extern struct kobj_type pim_type;
-extern struct kobj_type pcon_type;
-
 int vcrtcm_sysfs_add_pim(struct pim_info *pim);
 void vcrtcm_sysfs_del_pim(struct pim_info *pim);
 int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon);

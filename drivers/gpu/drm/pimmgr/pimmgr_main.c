@@ -45,12 +45,10 @@ static dev_t pimmgr_dev;
 static struct cdev *pimmgr_cdev;
 static struct device *pimmgr_device;
 
-struct kobj_type empty_ktype;
-
 static int pimmgr_init(void)
 {
 	struct class *vcrtcm_class;
-	int ret = 0;
+
 	INIT_LIST_HEAD(&pim_list);
 	INIT_LIST_HEAD(&pcon_list);
 	mutex_init(&pim_list_mutex);
@@ -72,20 +70,7 @@ static int pimmgr_init(void)
 
 	pimmgr_device = device_create(vcrtcm_class, NULL, pimmgr_dev,
 							NULL, "pimmgr");
-
-	memset(&pims_kobj, 0, sizeof(struct kobject));
-	memset(&pcons_kobj, 0, sizeof(struct kobject));
-	memset(&empty_ktype, 0, sizeof(struct kobj_type));
-
-	ret = kobject_init_and_add(&pims_kobj, &empty_ktype,
-					&pimmgr_device->kobj, "pims");
-	if (ret < 0)
-		VCRTCM_ERROR("Error creating sysfs pim node...\n");
-
-	ret = kobject_init_and_add(&pcons_kobj, &empty_ktype,
-					&pimmgr_device->kobj, "pcons");
-	if (ret < 0)
-		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
+	pimmgr_sysfs_init(pimmgr_device);
 
 	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
 	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
