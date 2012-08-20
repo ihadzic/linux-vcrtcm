@@ -110,12 +110,12 @@ static void pimmgr_exit(void)
 		vcrtcm_kfree(info, &pimmgr_kmalloc_track);
 	}
 
-	if (cdev)
-		cdev_del(cdev);
-
 	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (vcrtcm_class)
 		device_destroy(vcrtcm_class, dev);
+
+	if (cdev)
+		cdev_del(cdev);
 
 	unregister_chrdev_region(dev, 1);
 
