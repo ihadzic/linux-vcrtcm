@@ -28,6 +28,15 @@
 #define PIM_NAME_MAXLEN 33
 #define PCON_DESC_MAXLEN 512
 
+/* A PCON ID is a system-wide identifier for an individual PCON.
+ * The IDs themselves are constructed from a PIM ID and a *local*
+ * PCON ID. In this case, the word "local" means "local to the PIM".
+ * The local IDs are created by the PIMs internally and pimmgr has
+ * no control over how they are defined or used. This allows the use
+ * of a globally recognized PCON ID and still gives PIM implementers
+ * flexibility in how they identify their own PCONs.
+ */
+
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 21
 #define HIGH_BIT 0x80000000
