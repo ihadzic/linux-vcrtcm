@@ -35,7 +35,7 @@
 
 struct pimmgr_ioctl_args {
 	union {
-		char pim_name[PIM_NAME_LEN];
+		char pim_name[PIM_NAME_MAXLEN];
 		uint32_t pconid;
 	} arg1;
 	union {

@@ -25,7 +25,7 @@
 #include <linux/kobject.h>
 #include <vcrtcm/vcrtcm_common.h>
 
-#define PIM_NAME_LEN 33
+#define PIM_NAME_MAXLEN 33
 #define PCON_DESC_LEN 512
 
 #define PIM_ID_LEN 10
@@ -62,7 +62,7 @@ struct pim_funcs {
 };
 
 struct pim_info {
-	char name[PIM_NAME_LEN];
+	char name[PIM_NAME_MAXLEN];
 	uint32_t id;
 	struct pim_funcs funcs;
 	void *data;

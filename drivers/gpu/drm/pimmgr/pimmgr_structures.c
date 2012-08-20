@@ -42,7 +42,7 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
 	if (!info)
 		return NULL;
 
-	strncpy(info->name, name, PIM_NAME_LEN);
+	strncpy(info->name, name, PIM_NAME_MAXLEN);
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
 	info->data = data;
 	memset(&info->kobj, 0, sizeof(struct kobject));
