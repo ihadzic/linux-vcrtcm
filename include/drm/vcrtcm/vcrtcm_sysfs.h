@@ -23,8 +23,6 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-extern struct class *vcrtcm_class;
-
 struct class *vcrtcm_sysfs_get_class(void);
 
 /* TODO: Define interface for GPU registration (add/del) */

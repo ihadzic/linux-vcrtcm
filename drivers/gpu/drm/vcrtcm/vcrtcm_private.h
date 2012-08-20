@@ -53,6 +53,7 @@ struct vcrtcm_pcon_info_private {
 extern struct list_head vcrtcm_pcon_list;
 extern struct mutex vcrtcm_pcon_list_mutex;
 extern int vcrtcm_debug;
+extern struct class *vcrtcm_class;
 
 #define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)
 
