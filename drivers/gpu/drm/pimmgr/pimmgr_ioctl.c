@@ -80,15 +80,17 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 {
 	struct pim_info *info;
 	struct pcon_instance_info *instance;
+	uint32_t pim_id;
+	uint32_t local_pcon_id;
 	int r = 0;
-
-	uint32_t pim_id = PCONID_PIMID(pconid);
-	uint32_t local_pcon_id = PCONID_LOCALID(pconid);
 
 	VCRTCM_INFO("in destroy pcon id %u...\n", pconid);
 
 	if (!PCONID_VALID(pconid))
 		return PIMMGR_ERR_INVALID_PCON;
+
+	pim_id = PCONID_PIMID(pconid);
+	local_pcon_id = PCONID_LOCALID(pconid);
 
 	info = find_pim_info_by_id(pim_id);
 	if (!info)
