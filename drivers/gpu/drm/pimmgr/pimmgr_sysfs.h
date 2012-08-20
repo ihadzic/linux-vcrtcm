@@ -26,8 +26,6 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include "pimmgr.h"
 
-extern struct class *vcrtcm_class;
-
 ssize_t pim_show(struct kobject *kobj, struct attribute *attr, char *buf);
 ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
 					const char *buf, size_t size);

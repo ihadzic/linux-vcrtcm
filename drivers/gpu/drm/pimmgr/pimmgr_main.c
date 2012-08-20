@@ -43,13 +43,13 @@ struct list_head	pcon_list;
 
 dev_t dev;
 struct cdev *cdev;
-struct class *vcrtcm_class;
 struct device *pimmgr_device;
 
 struct kobj_type empty_ktype;
 
 static int pimmgr_init(void)
 {
+	struct class *vcrtcm_class;
 	int ret = 0;
 	INIT_LIST_HEAD(&pim_list);
 	INIT_LIST_HEAD(&pcon_list);
@@ -97,15 +97,13 @@ error:
 	if (cdev)
 		cdev_del(cdev);
 
-	/* if(vcrtcm_class) */
-	/*	class_destroy(vcrtcm_class); */
-
 	return -ENOMEM;
 }
 
 static void pimmgr_exit(void)
 {
 	struct pim_info *info, *tmp;
+	struct class *vcrtcm_class;
 
 	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
 		list_del(&info->pim_list);
@@ -115,6 +113,7 @@ static void pimmgr_exit(void)
 	if (cdev)
 		cdev_del(cdev);
 
+	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (vcrtcm_class)
 		device_destroy(vcrtcm_class, dev);
 
