@@ -23,59 +23,6 @@
 #include "pimmgr_ioctl.h"
 #include "pimmgr_sysfs.h"
 
-long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	struct pimmgr_ioctl_args ioctl_args;
-	long result = 0;
-
-	PR_DEBUG("IOCTL entered...\n");
-
-	if (!access_ok(VERIFY_READ, arg, sizeof(struct pimmgr_ioctl_args)))
-		return -EFAULT;
-
-	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct pimmgr_ioctl_args)))
-		return -EFAULT;
-
-	if (cmd == PIMMGR_IOC_INSTANTIATE) {
-		void *ptr = (void *)arg;
-
-		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct pimmgr_ioctl_args)))
-			return -EFAULT;
-
-		result = pimmgr_ioctl_instantiate_pcon(
-						ioctl_args.arg1.pim_name,
-						ioctl_args.arg2.hints,
-						&ioctl_args.result1.pconid);
-		if (result)
-			return result;
-
-		if (copy_to_user(ptr, &ioctl_args,
-					sizeof(struct pimmgr_ioctl_args)))
-			return -EFAULT;
-
-		return 0;
-	}
-
-	else if (cmd == PIMMGR_IOC_DESTROY) {
-		void *ptr = (void *)arg;
-
-		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct pimmgr_ioctl_args)))
-			return -EFAULT;
-
-		result = pimmgr_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
-
-		if (result)
-			return result;
-
-		return 0;
-	} else
-		PR_INFO("Bad IOCTL\n");
-
-	return 0;
-}
-
 /* TODO: Need better errors. */
 uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 							uint32_t *pconid)
@@ -162,5 +109,58 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 
 	list_del(&instance->instance_list);
 	pimmgr_kfree(instance);
+	return 0;
+}
+
+long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct pimmgr_ioctl_args ioctl_args;
+	long result = 0;
+
+	PR_DEBUG("IOCTL entered...\n");
+
+	if (!access_ok(VERIFY_READ, arg, sizeof(struct pimmgr_ioctl_args)))
+		return -EFAULT;
+
+	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct pimmgr_ioctl_args)))
+		return -EFAULT;
+
+	if (cmd == PIMMGR_IOC_INSTANTIATE) {
+		void *ptr = (void *)arg;
+
+		if (copy_from_user(&ioctl_args, ptr,
+				sizeof(struct pimmgr_ioctl_args)))
+			return -EFAULT;
+
+		result = pimmgr_ioctl_instantiate_pcon(
+						ioctl_args.arg1.pim_name,
+						ioctl_args.arg2.hints,
+						&ioctl_args.result1.pconid);
+		if (result)
+			return result;
+
+		if (copy_to_user(ptr, &ioctl_args,
+					sizeof(struct pimmgr_ioctl_args)))
+			return -EFAULT;
+
+		return 0;
+	}
+
+	else if (cmd == PIMMGR_IOC_DESTROY) {
+		void *ptr = (void *)arg;
+
+		if (copy_from_user(&ioctl_args, ptr,
+				sizeof(struct pimmgr_ioctl_args)))
+			return -EFAULT;
+
+		result = pimmgr_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
+
+		if (result)
+			return result;
+
+		return 0;
+	} else
+		PR_INFO("Bad IOCTL\n");
+
 	return 0;
 }
