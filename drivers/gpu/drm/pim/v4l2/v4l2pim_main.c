@@ -1103,7 +1103,7 @@ static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
 	if (!v4l2pim_info)
 		return 0;
 
-	scnprintf(instance_info->description, PCON_DESC_LEN,
+	scnprintf(instance_info->description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - Device /dev/video%i",
 			v4l2pim_info->minor);
 	instance_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;

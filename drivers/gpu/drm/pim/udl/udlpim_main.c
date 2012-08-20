@@ -148,7 +148,7 @@ static int udlpim_instantiate(struct pcon_instance_info *instance_info,
 	list_for_each_entry(info, &udlpim_info_list, list) {
 		if (!info->used) {
 			usbdev = info->udev;
-			scnprintf(instance_info->description, PCON_DESC_LEN,
+			scnprintf(instance_info->description, PCON_DESC_MAXLEN,
 					"%s %s - Serial #%s",
 					usbdev->manufacturer,
 					usbdev->product,
