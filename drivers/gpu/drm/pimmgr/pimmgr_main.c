@@ -41,9 +41,9 @@ struct list_head	pim_list;
 struct mutex		pim_list_mutex;
 struct list_head	pcon_list;
 
-dev_t dev;
-struct cdev *cdev;
-struct device *pimmgr_device;
+static dev_t pimmgr_dev;
+static struct cdev *pimmgr_cdev;
+static struct device *pimmgr_device;
 
 struct kobj_type empty_ktype;
 
@@ -55,22 +55,23 @@ static int pimmgr_init(void)
 	INIT_LIST_HEAD(&pcon_list);
 	mutex_init(&pim_list_mutex);
 
-	cdev = cdev_alloc();
+	pimmgr_cdev = cdev_alloc();
 
-	if (!cdev)
+	if (!pimmgr_cdev)
 		goto error;
 
 	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (!vcrtcm_class)
 		goto error;
 
-	alloc_chrdev_region(&dev, 0, 1, "pimmgr");
+	alloc_chrdev_region(&pimmgr_dev, 0, 1, "pimmgr");
 
-	cdev->ops = &pimmgr_fops;
-	cdev->owner = THIS_MODULE;
-	cdev_add(cdev, dev, 1);
+	pimmgr_cdev->ops = &pimmgr_fops;
+	pimmgr_cdev->owner = THIS_MODULE;
+	cdev_add(pimmgr_cdev, pimmgr_dev, 1);
 
-	pimmgr_device = device_create(vcrtcm_class, NULL, dev, NULL, "pimmgr");
+	pimmgr_device = device_create(vcrtcm_class, NULL, pimmgr_dev,
+							NULL, "pimmgr");
 
 	memset(&pims_kobj, 0, sizeof(struct kobject));
 	memset(&pcons_kobj, 0, sizeof(struct kobject));
@@ -89,13 +90,13 @@ static int pimmgr_init(void)
 	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
 	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("pimmgr driver loaded, major %d, minor %d\n",
-						MAJOR(dev), MINOR(dev));
+					MAJOR(pimmgr_dev), MINOR(pimmgr_dev));
 
 	return 0;
 error:
 
-	if (cdev)
-		cdev_del(cdev);
+	if (pimmgr_cdev)
+		cdev_del(pimmgr_cdev);
 
 	return -ENOMEM;
 }
@@ -112,12 +113,12 @@ static void pimmgr_exit(void)
 
 	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (vcrtcm_class)
-		device_destroy(vcrtcm_class, dev);
+		device_destroy(vcrtcm_class, pimmgr_dev);
 
-	if (cdev)
-		cdev_del(cdev);
+	if (pimmgr_cdev)
+		cdev_del(pimmgr_cdev);
 
-	unregister_chrdev_region(dev, 1);
+	unregister_chrdev_region(pimmgr_dev, 1);
 
 	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&pimmgr_kmalloc_track));
 	VCRTCM_INFO("pimmgr unloaded\n");
