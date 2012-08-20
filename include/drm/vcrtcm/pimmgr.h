@@ -30,7 +30,7 @@
 
 #define PIM_ID_LEN 10
 #define PCON_LOCAL_ID_LEN 21
-#define HIGH_BIT (1 << (sizeof(uint32_t)*8 - 1))
+#define HIGH_BIT 0x80000000
 
 #define CREATE_PCONID(pim_id, pcon_local_id) \
 		(HIGH_BIT | \
