@@ -109,15 +109,15 @@ void remove_pim_info(struct pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
+struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 							uint32_t local_id)
 {
-	struct pcon_instance_info *instance;
+	struct pimmgr_pcon_info *pcon;
 
-	list_for_each_entry(instance, &pcon_instance_list, instance_list)
+	list_for_each_entry(pcon, &pcon_list, pcon_list)
 	{
-		if (instance->pim == pim && instance->local_id == local_id)
-			return instance;
+		if (pcon->pim == pim && pcon->local_id == local_id)
+			return pcon;
 	}
 
 	return NULL;
@@ -160,14 +160,14 @@ EXPORT_SYMBOL(pimmgr_pim_unregister);
 void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
 {
 	struct pim_info *info;
-	struct pcon_instance_info *pcon;
+	struct pimmgr_pcon_info *pcon;
 	uint32_t pconid;
 
 	info = find_pim_info_by_name(name);
 	if (!info)
 		return;
 
-	pcon = find_pcon_instance_info(info, pcon_local_id);
+	pcon = find_pimmgr_pcon_info(info, pcon_local_id);
 	if (!pcon)
 		return;
 
@@ -176,7 +176,7 @@ void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
 
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_p_del(pconid);
-	list_del(&pcon->instance_list);
+	list_del(&pcon->pcon_list);
 	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 }
 EXPORT_SYMBOL(pimmgr_pcon_invalidate);

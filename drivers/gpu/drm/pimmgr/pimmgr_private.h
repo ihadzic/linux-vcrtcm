@@ -28,7 +28,7 @@ extern int pimmgr_debug;
 /* List of registered PIMs */
 extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
-extern struct list_head pcon_instance_list;
+extern struct list_head pcon_list;
 
 /* Counter for tracking kmallocs. */
 extern atomic_t pimmgr_kmalloc_track;
@@ -42,7 +42,7 @@ struct pim_info *find_pim_info_by_name(char *name);
 struct pim_info *find_pim_info_by_id(uint32_t pim_id);
 
 /* Function to find an individual PCON instance info struct. */
-struct pcon_instance_info *find_pcon_instance_info(struct pim_info *pim,
+struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 							uint32_t local_id);
 
 #endif

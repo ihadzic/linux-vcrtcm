@@ -29,7 +29,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 							uint32_t *pconid)
 {
 	struct pim_info *info;
-	struct pcon_instance_info *pcon;
+	struct pimmgr_pcon_info *pcon;
 	uint32_t new_pconid;
 	int value = 0;
 
@@ -41,7 +41,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 		return PIMMGR_ERR_INVALID_PIM;
 	}
 
-	pcon = vcrtcm_kzalloc(sizeof(struct pcon_instance_info), GFP_KERNEL,
+	pcon = vcrtcm_kzalloc(sizeof(struct pimmgr_pcon_info), GFP_KERNEL,
 					&pimmgr_kmalloc_track);
 	if (!pcon) {
 		VCRTCM_INFO("Could not allocate memory\n");
@@ -71,7 +71,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon);
-	list_add_tail(&pcon->instance_list, &pcon_instance_list);
+	list_add_tail(&pcon->pcon_list, &pcon_list);
 	*pconid = new_pconid;
 	return 0;
 }
@@ -79,7 +79,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 {
 	struct pim_info *info;
-	struct pcon_instance_info *instance;
+	struct pimmgr_pcon_info *pcon;
 	uint32_t pim_id;
 	uint32_t local_pcon_id;
 	int r = 0;
@@ -96,23 +96,23 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	if (!info)
 		return PIMMGR_ERR_INVALID_PCON;
 
-	instance = find_pcon_instance_info(info, local_pcon_id);
-	if (!instance)
+	pcon = find_pimmgr_pcon_info(info, local_pcon_id);
+	if (!pcon)
 		return PIMMGR_ERR_INVALID_PCON;
 
 	r = vcrtcm_p_del(pconid);
 	if (r)
 		return PIMMGR_ERR_CANNOT_DESTROY;
 
-	vcrtcm_sysfs_del_pcon(instance);
+	vcrtcm_sysfs_del_pcon(pcon);
 
 	if (info->funcs.destroy)
 		info->funcs.destroy(local_pcon_id, info->data);
 	else
 		VCRTCM_INFO("No destroy function...\n");
 
-	list_del(&instance->instance_list);
-	vcrtcm_kfree(instance, &pimmgr_kmalloc_track);
+	list_del(&pcon->pcon_list);
+	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 	return 0;
 }
 

@@ -49,7 +49,7 @@
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
 /* PIM functions */
-static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
+static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 					void *data, uint32_t hints);
 static void v4l2pim_destroy(uint32_t local_pcon_id, void *data);
 
@@ -1093,7 +1093,7 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 	kfree(v4l2pim_info);
 }
 
-static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
+static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 					void *data, uint32_t hints)
 {
 	struct v4l2pim_info *v4l2pim_info;
@@ -1103,13 +1103,13 @@ static int v4l2pim_instantiate(struct pcon_instance_info *instance_info,
 	if (!v4l2pim_info)
 		return 0;
 
-	scnprintf(instance_info->description, PCON_DESC_MAXLEN,
+	scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - Device /dev/video%i",
 			v4l2pim_info->minor);
-	instance_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;
-	instance_info->props = &v4l2pim_vcrtcm_pcon_props;
-	instance_info->cookie = v4l2pim_info;
-	instance_info->local_id = (uint32_t) v4l2pim_info->minor;
+	pcon_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;
+	pcon_info->props = &v4l2pim_vcrtcm_pcon_props;
+	pcon_info->cookie = v4l2pim_info;
+	pcon_info->local_id = (uint32_t) v4l2pim_info->minor;
 
 	return 1;
 }

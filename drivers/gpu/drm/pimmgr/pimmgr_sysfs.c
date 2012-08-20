@@ -94,11 +94,11 @@ ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
 
 ssize_t pcon_show(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	struct pcon_instance_info *pcon;
+	struct pimmgr_pcon_info *pcon;
 	struct pim_info *pim;
 
-	pcon = (struct pcon_instance_info *)
-			container_of(kobj, struct pcon_instance_info, kobj);
+	pcon = (struct pimmgr_pcon_info *)
+			container_of(kobj, struct pimmgr_pcon_info, kobj);
 	if (!pcon)
 		return 0;
 
@@ -146,7 +146,7 @@ void vcrtcm_sysfs_del_pim(struct pim_info *pim)
 	kobject_del(&pim->kobj);
 }
 
-int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon)
+int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon)
 {
 	int ret = 0;
 
@@ -172,7 +172,7 @@ int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon)
 
 	return 1;
 }
-void vcrtcm_sysfs_del_pcon(struct pcon_instance_info *pcon)
+void vcrtcm_sysfs_del_pcon(struct pimmgr_pcon_info *pcon)
 {
 	if (!pcon)
 		return;

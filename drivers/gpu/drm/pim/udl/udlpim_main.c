@@ -73,7 +73,7 @@ struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
-static int udlpim_instantiate(struct pcon_instance_info *instance_info,
+static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 				void *data, uint32_t hints);
 static void udlpim_destroy(uint32_t local_pcon_id, void *data);
 
@@ -139,7 +139,7 @@ static void __exit udlpim_exit(void)
 	return;
 }
 
-static int udlpim_instantiate(struct pcon_instance_info *instance_info,
+static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 				void *data, uint32_t hints)
 {
 	struct udlpim_info *info;
@@ -148,15 +148,15 @@ static int udlpim_instantiate(struct pcon_instance_info *instance_info,
 	list_for_each_entry(info, &udlpim_info_list, list) {
 		if (!info->used) {
 			usbdev = info->udev;
-			scnprintf(instance_info->description, PCON_DESC_MAXLEN,
+			scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
 					"%s %s - Serial #%s",
 					usbdev->manufacturer,
 					usbdev->product,
 					usbdev->serial);
-			instance_info->funcs = &udlpim_vcrtcm_pcon_funcs;
-			instance_info->props = &udlpim_vcrtcm_pcon_props;
-			instance_info->cookie = info;
-			instance_info->local_id = (uint32_t) info->minor;
+			pcon_info->funcs = &udlpim_vcrtcm_pcon_funcs;
+			pcon_info->props = &udlpim_vcrtcm_pcon_props;
+			pcon_info->cookie = info;
+			pcon_info->local_id = (uint32_t) info->minor;
 			info->used = 1;
 			return 1;
 		}

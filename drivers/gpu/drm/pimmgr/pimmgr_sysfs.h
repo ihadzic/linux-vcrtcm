@@ -42,8 +42,8 @@ extern struct kobj_type pcon_type;
 
 int vcrtcm_sysfs_add_pim(struct pim_info *pim);
 void vcrtcm_sysfs_del_pim(struct pim_info *pim);
-int vcrtcm_sysfs_add_pcon(struct pcon_instance_info *pcon);
-void vcrtcm_sysfs_del_pcon(struct pcon_instance_info *pcon);
+int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon);
+void vcrtcm_sysfs_del_pcon(struct pimmgr_pcon_info *pcon);
 
 #endif
 

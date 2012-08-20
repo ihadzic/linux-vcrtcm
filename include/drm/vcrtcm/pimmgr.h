@@ -52,15 +52,15 @@
 		((((uint32_t)pcon_id) << (PIM_ID_LEN + 1)) >> (PIM_ID_LEN + 1))
 #define PCONID_VALID(pcon_id) (((uint32_t) pcon_id) & HIGH_BIT)
 
-struct pcon_instance_info;
+struct pimmgr_pcon_info;
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
-	/* Create a new PCON instance and populate a pcon_instance_info
+	/* Create a new PCON instance and populate a pimmgr_pcon_info
 	 * structure with information about the new instance.
 	 * Return 1 upon success. Return 0 upon failure.
 	 */
-	int (*instantiate)(struct pcon_instance_info *instance_info,
+	int (*instantiate)(struct pimmgr_pcon_info *pcon_info,
 				void *data, uint32_t hints);
 
 	/* Deallocate the given PCON instance and free resources used.
@@ -80,7 +80,7 @@ struct pim_info {
 	struct list_head pim_list;
 };
 
-struct pcon_instance_info {
+struct pimmgr_pcon_info {
 	char description[PCON_DESC_MAXLEN];
 	struct pim_info *pim;
 	struct vcrtcm_pcon_funcs *funcs;
@@ -89,7 +89,7 @@ struct pcon_instance_info {
 	uint32_t local_id;
 
 	struct kobject kobj;
-	struct list_head instance_list;
+	struct list_head pcon_list;
 };
 
 /* Called from inside a new PIM to register with pimmgr. */
