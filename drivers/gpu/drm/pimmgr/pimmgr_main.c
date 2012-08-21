@@ -79,7 +79,6 @@ static int pimmgr_init(void)
 
 	return 0;
 error:
-
 	if (pimmgr_cdev)
 		cdev_del(pimmgr_cdev);
 

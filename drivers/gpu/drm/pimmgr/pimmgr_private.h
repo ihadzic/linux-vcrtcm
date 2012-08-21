@@ -33,7 +33,6 @@ extern struct list_head pcon_list;
 /* Counter for tracking kmallocs. */
 extern atomic_t pimmgr_kmalloc_track;
 
-
 /* This is the function that handles IOCTL from userspace. */
 long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 

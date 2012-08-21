@@ -73,8 +73,8 @@ struct pim_info {
 	char name[PIM_NAME_MAXLEN];
 	uint32_t id;
 	struct pim_funcs funcs;
-	struct kobject kobj;
 
+	struct kobject kobj;
 	struct list_head pim_list;
 };
 
