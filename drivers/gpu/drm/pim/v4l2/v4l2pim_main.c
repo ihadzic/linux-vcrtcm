@@ -50,8 +50,8 @@
 
 /* PIM functions */
 static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
-					void *data, uint32_t hints);
-static void v4l2pim_destroy(uint32_t local_pcon_id, void *data);
+							uint32_t hints);
+static void v4l2pim_destroy(uint32_t local_pcon_id);
 
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
@@ -1094,7 +1094,7 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 }
 
 static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
-					void *data, uint32_t hints)
+							uint32_t hints)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
@@ -1114,7 +1114,7 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 1;
 }
 
-static void v4l2pim_destroy(uint32_t local_pcon_id, void *data)
+static void v4l2pim_destroy(uint32_t local_pcon_id)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
@@ -1155,7 +1155,7 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
 
 	VCRTCM_INFO("Registering with pimmgr\n");
-	pimmgr_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, NULL);
+	pimmgr_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs);
 
 	VCRTCM_INFO("v4l2 PCON Loaded\n");
 

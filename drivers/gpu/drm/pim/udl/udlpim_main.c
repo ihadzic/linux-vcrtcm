@@ -74,8 +74,8 @@ struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 };
 
 static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
-				void *data, uint32_t hints);
-static void udlpim_destroy(uint32_t local_pcon_id, void *data);
+							uint32_t hints);
+static void udlpim_destroy(uint32_t local_pcon_id);
 
 static struct pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
@@ -116,7 +116,7 @@ static int __init udlpim_init(void)
 		return ret;
 	}
 
-	pimmgr_pim_register("udl", &udlpim_pim_funcs, NULL);
+	pimmgr_pim_register("udl", &udlpim_pim_funcs);
 
 	return 0;
 }
@@ -140,7 +140,7 @@ static void __exit udlpim_exit(void)
 }
 
 static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
-				void *data, uint32_t hints)
+							uint32_t hints)
 {
 	struct udlpim_info *info;
 	struct usb_device *usbdev;
@@ -165,7 +165,7 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 0;
 }
 
-static void udlpim_destroy(uint32_t local_pcon_id, void *data)
+static void udlpim_destroy(uint32_t local_pcon_id)
 {
 	struct udlpim_info *info;
 

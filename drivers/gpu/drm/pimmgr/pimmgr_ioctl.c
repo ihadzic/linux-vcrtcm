@@ -51,7 +51,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	pcon->pim = info;
 
 	if (info->funcs.instantiate)
-		value = info->funcs.instantiate(pcon, info->data, hints);
+		value = info->funcs.instantiate(pcon, hints);
 	else
 		VCRTCM_INFO("No instantiate function...\n");
 
@@ -107,7 +107,7 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	vcrtcm_sysfs_del_pcon(pcon);
 
 	if (info->funcs.destroy)
-		info->funcs.destroy(local_pcon_id, info->data);
+		info->funcs.destroy(local_pcon_id);
 	else
 		VCRTCM_INFO("No destroy function...\n");
 

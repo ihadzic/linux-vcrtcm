@@ -60,21 +60,19 @@ struct pim_funcs {
 	 * structure with information about the new instance.
 	 * Return 1 upon success. Return 0 upon failure.
 	 */
-	int (*instantiate)(struct pimmgr_pcon_info *pcon_info,
-				void *data, uint32_t hints);
+	int (*instantiate)(struct pimmgr_pcon_info *pcon_info, uint32_t hints);
 
 	/* Deallocate the given PCON instance and free resources used.
 	 * The PIM can assume that the given PCON has been detached
 	 * and removed from VCRTCM before this function is called.
 	 */
-	void (*destroy)(uint32_t local_pcon_id, void *data);
+	void (*destroy)(uint32_t local_pcon_id);
 };
 
 struct pim_info {
 	char name[PIM_NAME_MAXLEN];
 	uint32_t id;
 	struct pim_funcs funcs;
-	void *data;
 	struct kobject kobj;
 
 	struct list_head pim_list;
@@ -93,7 +91,7 @@ struct pimmgr_pcon_info {
 };
 
 /* Called from inside a new PIM to register with pimmgr. */
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data);
+int pimmgr_pim_register(char *name, struct pim_funcs *funcs);
 
 /* Called from inside a new PIM to unregister from pimmgr. */
 void pimmgr_pim_unregister(char *name);

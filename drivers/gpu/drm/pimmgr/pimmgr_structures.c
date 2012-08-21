@@ -27,8 +27,7 @@
 
 static uint32_t next_pimid;
 
-struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
-						void *data)
+struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
 
@@ -44,7 +43,6 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs,
 
 	strncpy(info->name, name, PIM_NAME_MAXLEN);
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
-	info->data = data;
 	memset(&info->kobj, 0, sizeof(struct kobject));
 
 	return info;
@@ -76,7 +74,7 @@ struct pim_info *find_pim_info_by_id(uint32_t pim_id)
 
 	return NULL;
 }
-void update_pim_info(char *name, struct pim_funcs *funcs, void *data)
+void update_pim_info(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info = find_pim_info_by_name(name);
 
@@ -84,7 +82,6 @@ void update_pim_info(char *name, struct pim_funcs *funcs, void *data)
 		return;
 
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
-	info->data = data;
 }
 
 void destroy_pim_info(struct pim_info *info)
@@ -123,17 +120,17 @@ struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 	return NULL;
 }
 
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs, void *data)
+int pimmgr_pim_register(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
 
 	info = find_pim_info_by_name(name);
 	if (info) {
-		update_pim_info(name, funcs, data);
+		update_pim_info(name, funcs);
 		return 1;
 	}
 
-	info = create_pim_info(name, funcs, data);
+	info = create_pim_info(name, funcs);
 	if (!info)
 		return -ENOMEM;
 
