@@ -109,12 +109,6 @@ static void pimmgr_exit(void)
 	VCRTCM_INFO("pimmgr unloaded\n");
 }
 
-long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	return pimmgr_ioctl_core(filp, cmd, arg);
-}
-
-
 static const struct file_operations pimmgr_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = pimmgr_ioctl,

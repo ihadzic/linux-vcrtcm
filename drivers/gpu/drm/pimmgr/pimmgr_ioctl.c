@@ -116,7 +116,7 @@ int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
 	return 0;
 }
 
-long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg)
+long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct pimmgr_ioctl_args ioctl_args;
 	long result = 0;

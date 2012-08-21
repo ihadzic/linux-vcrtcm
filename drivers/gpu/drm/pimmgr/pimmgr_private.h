@@ -34,8 +34,8 @@ extern struct list_head pcon_list;
 extern atomic_t pimmgr_kmalloc_track;
 
 
-/* This is the main function called from the userspace IOCTL handler. */
-long pimmgr_ioctl_core(struct file *filp, unsigned int cmd, unsigned long arg);
+/* This is the function that handles IOCTL from userspace. */
+long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* Functions to find PIM info structs. */
 struct pim_info *find_pim_info_by_name(char *name);
