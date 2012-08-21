@@ -112,6 +112,9 @@ struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 {
 	struct pimmgr_pcon_info *pcon;
 
+	if (!pim)
+		return NULL;
+
 	list_for_each_entry(pcon, &pim->active_pcon_list, pcon_list)
 	{
 		if (pcon->pim == pim && pcon->local_id == local_id)
