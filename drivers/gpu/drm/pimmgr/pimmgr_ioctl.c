@@ -71,7 +71,7 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon);
-	list_add_tail(&pcon->pcon_list, &pcon_list);
+	list_add_tail(&pcon->pcon_list, &info->active_pcon_list);
 	*pconid = new_pconid;
 	return 0;
 }

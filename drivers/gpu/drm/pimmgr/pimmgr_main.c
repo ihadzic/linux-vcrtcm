@@ -39,7 +39,6 @@ atomic_t pimmgr_kmalloc_track = ATOMIC_INIT(0);
 static const struct file_operations pimmgr_fops;
 struct list_head	pim_list;
 struct mutex		pim_list_mutex;
-struct list_head	pcon_list;
 
 static dev_t pimmgr_dev;
 static struct cdev *pimmgr_cdev;
@@ -50,7 +49,6 @@ static int pimmgr_init(void)
 	struct class *vcrtcm_class;
 
 	INIT_LIST_HEAD(&pim_list);
-	INIT_LIST_HEAD(&pcon_list);
 	mutex_init(&pim_list_mutex);
 
 	pimmgr_cdev = cdev_alloc();

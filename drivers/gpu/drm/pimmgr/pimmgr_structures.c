@@ -43,6 +43,7 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs)
 
 	strncpy(info->name, name, PIM_NAME_MAXLEN);
 	memcpy(&info->funcs, funcs, sizeof(struct pim_funcs));
+	INIT_LIST_HEAD(&info->active_pcon_list);
 	memset(&info->kobj, 0, sizeof(struct kobject));
 
 	return info;
@@ -111,7 +112,7 @@ struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 {
 	struct pimmgr_pcon_info *pcon;
 
-	list_for_each_entry(pcon, &pcon_list, pcon_list)
+	list_for_each_entry(pcon, &pim->active_pcon_list, pcon_list)
 	{
 		if (pcon->pim == pim && pcon->local_id == local_id)
 			return pcon;

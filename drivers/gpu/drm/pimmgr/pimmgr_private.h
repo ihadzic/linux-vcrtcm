@@ -28,7 +28,6 @@ extern int pimmgr_debug;
 /* List of registered PIMs */
 extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
-extern struct list_head pcon_list;
 
 /* Counter for tracking kmallocs. */
 extern atomic_t pimmgr_kmalloc_track;
