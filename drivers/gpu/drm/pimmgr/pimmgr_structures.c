@@ -148,9 +148,19 @@ EXPORT_SYMBOL(pimmgr_pim_register);
 void pimmgr_pim_unregister(char *name)
 {
 	struct pim_info *info = find_pim_info_by_name(name);
+	struct pimmgr_pcon_info *pcon, *tmp;
 
 	if (!info)
 		return;
+
+	list_for_each_entry_safe(pcon, tmp,
+				&info->active_pcon_list, pcon_list) {
+		VCRTCM_ERROR("PIM %s's PCON with local id %u "
+			"was not invalidated before calling "
+			"pimmgr_pim_unregister(). Doing that now...\n",
+			name, pcon->local_id);
+		pimmgr_pcon_invalidate(name, pcon->local_id);
+	}
 
 	remove_pim_info(info);
 	vcrtcm_sysfs_del_pim(info);
