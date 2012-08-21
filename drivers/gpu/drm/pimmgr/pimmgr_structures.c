@@ -128,6 +128,8 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
 
+	VCRTCM_INFO("Registering PIM %s, funcs at %p\n", name, funcs);
+
 	info = find_pim_info_by_name(name);
 	if (info) {
 		update_pim_info(name, funcs);
@@ -152,6 +154,8 @@ void pimmgr_pim_unregister(char *name)
 
 	if (!info)
 		return;
+
+	VCRTCM_INFO("Unregistering PIM %s\n", name);
 
 	list_for_each_entry_safe(pcon, tmp,
 				&info->active_pcon_list, pcon_list) {
