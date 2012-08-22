@@ -53,6 +53,7 @@
 #define PCONID_VALID(pcon_id) (((uint32_t) pcon_id) & HIGH_BIT)
 
 struct pimmgr_pcon_info;
+struct pimmgr_pcon_properties;
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
@@ -67,6 +68,9 @@ struct pim_funcs {
 	 * and removed from VCRTCM before this function is called.
 	 */
 	void (*destroy)(uint32_t local_pcon_id);
+
+	int (*get_properties)(struct pimmgr_pcon_properties *props,
+						uint32_t local_pcon_id);
 };
 
 struct pim_info {
@@ -89,6 +93,11 @@ struct pimmgr_pcon_info {
 
 	struct kobject kobj;
 	struct list_head pcon_list;
+};
+
+struct pimmgr_pcon_properties {
+	int fps;
+	int attached;
 };
 
 /* Called from inside a new PIM to register with pimmgr. */

@@ -82,10 +82,24 @@ static struct attribute pcon_localid_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+/* PCON fps attribute. */
+static struct attribute pcon_fps_attr = {
+	.name = "fps",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
+/* PCON attached attribute */
+static struct attribute pcon_attached_attr = {
+	.name = "attached",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 /* Array of PCON attributes. */
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_localid_attr,
+	&pcon_fps_attr,
+	&pcon_attached_attr,
 	NULL
 };
 
@@ -139,8 +153,34 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 		return scnprintf(buf, PAGE_SIZE, "%s:%u\n", pim->name,
 							pcon->local_id);
-	}
+	} else if (attr == &pcon_fps_attr) {
+		struct pimmgr_pcon_properties props;
+		int result = 0;
 
+		if (!pcon->pim->funcs.get_properties)
+			return 0;
+		result = pcon->pim->funcs.
+					get_properties(&props, pcon->local_id);
+		if (!result)
+			return 0;
+
+		if (props.fps < 0)
+			return 0;
+		return scnprintf(buf, PAGE_SIZE, "%d\n", props.fps);
+	} else if (attr == &pcon_attached_attr) {
+		struct pimmgr_pcon_properties props;
+		int result = 0;
+
+		if (!pcon->pim->funcs.get_properties)
+			return 0;
+		result = pcon->pim->funcs.
+					get_properties(&props, pcon->local_id);
+		if (!result)
+			return 0;
+
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+						props.attached ? 1 : 0);
+	}
 	return 0;
 }
 
