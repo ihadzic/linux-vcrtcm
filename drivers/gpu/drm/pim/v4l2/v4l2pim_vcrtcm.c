@@ -170,6 +170,7 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 		flow_info->v4l2pim_info = v4l2pim_info;
 		flow_info->vcrtcm_pcon_info = vcrtcm_pcon_info;
+		flow_info->fps = 0;
 		flow_info->fb_force_xmit = 0;
 		flow_info->fb_xmit_allowed = 0;
 		flow_info->fb_xmit_counter = 0;
@@ -413,6 +414,7 @@ int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 		flow_info->fb_xmit_period_jiffies = 0;
 		VCRTCM_INFO("Transmission disabled, (negative or zero fps).\n");
 	} else {
+		flow_info->fps = fps;
 		flow_info->fb_xmit_period_jiffies = HZ / fps;
 		jiffies_snapshot = jiffies;
 		flow_info->last_xmit_jiffies = jiffies_snapshot;

@@ -113,6 +113,7 @@ struct v4l2pim_flow_info {
 	int fb_xmit_counter;
 	int fb_force_xmit;
 	int fb_xmit_allowed;
+	int fps;
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
