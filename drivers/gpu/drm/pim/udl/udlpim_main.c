@@ -77,9 +77,13 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
 static void udlpim_destroy(uint32_t local_pcon_id);
 
+static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
+						uint32_t local_pcon_id);
+
 static struct pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
-	.destroy = udlpim_destroy
+	.destroy = udlpim_destroy,
+	.get_properties = udlpim_get_properties
 };
 
 static int __init udlpim_init(void)
@@ -175,6 +179,23 @@ static void udlpim_destroy(uint32_t local_pcon_id)
 			return;
 		}
 	}
+}
+
+static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
+						uint32_t local_pcon_id)
+{
+	struct udlpim_info *info;
+
+	list_for_each_entry(info, &udlpim_info_list, list) {
+		if (((uint32_t) info->minor) == local_pcon_id) {
+			struct udlpim_flow_info *flow = info->flow_info;
+			props->fps = flow ? flow->fps : -1;
+			props->attached = flow ? 1 : 0;
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 module_init(udlpim_init);

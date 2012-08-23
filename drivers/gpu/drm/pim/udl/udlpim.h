@@ -161,6 +161,7 @@ struct udlpim_info {
 
 struct udlpim_flow_info {
 	struct list_head list;
+	int fps;
 	int fb_xmit_counter;
 	int fb_force_xmit;
 	int fb_xmit_allowed;
