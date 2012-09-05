@@ -29,6 +29,7 @@ obj-$(CONFIG_DRM)	+= drm.o
 obj-$(CONFIG_DRM_USB)   += drm_usb.o
 obj-$(CONFIG_DRM_TTM)	+= ttm/
 obj-$(CONFIG_DRM_VCRTCM) += vcrtcm/
+obj-$(CONFIG_DRM_PIMMGR) += pimmgr/
 obj-$(CONFIG_DRM_VCRTCM_PIM_UDL) += pim/udl/
 obj-$(CONFIG_DRM_VCRTCM_PIM_V4L2) += pim/v4l2/
 obj-$(CONFIG_DRM_TDFX)	+= tdfx/
