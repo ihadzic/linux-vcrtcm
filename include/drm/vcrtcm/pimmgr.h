@@ -90,7 +90,7 @@ struct pimmgr_pcon_info {
 	struct vcrtcm_pcon_props *props;
 	void *cookie;
 	uint32_t local_id;
-
+	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcon_list;
 };
