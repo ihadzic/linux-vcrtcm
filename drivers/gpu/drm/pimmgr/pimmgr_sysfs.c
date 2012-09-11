@@ -76,6 +76,12 @@ static struct attribute pcon_desc_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+/* PCON minor attribute. */
+static struct attribute pcon_minor_attr = {
+	.name = "minor",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 /* PCON localid attribute. */
 static struct attribute pcon_localid_attr = {
 	.name = "localid",
@@ -100,6 +106,7 @@ static struct attribute *pcon_attributes[] = {
 	&pcon_localid_attr,
 	&pcon_fps_attr,
 	&pcon_attached_attr,
+	&pcon_minor_attr,
 	NULL
 };
 
@@ -146,6 +153,8 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 	if (attr == &pcon_desc_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon->description);
+	} else if (attr == &pcon_minor_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->minor);
 	} else if (attr == &pcon_localid_attr) {
 		pim = pcon->pim;
 		if (!pim)
