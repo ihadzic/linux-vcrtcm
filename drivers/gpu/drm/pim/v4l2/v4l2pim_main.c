@@ -1109,6 +1109,7 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - minor %i",
 			v4l2pim_info->minor);
+	pcon_info->minor = v4l2pim_info->minor;
 	pcon_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;
 	pcon_info->props = &v4l2pim_vcrtcm_pcon_props;
 	pcon_info->cookie = v4l2pim_info;
