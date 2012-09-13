@@ -49,10 +49,10 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	}
 
 	pcon->pim = info;
-
-	if (info->funcs.instantiate)
+	pcon->minor = -1;
+	if (info->funcs.instantiate) {
 		value = info->funcs.instantiate(pcon, hints);
-	else
+	} else
 		VCRTCM_INFO("No instantiate function...\n");
 
 	if (!value) {
