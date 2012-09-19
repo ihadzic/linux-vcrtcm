@@ -1171,8 +1171,10 @@ static int __init v4l2pim_init(void)
 	}
 	VCRTCM_INFO("Using major device number %d\n", v4l2pim_major);
 
-	if (V4L2PIM_VID_LIMIT_MAX < vid_limit)
+	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
+		VCRTCM_WARNING("vid_limit (%d) too high, V4L2PIM_VID_LIMIT_MAX = %d\n", vid_limit, V4L2PIM_VID_LIMIT_MAX);
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
+	}
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
 
 	VCRTCM_INFO("Registering with pimmgr\n");
