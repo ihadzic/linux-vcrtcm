@@ -48,7 +48,7 @@ typedef struct {
 		int fps;	/* frames per second (for set rate call) */
 		int major;	/* hal major device (for attach) */
 		int arg1;	/* for undecided and lazy programmers */
-		uint32_t pconid;
+		int pconid;
 	} arg1;
 
 	union {

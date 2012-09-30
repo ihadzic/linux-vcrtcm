@@ -27,7 +27,7 @@
  * structure that describes the CRTC and the pointer to a
  * callback function to be called on detach
  */
-int vcrtcm_g_attach(uint32_t pconid,
+int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_funcs,
 		  struct vcrtcm_pcon_info **pcon_info)
@@ -45,7 +45,7 @@ int vcrtcm_g_attach(uint32_t pconid,
 			if (pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
 				spin_unlock_irqrestore(&pcon_info_private->lock,
 							flags);
-				VCRTCM_ERROR("pcon %u already attached "
+				VCRTCM_ERROR("pcon %i already attached "
 					     "to crtc_drm %p\n",
 					     pconid, drm_crtc);
 				mutex_unlock(&pcon_info_private->pcon_info.
@@ -96,7 +96,7 @@ int vcrtcm_g_attach(uint32_t pconid,
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	/* if we got here, then the PCON was not found */
-	VCRTCM_ERROR("pcon %u not found\n", pconid);
+	VCRTCM_ERROR("pcon %i not found\n", pconid);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
@@ -178,11 +178,11 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_fb) {
-		VCRTCM_DEBUG("calling set_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.set_fb(pcon_info, fb);
 	} else {
-		VCRTCM_WARNING("missing set_fb backend, pcon %u\n",
+		VCRTCM_WARNING("missing set_fb backend, pcon %i\n",
 			       pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -206,11 +206,11 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.get_fb) {
-		VCRTCM_DEBUG("calling get_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_fb(pcon_info, fb);
 	} else {
-		VCRTCM_WARNING("missing get_fb backend, pcon %u\n",
+		VCRTCM_WARNING("missing get_fb backend, pcon %i\n",
 			       pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -265,12 +265,12 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *pcon_info)
 	   blocking and mutexes */
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.dirty_fb) {
-		VCRTCM_DEBUG("calling dirty_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("calling dirty_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.dirty_fb(pcon_info,
 						pcon_info_private->drm_crtc);
 	} else {
-		VCRTCM_DEBUG("missing dirty_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("missing dirty_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -295,12 +295,12 @@ int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *pcon_info)
 			 pcon_info);
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.wait_fb) {
-		VCRTCM_DEBUG("calling wait_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("calling wait_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.wait_fb(pcon_info,
 						pcon_info_private->drm_crtc);
 	} else {
-		VCRTCM_DEBUG("missing wait_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("missing wait_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -319,13 +319,13 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon_info *pcon_info,
 			 pcon_info);
 
 	if (pcon_info->funcs.get_fb_status) {
-		VCRTCM_DEBUG("calling get_fb_status backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_fb_status backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_fb_status(pcon_info,
 						pcon_info_private->drm_crtc,
 						status);
 	} else {
-		VCRTCM_WARNING("missing get_fb_status backend, pcon %u\n",
+		VCRTCM_WARNING("missing get_fb_status backend, pcon %i\n",
 			       pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -343,11 +343,11 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *pcon_info, int fps)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_fps) {
-		VCRTCM_DEBUG("calling set_fps backend, pcon %u\n",
+		VCRTCM_DEBUG("calling set_fps backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.set_fps(pcon_info, fps);
 	} else {
-		VCRTCM_WARNING("missing set_fps backend, pcon %u\n",
+		VCRTCM_WARNING("missing set_fps backend, pcon %i\n",
 			       pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -366,11 +366,11 @@ int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *pcon_info, int *fps)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.get_fps) {
-		VCRTCM_DEBUG("calling get_fps backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_fps backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_fps(pcon_info, fps);
 	} else {
-		VCRTCM_WARNING("missing get_fps backend, pcon %u\n",
+		VCRTCM_WARNING("missing get_fps backend, pcon %i\n",
 			       pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -399,11 +399,11 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_cursor) {
-		VCRTCM_DEBUG("calling set_cursor backend, pcon %u\n",
+		VCRTCM_DEBUG("calling set_cursor backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.set_cursor(pcon_info, cursor);
 	} else {
-		VCRTCM_DEBUG("missing set_cursor backend, pcon %u\n",
+		VCRTCM_DEBUG("missing set_cursor backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -427,11 +427,11 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_cursor) {
-		VCRTCM_DEBUG("calling get_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_cursor(pcon_info, cursor);
 	} else {
-		VCRTCM_DEBUG("missing get_fb backend, pcon %u\n",
+		VCRTCM_DEBUG("missing get_fb backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -450,11 +450,11 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon_info *pcon_info, int state)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_dpms) {
-		VCRTCM_DEBUG("calling set_dpms backend, pcon %u\n",
+		VCRTCM_DEBUG("calling set_dpms backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.set_dpms(pcon_info, state);
 	} else {
-		VCRTCM_DEBUG("missing set_dpms backend, pcon %u\n",
+		VCRTCM_DEBUG("missing set_dpms backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -473,11 +473,11 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon_info *pcon_info, int *state)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.get_dpms) {
-		VCRTCM_DEBUG("calling get_dpms backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_dpms backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_dpms(pcon_info, state);
 	} else {
-		VCRTCM_DEBUG("missing get_dpms backend, pcon %u\n",
+		VCRTCM_DEBUG("missing get_dpms backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = 0;
 	}
@@ -548,11 +548,11 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon_info *pcon_info, int *status)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.connected) {
-		VCRTCM_DEBUG("calling connected backend, pcon %u\n",
+		VCRTCM_DEBUG("calling connected backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.connected(pcon_info, status);
 	} else {
-		VCRTCM_DEBUG("missing connected backend, pcon %u\n",
+		VCRTCM_DEBUG("missing connected backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		*status = VCRTCM_PCON_CONNECTED;
 		r = 0;
@@ -598,11 +598,11 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.get_modes) {
-		VCRTCM_DEBUG("calling get_modes backend, pcon %u\n",
+		VCRTCM_DEBUG("calling get_modes backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.get_modes(pcon_info, modes, count);
 	} else {
-		VCRTCM_DEBUG("missing get_modes backend, pcon %u\n",
+		VCRTCM_DEBUG("missing get_modes backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		*count = sizeof(common_modes) / sizeof(struct vcrtcm_mode);
 		*modes = common_modes;
@@ -630,11 +630,11 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.check_mode) {
-		VCRTCM_DEBUG("calling check_mode backend, pcon %u\n",
+		VCRTCM_DEBUG("calling check_mode backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		r = pcon_info->funcs.check_mode(pcon_info, mode, status);
 	} else {
-		VCRTCM_DEBUG("missing check_mode backend, pcon %u\n",
+		VCRTCM_DEBUG("missing check_mode backend, pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
 		*status = VCRTCM_MODE_OK;
 		r = 0;
@@ -658,12 +658,12 @@ void vcrtcm_g_disable(struct vcrtcm_pcon_info *pcon_info)
 	mutex_lock(&pcon_info->mutex);
 
 	if (pcon_info->funcs.disable) {
-		VCRTCM_DEBUG("calling disable backend, pcon %u\n",
+		VCRTCM_DEBUG("calling disable backend, pcon %i\n",
 			pcon_info_private->pcon_info.pconid);
 
 		pcon_info->funcs.disable(pcon_info);
 	} else {
-		VCRTCM_DEBUG("missing disable backend, pcon %u\n",
+		VCRTCM_DEBUG("missing disable backend, pcon %i\n",
 			pcon_info_private->pcon_info.pconid);
 	}
 	mutex_unlock(&pcon_info->mutex);

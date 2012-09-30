@@ -369,7 +369,7 @@ struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 };
 
 static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
-					uint32_t pconid)
+					int pconid)
 {
 	int r;
 	struct drm_crtc *crtc = &radeon_crtc->base;

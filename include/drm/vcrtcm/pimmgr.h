@@ -28,30 +28,6 @@
 #define PIM_NAME_MAXLEN 33
 #define PCON_DESC_MAXLEN 512
 
-/* A PCON ID is a system-wide identifier for an individual PCON.
- * The IDs themselves are constructed from a PIM ID and a *local*
- * PCON ID. In this case, the word "local" means "local to the PIM".
- * The local IDs are created by the PIMs internally and pimmgr has
- * no control over how they are defined or used. This allows the use
- * of a globally recognized PCON ID and still gives PIM implementers
- * flexibility in how they identify their own PCONs.
- */
-
-#define PIM_ID_LEN 10
-#define PCON_LOCAL_ID_LEN 21
-#define HIGH_BIT 0x80000000
-
-#define CREATE_PCONID(pim_id, pcon_local_id) \
-		(HIGH_BIT | \
-		(pim_id << PCON_LOCAL_ID_LEN) | \
-		(pcon_local_id))
-
-#define PCONID_PIMID(pcon_id) \
-		((((uint32_t) pcon_id) << 1) >> (PCON_LOCAL_ID_LEN + 1))
-#define PCONID_LOCALID(pcon_id) \
-		((((uint32_t)pcon_id) << (PIM_ID_LEN + 1)) >> (PIM_ID_LEN + 1))
-#define PCONID_VALID(pcon_id) (((uint32_t) pcon_id) & HIGH_BIT)
-
 struct pimmgr_pcon_info;
 struct pimmgr_pcon_properties;
 
@@ -67,15 +43,15 @@ struct pim_funcs {
 	 * The PIM can assume that the given PCON has been detached
 	 * and removed from VCRTCM before this function is called.
 	 */
-	void (*destroy)(uint32_t local_pcon_id);
+	void (*destroy)(int local_pconid);
 
 	int (*get_properties)(struct pimmgr_pcon_properties *props,
-						uint32_t local_pcon_id);
+						int local_pconid);
 };
 
 struct pim_info {
 	char name[PIM_NAME_MAXLEN];
-	uint32_t id;
+	int id;
 	struct pim_funcs funcs;
 	struct list_head active_pcon_list;
 
@@ -89,7 +65,7 @@ struct pimmgr_pcon_info {
 	struct vcrtcm_pcon_funcs *funcs;
 	struct vcrtcm_pcon_props *props;
 	void *cookie;
-	uint32_t local_id;
+	int local_pconid;
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcon_list;
@@ -107,7 +83,7 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs);
 void pimmgr_pim_unregister(char *name);
 
 /* Called from inside a PIM if a PCON becomes invalid */
-/* (due to disconneWct, etc.) */
-void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id);
+/* (due to disconnect, etc.) */
+void pimmgr_pcon_invalidate(char *name, int local_pconid);
 
 #endif

@@ -26,24 +26,27 @@
 #define PIMMGR_IOC_INSTANTIATE _IOW(PIMMGR_MAGIC, 1, int)
 #define PIMMGR_IOC_DESTROY _IOW(PIMMGR_MAGIC, 2, int)
 
-#define PIMMGR_ERR_INVALID_PIM 1
-#define PIMMGR_ERR_NOT_AVAILABLE 2
-#define PIMMGR_ERR_CANNOT_REGISTER 3
-#define PIMMGR_ERR_INVALID_PCON 4
-#define PIMMGR_ERR_NOMEM 5
-#define PIMMGR_ERR_CANNOT_DESTROY 6
+#define PIMMGR_BASE_ERRNO 1024
+#define PIMMGR_ERR_INVALID_PIM      (PIMMGR_BASE_ERRNO + 1)
+#define PIMMGR_ERR_NOT_AVAILABLE    (PIMMGR_BASE_ERRNO + 2)
+#define PIMMGR_ERR_CANNOT_REGISTER  (PIMMGR_BASE_ERRNO + 3)
+#define PIMMGR_ERR_INVALID_PCON     (PIMMGR_BASE_ERRNO + 4)
+#define PIMMGR_ERR_NOMEM            (PIMMGR_BASE_ERRNO + 5)
+#define PIMMGR_ERR_CANNOT_DESTROY   (PIMMGR_BASE_ERRNO + 6)
+#define PIMMGR_ERR_NO_FREE_PCONIDS  (PIMMGR_BASE_ERRNO + 7)
 
 struct pimmgr_ioctl_args {
 	union {
 		char pim_name[PIM_NAME_MAXLEN];
-		uint32_t pconid;
+		int pconid;
 	} arg1;
+
 	union {
 		uint32_t hints;
 	} arg2;
 
 	union {
-		uint32_t pconid;
+		int pconid;
 	} result1;
 };
 

@@ -70,6 +70,9 @@ static int pimmgr_init(void)
 							NULL, "pimmgr");
 	pimmgr_sysfs_init(pimmgr_device);
 
+	if (pimmgr_structures_init() < 0)
+		goto error;
+
 	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
 	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("pimmgr driver loaded, major %d, minor %d\n",
@@ -101,6 +104,8 @@ static void pimmgr_exit(void)
 		cdev_del(pimmgr_cdev);
 
 	unregister_chrdev_region(pimmgr_dev, 1);
+
+	pimmgr_structures_destroy();
 
 	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&pimmgr_kmalloc_track));
 	VCRTCM_INFO("pimmgr unloaded\n");

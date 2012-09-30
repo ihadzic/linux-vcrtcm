@@ -25,8 +25,13 @@
 #include "pimmgr_private.h"
 #include "pimmgr_sysfs.h"
 
-static uint32_t next_pimid;
+static int next_pimid;
 
+static struct pconid_mapping *pconid_table;
+static struct mutex pconid_table_mutex;
+static struct vcrtcm_id_generator pconid_generator;
+
+/* Helper functions to manage PIMMGR structures */
 struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
@@ -64,12 +69,12 @@ struct pim_info *find_pim_info_by_name(char *name)
 	return NULL;
 }
 
-struct pim_info *find_pim_info_by_id(uint32_t pim_id)
+struct pim_info *find_pim_info_by_id(int pimid)
 {
 	struct pim_info *info;
 
 	list_for_each_entry(info, &pim_list, pim_list) {
-		if (info->id == pim_id)
+		if (info->id == pimid)
 			return info;
 	}
 
@@ -108,7 +113,7 @@ void remove_pim_info(struct pim_info *info)
 }
 
 struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
-							uint32_t local_id)
+							int local_pconid)
 {
 	struct pimmgr_pcon_info *pcon;
 
@@ -117,13 +122,81 @@ struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 
 	list_for_each_entry(pcon, &pim->active_pcon_list, pcon_list)
 	{
-		if (pcon->pim == pim && pcon->local_id == local_id)
+		if (pcon->pim == pim && pcon->local_pconid == local_pconid)
 			return pcon;
 	}
 
 	return NULL;
 }
 
+int alloc_pconid()
+{
+	int new_pconid = vcrtcm_id_generator_get(&pconid_generator,
+							VCRTCM_ID_REUSE);
+
+	if (new_pconid < 0)
+		return -1;
+
+	return new_pconid;
+}
+
+void dealloc_pconid(int pconid)
+{
+	pconid_table[pconid].pimid = 0;
+	pconid_table[pconid].local_pconid = 0;
+	pconid_table[pconid].valid = 0;
+	vcrtcm_id_generator_put(&pconid_generator, pconid);
+}
+
+int pconid_set_mapping(int pconid, int pimid, int local_pconid)
+{
+	if (pconid >= MAX_NUM_PCONIDS)
+		return -1;
+
+	pconid_table[pconid].pimid = pimid;
+	pconid_table[pconid].local_pconid = local_pconid;
+	pconid_table[pconid].valid = 1;
+
+	return 0;
+}
+
+int get_pconid(int pimid, int local_pconid)
+{
+	int i;
+	for (i = 0; i < MAX_NUM_PCONIDS; i++) {
+		if (pconid_table[i].pimid == pimid &&
+			pconid_table[i].local_pconid == local_pconid) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int pconid_valid(int pconid)
+{
+	if (pconid >= MAX_NUM_PCONIDS)
+		return 0;
+
+	return pconid_table[pconid].valid;
+}
+
+int pconid_get_pimid(int pconid)
+{
+	if (pconid >= MAX_NUM_PCONIDS)
+		return -1;
+
+	return pconid_table[pconid].pimid;
+}
+
+int pconid_get_local_pconid(int pconid)
+{
+	if (pconid >= MAX_NUM_PCONIDS)
+		return -1;
+
+	return pconid_table[pconid].local_pconid;
+}
+
+/* Functions that are exported for PIMs to call */
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
@@ -159,11 +232,11 @@ void pimmgr_pim_unregister(char *name)
 
 	list_for_each_entry_safe(pcon, tmp,
 				&info->active_pcon_list, pcon_list) {
-		VCRTCM_ERROR("PIM %s's PCON with local id %u "
+		VCRTCM_ERROR("PIM %s's PCON with local id %i "
 			"was not invalidated before calling "
 			"pimmgr_pim_unregister(). Doing that now...\n",
-			name, pcon->local_id);
-		pimmgr_pcon_invalidate(name, pcon->local_id);
+			name, pcon->local_pconid);
+		pimmgr_pcon_invalidate(name, pcon->local_pconid);
 	}
 
 	remove_pim_info(info);
@@ -172,22 +245,25 @@ void pimmgr_pim_unregister(char *name)
 }
 EXPORT_SYMBOL(pimmgr_pim_unregister);
 
-void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
+void pimmgr_pcon_invalidate(char *name, int local_pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
-	uint32_t pconid;
+	int pconid;
 
 	info = find_pim_info_by_name(name);
 	if (!info)
 		return;
 
-	pcon = find_pimmgr_pcon_info(info, pcon_local_id);
+	pcon = find_pimmgr_pcon_info(info, local_pconid);
 	if (!pcon)
 		return;
 
-	pconid = CREATE_PCONID(info->id, pcon_local_id);
-	VCRTCM_INFO("Invalidating pcon, info %p, pconid %u\n", info, pconid);
+	pconid = get_pconid(info->id, local_pconid);
+	if (pconid < 0)
+		return;
+
+	VCRTCM_INFO("Invalidating pcon, info %p, pconid %i\n", info, pconid);
 
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_p_del(pconid);
@@ -195,3 +271,35 @@ void pimmgr_pcon_invalidate(char *name, uint32_t pcon_local_id)
 	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 }
 EXPORT_SYMBOL(pimmgr_pcon_invalidate);
+
+/* Functions for module init to call to set things up. */
+int pimmgr_structures_init()
+{
+	int result = 0;
+	pconid_table = (struct pconid_mapping *) vcrtcm_kmalloc(
+			sizeof(struct pconid_mapping) * MAX_NUM_PCONIDS,
+			GFP_KERNEL,
+			&pimmgr_kmalloc_track);
+
+	if (!pconid_table)
+		return -ENOMEM;
+
+	mutex_init(&pconid_table_mutex);
+
+	result = vcrtcm_id_generator_init(&pconid_generator, MAX_NUM_PCONIDS);
+
+	if (result < 0) {
+		pimmgr_structures_destroy();
+		return result;
+	}
+
+	return 0;
+}
+
+void pimmgr_structures_destroy()
+{
+	if (pconid_table)
+		vcrtcm_kfree(pconid_table, &pimmgr_kmalloc_track);
+	vcrtcm_id_generator_destroy(&pconid_generator);
+}
+

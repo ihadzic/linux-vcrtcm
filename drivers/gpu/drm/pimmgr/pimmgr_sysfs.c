@@ -19,6 +19,7 @@
 
 #include <vcrtcm/vcrtcm_utils.h>
 #include "pimmgr.h"
+#include "pimmgr_private.h"
 #include "pimmgr_sysfs.h"
 
 /* Prototypes of sysfs property read/write functions. */
@@ -161,7 +162,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 			return 0;
 
 		return scnprintf(buf, PAGE_SIZE, "%s:%u\n", pim->name,
-							pcon->local_id);
+							pcon->local_pconid);
 	} else if (attr == &pcon_fps_attr) {
 		struct pimmgr_pcon_properties props;
 		int result = 0;
@@ -169,7 +170,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		if (!pcon->pim->funcs.get_properties)
 			return 0;
 		result = pcon->pim->funcs.
-					get_properties(&props, pcon->local_id);
+				get_properties(&props, pcon->local_pconid);
 		if (!result)
 			return 0;
 
@@ -183,7 +184,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		if (!pcon->pim->funcs.get_properties)
 			return 0;
 		result = pcon->pim->funcs.
-					get_properties(&props, pcon->local_id);
+				get_properties(&props, pcon->local_pconid);
 		if (!result)
 			return 0;
 
@@ -259,8 +260,8 @@ int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon)
 	if (!pcon)
 		return -EINVAL;
 
-	ret = kobject_init_and_add(&pcon->kobj, &pcon_type, &pcons_kobj, "%u",
-		CREATE_PCONID(pcon->pim->id, pcon->local_id));
+	ret = kobject_init_and_add(&pcon->kobj, &pcon_type, &pcons_kobj, "%i",
+		get_pconid(pcon->pim->id, pcon->local_pconid));
 	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;

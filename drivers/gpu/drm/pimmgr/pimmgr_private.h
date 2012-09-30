@@ -22,6 +22,14 @@
 
 #define PIMMGR_DEBUG(fmt, args...) VCRTCM_DBG(1, pimmgr_debug, fmt, ## args)
 
+#define MAX_NUM_PCONIDS 1024
+
+struct pconid_mapping {
+	int pimid;
+	int local_pconid;
+	int valid;
+};
+
 /* Debug flag */
 extern int pimmgr_debug;
 
@@ -37,13 +45,27 @@ long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* Functions to find PIM info structs. */
 struct pim_info *find_pim_info_by_name(char *name);
-struct pim_info *find_pim_info_by_id(uint32_t pim_id);
+struct pim_info *find_pim_info_by_id(int pimid);
 
 /* Function to find an individual PCON instance info struct. */
 struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
-							uint32_t local_id);
+							int local_pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
 void pimmgr_sysfs_init(struct device *pimmgr_device);
+
+/* Functions called from module init to set up/destroy structures */
+int pimmgr_structures_init(void);
+void pimmgr_structures_destroy(void);
+
+/* Functions for managing mappings between pconids and pimids/local_pconids */
+int alloc_pconid(void);
+void dealloc_pconid(int pconid);
+int pconid_set_mapping(int pconid, int pimid, int local_pconid);
+int get_pconid(int pimid, int local_pconid);
+int pconid_valid(int pconid);
+int pconid_get_pimid(int pconid);
+int pconid_get_local_pconid(int pconid);
+
 
 #endif

@@ -25,27 +25,34 @@
 #include "pimmgr_sysfs.h"
 
 /* TODO: Need better errors. */
-uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
-							uint32_t *pconid)
+long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
-	uint32_t new_pconid;
+	int new_pconid;
 	int value = 0;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
+	new_pconid = alloc_pconid();
+	if (new_pconid < 0) {
+		VCRTCM_ERROR("No pconids available...");
+		return -PIMMGR_ERR_NO_FREE_PCONIDS;
+	}
+
 	info = find_pim_info_by_name(name);
 
 	if (!info) {
 		VCRTCM_INFO("Invalid pim identifier\n");
-		return PIMMGR_ERR_INVALID_PIM;
+		dealloc_pconid(new_pconid);
+		return -PIMMGR_ERR_INVALID_PIM;
 	}
 
 	pcon = vcrtcm_kzalloc(sizeof(struct pimmgr_pcon_info), GFP_KERNEL,
 					&pimmgr_kmalloc_track);
 	if (!pcon) {
 		VCRTCM_INFO("Could not allocate memory\n");
-		return PIMMGR_ERR_NOMEM;
+		dealloc_pconid(new_pconid);
+		return -PIMMGR_ERR_NOMEM;
 	}
 
 	pcon->pim = info;
@@ -58,61 +65,65 @@ uint32_t pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints,
 	if (!value) {
 		VCRTCM_INFO("No pcons of type %s available...\n", name);
 		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
-		return PIMMGR_ERR_NOT_AVAILABLE;
+		dealloc_pconid(new_pconid);
+		return -PIMMGR_ERR_NOT_AVAILABLE;
 	}
-	new_pconid = CREATE_PCONID(info->id, pcon->local_id);
+	value = pconid_set_mapping(new_pconid, info->id, pcon->local_pconid);
 
-	VCRTCM_INFO("New pcon created, id %u\n", new_pconid);
+	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
 
 	if (vcrtcm_p_add(pcon->funcs, pcon->props, new_pconid, pcon->cookie)) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
 		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
-		return PIMMGR_ERR_CANNOT_REGISTER;
+		dealloc_pconid(new_pconid);
+		return -PIMMGR_ERR_CANNOT_REGISTER;
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon);
 	list_add_tail(&pcon->pcon_list, &info->active_pcon_list);
+
 	*pconid = new_pconid;
 	return 0;
 }
 
-int pimmgr_ioctl_destroy_pcon(uint32_t pconid)
+long pimmgr_ioctl_destroy_pcon(int pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
-	uint32_t pim_id;
-	uint32_t local_pcon_id;
+	int pimid;
+	int local_pconid;
 	int r = 0;
 
-	VCRTCM_INFO("in destroy pcon id %u...\n", pconid);
+	VCRTCM_INFO("in destroy pcon id %i...\n", pconid);
 
-	if (!PCONID_VALID(pconid))
-		return PIMMGR_ERR_INVALID_PCON;
+	if (!pconid_valid(pconid))
+		return -PIMMGR_ERR_INVALID_PCON;
 
-	pim_id = PCONID_PIMID(pconid);
-	local_pcon_id = PCONID_LOCALID(pconid);
+	pimid = pconid_get_pimid(pconid);
+	local_pconid = pconid_get_local_pconid(pconid);
 
-	info = find_pim_info_by_id(pim_id);
+	info = find_pim_info_by_id(pimid);
 	if (!info)
-		return PIMMGR_ERR_INVALID_PCON;
+		return -PIMMGR_ERR_INVALID_PCON;
 
-	pcon = find_pimmgr_pcon_info(info, local_pcon_id);
+	pcon = find_pimmgr_pcon_info(info, local_pconid);
 	if (!pcon)
-		return PIMMGR_ERR_INVALID_PCON;
+		return -PIMMGR_ERR_INVALID_PCON;
 
 	r = vcrtcm_p_del(pconid);
 	if (r)
-		return PIMMGR_ERR_CANNOT_DESTROY;
+		return -PIMMGR_ERR_CANNOT_DESTROY;
 
 	vcrtcm_sysfs_del_pcon(pcon);
 
 	if (info->funcs.destroy)
-		info->funcs.destroy(local_pcon_id);
+		info->funcs.destroy(local_pconid);
 	else
 		VCRTCM_INFO("No destroy function...\n");
 
 	list_del(&pcon->pcon_list);
 	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
+	dealloc_pconid(pconid);
 	return 0;
 }
 

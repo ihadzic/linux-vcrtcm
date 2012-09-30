@@ -129,8 +129,8 @@ struct vcrtcm_pcon_info {
 	struct vcrtcm_pcon_funcs funcs;
 	struct vcrtcm_pcon_props props;
 	void *pcon_cookie;
-	/* This is a compound of a PIM id and PIM-local PCON id */
-	uint32_t pconid;
+	/* This is an index into a table maintained by pimmgr. */
+	int pconid;
 };
 
 /* descriptor for push buffer; when push-method is used */
