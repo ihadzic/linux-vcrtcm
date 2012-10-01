@@ -75,10 +75,10 @@ struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 
 static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
-static void udlpim_destroy(uint32_t local_pcon_id);
+static void udlpim_destroy(int local_pconid);
 
 static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
-						uint32_t local_pcon_id);
+						int local_pconid);
 
 static struct pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
@@ -160,7 +160,7 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 			pcon_info->funcs = &udlpim_vcrtcm_pcon_funcs;
 			pcon_info->props = &udlpim_vcrtcm_pcon_props;
 			pcon_info->cookie = info;
-			pcon_info->local_id = (uint32_t) info->minor;
+			pcon_info->local_pconid = (uint32_t) info->minor;
 			info->used = 1;
 			return 1;
 		}
@@ -169,12 +169,12 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 0;
 }
 
-static void udlpim_destroy(uint32_t local_pcon_id)
+static void udlpim_destroy(int local_pconid)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (((uint32_t) info->minor) == local_pcon_id) {
+		if (((uint32_t) info->minor) == local_pconid) {
 			info->used = 0;
 			return;
 		}
@@ -182,12 +182,12 @@ static void udlpim_destroy(uint32_t local_pcon_id)
 }
 
 static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
-						uint32_t local_pcon_id)
+						int local_pconid)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (((uint32_t) info->minor) == local_pcon_id) {
+		if (((uint32_t) info->minor) == local_pconid) {
 			struct udlpim_flow_info *flow = info->flow_info;
 			props->fps = flow ? flow->fps : -1;
 			props->attached = flow ? 1 : 0;
