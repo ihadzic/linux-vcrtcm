@@ -272,8 +272,8 @@ int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon)
 	if (ret < 0)
 		VCRTCM_ERROR("Error linking pcon to pim in sysfs\n");
 
-	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj,
-						pcon->pim->kobj.name);
+	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj, "pim");
+
 	if (ret < 0)
 		VCRTCM_ERROR("Error linking pim to pcon in sysfs\n");
 
