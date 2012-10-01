@@ -47,6 +47,12 @@ static const struct sysfs_ops pim_ops = {
 	.store = pim_store
 };
 
+/* PIM name attribute */
+static struct attribute pim_name_attr = {
+	.name = "name",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 /* PIM description attribute. */
 static struct attribute pim_desc_attr = {
 	.name = "description",
@@ -55,6 +61,7 @@ static struct attribute pim_desc_attr = {
 
 /* Array of PIM attributes. */
 static struct attribute *pim_attributes[] = {
+	&pim_name_attr,
 	&pim_desc_attr,
 	NULL
 };
@@ -124,11 +131,16 @@ static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 	struct pim_info *pim = (struct pim_info *)
 				container_of(kobj, struct pim_info, kobj);
 
-	if (pim)
+	if (!pim)
+		return 0;
+	if (attr == &pim_name_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%s\n", pim->name);
+	} else if (attr == &pim_desc_attr) {
 		return scnprintf(buf,
 				PAGE_SIZE,
 				"This is the PIM that handles type %s\n",
 				pim->name);
+	}
 
 	return 0;
 }
