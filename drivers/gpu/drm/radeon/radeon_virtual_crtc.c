@@ -494,7 +494,26 @@ static bool radeon_virtual_crtc_mode_fixup(struct drm_crtc *crtc,
 					   struct drm_display_mode
 					   *adjusted_mode)
 {
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+
 	DRM_DEBUG("\n");
+	/* assign the encoder to radeon_crtc to avoid repeated lookups later */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
+			radeon_crtc->encoder = encoder;
+			radeon_crtc->connector =
+				radeon_get_connector_for_encoder(encoder);
+			break;
+		}
+	}
+	if ((radeon_crtc->encoder == NULL) ||
+	    (radeon_crtc->connector == NULL)) {
+		radeon_crtc->encoder = NULL;
+		radeon_crtc->connector = NULL;
+		return false;
+	}
 	return true;
 }
 
@@ -862,6 +881,10 @@ static void radeon_virtual_crtc_disable(struct drm_crtc *crtc)
 	if (radeon_crtc->vcrtcm_pcon_info)
 		vcrtcm_g_disable(radeon_crtc->vcrtcm_pcon_info);
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	radeon_crtc->pll_id = -1;
+	radeon_crtc->adjusted_clock = 0;
+	radeon_crtc->encoder = NULL;
+	radeon_crtc->connector = NULL;
 }
 
 static void radeon_virtual_crtc_prepare(struct drm_crtc *crtc)
@@ -1188,6 +1211,10 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 	/* atombios initialization does this so we are just being stupind */
 	/* don't expect to be referenced, but won't hurt to set it */
 	radeon_crtc->pll_id = -1;
+	radeon_crtc->adjusted_clock = 0;
+
+	radeon_crtc->encoder = NULL;
+	radeon_crtc->connector = NULL;
 
 	/* this links helper function (which will be virutal CRTC */
 	/* specific) to DRM; functions are (un)implemented in this file */
