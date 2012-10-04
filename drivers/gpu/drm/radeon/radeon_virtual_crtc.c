@@ -262,7 +262,7 @@ static void radeon_virtual_encoder_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool radeon_virtual_mode_fixup(struct drm_encoder *encoder,
-				      struct drm_display_mode *mode,
+				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
 {
 	DRM_DEBUG("\n");
@@ -490,7 +490,7 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static bool radeon_virtual_crtc_mode_fixup(struct drm_crtc *crtc,
-					   struct drm_display_mode *mode,
+					   const struct drm_display_mode *mode,
 					   struct drm_display_mode
 					   *adjusted_mode)
 {
