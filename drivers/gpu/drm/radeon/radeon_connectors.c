@@ -215,7 +215,7 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 	return NULL;
 }
 
-static struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector)
+struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
 	struct drm_mode_object *obj;
