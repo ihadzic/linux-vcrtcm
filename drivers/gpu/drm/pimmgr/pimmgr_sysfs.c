@@ -53,6 +53,12 @@ static struct attribute pim_name_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+/* PIM id attribute. */
+static struct attribute pim_id_attr = {
+	.name = "id",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 /* PIM description attribute. */
 static struct attribute pim_desc_attr = {
 	.name = "description",
@@ -62,6 +68,7 @@ static struct attribute pim_desc_attr = {
 /* Array of PIM attributes. */
 static struct attribute *pim_attributes[] = {
 	&pim_name_attr,
+	&pim_id_attr,
 	&pim_desc_attr,
 	NULL
 };
@@ -135,6 +142,8 @@ static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 		return 0;
 	if (attr == &pim_name_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%s\n", pim->name);
+	} else if (attr == &pim_id_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pim->id);
 	} else if (attr == &pim_desc_attr) {
 		return scnprintf(buf,
 				PAGE_SIZE,
