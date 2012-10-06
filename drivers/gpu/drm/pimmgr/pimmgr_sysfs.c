@@ -98,8 +98,8 @@ static struct attribute pcon_minor_attr = {
 };
 
 /* PCON localid attribute. */
-static struct attribute pcon_localid_attr = {
-	.name = "localid",
+static struct attribute pcon_local_pconid_attr = {
+	.name = "local_pconid",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
@@ -118,7 +118,7 @@ static struct attribute pcon_attached_attr = {
 /* Array of PCON attributes. */
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
-	&pcon_localid_attr,
+	&pcon_local_pconid_attr,
 	&pcon_fps_attr,
 	&pcon_attached_attr,
 	&pcon_minor_attr,
@@ -177,13 +177,12 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon->description);
 	} else if (attr == &pcon_minor_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->minor);
-	} else if (attr == &pcon_localid_attr) {
+	} else if (attr == &pcon_local_pconid_attr) {
 		pim = pcon->pim;
 		if (!pim)
 			return 0;
 
-		return scnprintf(buf, PAGE_SIZE, "%s:%u\n", pim->name,
-							pcon->local_pconid);
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->local_pconid);
 	} else if (attr == &pcon_fps_attr) {
 		struct pimmgr_pcon_properties props;
 		int result = 0;
