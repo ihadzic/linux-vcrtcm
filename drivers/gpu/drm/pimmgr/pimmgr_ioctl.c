@@ -36,7 +36,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 	new_pconid = alloc_pconid();
 	if (new_pconid < 0) {
 		VCRTCM_ERROR("No pconids available...");
-		return -PIMMGR_ERR_NO_FREE_PCONIDS;
+		return -EMFILE;
 	}
 
 	info = find_pim_info_by_name(name);
@@ -44,7 +44,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 	if (!info) {
 		VCRTCM_INFO("Invalid pim identifier\n");
 		dealloc_pconid(new_pconid);
-		return -PIMMGR_ERR_INVALID_PIM;
+		return -EINVAL;
 	}
 
 	pcon = vcrtcm_kzalloc(sizeof(struct pimmgr_pcon_info), GFP_KERNEL,
@@ -52,7 +52,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 	if (!pcon) {
 		VCRTCM_INFO("Could not allocate memory\n");
 		dealloc_pconid(new_pconid);
-		return -PIMMGR_ERR_NOMEM;
+		return -ENOMEM;
 	}
 
 	pcon->pim = info;
@@ -66,7 +66,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 		VCRTCM_INFO("No pcons of type %s available...\n", name);
 		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 		dealloc_pconid(new_pconid);
-		return -PIMMGR_ERR_NOT_AVAILABLE;
+		return -ENODEV;
 	}
 	value = pconid_set_mapping(new_pconid, info->id, pcon->local_pconid);
 
@@ -76,7 +76,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
 		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 		dealloc_pconid(new_pconid);
-		return -PIMMGR_ERR_CANNOT_REGISTER;
+		return -EBUSY;
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon);
@@ -97,22 +97,22 @@ long pimmgr_ioctl_destroy_pcon(int pconid)
 	VCRTCM_INFO("in destroy pcon id %i...\n", pconid);
 
 	if (!pconid_valid(pconid))
-		return -PIMMGR_ERR_INVALID_PCON;
+		return -EINVAL;
 
 	pimid = pconid_get_pimid(pconid);
 	local_pconid = pconid_get_local_pconid(pconid);
 
 	info = find_pim_info_by_id(pimid);
 	if (!info)
-		return -PIMMGR_ERR_INVALID_PCON;
+		return -EINVAL;
 
 	pcon = find_pimmgr_pcon_info(info, local_pconid);
 	if (!pcon)
-		return -PIMMGR_ERR_INVALID_PCON;
+		return -EINVAL;
 
 	r = vcrtcm_p_del(pconid);
 	if (r)
-		return -PIMMGR_ERR_CANNOT_DESTROY;
+		return -EBUSY;
 
 	vcrtcm_sysfs_del_pcon(pcon);
 
