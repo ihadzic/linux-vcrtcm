@@ -25,7 +25,7 @@
 #include "pimmgr_sysfs.h"
 
 /* TODO: Need better errors. */
-long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
+long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
@@ -39,10 +39,10 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 		return -EMFILE;
 	}
 
-	info = find_pim_info_by_name(name);
+	info = find_pim_info_by_id(pimid);
 
 	if (!info) {
-		VCRTCM_INFO("Invalid pim identifier\n");
+		VCRTCM_INFO("Invalid pimid\n");
 		dealloc_pconid(new_pconid);
 		return -EINVAL;
 	}
@@ -63,7 +63,7 @@ long pimmgr_ioctl_instantiate_pcon(char *name, uint32_t hints, int *pconid)
 		VCRTCM_INFO("No instantiate function...\n");
 
 	if (!value) {
-		VCRTCM_INFO("No pcons of type %s available...\n", name);
+		VCRTCM_INFO("No pcons of type %s available...\n", info->name);
 		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
 		dealloc_pconid(new_pconid);
 		return -ENODEV;
@@ -148,7 +148,7 @@ long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		result = pimmgr_ioctl_instantiate_pcon(
-						ioctl_args.arg1.pim_name,
+						ioctl_args.arg1.pimid,
 						ioctl_args.arg2.hints,
 						&ioctl_args.result1.pconid);
 		if (result)
