@@ -32,14 +32,17 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 
 	for (i = 0; i < 2; i++) {
 		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
-			pbd = &flow_info->pbd_fb[i];
+			pbd = flow_info->pbd_fb[i];
 			pb_mapped_ram = flow_info->pb_fb[i];
+			flow_info->pbd_fb[i] = NULL;
 		} else {
-			pbd = &flow_info->pbd_cursor[i];
+			pbd = flow_info->pbd_cursor[i];
 			pb_mapped_ram = flow_info->pb_cursor[i];
+			flow_info->pbd_cursor[i] = NULL;
 		}
 
-		if (pbd->num_pages) {
+		WARN_ON(!pbd);
+		if (pbd && (pbd->num_pages)) {
 			BUG_ON(!pbd->gpu_private);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
 			vcrtcm_p_unregister_prime(flow_info->vcrtcm_pcon_info,
@@ -47,9 +50,7 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 			vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
 						&udlpim_info->page_track);
 			vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
-			memset(pbd, 0,
-				sizeof(struct vcrtcm_push_buffer_descriptor));
-			pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
+			vcrtcm_kfree(pbd, &udlpim_info->kmalloc_track);
 		}
 	}
 }
@@ -64,17 +65,23 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 	void *pb, *old_pb = NULL;
 
 	for (i = 0; i < 2; i++) {
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
-			pbd = &flow_info->pbd_fb[i];
-		else
-			pbd = &flow_info->pbd_cursor[i];
+		pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
+				     GFP_KERNEL,
+				     &udlpim_info->kmalloc_track);
+		pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
+		if (!pbd) {
+			VCRTCM_ERROR("%s[%d]: pbd alloc failed\n",
+				     UDLPIM_ALLOC_PB_STRING(flag), i);
+			r = -ENOMEM;
+			goto out_err0;
+		}
 		pbd->pages = vcrtcm_kzalloc(num_pages * sizeof(struct page *),
 				GFP_KERNEL, &udlpim_info->kmalloc_track);
 		if (!pbd->pages) {
 			VCRTCM_ERROR("%s[%d]: pages pointer alloc failed\n",
 					UDLPIM_ALLOC_PB_STRING(flag), i);
 			r = -ENOMEM;
-			goto out_err0;
+			goto out_err1;
 		}
 		r = vcrtcm_alloc_multiple_pages(GFP_KERNEL | __GFP_HIGHMEM,
 						pbd->pages, num_pages,
@@ -82,7 +89,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 		if (r) {
 			VCRTCM_ERROR("%s[%d]: push buffer alloc_failed\n",
 					UDLPIM_ALLOC_PB_STRING(flag), i);
-			goto out_err1;
+			goto out_err2;
 		}
 		UDLPIM_DEBUG("%s[%d]: allocated %d pages\n",
 			UDLPIM_ALLOC_PB_STRING(flag), i, num_pages);
@@ -92,7 +99,7 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 			VCRTCM_ERROR("%s[%d]: vm_map_ram failed\n",
 				UDLPIM_ALLOC_PB_STRING(flag), i);
 			r = -ENOMEM;
-			goto out_err2;
+			goto out_err3;
 		}
 		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
 			flow_info->pb_fb[i] = pb;
@@ -103,8 +110,12 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 		if (r) {
 			VCRTCM_ERROR("%s[%d]: export to VCRTCM failed\n",
 				UDLPIM_ALLOC_PB_STRING(flag), i);
-				goto out_err3;
+				goto out_err4;
 		}
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
+			flow_info->pbd_fb[i] = pbd;
+		else
+			flow_info->pbd_cursor[i] = pbd;
 		flow_info->pb_needs_xmit[i] = 0;
 		old_pbd = pbd;
 		old_pb = pb;
@@ -112,19 +123,19 @@ static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
 	if (!r)
 		return r;
 
-out_err3:
+out_err4:
 	vm_unmap_ram(pbd->pages, num_pages);
 	if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
 		flow_info->pb_fb[i] = NULL;
 	else
 		flow_info->pb_cursor[i] = NULL;
-out_err2:
+out_err3:
 	vcrtcm_free_multiple_pages(pbd->pages, num_pages,
 				&udlpim_info->page_track);
-out_err1:
+out_err2:
 	vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
-	memset(pbd, 0, sizeof(struct vcrtcm_push_buffer_descriptor));
-	pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
+out_err1:
+	vcrtcm_kfree(pbd, &udlpim_info->kmalloc_track);
 out_err0:
 	if (i == 1) {
 		/*
@@ -134,16 +145,17 @@ out_err0:
 		 */
 		BUG_ON(!old_pbd || !old_pb);
 		vm_unmap_ram(old_pbd->pages, num_pages);
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
+		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
+			flow_info->pbd_fb[0] = NULL;
 			flow_info->pb_fb[0] = NULL;
-		else
+		} else {
+			flow_info->pbd_cursor[0] = NULL;
 			flow_info->pb_cursor[0] = NULL;
+		}
 		vcrtcm_free_multiple_pages(old_pbd->pages, num_pages,
 					&udlpim_info->page_track);
 		vcrtcm_kfree(old_pbd->pages, &udlpim_info->kmalloc_track);
-		memset(old_pbd, 0,
-			sizeof(struct vcrtcm_push_buffer_descriptor));
-		old_pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
+		vcrtcm_kfree(old_pbd, &udlpim_info->kmalloc_track);
 	}
 	return r;
 }
@@ -179,14 +191,10 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		flow_info->push_buffer_index = 0;
 		flow_info->pb_needs_xmit[0] = 0;
 		flow_info->pb_needs_xmit[1] = 0;
-		memset(&flow_info->pbd_fb, 0,
-			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		memset(&flow_info->pbd_cursor, 0,
-			2 * sizeof(struct vcrtcm_push_buffer_descriptor));
-		flow_info->pbd_fb[0].owner_pcon = vcrtcm_pcon_info;
-		flow_info->pbd_fb[1].owner_pcon = vcrtcm_pcon_info;
-		flow_info->pbd_cursor[0].owner_pcon = vcrtcm_pcon_info;
-		flow_info->pbd_cursor[1].owner_pcon = vcrtcm_pcon_info;
+		flow_info->pbd_fb[0] = NULL;
+		flow_info->pbd_fb[1] = NULL;
+		flow_info->pbd_cursor[0] = NULL;
+		flow_info->pbd_cursor[1] = NULL;
 		flow_info->pb_fb[0] = 0;
 		flow_info->pb_fb[1] = 0;
 		flow_info->pb_cursor[0] = 0;
@@ -250,36 +258,38 @@ static int udlpim_realloc_pb(struct udlpim_info *udlpim_info,
 	struct vcrtcm_push_buffer_descriptor *pbd0, *pbd1;
 
 	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
-		pbd0 = &flow_info->pbd_fb[0];
-		pbd1 = &flow_info->pbd_fb[1];
+		pbd0 = flow_info->pbd_fb[0];
+		pbd1 = flow_info->pbd_fb[1];
 	} else {
-		pbd0 = &flow_info->pbd_cursor[0];
-		pbd1 = &flow_info->pbd_cursor[1];
+		pbd0 = flow_info->pbd_cursor[0];
+		pbd1 = flow_info->pbd_cursor[1];
 	}
 
 	num_pages = size / PAGE_SIZE;
 	if (size % PAGE_SIZE)
 		num_pages++;
-	BUG_ON(pbd0->num_pages != pbd1->num_pages);
+
 	if (!num_pages) {
 		UDLPIM_DEBUG("%s: zero size requested\n",
 			     UDLPIM_ALLOC_PB_STRING(flag));
 		udlpim_free_pb(udlpim_info, flow_info, flag);
+	} else if (!pbd0) {
+		/* no old buffer present */
+		BUG_ON(pbd1);
+		r = udlpim_alloc_pb(udlpim_info, flow_info, num_pages, flag);
 	} else if (pbd0->num_pages == num_pages) {
 		UDLPIM_DEBUG("%s: reusing existing push buffer\n",
 			     UDLPIM_ALLOC_PB_STRING(flag));
+		BUG_ON(pbd0->num_pages != pbd1->num_pages);
 	} else {
-		/*
-		 * if we got here, then we either don't have the
-		 * push buffer or we have one of the wrong size
-		 */
+		/* size changed */
 		UDLPIM_DEBUG("%s: allocating push buffer "
 			     "size=%d, num_pages=%d\n",
 			     UDLPIM_ALLOC_PB_STRING(flag), size, num_pages);
+		BUG_ON(pbd0->num_pages != pbd1->num_pages);
 		udlpim_free_pb(udlpim_info, flow_info, flag);
 		r = udlpim_alloc_pb(udlpim_info, flow_info, num_pages, flag);
 	}
-
 	return r;
 }
 
@@ -800,7 +810,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 
 	push_buffer_index = flow_info->push_buffer_index;
 
-	if (flow_info->pbd_fb[push_buffer_index].num_pages) {
+	if (flow_info->pbd_fb) {
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
@@ -847,8 +857,8 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
-				&flow_info->pbd_fb[push_buffer_index],
-				&flow_info->pbd_cursor[push_buffer_index]);
+				  flow_info->pbd_fb[push_buffer_index],
+				  flow_info->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
