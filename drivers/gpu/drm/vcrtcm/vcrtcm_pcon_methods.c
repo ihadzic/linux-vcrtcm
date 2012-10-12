@@ -419,9 +419,13 @@ int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
 		container_of(pcon_info, struct vcrtcm_pcon_info_private,
 			     pcon_info);
 	struct drm_crtc *crtc = pcon_info_private->drm_crtc;
-	struct drm_gem_object *push_buffer_fb = fpbd->gpu_private;
-	struct drm_gem_object *push_buffer_cursor = cpbd->gpu_private;
+	struct drm_gem_object *push_buffer_fb = NULL;
+	struct drm_gem_object *push_buffer_cursor = NULL;
 
+	if (cpbd)
+		push_buffer_cursor = cpbd->gpu_private;
+	if (fpbd)
+		push_buffer_fb = fpbd->gpu_private;
 	if (pcon_info_private->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for pcon %i\n",
 			     pcon_info_private->pcon_info.pconid);
