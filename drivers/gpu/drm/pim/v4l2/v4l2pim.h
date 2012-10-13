@@ -120,8 +120,8 @@ struct v4l2pim_flow_info {
 	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
 	struct vcrtcm_fb vcrtcm_fb;
 	struct vcrtcm_cursor vcrtcm_cursor;
-	struct vcrtcm_push_buffer_descriptor pbd_fb[2];
-	struct vcrtcm_push_buffer_descriptor pbd_cursor[2];
+	struct vcrtcm_push_buffer_descriptor *pbd_fb[2];
+	struct vcrtcm_push_buffer_descriptor *pbd_cursor[2];
 	void *pb_fb[2];
 	void *pb_cursor[2];
 	int pb_needs_xmit[2];
