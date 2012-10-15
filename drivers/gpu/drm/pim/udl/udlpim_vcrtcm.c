@@ -40,124 +40,15 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 			pb_mapped_ram = flow_info->pb_cursor[i];
 			flow_info->pbd_cursor[i] = NULL;
 		}
-
-		WARN_ON(!pbd);
-		if (pbd && (pbd->num_pages)) {
+		if (pbd) {
 			BUG_ON(!pbd->gpu_private);
+			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_unregister_prime(flow_info->vcrtcm_pcon_info,
-						pbd);
-			vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
-						&udlpim_info->page_track);
-			vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
-			vcrtcm_kfree(pbd, &udlpim_info->kmalloc_track);
+			vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd,
+					 &udlpim_info->kmalloc_track,
+					 &udlpim_info->page_track);
 		}
 	}
-}
-
-static int udlpim_alloc_pb(struct udlpim_info *udlpim_info,
-		struct udlpim_flow_info *flow_info,
-		int num_pages, int flag)
-{
-	int i;
-	int r = 0;
-	struct vcrtcm_push_buffer_descriptor *pbd, *old_pbd = NULL;
-	void *pb, *old_pb = NULL;
-
-	for (i = 0; i < 2; i++) {
-		pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
-				     GFP_KERNEL,
-				     &udlpim_info->kmalloc_track);
-		pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
-		if (!pbd) {
-			VCRTCM_ERROR("%s[%d]: pbd alloc failed\n",
-				     UDLPIM_ALLOC_PB_STRING(flag), i);
-			r = -ENOMEM;
-			goto out_err0;
-		}
-		pbd->pages = vcrtcm_kzalloc(num_pages * sizeof(struct page *),
-				GFP_KERNEL, &udlpim_info->kmalloc_track);
-		if (!pbd->pages) {
-			VCRTCM_ERROR("%s[%d]: pages pointer alloc failed\n",
-					UDLPIM_ALLOC_PB_STRING(flag), i);
-			r = -ENOMEM;
-			goto out_err1;
-		}
-		r = vcrtcm_alloc_multiple_pages(GFP_KERNEL | __GFP_HIGHMEM,
-						pbd->pages, num_pages,
-						&udlpim_info->page_track);
-		if (r) {
-			VCRTCM_ERROR("%s[%d]: push buffer alloc_failed\n",
-					UDLPIM_ALLOC_PB_STRING(flag), i);
-			goto out_err2;
-		}
-		UDLPIM_DEBUG("%s[%d]: allocated %d pages\n",
-			UDLPIM_ALLOC_PB_STRING(flag), i, num_pages);
-		pbd->num_pages = num_pages;
-		pb = vm_map_ram(pbd->pages, num_pages, 0, PAGE_KERNEL);
-		if (pb == NULL) {
-			VCRTCM_ERROR("%s[%d]: vm_map_ram failed\n",
-				UDLPIM_ALLOC_PB_STRING(flag), i);
-			r = -ENOMEM;
-			goto out_err3;
-		}
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
-			flow_info->pb_fb[i] = pb;
-		else
-			flow_info->pb_cursor[i] = pb;
-		/* register_prime will finish up the construction of pbd */
-		r = vcrtcm_p_register_prime(flow_info->vcrtcm_pcon_info, pbd);
-		if (r) {
-			VCRTCM_ERROR("%s[%d]: export to VCRTCM failed\n",
-				UDLPIM_ALLOC_PB_STRING(flag), i);
-				goto out_err4;
-		}
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
-			flow_info->pbd_fb[i] = pbd;
-		else
-			flow_info->pbd_cursor[i] = pbd;
-		flow_info->pb_needs_xmit[i] = 0;
-		old_pbd = pbd;
-		old_pb = pb;
-	}
-	if (!r)
-		return r;
-
-out_err4:
-	vm_unmap_ram(pbd->pages, num_pages);
-	if (flag == UDLPIM_ALLOC_PB_FLAG_FB)
-		flow_info->pb_fb[i] = NULL;
-	else
-		flow_info->pb_cursor[i] = NULL;
-out_err3:
-	vcrtcm_free_multiple_pages(pbd->pages, num_pages,
-				&udlpim_info->page_track);
-out_err2:
-	vcrtcm_kfree(pbd->pages, &udlpim_info->kmalloc_track);
-out_err1:
-	vcrtcm_kfree(pbd, &udlpim_info->kmalloc_track);
-out_err0:
-	if (i == 1) {
-		/*
-		 * allocation failed in the second iteration
-		 * of the loop, we must release the buffer
-		 * allocated in the first one before returning
-		 */
-		BUG_ON(!old_pbd || !old_pb);
-		vm_unmap_ram(old_pbd->pages, num_pages);
-		if (flag == UDLPIM_ALLOC_PB_FLAG_FB) {
-			flow_info->pbd_fb[0] = NULL;
-			flow_info->pb_fb[0] = NULL;
-		} else {
-			flow_info->pbd_cursor[0] = NULL;
-			flow_info->pb_cursor[0] = NULL;
-		}
-		vcrtcm_free_multiple_pages(old_pbd->pages, num_pages,
-					&udlpim_info->page_track);
-		vcrtcm_kfree(old_pbd->pages, &udlpim_info->kmalloc_track);
-		vcrtcm_kfree(old_pbd, &udlpim_info->kmalloc_track);
-	}
-	return r;
 }
 
 int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
@@ -256,39 +147,105 @@ static int udlpim_realloc_pb(struct udlpim_info *udlpim_info,
 {
 	int num_pages, r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd0, *pbd1;
+	void *pb_mapped_ram0, *pb_mapped_ram1;
 
 	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
 		pbd0 = flow_info->pbd_fb[0];
 		pbd1 = flow_info->pbd_fb[1];
+		pb_mapped_ram0 = flow_info->pb_fb[0];
+		pb_mapped_ram1 = flow_info->pb_fb[1];
 	} else {
 		pbd0 = flow_info->pbd_cursor[0];
 		pbd1 = flow_info->pbd_cursor[1];
+		pb_mapped_ram0 = flow_info->pb_cursor[0];
+		pb_mapped_ram1 = flow_info->pb_cursor[1];
 	}
-
 	num_pages = size / PAGE_SIZE;
 	if (size % PAGE_SIZE)
 		num_pages++;
-
-	if (!num_pages) {
-		UDLPIM_DEBUG("%s: zero size requested\n",
-			     UDLPIM_ALLOC_PB_STRING(flag));
-		udlpim_free_pb(udlpim_info, flow_info, flag);
-	} else if (!pbd0) {
-		/* no old buffer present */
-		BUG_ON(pbd1);
-		r = udlpim_alloc_pb(udlpim_info, flow_info, num_pages, flag);
-	} else if (pbd0->num_pages == num_pages) {
-		UDLPIM_DEBUG("%s: reusing existing push buffer\n",
-			     UDLPIM_ALLOC_PB_STRING(flag));
-		BUG_ON(pbd0->num_pages != pbd1->num_pages);
+	if (pb_mapped_ram0) {
+		BUG_ON(!pbd0);
+		vm_unmap_ram(pb_mapped_ram0, pbd0->num_pages);
+		pb_mapped_ram0 = NULL;
+	}
+	if (pb_mapped_ram1) {
+		BUG_ON(!pbd1);
+		vm_unmap_ram(pb_mapped_ram1, pbd1->num_pages);
+		pb_mapped_ram1 = NULL;
+	}
+	pbd0 = vcrtcm_p_realloc_pb(flow_info->vcrtcm_pcon_info, pbd0,
+				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
+				   &udlpim_info->kmalloc_track,
+				   &udlpim_info->page_track);
+	if (IS_ERR(pbd0)) {
+		r = PTR_ERR(pbd0);
+		goto out_err0;
+	}
+	pbd1 = vcrtcm_p_realloc_pb(flow_info->vcrtcm_pcon_info, pbd1,
+				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
+				   &udlpim_info->kmalloc_track,
+				   &udlpim_info->page_track);
+	if (IS_ERR(pbd1)) {
+		r = PTR_ERR(pbd1);
+		goto out_err1;
+	}
+	if (pbd0) {
+		pb_mapped_ram0 =
+			vm_map_ram(pbd0->pages, num_pages, 0, PAGE_KERNEL);
+		if (!pb_mapped_ram0) {
+			r = -ENOMEM;
+			goto out_err2;
+		}
+	}
+	if (pbd1) {
+		pb_mapped_ram1 =
+			vm_map_ram(pbd1->pages, num_pages, 0, PAGE_KERNEL);
+		if (!pb_mapped_ram1) {
+			r = -ENOMEM;
+			goto out_err3;
+		}
+	}
+	/*
+	 * it is OK not to have the buffer at this point, but
+	 * we must be consistent
+	 */
+	BUG_ON((pbd0 && !pbd1) || (!pbd0 && pbd1));
+	BUG_ON((pb_mapped_ram0 && !pb_mapped_ram1) ||
+	       (!pb_mapped_ram0 && pb_mapped_ram1));
+	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
+		flow_info->pbd_fb[0] = pbd0;
+		flow_info->pbd_fb[1] = pbd1;
+		flow_info->pb_fb[0] = pb_mapped_ram0;
+		flow_info->pb_fb[1] = pb_mapped_ram1;
 	} else {
-		/* size changed */
-		UDLPIM_DEBUG("%s: allocating push buffer "
-			     "size=%d, num_pages=%d\n",
-			     UDLPIM_ALLOC_PB_STRING(flag), size, num_pages);
-		BUG_ON(pbd0->num_pages != pbd1->num_pages);
-		udlpim_free_pb(udlpim_info, flow_info, flag);
-		r = udlpim_alloc_pb(udlpim_info, flow_info, num_pages, flag);
+		flow_info->pbd_cursor[0] = pbd0;
+		flow_info->pbd_cursor[1] = pbd1;
+		flow_info->pb_cursor[0] = pb_mapped_ram0;
+		flow_info->pb_cursor[1] = pb_mapped_ram1;
+	}
+	return 0;
+out_err3:
+	if (pbd0)
+		vm_unmap_ram(pb_mapped_ram0, pbd0->num_pages);
+out_err2:
+	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd1,
+			 &udlpim_info->kmalloc_track,
+			 &udlpim_info->page_track);
+out_err1:
+	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd0,
+			 &udlpim_info->kmalloc_track,
+			 &udlpim_info->page_track);
+out_err0:
+	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
+		flow_info->pbd_fb[0] = NULL;
+		flow_info->pbd_fb[1] = NULL;
+		flow_info->pb_fb[0] = NULL;
+		flow_info->pb_fb[1] = NULL;
+	} else {
+		flow_info->pbd_cursor[0] = NULL;
+		flow_info->pbd_cursor[1] = NULL;
+		flow_info->pb_cursor[0] = NULL;
+		flow_info->pb_cursor[1] = NULL;
 	}
 	return r;
 }
