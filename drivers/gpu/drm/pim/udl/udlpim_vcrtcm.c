@@ -195,10 +195,10 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		flow_info->pbd_fb[1] = NULL;
 		flow_info->pbd_cursor[0] = NULL;
 		flow_info->pbd_cursor[1] = NULL;
-		flow_info->pb_fb[0] = 0;
-		flow_info->pb_fb[1] = 0;
-		flow_info->pb_cursor[0] = 0;
-		flow_info->pb_cursor[1] = 0;
+		flow_info->pb_fb[0] = NULL;
+		flow_info->pb_fb[1] = NULL;
+		flow_info->pb_cursor[0] = NULL;
+		flow_info->pb_cursor[1] = NULL;
 
 		flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 
