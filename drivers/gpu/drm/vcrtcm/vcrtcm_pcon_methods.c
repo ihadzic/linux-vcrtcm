@@ -455,3 +455,95 @@ void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info)
 	}
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug);
+
+void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
+		      struct vcrtcm_push_buffer_descriptor *pbd,
+		      atomic_t *kmalloc_track, atomic_t *page_track)
+{
+	if (pbd) {
+		BUG_ON(!pbd->gpu_private);
+		BUG_ON(!pbd->num_pages);
+		vcrtcm_p_unregister_prime(pcon_info, pbd);
+		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
+					   page_track);
+		vcrtcm_kfree(pbd->pages, kmalloc_track);
+		vcrtcm_kfree(pbd, kmalloc_track);
+	}
+}
+EXPORT_SYMBOL(vcrtcm_p_free_pb);
+
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
+		  gfp_t gfp_mask, atomic_t *kmalloc_track,
+		  atomic_t *page_track)
+{
+	int r = 0;
+	struct vcrtcm_push_buffer_descriptor *pbd;
+
+	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
+			    GFP_KERNEL, kmalloc_track);
+	pbd->owner_pcon = pcon_info;
+	if (!pbd) {
+		VCRTCM_ERROR("push buffer descriptor alloc failed\n");
+		r = -ENOMEM;
+		goto out_err0;
+	}
+	pbd->pages = vcrtcm_kzalloc(npages * sizeof(struct page *), GFP_KERNEL,
+				   kmalloc_track);
+	if (!pbd->pages) {
+		VCRTCM_ERROR("pages pointer alloc failed\n");
+		r = -ENOMEM;
+		goto out_err1;
+	}
+	r = vcrtcm_alloc_multiple_pages(gfp_mask, pbd->pages, npages,
+					page_track);
+	if (r) {
+		VCRTCM_ERROR("push buffer pages alloc failed\n");
+		goto out_err2;
+	}
+	pbd->num_pages = npages;
+	r = vcrtcm_p_register_prime(pcon_info, pbd);
+	if (r) {
+		VCRTCM_ERROR("export to VCRTCM failed\n");
+		goto out_err3;
+	}
+	return pbd;
+out_err3:
+	vcrtcm_free_multiple_pages(pbd->pages, npages, page_track);
+out_err2:
+	vcrtcm_kfree(pbd->pages, kmalloc_track);
+out_err1:
+	vcrtcm_kfree(pbd, kmalloc_track);
+out_err0:
+	return ERR_PTR(r);
+}
+EXPORT_SYMBOL(vcrtcm_p_alloc_pb);
+
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_realloc_pb(struct vcrtcm_pcon_info *pcon_info,
+		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
+		    gfp_t gfp_mask,
+		    atomic_t *kmalloc_track, atomic_t *page_track)
+{
+	struct vcrtcm_push_buffer_descriptor *npbd;
+
+	if (npages == 0) {
+		VCRTCM_DEBUG("zero size requested\n");
+		vcrtcm_p_free_pb(pcon_info, pbd, kmalloc_track, page_track);
+		npbd = NULL;
+	} else if (!pbd) {
+		/* no old buffer present */
+		npbd = vcrtcm_p_alloc_pb(pcon_info, npages, gfp_mask,
+					 kmalloc_track, page_track);
+	} else if (npages == pbd->num_pages) {
+		/* can reuse existing pb */
+		npbd = pbd;
+	} else {
+		VCRTCM_DEBUG("reallocating push buffer\n");
+		vcrtcm_p_free_pb(pcon_info, pbd, kmalloc_track, page_track);
+		npbd = vcrtcm_p_alloc_pb(pcon_info, npages, gfp_mask,
+					 kmalloc_track, page_track);
+	}
+	return npbd;
+}
+EXPORT_SYMBOL(vcrtcm_p_realloc_pb);

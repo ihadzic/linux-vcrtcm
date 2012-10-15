@@ -48,5 +48,17 @@ int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd);
 void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info);
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_realloc_pb(struct vcrtcm_pcon_info *pcon_info,
+		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
+		    gfp_t gfp_mask,
+		    atomic_t *kmalloc_track, atomic_t *page_track);
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
+		  gfp_t gfp_mask, atomic_t *kmalloc_track,
+		  atomic_t *page_track);
+void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
+		      struct vcrtcm_push_buffer_descriptor *pbd,
+		      atomic_t *kmalloc_track, atomic_t *page_track);
 
 #endif
