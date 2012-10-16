@@ -37,7 +37,6 @@
 
 #define UDLPIM_ALLOC_PB_FLAG_FB 0x0
 #define UDLPIM_ALLOC_PB_FLAG_CURSOR 0x1
-#define UDLPIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
 #define UDLPIM_BLANK_COLOR 0x0080c8
 #define UDLPIM_ERROR_COLOR 0xFF0000
