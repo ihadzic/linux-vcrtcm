@@ -38,17 +38,13 @@ static void v4l2pim_free_pb(struct v4l2pim_info *v4l2pim_info,
 			pbd = flow_info->pbd_cursor[i];
 			pb_mapped_ram = flow_info->pb_cursor[i];
 		}
-
-		WARN_ON(!pbd);
-		if (pbd && (pbd->num_pages)) {
+		if (pbd) {
 			BUG_ON(!pbd->gpu_private);
+			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_unregister_prime(flow_info->vcrtcm_pcon_info,
-						pbd);
-			vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
-						&v4l2pim_info->page_track);
-			vcrtcm_kfree(pbd->pages, &v4l2pim_info->kmalloc_track);
-			vcrtcm_kfree(pbd, &v4l2pim_info->kmalloc_track);
+			vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd,
+					 &v4l2pim_info->kmalloc_track,
+					 &v4l2pim_info->page_track);
 		}
 	}
 }
@@ -63,57 +59,28 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 	void *pb, *old_pb = NULL;
 
 	for (i = 0; i < 2; i++) {
-		pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
-				     GFP_KERNEL,
-				     &v4l2pim_info->kmalloc_track);
-		pbd->owner_pcon = flow_info->vcrtcm_pcon_info;
-		if (!pbd) {
-			VCRTCM_ERROR("%s[%d]: pbd alloc failed\n",
-				     V4L2PIM_ALLOC_PB_STRING(flag), i);
-			r = -ENOMEM;
+		pbd = vcrtcm_p_alloc_pb(flow_info->vcrtcm_pcon_info, num_pages,
+					GFP_KERNEL | __GFP_HIGHMEM,
+					&v4l2pim_info->kmalloc_track,
+					&v4l2pim_info->page_track);
+		if (IS_ERR(pbd)) {
+			r = PTR_ERR(pbd);
 			goto out_err0;
 		}
-		pbd->pages = vcrtcm_kzalloc(num_pages * sizeof(struct page *),
-				GFP_KERNEL, &v4l2pim_info->kmalloc_track);
-		if (!pbd->pages) {
-			VCRTCM_ERROR("%s[%d]: pages pointer alloc failed\n",
-					V4L2PIM_ALLOC_PB_STRING(flag), i);
-			r = -ENOMEM;
-			goto out_err1;
-		}
-		r = vcrtcm_alloc_multiple_pages(GFP_KERNEL | __GFP_HIGHMEM,
-						pbd->pages, num_pages,
-						&v4l2pim_info->page_track);
-		if (r) {
-			VCRTCM_ERROR("%s[%d]: push buffer alloc_failed\n",
-					V4L2PIM_ALLOC_PB_STRING(flag), i);
-			goto out_err2;
-		}
-		V4L2PIM_DEBUG("%s[%d]: allocated %d pages\n",
-			V4L2PIM_ALLOC_PB_STRING(flag), i, num_pages);
-		pbd->num_pages = num_pages;
 		pb = vm_map_ram(pbd->pages, num_pages, 0, PAGE_KERNEL);
 		if (pb == NULL) {
 			VCRTCM_ERROR("%s[%d]: vm_map_ram failed\n",
 				V4L2PIM_ALLOC_PB_STRING(flag), i);
 			r = -ENOMEM;
-			goto out_err3;
+			goto out_err1;
 		}
-		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB)
-			flow_info->pb_fb[i] = pb;
-		else
-			flow_info->pb_cursor[i] = pb;
-		/* register_prime will finish up the construction of pbd */
-		r = vcrtcm_p_register_prime(flow_info->vcrtcm_pcon_info, pbd);
-		if (r) {
-			VCRTCM_ERROR("%s[%d]: export to VCRTCM failed\n",
-				V4L2PIM_ALLOC_PB_STRING(flag), i);
-				goto out_err4;
-		}
-		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB)
+		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			flow_info->pbd_fb[i] = pbd;
-		else
+			flow_info->pb_fb[i] = pb;
+		} else {
 			flow_info->pbd_cursor[i] = pbd;
+			flow_info->pb_cursor[i] = pb;
+		}
 		flow_info->pb_needs_xmit[i] = 0;
 		old_pbd = pbd;
 		old_pb = pb;
@@ -121,19 +88,10 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 	if (!r)
 		return r;
 
-out_err4:
-	vm_unmap_ram(pbd->pages, num_pages);
-	if (flag == V4L2PIM_ALLOC_PB_FLAG_FB)
-		flow_info->pb_fb[i] = NULL;
-	else
-		flow_info->pb_cursor[i] = NULL;
-out_err3:
-	vcrtcm_free_multiple_pages(pbd->pages, num_pages,
-				&v4l2pim_info->page_track);
-out_err2:
-	vcrtcm_kfree(pbd->pages, &v4l2pim_info->kmalloc_track);
 out_err1:
-	vcrtcm_kfree(pbd, &v4l2pim_info->kmalloc_track);
+	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd,
+			 &v4l2pim_info->kmalloc_track,
+			 &v4l2pim_info->page_track);
 out_err0:
 	if (i == 1) {
 		/*
@@ -150,10 +108,9 @@ out_err0:
 			flow_info->pbd_cursor[0] = NULL;
 			flow_info->pb_cursor[0] = NULL;
 		}
-		vcrtcm_free_multiple_pages(old_pbd->pages, num_pages,
-					&v4l2pim_info->page_track);
-		vcrtcm_kfree(old_pbd->pages, &v4l2pim_info->kmalloc_track);
-		vcrtcm_kfree(old_pbd, &v4l2pim_info->kmalloc_track);
+		vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, old_pbd,
+				 &v4l2pim_info->kmalloc_track,
+				 &v4l2pim_info->page_track);
 	}
 	return r;
 }
