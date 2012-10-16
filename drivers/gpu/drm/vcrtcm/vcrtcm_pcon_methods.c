@@ -137,7 +137,8 @@ static const struct dma_buf_ops vcrtcm_dma_buf_ops = {
  * takes care of turning that into a GEM object that GPU can use
  * as copy destination. Populates the dma_buf and gpu_private fields
  * of the push buffer descriptor (pbd) that are not known by PCON
- * before this function is called.
+ * before this function is called. Also called by vcrtcm_p_alloc_pb,
+ * which is used by PCONs whose backing store is in main memory.
  */
 int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
 			    struct vcrtcm_push_buffer_descriptor *pbd)
@@ -182,7 +183,8 @@ EXPORT_SYMBOL(vcrtcm_p_register_prime);
  * Called by PCON to unregister the push buffer with PRIME infrastructure.
  * Typically PCON calls this function when freeing the push buffer or
  * replacing a pre-existing push buffer with a different one (i.e.,
- * of different size).
+ * of different size). Also called by vcrtcm_p_free_pb, which is called
+ * by PCONs whose backing store is in main memory.
  */
 void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
 			       struct vcrtcm_push_buffer_descriptor *pbd)
@@ -456,6 +458,11 @@ void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info)
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug);
 
+/*
+ * Called by PCONs whose push-buffer backing store is in main
+ * memory to allocate push buffers. This function does the opposite
+ * of vcrtcm_p_alloc_pb
+ */
 void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 		      struct vcrtcm_push_buffer_descriptor *pbd,
 		      atomic_t *kmalloc_track, atomic_t *page_track)
@@ -472,6 +479,14 @@ void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb);
 
+/*
+ * Called by PCONs whose push-buffer backing store is in main
+ * memory to allocate push buffers. This function creates the descriptor
+ * allocates pages and calls vcrtcm_p_register_prime. Vast majority
+ * of PCONs can safely use this function, but some (typically those
+ * who want the backing store at the place other than main memory)
+ * may have to cut their own allocation function.
+ */
 struct vcrtcm_push_buffer_descriptor *
 vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
 		  gfp_t gfp_mask, atomic_t *kmalloc_track,
@@ -519,6 +534,15 @@ out_err0:
 }
 EXPORT_SYMBOL(vcrtcm_p_alloc_pb);
 
+/*
+ * Called by PCONs when buffer resize occurs. This function only
+ * gets us the new push buffer in main memory. If PCON needs to do
+ * some PCON-specific mapping of the pages, it must make its own
+ * arrangements to do that. It can either call this function and then
+ * figure out if it needs to remap pages, or it can cut its own
+ * realloc function using lower-level calls, such as
+ * vcrtcm_p_alloc_pb and vcrtcm_p_free_pb
+ */
 struct vcrtcm_push_buffer_descriptor *
 vcrtcm_p_realloc_pb(struct vcrtcm_pcon_info *pcon_info,
 		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
