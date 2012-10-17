@@ -65,6 +65,7 @@ struct pimmgr_pcon_info {
 	struct vcrtcm_pcon_funcs *funcs;
 	struct vcrtcm_pcon_props *props;
 	void *cookie;
+	int pconid;
 	int local_pconid;
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;

@@ -55,6 +55,7 @@ long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		return -ENOMEM;
 	}
 
+	pcon->pconid = new_pconid;
 	pcon->pim = info;
 	pcon->minor = -1;
 	if (info->funcs.instantiate) {
