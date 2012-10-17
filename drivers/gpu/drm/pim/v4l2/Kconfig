@@ -1,6 +1,7 @@
 config DRM_VCRTCM_PIM_V4L2
 	tristate "Video for Linux PIM"
 	depends on DRM_VCRTCM && VIDEO_V4L2
+	select VIDEOBUF_VMALLOC
 	help
 	 PIM for V4L2.  Instantiated PCONs present their pixel
 	 stream as a V4L2 device in user space. Allows applications
