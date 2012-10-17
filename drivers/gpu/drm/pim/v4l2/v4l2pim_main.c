@@ -51,9 +51,9 @@
 /* PIM functions */
 static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
-static void v4l2pim_destroy(int local_pconid);
-static int v4l2pim_get_properties(struct pimmgr_pcon_properties *props,
-						int local_pconid);
+static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info);
+static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
+				  struct pimmgr_pcon_properties *props);
 
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
@@ -1118,27 +1118,27 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 1;
 }
 
-static void v4l2pim_destroy(int local_pconid)
+static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (((uint32_t) v4l2pim_info->minor) == local_pconid) {
+		if (((uint32_t)v4l2pim_info->minor) == pcon_info->local_pconid) {
 			V4L2PIM_DEBUG("Destroying pcon, local id %i\n",
-							local_pconid);
+				      pcon_info->local_pconid);
 			v4l2pim_destroy_minor(v4l2pim_info);
 			return;
 		}
 	}
 }
 
-static int v4l2pim_get_properties(struct pimmgr_pcon_properties *props,
-						int local_pconid)
+static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
+				  struct pimmgr_pcon_properties *props)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (((uint32_t) v4l2pim_info->minor) == local_pconid) {
+		if (((uint32_t)v4l2pim_info->minor) == pcon_info->local_pconid) {
 			struct v4l2pim_flow_info *flow =
 						v4l2pim_info->flow_info;
 			props->fps = flow ? flow->fps : -1;
