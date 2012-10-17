@@ -75,10 +75,10 @@ struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
 
 static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
-static void udlpim_destroy(int local_pconid);
+static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info);
 
-static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
-						int local_pconid);
+static int udlpim_get_properties(struct pimmgr_pcon_info *pcon_info,
+				 struct pimmgr_pcon_properties *props);
 
 static struct pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
@@ -169,25 +169,25 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 0;
 }
 
-static void udlpim_destroy(int local_pconid)
+static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (((uint32_t) info->minor) == local_pconid) {
+		if (((uint32_t) info->minor) == pcon_info->local_pconid) {
 			info->used = 0;
 			return;
 		}
 	}
 }
 
-static int udlpim_get_properties(struct pimmgr_pcon_properties *props,
-						int local_pconid)
+static int udlpim_get_properties(struct pimmgr_pcon_info *pcon_info,
+				 struct pimmgr_pcon_properties *props)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (((uint32_t) info->minor) == local_pconid) {
+		if (((uint32_t) info->minor) == pcon_info->local_pconid) {
 			struct udlpim_flow_info *flow = info->flow_info;
 			props->fps = flow ? flow->fps : -1;
 			props->attached = flow ? 1 : 0;
