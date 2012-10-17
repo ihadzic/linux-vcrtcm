@@ -190,7 +190,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		if (!pcon->pim->funcs.get_properties)
 			return 0;
 		result = pcon->pim->funcs.
-				get_properties(&props, pcon->local_pconid);
+				get_properties(pcon, &props);
 		if (!result)
 			return 0;
 
@@ -204,7 +204,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		if (!pcon->pim->funcs.get_properties)
 			return 0;
 		result = pcon->pim->funcs.
-				get_properties(&props, pcon->local_pconid);
+				get_properties(pcon, &props);
 		if (!result)
 			return 0;
 

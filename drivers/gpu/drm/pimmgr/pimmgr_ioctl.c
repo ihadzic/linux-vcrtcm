@@ -118,7 +118,7 @@ long pimmgr_ioctl_destroy_pcon(int pconid)
 	vcrtcm_sysfs_del_pcon(pcon);
 
 	if (info->funcs.destroy)
-		info->funcs.destroy(local_pconid);
+		info->funcs.destroy(pcon);
 	else
 		VCRTCM_INFO("No destroy function...\n");
 

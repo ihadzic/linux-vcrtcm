@@ -43,10 +43,10 @@ struct pim_funcs {
 	 * The PIM can assume that the given PCON has been detached
 	 * and removed from VCRTCM before this function is called.
 	 */
-	void (*destroy)(int local_pconid);
+	void (*destroy)(struct pimmgr_pcon_info *pcon_info);
 
-	int (*get_properties)(struct pimmgr_pcon_properties *props,
-						int local_pconid);
+	int (*get_properties)(struct pimmgr_pcon_info *pcon_info,
+			      struct pimmgr_pcon_properties *props);
 };
 
 struct pim_info {
