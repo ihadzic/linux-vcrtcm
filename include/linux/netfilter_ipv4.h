@@ -66,6 +66,7 @@ enum nf_ip_hook_priorities {
 	NF_IP_PRI_SECURITY = 50,
 	NF_IP_PRI_NAT_SRC = 100,
 	NF_IP_PRI_SELINUX_LAST = 225,
+	NF_IP_PRI_CONNTRACK_HELPER = 300,
 	NF_IP_PRI_CONNTRACK_CONFIRM = INT_MAX,
 	NF_IP_PRI_LAST = INT_MAX,
 };
@@ -78,7 +79,6 @@ enum nf_ip_hook_priorities {
 
 #ifdef __KERNEL__
 extern int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type);
-extern int ip_xfrm_me_harder(struct sk_buff *skb);
 extern __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 				   unsigned int dataoff, u_int8_t protocol);
 #endif /*__KERNEL__*/

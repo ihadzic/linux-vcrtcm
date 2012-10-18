@@ -89,8 +89,8 @@
 
 #define  TIPC_CMD_GET_REMOTE_MNG    0x4003    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_PORTS     0x4004    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_PUBL      0x4005    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_SUBSCR    0x4006    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_MAX_PUBL      0x4005    /* obsoleted */
+#define  TIPC_CMD_GET_MAX_SUBSCR    0x4006    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_CLUSTERS  0x4008    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_NODES     0x4009    /* obsoleted */
@@ -102,8 +102,8 @@
 #define  TIPC_CMD_SET_LINK_TOL      0x4107    /* tx link_config, rx none */
 #define  TIPC_CMD_SET_LINK_PRI      0x4108    /* tx link_config, rx none */
 #define  TIPC_CMD_SET_LINK_WINDOW   0x4109    /* tx link_config, rx none */
-#define  TIPC_CMD_SET_LOG_SIZE      0x410A    /* tx unsigned, rx none */
-#define  TIPC_CMD_DUMP_LOG          0x410B    /* tx none, rx ultra_string */
+#define  TIPC_CMD_SET_LOG_SIZE      0x410A    /* obsoleted */
+#define  TIPC_CMD_DUMP_LOG          0x410B    /* obsoleted */
 #define  TIPC_CMD_RESET_LINK_STATS  0x410C    /* tx link_name, rx none */
 
 /*
@@ -115,8 +115,8 @@
 #define  TIPC_CMD_SET_NODE_ADDR     0x8001    /* tx net_addr, rx none */
 #define  TIPC_CMD_SET_REMOTE_MNG    0x8003    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_PORTS     0x8004    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_PUBL      0x8005    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_SUBSCR    0x8006    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_MAX_PUBL      0x8005    /* obsoleted */
+#define  TIPC_CMD_SET_MAX_SUBSCR    0x8006    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_CLUSTERS  0x8008    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_NODES     0x8009    /* obsoleted */

@@ -36,12 +36,11 @@
 #include <linux/init.h>
 #include <linux/vga_switcheroo.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 static struct fb_ops intelfb_ops = {
@@ -65,7 +64,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	struct device *device = &dev->pdev->dev;
 	int size, ret;

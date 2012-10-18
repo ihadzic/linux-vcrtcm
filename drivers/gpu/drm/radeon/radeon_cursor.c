@@ -23,8 +23,8 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
 #include "radeon_vcrtcm_kernel.h"
@@ -69,7 +69,8 @@ static void radeon_hide_cursor(struct drm_crtc *crtc)
 
 	if (ASIC_IS_DCE4(rdev)) {
 		WREG32(RADEON_MM_INDEX, EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset);
-		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT));
+		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT) |
+		       EVERGREEN_CURSOR_URGENT_CONTROL(EVERGREEN_CURSOR_URGENT_1_2));
 	} else if (ASIC_IS_AVIVO(rdev)) {
 		WREG32(RADEON_MM_INDEX, AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset);
 		WREG32(RADEON_MM_DATA, (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
@@ -96,7 +97,8 @@ static void radeon_show_cursor(struct drm_crtc *crtc)
 	if (ASIC_IS_DCE4(rdev)) {
 		WREG32(RADEON_MM_INDEX, EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset);
 		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_EN |
-		       EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT));
+		       EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT) |
+		       EVERGREEN_CURSOR_URGENT_CONTROL(EVERGREEN_CURSOR_URGENT_1_2));
 	} else if (ASIC_IS_AVIVO(rdev)) {
 		WREG32(RADEON_MM_INDEX, AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset);
 		WREG32(RADEON_MM_DATA, AVIVO_D1CURSOR_EN |
@@ -269,8 +271,14 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				if (!(cursor_end & 0x7f))
 					w--;
 			}
-			if (w <= 0)
+			if (w <= 0) {
 				w = 1;
+				cursor_end = x - xorigin + w;
+				if (!(cursor_end & 0x7f)) {
+					x--;
+					WARN_ON_ONCE(x < 0);
+				}
+			}
 		}
 	}
 

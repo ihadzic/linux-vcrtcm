@@ -42,8 +42,8 @@ static const struct inode_operations hugetlbfs_dir_inode_operations;
 static const struct inode_operations hugetlbfs_inode_operations;
 
 struct hugetlbfs_config {
-	uid_t   uid;
-	gid_t   gid;
+	kuid_t   uid;
+	kgid_t   gid;
 	umode_t mode;
 	long	nr_blocks;
 	long	nr_inodes;
@@ -416,8 +416,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
 		else
 			v_offset = 0;
 
-		__unmap_hugepage_range(vma,
-				vma->vm_start + v_offset, vma->vm_end, NULL);
+		unmap_hugepage_range(vma, vma->vm_start + v_offset,
+				     vma->vm_end, NULL);
 	}
 }
 
@@ -565,7 +565,7 @@ static int hugetlbfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mod
 	return retval;
 }
 
-static int hugetlbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+static int hugetlbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	return hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
@@ -785,13 +785,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
  				goto bad_val;
-			pconfig->uid = option;
+			pconfig->uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(pconfig->uid))
+				goto bad_val;
 			break;
 
 		case Opt_gid:
 			if (match_int(&args[0], &option))
  				goto bad_val;
-			pconfig->gid = option;
+			pconfig->gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(pconfig->gid))
+				goto bad_val;
 			break;
 
 		case Opt_mode:
@@ -924,7 +928,9 @@ static struct vfsmount *hugetlbfs_vfsmount;
 
 static int can_do_hugetlb_shm(void)
 {
-	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+	kgid_t shm_group;
+	shm_group = make_kgid(&init_user_ns, sysctl_hugetlb_shm_group);
+	return capable(CAP_IPC_LOCK) || in_group_p(shm_group);
 }
 
 struct file *hugetlb_file_setup(const char *name, unsigned long addr,
@@ -1042,6 +1048,11 @@ static int __init init_hugetlbfs_fs(void)
 
 static void __exit exit_hugetlbfs_fs(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(hugetlbfs_inode_cachep);
 	kern_unmount(hugetlbfs_vfsmount);
 	unregister_filesystem(&hugetlbfs_fs_type);

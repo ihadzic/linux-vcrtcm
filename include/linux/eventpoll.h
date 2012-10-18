@@ -25,6 +25,7 @@
 #define EPOLL_CTL_ADD 1
 #define EPOLL_CTL_DEL 2
 #define EPOLL_CTL_MOD 3
+#define EPOLL_CTL_DISABLE 4
 
 /*
  * Request the handling of system wakeup events so as to prevent system suspends
@@ -34,7 +35,7 @@
  * re-allowed until epoll_wait is called again after consuming the wakeup
  * event(s).
  *
- * Requires CAP_EPOLLWAKEUP
+ * Requires CAP_BLOCK_SUSPEND
  */
 #define EPOLLWAKEUP (1 << 29)
 

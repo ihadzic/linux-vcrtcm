@@ -43,6 +43,31 @@
  * --------------------------------------------------------------------
  */
 
+/*
+ * Resampling irqfds are a special variety of irqfds used to emulate
+ * level triggered interrupts.  The interrupt is asserted on eventfd
+ * trigger.  On acknowledgement through the irq ack notifier, the
+ * interrupt is de-asserted and userspace is notified through the
+ * resamplefd.  All resamplers on the same gsi are de-asserted
+ * together, so we don't need to track the state of each individual
+ * user.  We can also therefore share the same irq source ID.
+ */
+struct _irqfd_resampler {
+	struct kvm *kvm;
+	/*
+	 * List of resampling struct _irqfd objects sharing this gsi.
+	 * RCU list modified under kvm->irqfds.resampler_lock
+	 */
+	struct list_head list;
+	struct kvm_irq_ack_notifier notifier;
+	/*
+	 * Entry in list of kvm->irqfd.resampler_list.  Use for sharing
+	 * resamplers among irqfds on the same gsi.
+	 * Accessed and modified under kvm->irqfds.resampler_lock
+	 */
+	struct list_head link;
+};
+
 struct _irqfd {
 	/* Used for MSI fast-path */
 	struct kvm *kvm;
@@ -52,6 +77,12 @@ struct _irqfd {
 	/* Used for level IRQ fast-path */
 	int gsi;
 	struct work_struct inject;
+	/* The resampler used by this irqfd (resampler-only) */
+	struct _irqfd_resampler *resampler;
+	/* Eventfd notified on resample (resampler-only) */
+	struct eventfd_ctx *resamplefd;
+	/* Entry in list of irqfds for a resampler (resampler-only) */
+	struct list_head resampler_link;
 	/* Used for setup/shutdown */
 	struct eventfd_ctx *eventfd;
 	struct list_head list;
@@ -67,8 +98,58 @@ irqfd_inject(struct work_struct *work)
 	struct _irqfd *irqfd = container_of(work, struct _irqfd, inject);
 	struct kvm *kvm = irqfd->kvm;
 
-	kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1);
-	kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0);
+	if (!irqfd->resampler) {
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1);
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0);
+	} else
+		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+			    irqfd->gsi, 1);
+}
+
+/*
+ * Since resampler irqfds share an IRQ source ID, we de-assert once
+ * then notify all of the resampler irqfds using this GSI.  We can't
+ * do multiple de-asserts or we risk racing with incoming re-asserts.
+ */
+static void
+irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
+{
+	struct _irqfd_resampler *resampler;
+	struct _irqfd *irqfd;
+
+	resampler = container_of(kian, struct _irqfd_resampler, notifier);
+
+	kvm_set_irq(resampler->kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+		    resampler->notifier.gsi, 0);
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(irqfd, &resampler->list, resampler_link)
+		eventfd_signal(irqfd->resamplefd, 1);
+
+	rcu_read_unlock();
+}
+
+static void
+irqfd_resampler_shutdown(struct _irqfd *irqfd)
+{
+	struct _irqfd_resampler *resampler = irqfd->resampler;
+	struct kvm *kvm = resampler->kvm;
+
+	mutex_lock(&kvm->irqfds.resampler_lock);
+
+	list_del_rcu(&irqfd->resampler_link);
+	synchronize_rcu();
+
+	if (list_empty(&resampler->list)) {
+		list_del(&resampler->link);
+		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
+		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+			    resampler->notifier.gsi, 0);
+		kfree(resampler);
+	}
+
+	mutex_unlock(&kvm->irqfds.resampler_lock);
 }
 
 /*
@@ -90,7 +171,12 @@ irqfd_shutdown(struct work_struct *work)
 	 * We know no new events will be scheduled at this point, so block
 	 * until all previously outstanding events have completed
 	 */
-	flush_work_sync(&irqfd->inject);
+	flush_work(&irqfd->inject);
+
+	if (irqfd->resampler) {
+		irqfd_resampler_shutdown(irqfd);
+		eventfd_ctx_put(irqfd->resamplefd);
+	}
 
 	/*
 	 * It is now safe to release the object's resources
@@ -198,12 +284,12 @@ static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
 }
 
 static int
-kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
+kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	struct kvm_irq_routing_table *irq_rt;
 	struct _irqfd *irqfd, *tmp;
 	struct file *file = NULL;
-	struct eventfd_ctx *eventfd = NULL;
+	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
 	unsigned int events;
 
@@ -212,12 +298,12 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 		return -ENOMEM;
 
 	irqfd->kvm = kvm;
-	irqfd->gsi = gsi;
+	irqfd->gsi = args->gsi;
 	INIT_LIST_HEAD(&irqfd->list);
 	INIT_WORK(&irqfd->inject, irqfd_inject);
 	INIT_WORK(&irqfd->shutdown, irqfd_shutdown);
 
-	file = eventfd_fget(fd);
+	file = eventfd_fget(args->fd);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 		goto fail;
@@ -230,6 +316,54 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	}
 
 	irqfd->eventfd = eventfd;
+
+	if (args->flags & KVM_IRQFD_FLAG_RESAMPLE) {
+		struct _irqfd_resampler *resampler;
+
+		resamplefd = eventfd_ctx_fdget(args->resamplefd);
+		if (IS_ERR(resamplefd)) {
+			ret = PTR_ERR(resamplefd);
+			goto fail;
+		}
+
+		irqfd->resamplefd = resamplefd;
+		INIT_LIST_HEAD(&irqfd->resampler_link);
+
+		mutex_lock(&kvm->irqfds.resampler_lock);
+
+		list_for_each_entry(resampler,
+				    &kvm->irqfds.resampler_list, list) {
+			if (resampler->notifier.gsi == irqfd->gsi) {
+				irqfd->resampler = resampler;
+				break;
+			}
+		}
+
+		if (!irqfd->resampler) {
+			resampler = kzalloc(sizeof(*resampler), GFP_KERNEL);
+			if (!resampler) {
+				ret = -ENOMEM;
+				mutex_unlock(&kvm->irqfds.resampler_lock);
+				goto fail;
+			}
+
+			resampler->kvm = kvm;
+			INIT_LIST_HEAD(&resampler->list);
+			resampler->notifier.gsi = irqfd->gsi;
+			resampler->notifier.irq_acked = irqfd_resampler_ack;
+			INIT_LIST_HEAD(&resampler->link);
+
+			list_add(&resampler->link, &kvm->irqfds.resampler_list);
+			kvm_register_irq_ack_notifier(kvm,
+						      &resampler->notifier);
+			irqfd->resampler = resampler;
+		}
+
+		list_add_rcu(&irqfd->resampler_link, &irqfd->resampler->list);
+		synchronize_rcu();
+
+		mutex_unlock(&kvm->irqfds.resampler_lock);
+	}
 
 	/*
 	 * Install our own custom wake-up handling so we are notified via
@@ -276,6 +410,12 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	return 0;
 
 fail:
+	if (irqfd->resampler)
+		irqfd_resampler_shutdown(irqfd);
+
+	if (resamplefd && !IS_ERR(resamplefd))
+		eventfd_ctx_put(resamplefd);
+
 	if (eventfd && !IS_ERR(eventfd))
 		eventfd_ctx_put(eventfd);
 
@@ -291,6 +431,8 @@ kvm_eventfd_init(struct kvm *kvm)
 {
 	spin_lock_init(&kvm->irqfds.lock);
 	INIT_LIST_HEAD(&kvm->irqfds.items);
+	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
+	mutex_init(&kvm->irqfds.resampler_lock);
 	INIT_LIST_HEAD(&kvm->ioeventfds);
 }
 
@@ -298,19 +440,19 @@ kvm_eventfd_init(struct kvm *kvm)
  * shutdown any irqfd's that match fd+gsi
  */
 static int
-kvm_irqfd_deassign(struct kvm *kvm, int fd, int gsi)
+kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	struct _irqfd *irqfd, *tmp;
 	struct eventfd_ctx *eventfd;
 
-	eventfd = eventfd_ctx_fdget(fd);
+	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
 	spin_lock_irq(&kvm->irqfds.lock);
 
 	list_for_each_entry_safe(irqfd, tmp, &kvm->irqfds.items, list) {
-		if (irqfd->eventfd == eventfd && irqfd->gsi == gsi) {
+		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi) {
 			/*
 			 * This rcu_assign_pointer is needed for when
 			 * another thread calls kvm_irq_routing_update before
@@ -338,12 +480,15 @@ kvm_irqfd_deassign(struct kvm *kvm, int fd, int gsi)
 }
 
 int
-kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
+kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 {
-	if (flags & KVM_IRQFD_FLAG_DEASSIGN)
-		return kvm_irqfd_deassign(kvm, fd, gsi);
+	if (args->flags & ~(KVM_IRQFD_FLAG_DEASSIGN | KVM_IRQFD_FLAG_RESAMPLE))
+		return -EINVAL;
 
-	return kvm_irqfd_assign(kvm, fd, gsi);
+	if (args->flags & KVM_IRQFD_FLAG_DEASSIGN)
+		return kvm_irqfd_deassign(kvm, args);
+
+	return kvm_irqfd_assign(kvm, args);
 }
 
 /*

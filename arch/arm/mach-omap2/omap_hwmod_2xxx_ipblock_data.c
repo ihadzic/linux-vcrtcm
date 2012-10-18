@@ -10,12 +10,10 @@
  */
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
-#include <plat/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
-#include <plat/mcspi.h>
-
-#include <mach/irqs.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "omap_hwmod_common_data.h"
 #include "cm-regbits-24xx.h"
@@ -23,8 +21,8 @@
 #include "wd_timer.h"
 
 struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[] = {
-	{ .irq = 48, },
-	{ .irq = -1 }
+	{ .irq = 48 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
@@ -68,7 +66,6 @@ static struct omap_hwmod_class_sysconfig omap2xxx_timer_sysc = {
 struct omap_hwmod_class omap2xxx_timer_hwmod_class = {
 	.name	= "timer",
 	.sysc	= &omap2xxx_timer_sysc,
-	.rev	= OMAP_TIMER_IP_VERSION_1,
 };
 
 /*
@@ -257,7 +254,6 @@ struct omap_hwmod omap2xxx_timer2_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT2_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -276,7 +272,6 @@ struct omap_hwmod omap2xxx_timer3_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT3_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -295,7 +290,6 @@ struct omap_hwmod omap2xxx_timer4_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT4_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -314,7 +308,6 @@ struct omap_hwmod omap2xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT5_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -333,7 +326,6 @@ struct omap_hwmod omap2xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT6_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -352,7 +344,6 @@ struct omap_hwmod omap2xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT7_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -371,7 +362,6 @@ struct omap_hwmod omap2xxx_timer8_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT8_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 

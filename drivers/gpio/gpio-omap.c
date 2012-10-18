@@ -25,11 +25,9 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/irqdomain.h>
+#include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <mach/irqs.h>
-#include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
 #define OFF_MODE	1
@@ -174,12 +172,22 @@ static inline void _gpio_dbck_enable(struct gpio_bank *bank)
 	if (bank->dbck_enable_mask && !bank->dbck_enabled) {
 		clk_enable(bank->dbck);
 		bank->dbck_enabled = true;
+
+		__raw_writel(bank->dbck_enable_mask,
+			     bank->base + bank->regs->debounce_en);
 	}
 }
 
 static inline void _gpio_dbck_disable(struct gpio_bank *bank)
 {
 	if (bank->dbck_enable_mask && bank->dbck_enabled) {
+		/*
+		 * Disable debounce before cutting it's clock. If debounce is
+		 * enabled but the clock is not, GPIO module seems to be unable
+		 * to detect events and generate interrupts at least on OMAP3.
+		 */
+		__raw_writel(0, bank->base + bank->regs->debounce_en);
+
 		clk_disable(bank->dbck);
 		bank->dbck_enabled = false;
 	}
@@ -375,13 +383,16 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio,
 static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	unsigned gpio;
+	unsigned gpio = 0;
 	int retval;
 	unsigned long flags;
 
-	if (!cpu_class_is_omap2() && d->irq > IH_MPUIO_BASE)
+#ifdef CONFIG_ARCH_OMAP1
+	if (d->irq > IH_MPUIO_BASE)
 		gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
-	else
+#endif
+
+	if (!gpio)
 		gpio = irq_to_gpio(bank, d->irq);
 
 	if (type & ~IRQ_TYPE_SENSE_MASK)
@@ -889,12 +900,6 @@ static int gpio_debounce(struct gpio_chip *chip, unsigned offset,
 
 	bank = container_of(chip, struct gpio_bank, chip);
 
-	if (!bank->dbck) {
-		bank->dbck = clk_get(bank->dev, "dbclk");
-		if (IS_ERR(bank->dbck))
-			dev_err(bank->dev, "Could not get gpio dbck\n");
-	}
-
 	spin_lock_irqsave(&bank->lock, flags);
 	_set_gpio_debounce(bank, offset, debounce);
 	spin_unlock_irqrestore(&bank->lock, flags);
@@ -966,6 +971,10 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 	 /* Initialize interface clk ungated, module enabled */
 	if (bank->regs->ctrl)
 		__raw_writel(0, base + bank->regs->ctrl);
+
+	bank->dbck = clk_get(bank->dev, "dbclk");
+	if (IS_ERR(bank->dbck))
+		dev_err(bank->dev, "Could not get gpio dbck\n");
 }
 
 static __devinit void
@@ -1050,7 +1059,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	const struct of_device_id *match;
-	struct omap_gpio_platform_data *pdata;
+	const struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
 	int ret = 0;
@@ -1081,7 +1090,6 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	bank->is_mpuio = pdata->is_mpuio;
 	bank->non_wakeup_gpios = pdata->non_wakeup_gpios;
 	bank->loses_context = pdata->loses_context;
-	bank->get_context_loss_count = pdata->get_context_loss_count;
 	bank->regs = pdata->regs;
 #ifdef CONFIG_OF_GPIO
 	bank->chip.of_node = of_node_get(node);
@@ -1134,6 +1142,9 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	omap_gpio_mod_init(bank);
 	omap_gpio_chip_init(bank);
 	omap_gpio_show_rev(bank);
+
+	if (bank->loses_context)
+		bank->get_context_loss_count = pdata->get_context_loss_count;
 
 	pm_runtime_put(bank->dev);
 
@@ -1430,19 +1441,19 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.fallingdetect =	OMAP4_GPIO_FALLINGDETECT,
 };
 
-static struct omap_gpio_platform_data omap2_pdata = {
+const static struct omap_gpio_platform_data omap2_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = false,
 };
 
-static struct omap_gpio_platform_data omap3_pdata = {
+const static struct omap_gpio_platform_data omap3_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,
 };
 
-static struct omap_gpio_platform_data omap4_pdata = {
+const static struct omap_gpio_platform_data omap4_pdata = {
 	.regs = &omap4_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,

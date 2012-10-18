@@ -16,13 +16,13 @@
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
+#include <linux/sizes.h>
 
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/sections.h>
 #include <asm/cachetype.h>
 #include <asm/setup.h>
-#include <asm/sizes.h>
 #include <asm/smp_plat.h>
 #include <asm/tlb.h>
 #include <asm/highmem.h>
@@ -31,6 +31,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/pci.h>
 
 #include "mm.h"
 
@@ -216,7 +217,7 @@ static struct mem_type mem_types[] = {
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
-	},	
+	},
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
@@ -421,23 +422,6 @@ static void __init build_mem_type_table(void)
 	cp = &cache_policies[cachepolicy];
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
 
-	/*
-	 * Only use write-through for non-SMP systems
-	 */
-	if (!is_smp() && cpu_arch >= CPU_ARCH_ARMv5 && cachepolicy > CPOLICY_WRITETHROUGH)
-		vecs_pgprot = cache_policies[CPOLICY_WRITETHROUGH].pte;
-
-	/*
-	 * Enable CPU-specific coherency if supported.
-	 * (Only available on XSC3 at the moment.)
-	 */
-	if (arch_is_coherent() && cpu_is_xsc3()) {
-		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
-		mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
-		mem_types[MT_MEMORY_DMA_READY].prot_pte |= L_PTE_SHARED;
-		mem_types[MT_MEMORY_NONCACHED].prot_sect |= PMD_SECT_S;
-		mem_types[MT_MEMORY_NONCACHED].prot_pte |= L_PTE_SHARED;
-	}
 	/*
 	 * ARMv6 and above have extended page tables.
 	 */
@@ -783,13 +767,114 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(md);
 		vm->addr = (void *)(md->virtual & PAGE_MASK);
 		vm->size = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
-		vm->phys_addr = __pfn_to_phys(md->pfn); 
-		vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING; 
+		vm->phys_addr = __pfn_to_phys(md->pfn);
+		vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING;
 		vm->flags |= VM_ARM_MTYPE(md->type);
 		vm->caller = iotable_init;
 		vm_area_add_early(vm++);
 	}
 }
+
+void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
+				  void *caller)
+{
+	struct vm_struct *vm;
+
+	vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
+	vm->addr = (void *)addr;
+	vm->size = size;
+	vm->flags = VM_IOREMAP | VM_ARM_EMPTY_MAPPING;
+	vm->caller = caller;
+	vm_area_add_early(vm);
+}
+
+#ifndef CONFIG_ARM_LPAE
+
+/*
+ * The Linux PMD is made of two consecutive section entries covering 2MB
+ * (see definition in include/asm/pgtable-2level.h).  However a call to
+ * create_mapping() may optimize static mappings by using individual
+ * 1MB section mappings.  This leaves the actual PMD potentially half
+ * initialized if the top or bottom section entry isn't used, leaving it
+ * open to problems if a subsequent ioremap() or vmalloc() tries to use
+ * the virtual space left free by that unused section entry.
+ *
+ * Let's avoid the issue by inserting dummy vm entries covering the unused
+ * PMD halves once the static mappings are in place.
+ */
+
+static void __init pmd_empty_section_gap(unsigned long addr)
+{
+	vm_reserve_area_early(addr, SECTION_SIZE, pmd_empty_section_gap);
+}
+
+static void __init fill_pmd_gaps(void)
+{
+	struct vm_struct *vm;
+	unsigned long addr, next = 0;
+	pmd_t *pmd;
+
+	/* we're still single threaded hence no lock needed here */
+	for (vm = vmlist; vm; vm = vm->next) {
+		if (!(vm->flags & (VM_ARM_STATIC_MAPPING | VM_ARM_EMPTY_MAPPING)))
+			continue;
+		addr = (unsigned long)vm->addr;
+		if (addr < next)
+			continue;
+
+		/*
+		 * Check if this vm starts on an odd section boundary.
+		 * If so and the first section entry for this PMD is free
+		 * then we block the corresponding virtual address.
+		 */
+		if ((addr & ~PMD_MASK) == SECTION_SIZE) {
+			pmd = pmd_off_k(addr);
+			if (pmd_none(*pmd))
+				pmd_empty_section_gap(addr & PMD_MASK);
+		}
+
+		/*
+		 * Then check if this vm ends on an odd section boundary.
+		 * If so and the second section entry for this PMD is empty
+		 * then we block the corresponding virtual address.
+		 */
+		addr += vm->size;
+		if ((addr & ~PMD_MASK) == SECTION_SIZE) {
+			pmd = pmd_off_k(addr) + 1;
+			if (pmd_none(*pmd))
+				pmd_empty_section_gap(addr);
+		}
+
+		/* no need to look at any vm entry until we hit the next PMD */
+		next = (addr + PMD_SIZE - 1) & PMD_MASK;
+	}
+}
+
+#else
+#define fill_pmd_gaps() do { } while (0)
+#endif
+
+#if defined(CONFIG_PCI) && !defined(CONFIG_NEED_MACH_IO_H)
+static void __init pci_reserve_io(void)
+{
+	struct vm_struct *vm;
+	unsigned long addr;
+
+	/* we're still single threaded hence no lock needed here */
+	for (vm = vmlist; vm; vm = vm->next) {
+		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+			continue;
+		addr = (unsigned long)vm->addr;
+		addr &= ~(SZ_2M - 1);
+		if (addr == PCI_IO_VIRT_BASE)
+			return;
+
+	}
+	vm_reserve_area_early(PCI_IO_VIRT_BASE, SZ_2M, pci_reserve_io);
+}
+#else
+#define pci_reserve_io() do { } while (0)
+#endif
 
 static void * __initdata vmalloc_min =
 	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
@@ -894,8 +979,8 @@ void __init sanity_check_meminfo(void)
 		 * Check whether this memory bank would partially overlap
 		 * the vmalloc area.
 		 */
-		if (__va(bank->start + bank->size) > vmalloc_min ||
-		    __va(bank->start + bank->size) < __va(bank->start)) {
+		if (__va(bank->start + bank->size - 1) >= vmalloc_min ||
+		    __va(bank->start + bank->size - 1) <= __va(bank->start)) {
 			unsigned long newsize = vmalloc_min - __va(bank->start);
 			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
 			       "to -%.8llx (vmalloc region overlap).\n",
@@ -1072,6 +1157,10 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 */
 	if (mdesc->map_io)
 		mdesc->map_io();
+	fill_pmd_gaps();
+
+	/* Reserve fixed i/o space in VMALLOC region */
+	pci_reserve_io();
 
 	/*
 	 * Finally flush the caches and tlb to ensure that we're in a

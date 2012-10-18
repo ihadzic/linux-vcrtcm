@@ -12,17 +12,15 @@
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+#include <linux/platform_data/spi-omap2-mcspi.h>
+
 #include <plat/omap_hwmod.h>
-#include <mach/irqs.h>
-#include <plat/cpu.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/i2c.h>
-#include <plat/gpio.h>
-#include <plat/mcspi.h>
 #include <plat/dmtimer.h>
-#include <plat/l3_2xxx.h>
-#include <plat/l4_2xxx.h>
+#include "l3_2xxx.h"
+#include "l4_2xxx.h"
 #include <plat/mmc.h>
 
 #include "omap_hwmod_common_data.h"
@@ -162,9 +160,9 @@ static struct omap_hwmod omap2420_dma_system_hwmod = {
 
 /* mailbox */
 static struct omap_hwmod_irq_info omap2420_mailbox_irqs[] = {
-	{ .name = "dsp", .irq = 26 },
-	{ .name = "iva", .irq = 34 },
-	{ .irq = -1 }
+	{ .name = "dsp", .irq = 26 + OMAP_INTC_START, },
+	{ .name = "iva", .irq = 34 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mailbox_hwmod = {
@@ -192,11 +190,16 @@ static struct omap_hwmod_class omap2420_mcbsp_hwmod_class = {
 	.name = "mcbsp",
 };
 
+static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "func_96m_ck" },
+};
+
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
-	{ .name = "tx", .irq = 59 },
-	{ .name = "rx", .irq = 60 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 59 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 60 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp1_hwmod = {
@@ -214,13 +217,15 @@ static struct omap_hwmod omap2420_mcbsp1_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MCBSP1_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp_opt_clks),
 };
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap2420_mcbsp2_irqs[] = {
-	{ .name = "tx", .irq = 62 },
-	{ .name = "rx", .irq = 63 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 62 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 63 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp2_hwmod = {
@@ -238,6 +243,8 @@ static struct omap_hwmod omap2420_mcbsp2_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MCBSP2_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp_opt_clks),
 };
 
 static struct omap_hwmod_class_sysconfig omap2420_msdi_sysc = {
@@ -256,8 +263,8 @@ static struct omap_hwmod_class omap2420_msdi_hwmod_class = {
 
 /* msdi1 */
 static struct omap_hwmod_irq_info omap2420_msdi1_irqs[] = {
-	{ .irq = 83 },
-	{ .irq = -1 }
+	{ .irq = 83 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap2420_msdi1_sdma_reqs[] = {
@@ -585,5 +592,6 @@ static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 
 int __init omap2420_hwmod_init(void)
 {
+	omap_hwmod_init();
 	return omap_hwmod_register_links(omap2420_hwmod_ocp_ifs);
 }

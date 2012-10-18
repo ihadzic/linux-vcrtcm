@@ -1038,10 +1038,10 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 {
 	int err;
 	struct loop_func_table *xfer;
-	uid_t uid = current_uid();
+	kuid_t uid = current_uid();
 
 	if (lo->lo_encrypt_key_size &&
-	    lo->lo_key_owner != uid &&
+	    !uid_eq(lo->lo_key_owner, uid) &&
 	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (lo->lo_state != Lo_bound)
@@ -1597,14 +1597,12 @@ static int loop_add(struct loop_device **l, int i)
 	struct gendisk *disk;
 	int err;
 
+	err = -ENOMEM;
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
-	if (!lo) {
-		err = -ENOMEM;
+	if (!lo)
 		goto out;
-	}
 
-	err = idr_pre_get(&loop_index_idr, GFP_KERNEL);
-	if (err < 0)
+	if (!idr_pre_get(&loop_index_idr, GFP_KERNEL))
 		goto out_free_dev;
 
 	if (i >= 0) {

@@ -1184,8 +1184,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
-			transfer_to[USRQUOTA] = dqget(sb, attr->ia_uid,
-						      USRQUOTA);
+			transfer_to[USRQUOTA] = dqget(sb, make_kqid_uid(attr->ia_uid));
 			if (!transfer_to[USRQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
@@ -1194,8 +1193,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
-			transfer_to[GRPQUOTA] = dqget(sb, attr->ia_gid,
-						      GRPQUOTA);
+			transfer_to[GRPQUOTA] = dqget(sb, make_kqid_gid(attr->ia_gid));
 			if (!transfer_to[GRPQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
@@ -1950,7 +1948,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	if (ret < 0)
 		mlog_errno(ret);
 
-	if (file->f_flags & O_SYNC)
+	if (file && (file->f_flags & O_SYNC))
 		handle->h_sync = 1;
 
 	ocfs2_commit_trans(osb, handle);
@@ -1971,6 +1969,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int ret;
 
 	if ((cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) &&
 	    !ocfs2_writes_unwritten_extents(osb))
@@ -1985,7 +1984,12 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 
-	return __ocfs2_change_file_space(file, inode, file->f_pos, cmd, sr, 0);
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+	ret = __ocfs2_change_file_space(file, inode, file->f_pos, cmd, sr, 0);
+	mnt_drop_write_file(file);
+	return ret;
 }
 
 static long ocfs2_fallocate(struct file *file, int mode, loff_t offset,
@@ -2261,7 +2265,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	if (iocb->ki_left == 0)
 		return 0;
 
-	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	sb_start_write(inode->i_sb);
 
 	appending = file->f_flags & O_APPEND ? 1 : 0;
 	direct_io = file->f_flags & O_DIRECT ? 1 : 0;
@@ -2422,8 +2426,10 @@ out_dio:
 		unaligned_dio = 0;
 	}
 
-	if (unaligned_dio)
+	if (unaligned_dio) {
+		ocfs2_iocb_clear_unaligned_aio(iocb);
 		atomic_dec(&OCFS2_I(inode)->ip_unaligned_aio);
+	}
 
 out:
 	if (rw_level != -1)
@@ -2434,6 +2440,7 @@ out_sems:
 		ocfs2_iocb_clear_sem_locked(iocb);
 
 	mutex_unlock(&inode->i_mutex);
+	sb_end_write(inode->i_sb);
 
 	if (written)
 		ret = written;

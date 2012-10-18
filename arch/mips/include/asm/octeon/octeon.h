@@ -8,7 +8,7 @@
 #ifndef __ASM_OCTEON_OCTEON_H
 #define __ASM_OCTEON_OCTEON_H
 
-#include "cvmx.h"
+#include <asm/octeon/cvmx.h>
 
 extern uint64_t octeon_bootmem_alloc_range_phys(uint64_t size,
 						uint64_t alignment,
@@ -213,11 +213,6 @@ struct octeon_cf_data {
 	unsigned int	base_region;	/* The chip select region used by CF */
 	int		is16bit;	/* 0 - 8bit, !0 - 16bit */
 	int		dma_engine;	/* -1 for no DMA */
-};
-
-struct octeon_i2c_data {
-	unsigned int	sys_freq;
-	unsigned int	i2c_freq;
 };
 
 extern void octeon_write_lcd(const char *s);

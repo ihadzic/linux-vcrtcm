@@ -24,9 +24,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "intel_drv.h"
 #include "i915_reg.h"
 
@@ -740,8 +739,11 @@ static void i915_restore_display(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(BLC_PWM_PCH_CTL1, dev_priv->saveBLC_PWM_CTL);
 		I915_WRITE(BLC_PWM_PCH_CTL2, dev_priv->saveBLC_PWM_CTL2);
-		I915_WRITE(BLC_PWM_CPU_CTL, dev_priv->saveBLC_CPU_PWM_CTL);
+		/* NOTE: BLC_PWM_CPU_CTL must be written after BLC_PWM_CPU_CTL2;
+		 * otherwise we get blank eDP screen after S3 on some machines
+		 */
 		I915_WRITE(BLC_PWM_CPU_CTL2, dev_priv->saveBLC_CPU_PWM_CTL2);
+		I915_WRITE(BLC_PWM_CPU_CTL, dev_priv->saveBLC_CPU_PWM_CTL);
 		I915_WRITE(PCH_PP_ON_DELAYS, dev_priv->savePP_ON_DELAYS);
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->savePP_DIVISOR);
@@ -825,10 +827,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	if (IS_IRONLAKE_M(dev))
-		ironlake_disable_drps(dev);
-	if (INTEL_INFO(dev)->gen >= 6)
-		gen6_disable_rps(dev);
+	intel_disable_gt_powersave(dev);
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);

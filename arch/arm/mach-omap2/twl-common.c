@@ -29,25 +29,18 @@
 #include <plat/i2c.h>
 #include <plat/usb.h>
 
+#include "soc.h"
 #include "twl-common.h"
 #include "pm.h"
 #include "voltage.h"
+#include "mux.h"
 
 static struct i2c_board_info __initdata pmic_i2c_board_info = {
 	.addr		= 0x48,
 	.flags		= I2C_CLIENT_WAKE,
 };
 
-static struct i2c_board_info __initdata omap4_i2c1_board_info[] = {
-	{
-		.addr		= 0x48,
-		.flags		= I2C_CLIENT_WAKE,
-	},
-	{
-		I2C_BOARD_INFO("twl6040", 0x4b),
-	},
-};
-
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 static int twl_set_voltage(void *data, int target_uV)
 {
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
@@ -59,11 +52,13 @@ static int twl_get_voltage(void *data)
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
 	return voltdm_get_voltage(voltdm);
 }
+#endif
 
 void __init omap_pmic_init(int bus, u32 clkrate,
 			   const char *pmic_type, int pmic_irq,
 			   struct twl4030_platform_data *pmic_data)
 {
+	omap_mux_init_signal("sys_nirq", OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);
 	strncpy(pmic_i2c_board_info.type, pmic_type,
 		sizeof(pmic_i2c_board_info.type));
 	pmic_i2c_board_info.irq = pmic_irq;
@@ -74,29 +69,25 @@ void __init omap_pmic_init(int bus, u32 clkrate,
 
 void __init omap4_pmic_init(const char *pmic_type,
 		    struct twl4030_platform_data *pmic_data,
-		    struct twl6040_platform_data *twl6040_data, int twl6040_irq)
+		    struct i2c_board_info *devices, int nr_devices)
 {
 	/* PMIC part*/
-	strncpy(omap4_i2c1_board_info[0].type, pmic_type,
-		sizeof(omap4_i2c1_board_info[0].type));
-	omap4_i2c1_board_info[0].irq = OMAP44XX_IRQ_SYS_1N;
-	omap4_i2c1_board_info[0].platform_data = pmic_data;
+	omap_mux_init_signal("sys_nirq1", OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);
+	omap_pmic_init(1, 400, pmic_type, 7 + OMAP44XX_IRQ_GIC_START, pmic_data);
 
-	/* TWL6040 audio IC part */
-	omap4_i2c1_board_info[1].irq = twl6040_irq;
-	omap4_i2c1_board_info[1].platform_data = twl6040_data;
-
-	omap_register_i2c_bus(1, 400, omap4_i2c1_board_info, 2);
-
+	/* Register additional devices on i2c1 bus if needed */
+	if (devices)
+		i2c_register_board_info(1, devices, nr_devices);
 }
 
 void __init omap_pmic_late_init(void)
 {
 	/* Init the OMAP TWL parameters (if PMIC has been registerd) */
-	if (pmic_i2c_board_info.irq)
-		omap3_twl_init();
-	if (omap4_i2c1_board_info[0].irq)
-		omap4_twl_init();
+	if (!pmic_i2c_board_info.irq)
+		return;
+
+	omap3_twl_init();
+	omap4_twl_init();
 }
 
 #if defined(CONFIG_ARCH_OMAP3)
@@ -211,10 +202,6 @@ static struct twl_regulator_driver_data omap3_vdd2_drvdata = {
 void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL4030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL4030_IRQ_END;
 	if (!pmic_data->vdd1) {
 		omap3_vdd1.driver_data = &omap3_vdd1_drvdata;
 		omap3_vdd1_drvdata.data = voltdm_lookup("mpu_iva");
@@ -250,11 +237,6 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 
 #if defined(CONFIG_ARCH_OMAP4)
 static struct twl4030_usb_data omap4_usb_pdata = {
-	.phy_init	= omap4430_phy_init,
-	.phy_exit	= omap4430_phy_exit,
-	.phy_power	= omap4430_phy_power,
-	.phy_set_clock	= omap4430_phy_set_clk,
-	.phy_suspend	= omap4430_phy_suspend,
 };
 
 static struct regulator_init_data omap4_vdac_idata = {
@@ -479,11 +461,6 @@ static struct regulator_init_data omap4_v2v1_idata = {
 void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL6030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL6030_IRQ_END;
-
 	if (!pmic_data->vdd1) {
 		omap4_vdd1.driver_data = &omap4_vdd1_drvdata;
 		omap4_vdd1_drvdata.data = voltdm_lookup("mpu");

@@ -558,6 +558,8 @@ acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 
+	if (!video->cap._DOS)
+		return 0;
 
 	if (bios_flag < 0 || bios_flag > 3 || lcd_flag < 0 || lcd_flag > 1)
 		return -EINVAL;
@@ -1446,8 +1448,7 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User requested a switch,
 					 * most likely via hotkey. */
 		acpi_bus_generate_proc_event(device, event, 0);
-		if (!acpi_notifier_call_chain(device, event, 0))
-			keycode = KEY_SWITCHVIDEOMODE;
+		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
 	case ACPI_VIDEO_NOTIFY_PROBE:	/* User plugged in or removed a video
@@ -1477,8 +1478,9 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 		break;
 	}
 
-	if (event != ACPI_VIDEO_NOTIFY_SWITCH)
-		acpi_notifier_call_chain(device, event, 0);
+	if (acpi_notifier_call_chain(device, event, 0))
+		/* Something vetoed the keypress. */
+		keycode = 0;
 
 	if (keycode) {
 		input_report_key(input, keycode, 1);

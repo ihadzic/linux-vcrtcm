@@ -146,7 +146,7 @@ struct cmn_registers {
 }  __attribute__((packed));
 
 static unsigned int hpwdt_nmi_decoding;
-static unsigned int allow_kdump;
+static unsigned int allow_kdump = 1;
 static unsigned int is_icru;
 static DEFINE_SPINLOCK(rom_lock);
 static void *cru_rom_addr;
@@ -756,6 +756,8 @@ error:
 static void hpwdt_exit_nmi_decoding(void)
 {
 	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_SERR, "hpwdt");
+	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }
@@ -811,6 +813,9 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	}
 	hpwdt_timer_reg = pci_mem_addr + 0x70;
 	hpwdt_timer_con = pci_mem_addr + 0x72;
+
+	/* Make sure that timer is disabled until /dev/watchdog is opened */
+	hpwdt_stop();
 
 	/* Make sure that we have a valid soft_margin */
 	if (hpwdt_change_timer(soft_margin))

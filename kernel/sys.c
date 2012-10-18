@@ -368,6 +368,7 @@ EXPORT_SYMBOL(unregister_reboot_notifier);
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
+	disable_nonboot_cpus();
 	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
 	else
@@ -1788,16 +1789,15 @@ SYSCALL_DEFINE1(umask, int, mask)
 #ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
-	struct vm_area_struct *vma;
-	struct file *exe_file;
+	struct fd exe;
 	struct dentry *dentry;
 	int err;
 
-	exe_file = fget(fd);
-	if (!exe_file)
+	exe = fdget(fd);
+	if (!exe.file)
 		return -EBADF;
 
-	dentry = exe_file->f_path.dentry;
+	dentry = exe.file->f_path.dentry;
 
 	/*
 	 * Because the original mm->exe_file points to executable file, make
@@ -1806,7 +1806,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	 */
 	err = -EACCES;
 	if (!S_ISREG(dentry->d_inode->i_mode)	||
-	    exe_file->f_path.mnt->mnt_flags & MNT_NOEXEC)
+	    exe.file->f_path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
 	err = inode_permission(dentry->d_inode, MAY_EXEC);
@@ -1816,13 +1816,17 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	down_write(&mm->mmap_sem);
 
 	/*
-	 * Forbid mm->exe_file change if there are mapped other files.
+	 * Forbid mm->exe_file change if old file still mapped.
 	 */
 	err = -EBUSY;
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (vma->vm_file && !path_equal(&vma->vm_file->f_path,
-						&exe_file->f_path))
-			goto exit_unlock;
+	if (mm->exe_file) {
+		struct vm_area_struct *vma;
+
+		for (vma = mm->mmap; vma; vma = vma->vm_next)
+			if (vma->vm_file &&
+			    path_equal(&vma->vm_file->f_path,
+				       &mm->exe_file->f_path))
+				goto exit_unlock;
 	}
 
 	/*
@@ -1835,12 +1839,13 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	if (test_and_set_bit(MMF_EXE_FILE_CHANGED, &mm->flags))
 		goto exit_unlock;
 
-	set_mm_exe_file(mm, exe_file);
+	err = 0;
+	set_mm_exe_file(mm, exe.file);	/* this grabs a reference to exe.file */
 exit_unlock:
 	up_write(&mm->mmap_sem);
 
 exit:
-	fput(exe_file);
+	fdput(exe);
 	return err;
 }
 
@@ -2011,7 +2016,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				break;
 			}
 			me->pdeath_signal = arg2;
-			error = 0;
 			break;
 		case PR_GET_PDEATHSIG:
 			error = put_user(me->pdeath_signal, (int __user *)arg2);
@@ -2025,7 +2029,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				break;
 			}
 			set_dumpable(me->mm, arg2);
-			error = 0;
 			break;
 
 		case PR_SET_UNALIGN:
@@ -2052,10 +2055,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		case PR_SET_TIMING:
 			if (arg2 != PR_TIMING_STATISTICAL)
 				error = -EINVAL;
-			else
-				error = 0;
 			break;
-
 		case PR_SET_NAME:
 			comm[sizeof(me->comm)-1] = 0;
 			if (strncpy_from_user(comm, (char __user *)arg2,
@@ -2063,20 +2063,19 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				return -EFAULT;
 			set_task_comm(me, comm);
 			proc_comm_connector(me);
-			return 0;
+			break;
 		case PR_GET_NAME:
 			get_task_comm(comm, me);
 			if (copy_to_user((char __user *)arg2, comm,
 					 sizeof(comm)))
 				return -EFAULT;
-			return 0;
+			break;
 		case PR_GET_ENDIAN:
 			error = GET_ENDIAN(me, arg2);
 			break;
 		case PR_SET_ENDIAN:
 			error = SET_ENDIAN(me, arg2);
 			break;
-
 		case PR_GET_SECCOMP:
 			error = prctl_get_seccomp();
 			break;
@@ -2104,7 +2103,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					current->default_timer_slack_ns;
 			else
 				current->timer_slack_ns = arg2;
-			error = 0;
 			break;
 		case PR_MCE_KILL:
 			if (arg4 | arg5)
@@ -2130,7 +2128,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			default:
 				return -EINVAL;
 			}
-			error = 0;
 			break;
 		case PR_MCE_KILL_GET:
 			if (arg2 | arg3 | arg4 | arg5)
@@ -2149,7 +2146,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			break;
 		case PR_SET_CHILD_SUBREAPER:
 			me->signal->is_child_subreaper = !!arg2;
-			error = 0;
 			break;
 		case PR_GET_CHILD_SUBREAPER:
 			error = put_user(me->signal->is_child_subreaper,
@@ -2191,6 +2187,32 @@ static void argv_cleanup(struct subprocess_info *info)
 	argv_free(info->argv);
 }
 
+static int __orderly_poweroff(void)
+{
+	int argc;
+	char **argv;
+	static char *envp[] = {
+		"HOME=/",
+		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
+		NULL
+	};
+	int ret;
+
+	argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
+	if (argv == NULL) {
+		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
+		       __func__, poweroff_cmd);
+		return -ENOMEM;
+	}
+
+	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_WAIT_EXEC,
+				      NULL, argv_cleanup, NULL);
+	if (ret == -ENOMEM)
+		argv_free(argv);
+
+	return ret;
+}
+
 /**
  * orderly_poweroff - Trigger an orderly system poweroff
  * @force: force poweroff if command execution fails
@@ -2200,37 +2222,17 @@ static void argv_cleanup(struct subprocess_info *info)
  */
 int orderly_poweroff(bool force)
 {
-	int argc;
-	char **argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
-	static char *envp[] = {
-		"HOME=/",
-		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
-		NULL
-	};
-	int ret = -ENOMEM;
+	int ret = __orderly_poweroff();
 
-	if (argv == NULL) {
-		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
-		       __func__, poweroff_cmd);
-		goto out;
-	}
-
-	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_NO_WAIT,
-				      NULL, argv_cleanup, NULL);
-out:
-	if (likely(!ret))
-		return 0;
-
-	if (ret == -ENOMEM)
-		argv_free(argv);
-
-	if (force) {
+	if (ret && force) {
 		printk(KERN_WARNING "Failed to start orderly shutdown: "
 		       "forcing the issue\n");
 
-		/* I guess this should try to kick off some daemon to
-		   sync and poweroff asap.  Or not even bother syncing
-		   if we're doing an emergency shutdown? */
+		/*
+		 * I guess this should try to kick off some daemon to sync and
+		 * poweroff asap.  Or not even bother syncing if we're doing an
+		 * emergency shutdown?
+		 */
 		emergency_sync();
 		kernel_power_off();
 	}

@@ -13,6 +13,9 @@
 
 #ifdef __KERNEL__
 
+#include <linux/netpoll.h>
+#include <net/sch_generic.h>
+
 struct team_pcpu_stats {
 	u64			rx_packets;
 	u64			rx_bytes;
@@ -60,8 +63,41 @@ struct team_port {
 		unsigned int mtu;
 	} orig;
 
-	struct rcu_head rcu;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll *np;
+#endif
+
+	s32 priority; /* lower number ~ higher priority */
+	u16 queue_id;
+	struct list_head qom_list; /* node in queue override mapping list */
+	long mode_priv[0];
 };
+
+static inline bool team_port_enabled(struct team_port *port)
+{
+	return port->index != -1;
+}
+
+static inline bool team_port_txable(struct team_port *port)
+{
+	return port->linkup && team_port_enabled(port);
+}
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline void team_netpoll_send_skb(struct team_port *port,
+					 struct sk_buff *skb)
+{
+	struct netpoll *np = port->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+#else
+static inline void team_netpoll_send_skb(struct team_port *port,
+					 struct sk_buff *skb)
+{
+}
+#endif
 
 struct team_mode_ops {
 	int (*init)(struct team *team);
@@ -72,7 +108,9 @@ struct team_mode_ops {
 	bool (*transmit)(struct team *team, struct sk_buff *skb);
 	int (*port_enter)(struct team *team, struct team_port *port);
 	void (*port_leave)(struct team *team, struct team_port *port);
-	void (*port_change_mac)(struct team *team, struct team_port *port);
+	void (*port_change_dev_addr)(struct team *team, struct team_port *port);
+	void (*port_enabled)(struct team *team, struct team_port *port);
+	void (*port_disabled)(struct team *team, struct team_port *port);
 };
 
 enum team_option_type {
@@ -80,6 +118,12 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_STRING,
 	TEAM_OPTION_TYPE_BINARY,
 	TEAM_OPTION_TYPE_BOOL,
+	TEAM_OPTION_TYPE_S32,
+};
+
+struct team_option_inst_info {
+	u32 array_index;
+	struct team_port *port; /* != NULL if per-port */
 };
 
 struct team_gsetter_ctx {
@@ -91,24 +135,30 @@ struct team_gsetter_ctx {
 			u32 len;
 		} bin_val;
 		bool bool_val;
+		s32 s32_val;
 	} data;
-	struct team_port *port;
+	struct team_option_inst_info *info;
 };
 
 struct team_option {
 	struct list_head list;
 	const char *name;
 	bool per_port;
+	unsigned int array_size; /* != 0 means the option is array */
 	enum team_option_type type;
+	int (*init)(struct team *team, struct team_option_inst_info *info);
 	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
 
+extern void team_option_inst_set_change(struct team_option_inst_info *opt_inst_info);
+extern void team_options_change_check(struct team *team);
+
 struct team_mode {
-	struct list_head list;
 	const char *kind;
 	struct module *owner;
 	size_t priv_size;
+	size_t port_priv_size;
 	const struct team_mode_ops *ops;
 };
 
@@ -137,8 +187,25 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool queue_override_enabled;
+	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
+
+static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
+				      struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
+		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
+	skb_set_queue_mapping(skb, qdisc_skb_cb(skb)->slave_dev_queue_mapping);
+
+	skb->dev = port->dev;
+	if (unlikely(netpoll_tx_running(team->dev))) {
+		team_netpoll_send_skb(port, skb);
+		return 0;
+	}
+	return dev_queue_xmit(skb);
+}
 
 static inline struct hlist_head *team_port_index_hash(struct team *team,
 						      int port_index)
@@ -171,15 +238,18 @@ static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 	return NULL;
 }
 
-extern int team_port_set_team_mac(struct team_port *port);
+extern int team_port_set_team_dev_addr(struct team_port *port);
 extern int team_options_register(struct team *team,
 				 const struct team_option *option,
 				 size_t option_count);
 extern void team_options_unregister(struct team *team,
 				    const struct team_option *option,
 				    size_t option_count);
-extern int team_mode_register(struct team_mode *mode);
-extern int team_mode_unregister(struct team_mode *mode);
+extern int team_mode_register(const struct team_mode *mode);
+extern void team_mode_unregister(const struct team_mode *mode);
+
+#define TEAM_DEFAULT_NUM_TX_QUEUES 16
+#define TEAM_DEFAULT_NUM_RX_QUEUES 16
 
 #endif /* __KERNEL__ */
 
@@ -241,6 +311,7 @@ enum {
 	TEAM_ATTR_OPTION_DATA,		/* dynamic */
 	TEAM_ATTR_OPTION_REMOVED,	/* flag */
 	TEAM_ATTR_OPTION_PORT_IFINDEX,	/* u32 */ /* for per-port options */
+	TEAM_ATTR_OPTION_ARRAY_INDEX,	/* u32 */ /* for array options */
 
 	__TEAM_ATTR_OPTION_MAX,
 	TEAM_ATTR_OPTION_MAX = __TEAM_ATTR_OPTION_MAX - 1,

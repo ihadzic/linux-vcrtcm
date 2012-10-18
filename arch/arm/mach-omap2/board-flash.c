@@ -16,13 +16,14 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
-#include <plat/irqs.h>
 
+#include <plat/cpu.h>
 #include <plat/gpmc.h>
-#include <plat/nand.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 #include <plat/tc.h>
 
+#include "common.h"
 #include "board-flash.h"
 
 #define REG_FPGA_REV			0x10
@@ -97,11 +98,6 @@ __init board_onenand_init(struct mtd_partition *onenand_parts,
 
 	gpmc_onenand_init(&board_onenand_data);
 }
-#else
-void
-__init board_onenand_init(struct mtd_partition *nor_parts, u8 nr_parts, u8 cs)
-{
-}
 #endif /* CONFIG_MTD_ONENAND_OMAP2 || CONFIG_MTD_ONENAND_OMAP2_MODULE */
 
 #if defined(CONFIG_MTD_NAND_OMAP2) || \
@@ -145,7 +141,6 @@ __init board_nand_init(struct mtd_partition *nand_parts,
 	board_nand_data.devsize		= nand_type;
 
 	board_nand_data.ecc_opt = OMAP_ECC_HAMMING_CODE_DEFAULT;
-	board_nand_data.gpmc_irq = OMAP_GPMC_IRQ_BASE + cs;
 	gpmc_nand_init(&board_nand_data);
 }
 #endif /* CONFIG_MTD_NAND_OMAP2 || CONFIG_MTD_NAND_OMAP2_MODULE */

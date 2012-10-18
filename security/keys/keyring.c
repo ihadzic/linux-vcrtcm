@@ -256,7 +256,7 @@ error:
 /*
  * Allocate a keyring and link into the destination keyring.
  */
-struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
+struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 			  const struct cred *cred, unsigned long flags,
 			  struct key *dest)
 {
@@ -612,7 +612,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 				    &keyring_name_hash[bucket],
 				    type_data.link
 				    ) {
-			if (keyring->user->user_ns != current_user_ns())
+			if (!kuid_has_mapping(current_user_ns(), keyring->user->uid))
 				continue;
 
 			if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
@@ -751,6 +751,7 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 int __key_link_begin(struct key *keyring, const struct key_type *type,
 		     const char *description, unsigned long *_prealloc)
 	__acquires(&keyring->sem)
+	__acquires(&keyring_serialise_link_sem)
 {
 	struct keyring_list *klist, *nklist;
 	unsigned long prealloc;
@@ -960,6 +961,7 @@ void __key_link(struct key *keyring, struct key *key,
 void __key_link_end(struct key *keyring, struct key_type *type,
 		    unsigned long prealloc)
 	__releases(&keyring->sem)
+	__releases(&keyring_serialise_link_sem)
 {
 	BUG_ON(type == NULL);
 	BUG_ON(type->name == NULL);

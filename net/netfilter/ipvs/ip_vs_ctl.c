@@ -76,19 +76,19 @@ static void __ip_vs_del_service(struct ip_vs_service *svc);
 
 #ifdef CONFIG_IP_VS_IPV6
 /* Taken from rt6_fill_node() in net/ipv6/route.c, is there a better way? */
-static int __ip_vs_addr_is_local_v6(struct net *net,
-				    const struct in6_addr *addr)
+static bool __ip_vs_addr_is_local_v6(struct net *net,
+				     const struct in6_addr *addr)
 {
-	struct rt6_info *rt;
 	struct flowi6 fl6 = {
 		.daddr = *addr,
 	};
+	struct dst_entry *dst = ip6_route_output(net, NULL, &fl6);
+	bool is_local;
 
-	rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
-	if (rt && rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK))
-		return 1;
+	is_local = !dst->error && dst->dev && (dst->dev->flags & IFF_LOOPBACK);
 
-	return 0;
+	dst_release(dst);
+	return is_local;
 }
 #endif
 
@@ -539,8 +539,7 @@ static int ip_vs_rs_unhash(struct ip_vs_dest *dest)
 	 * Remove it from the rs_table table.
 	 */
 	if (!list_empty(&dest->d_list)) {
-		list_del(&dest->d_list);
-		INIT_LIST_HEAD(&dest->d_list);
+		list_del_init(&dest->d_list);
 	}
 
 	return 1;
@@ -1171,8 +1170,10 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		goto out_err;
 	}
 	svc->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!svc->stats.cpustats)
+	if (!svc->stats.cpustats) {
+		ret = -ENOMEM;
 		goto out_err;
+	}
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->usecnt, 0);
@@ -1521,11 +1522,12 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = ptr;
 	struct net *net = dev_net(dev);
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_service *svc;
 	struct ip_vs_dest *dest;
 	unsigned int idx;
 
-	if (event != NETDEV_UNREGISTER)
+	if (event != NETDEV_UNREGISTER || !ipvs)
 		return NOTIFY_DONE;
 	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
 	EnterFunction(2);
@@ -1551,7 +1553,7 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 		}
 	}
 
-	list_for_each_entry(dest, &net_ipvs(net)->dest_trash, n_list) {
+	list_for_each_entry(dest, &ipvs->dest_trash, n_list) {
 		__ip_vs_dev_reset(dest, dev);
 	}
 	mutex_unlock(&__ip_vs_mutex);
@@ -1796,6 +1798,12 @@ static struct ctl_table vs_vars[] = {
 	},
 	{
 		.procname	= "nat_icmp_send",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "pmtu_disc",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2758,6 +2766,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	{
 		struct ip_vs_timeout_user t;
 
+		memset(&t, 0, sizeof(t));
 		__ip_vs_get_timeouts(net, &t);
 		if (copy_to_user(user, &t, sizeof(t)) != 0)
 			ret = -EFAULT;
@@ -2929,7 +2938,7 @@ static int ip_vs_genl_dump_service(struct sk_buff *skb,
 {
 	void *hdr;
 
-	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &ip_vs_genl_family, NLM_F_MULTI,
 			  IPVS_CMD_NEW_SERVICE);
 	if (!hdr)
@@ -3118,7 +3127,7 @@ static int ip_vs_genl_dump_dest(struct sk_buff *skb, struct ip_vs_dest *dest,
 {
 	void *hdr;
 
-	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &ip_vs_genl_family, NLM_F_MULTI,
 			  IPVS_CMD_NEW_DEST);
 	if (!hdr)
@@ -3247,7 +3256,7 @@ static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __be32 state,
 				  struct netlink_callback *cb)
 {
 	void *hdr;
-	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &ip_vs_genl_family, NLM_F_MULTI,
 			  IPVS_CMD_NEW_DAEMON);
 	if (!hdr)
@@ -3674,7 +3683,7 @@ static void ip_vs_genl_unregister(void)
  * per netns intit/exit func.
  */
 #ifdef CONFIG_SYSCTL
-int __net_init ip_vs_control_net_init_sysctl(struct net *net)
+static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 {
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
@@ -3725,6 +3734,8 @@ int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	ipvs->sysctl_sync_retries = clamp_t(int, DEFAULT_SYNC_RETRIES, 0, 3);
 	tbl[idx++].data = &ipvs->sysctl_sync_retries;
 	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
+	ipvs->sysctl_pmtu_disc = 1;
+	tbl[idx++].data = &ipvs->sysctl_pmtu_disc;
 
 
 	ipvs->sysctl_hdr = register_net_sysctl(net, "net/ipv4/vs", tbl);
@@ -3742,7 +3753,7 @@ int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	return 0;
 }
 
-void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
+static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -3753,8 +3764,8 @@ void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 
 #else
 
-int __net_init ip_vs_control_net_init_sysctl(struct net *net) { return 0; }
-void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net) { }
+static int __net_init ip_vs_control_net_init_sysctl(struct net *net) { return 0; }
+static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net) { }
 
 #endif
 

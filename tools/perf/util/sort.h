@@ -31,8 +31,8 @@ extern const char *parent_pattern;
 extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
+extern int sort__has_sym;
 extern int sort__branch_mode;
-extern char *field_sep;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
@@ -71,6 +71,7 @@ struct hist_entry {
 	char			level;
 	bool			used;
 	u8			filtered;
+	char			*srcline;
 	struct symbol		*parent;
 	union {
 		unsigned long	  position;
@@ -93,6 +94,7 @@ enum sort_type {
 	SORT_SYM_FROM,
 	SORT_SYM_TO,
 	SORT_MISPREDICT,
+	SORT_SRCLINE,
 };
 
 /*

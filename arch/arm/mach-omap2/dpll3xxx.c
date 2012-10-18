@@ -28,9 +28,9 @@
 #include <linux/bitops.h>
 #include <linux/clkdev.h>
 
-#include <plat/cpu.h>
 #include <plat/clock.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
@@ -135,10 +135,19 @@ static u16 _omap3_dpll_compute_freqsel(struct clk *clk, u8 n)
  */
 static int _omap3_noncore_dpll_lock(struct clk *clk)
 {
+	const struct dpll_data *dd;
 	u8 ai;
-	int r;
+	u8 state = 1;
+	int r = 0;
 
 	pr_debug("clock: locking DPLL %s\n", clk->name);
+
+	dd = clk->dpll_data;
+	state <<= __ffs(dd->idlest_mask);
+
+	/* Check if already locked */
+	if ((__raw_readl(dd->idlest_reg) & dd->idlest_mask) == state)
+		goto done;
 
 	ai = omap3_dpll_autoidle_read(clk);
 
@@ -152,6 +161,7 @@ static int _omap3_noncore_dpll_lock(struct clk *clk)
 	if (ai)
 		omap3_dpll_allow_idle(clk);
 
+done:
 	return r;
 }
 
@@ -301,7 +311,7 @@ static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 	 * Set jitter correction. No jitter correction for OMAP4 and 3630
 	 * since freqsel field is no longer present
 	 */
-	if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
+	if (!soc_is_am33xx() && !cpu_is_omap44xx() && !cpu_is_omap3630()) {
 		v = __raw_readl(dd->control_reg);
 		v &= ~dd->freqsel_mask;
 		v |= freqsel << __ffs(dd->freqsel_mask);
@@ -461,7 +471,7 @@ int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 			return -EINVAL;
 
 		/* No freqsel on OMAP4 and OMAP3630 */
-		if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
+		if (!soc_is_am33xx() && !cpu_is_omap44xx() && !cpu_is_omap3630()) {
 			freqsel = _omap3_dpll_compute_freqsel(clk,
 						dd->last_rounded_n);
 			if (!freqsel)
@@ -613,8 +623,11 @@ unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 	while (pclk && !pclk->dpll_data)
 		pclk = pclk->parent;
 
-	/* clk does not have a DPLL as a parent? */
-	WARN_ON(!pclk);
+	/* clk does not have a DPLL as a parent?  error in the clock data */
+	if (!pclk) {
+		WARN_ON(1);
+		return 0;
+	}
 
 	dd = pclk->dpll_data;
 
@@ -628,3 +641,17 @@ unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 		rate = clk->parent->rate * 2;
 	return rate;
 }
+
+/* OMAP3/4 non-CORE DPLL clkops */
+
+const struct clkops clkops_omap3_noncore_dpll_ops = {
+	.enable		= omap3_noncore_dpll_enable,
+	.disable	= omap3_noncore_dpll_disable,
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
+};
+
+const struct clkops clkops_omap3_core_dpll_ops = {
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
+};

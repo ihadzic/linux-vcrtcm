@@ -316,7 +316,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 		netpoll_send_skb(np, skb);
 }
 
-extern int br_netpoll_enable(struct net_bridge_port *p);
+extern int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp);
 extern void br_netpoll_disable(struct net_bridge_port *p);
 #else
 static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
@@ -329,7 +329,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 {
 }
 
-static inline int br_netpoll_enable(struct net_bridge_port *p)
+static inline int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 {
 	return 0;
 }
@@ -363,10 +363,10 @@ extern void br_fdb_update(struct net_bridge *br,
 
 extern int br_fdb_delete(struct ndmsg *ndm,
 			 struct net_device *dev,
-			 unsigned char *addr);
-extern int br_fdb_add(struct ndmsg *nlh,
+			 const unsigned char *addr);
+extern int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[],
 		      struct net_device *dev,
-		      unsigned char *addr,
+		      const unsigned char *addr,
 		      u16 nlh_flags);
 extern int br_fdb_dump(struct sk_buff *skb,
 		       struct netlink_callback *cb,
@@ -549,6 +549,7 @@ extern int (*br_fdb_test_addr_hook)(struct net_device *dev, unsigned char *addr)
 #endif
 
 /* br_netlink.c */
+extern struct rtnl_link_ops br_link_ops;
 extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);

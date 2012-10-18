@@ -616,10 +616,12 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 
 			goto unlock;
 
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			if ((vif->type == NL80211_IFTYPE_STATION) ||
 			    (vif->type == NL80211_IFTYPE_WDS) ||
-			    (vif->type == NL80211_IFTYPE_AP))
+			    (vif->type == NL80211_IFTYPE_AP) ||
+			    (vif->type == NL80211_IFTYPE_MESH_POINT))
 				break;
 
 			err = -EBUSY;
@@ -949,6 +951,9 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	if (ar->fw.rx_filter && changed_flags & ar->rx_filter_caps) {
 		u32 rx_filter = 0;
 
+		if (!ar->fw.ba_filter)
+			rx_filter |= CARL9170_RX_FILTER_CTL_OTHER;
+
 		if (!(*new_flags & (FIF_FCSFAIL | FIF_PLCPFAIL)))
 			rx_filter |= CARL9170_RX_FILTER_BAD;
 
@@ -1144,6 +1149,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		ktype = AR9170_ENC_ALG_AESCCMP;
+		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1753,6 +1759,9 @@ void *carl9170_alloc(size_t priv_size)
 	for (i = 0; i < ar->hw->queues; i++) {
 		skb_queue_head_init(&ar->tx_status[i]);
 		skb_queue_head_init(&ar->tx_pending[i]);
+
+		INIT_LIST_HEAD(&ar->bar_list[i]);
+		spin_lock_init(&ar->bar_list_lock[i]);
 	}
 	INIT_WORK(&ar->ps_work, carl9170_ps_work);
 	INIT_WORK(&ar->ping_work, carl9170_ping_work);
@@ -1772,6 +1781,7 @@ void *carl9170_alloc(size_t priv_size)
 	hw->wiphy->interface_modes = 0;
 
 	hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_MFP_CAPABLE |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |

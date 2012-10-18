@@ -27,9 +27,8 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "drm.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -65,12 +64,27 @@ MODULE_FIRMWARE(FIRMWARE_R520);
 
 #include "r100_track.h"
 
+/* This files gather functions specifics to:
+ * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
+ * and others in some cases.
+ */
+
+/**
+ * r100_wait_for_vblank - vblank wait asic callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to wait for vblank on
+ *
+ * Wait for vblank on the requested crtc (r1xx-r4xx).
+ */
 void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 {
-	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
 	int i;
 
-	if (radeon_crtc->crtc_id == 0) {
+	if (crtc >= rdev->num_crtc)
+		return;
+
+	if (crtc == 0) {
 		if (RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN) {
 			for (i = 0; i < rdev->usec_timeout; i++) {
 				if (!(RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR))
@@ -99,22 +113,49 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 	}
 }
 
-/* This files gather functions specifics to:
- * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
+/**
+ * r100_pre_page_flip - pre-pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to prepare for pageflip on
+ *
+ * Pre-pageflip callback (r1xx-r4xx).
+ * Enables the pageflip irq (vblank irq).
  */
-
 void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* enable the pflip int */
 	radeon_irq_kms_pflip_irq_get(rdev, crtc);
 }
 
+/**
+ * r100_post_page_flip - pos-pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to cleanup pageflip on
+ *
+ * Post-pageflip callback (r1xx-r4xx).
+ * Disables the pageflip irq (vblank irq).
+ */
 void r100_post_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* disable the pflip int */
 	radeon_irq_kms_pflip_irq_put(rdev, crtc);
 }
 
+/**
+ * r100_page_flip - pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc_id: crtc to cleanup pageflip on
+ * @crtc_base: new address of the crtc (GPU MC address)
+ *
+ * Does the actual pageflip (r1xx-r4xx).
+ * During vblank we take the crtc lock and wait for the update_pending
+ * bit to go high, when it does, we release the lock, and allow the
+ * double buffered update to take place.
+ * Returns the current update pending status.
+ */
 u32 r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
@@ -141,6 +182,15 @@ u32 r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	return RREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET;
 }
 
+/**
+ * r100_pm_get_dynpm_state - look up dynpm power state callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Look up the optimal power state based on the
+ * current state of the GPU (r1xx-r5xx).
+ * Used for dynpm only.
+ */
 void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 {
 	int i;
@@ -223,6 +273,15 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 		  pcie_lanes);
 }
 
+/**
+ * r100_pm_init_profile - Initialize power profiles callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initialize the power states used in profile mode
+ * (r1xx-r3xx).
+ * Used for profile mode only.
+ */
 void r100_pm_init_profile(struct radeon_device *rdev)
 {
 	/* default */
@@ -262,6 +321,14 @@ void r100_pm_init_profile(struct radeon_device *rdev)
 	rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx = 0;
 }
 
+/**
+ * r100_pm_misc - set additional pm hw parameters callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Set non-clock parameters associated with a power state
+ * (voltage, pcie lanes, etc.) (r1xx-r4xx).
+ */
 void r100_pm_misc(struct radeon_device *rdev)
 {
 	int requested_index = rdev->pm.requested_power_state_index;
@@ -353,6 +420,13 @@ void r100_pm_misc(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * r100_pm_prepare - pre-power state change callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Prepare for a power state change (r1xx-r4xx).
+ */
 void r100_pm_prepare(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
@@ -377,6 +451,13 @@ void r100_pm_prepare(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * r100_pm_finish - post-power state change callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Clean up after a power state change (r1xx-r4xx).
+ */
 void r100_pm_finish(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
@@ -401,6 +482,14 @@ void r100_pm_finish(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * r100_gui_idle - gui idle callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Check of the GUI (2D/3D engines) are idle (r1xx-r5xx).
+ * Returns true if idle, false if not.
+ */
 bool r100_gui_idle(struct radeon_device *rdev)
 {
 	if (RREG32(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)
@@ -410,6 +499,15 @@ bool r100_gui_idle(struct radeon_device *rdev)
 }
 
 /* hpd for digital panel detect/disconnect */
+/**
+ * r100_hpd_sense - hpd sense callback.
+ *
+ * @rdev: radeon_device pointer
+ * @hpd: hpd (hotplug detect) pin
+ *
+ * Checks if a digital monitor is connected (r1xx-r4xx).
+ * Returns true if connected, false if not connected.
+ */
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
 	bool connected = false;
@@ -429,6 +527,14 @@ bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 	return connected;
 }
 
+/**
+ * r100_hpd_set_polarity - hpd set polarity callback.
+ *
+ * @rdev: radeon_device pointer
+ * @hpd: hpd (hotplug detect) pin
+ *
+ * Set the polarity of the hpd pin (r1xx-r4xx).
+ */
 void r100_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd)
 {
@@ -457,6 +563,14 @@ void r100_hpd_set_polarity(struct radeon_device *rdev,
 	}
 }
 
+/**
+ * r100_hpd_init - hpd setup callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Setup the hpd pins used by the card (r1xx-r4xx).
+ * Set the polarity, and enable the hpd interrupts.
+ */
 void r100_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -471,6 +585,14 @@ void r100_hpd_init(struct radeon_device *rdev)
 	radeon_irq_kms_enable_hpd(rdev, enable);
 }
 
+/**
+ * r100_hpd_fini - hpd tear down callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the hpd pins used by the card (r1xx-r4xx).
+ * Disable the hpd interrupts.
+ */
 void r100_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -577,9 +699,6 @@ int r100_irq_set(struct radeon_device *rdev)
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
-	if (rdev->irq.gui_idle) {
-		tmp |= RADEON_GUI_IDLE_MASK;
-	}
 	if (rdev->irq.crtc_vblank_int[0] ||
 	    atomic_read(&rdev->irq.pflip[0])) {
 		tmp |= RADEON_CRTC_VBLANK_MASK;
@@ -616,12 +735,6 @@ static uint32_t r100_irq_ack(struct radeon_device *rdev)
 		RADEON_CRTC_VBLANK_STAT | RADEON_CRTC2_VBLANK_STAT |
 		RADEON_FP_DETECT_STAT | RADEON_FP2_DETECT_STAT;
 
-	/* the interrupt works, but the status bit is permanently asserted */
-	if (rdev->irq.gui_idle && radeon_gui_idle(rdev)) {
-		if (!rdev->irq.gui_idle_acked)
-			irq_mask |= RADEON_GUI_IDLE_STAT;
-	}
-
 	if (irqs) {
 		WREG32(RADEON_GEN_INT_STATUS, irqs);
 	}
@@ -632,9 +745,6 @@ int r100_irq_process(struct radeon_device *rdev)
 {
 	uint32_t status, msi_rearm;
 	bool queue_hotplug = false;
-
-	/* reset gui idle ack.  the status bit is broken */
-	rdev->irq.gui_idle_acked = false;
 
 	status = r100_irq_ack(rdev);
 	if (!status) {
@@ -647,11 +757,6 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* SW interrupt */
 		if (status & RADEON_SW_INT_TEST) {
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
-		}
-		/* gui idle interrupt */
-		if (status & RADEON_GUI_IDLE_STAT) {
-			rdev->irq.gui_idle_acked = true;
-			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */
 		if (status & RADEON_CRTC_VBLANK_STAT) {
@@ -682,8 +787,6 @@ int r100_irq_process(struct radeon_device *rdev)
 		}
 		status = r100_irq_ack(rdev);
 	}
-	/* reset gui idle ack.  the status bit is broken */
-	rdev->irq.gui_idle_acked = false;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
 	if (rdev->msi_enabled) {
@@ -1060,6 +1163,15 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	}
 	ring->ready = true;
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+
+	if (!ring->rptr_save_reg /* not resuming from suspend */
+	    && radeon_ring_supports_scratch_reg(rdev, ring)) {
+		r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
+		if (r) {
+			DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);
+			ring->rptr_save_reg = 0;
+		}
+	}
 	return 0;
 }
 
@@ -1070,6 +1182,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 	}
 	/* Disable ring */
 	r100_cp_disable(rdev);
+	radeon_scratch_free(rdev, rdev->ring[RADEON_RING_TYPE_GFX_INDEX].rptr_save_reg);
 	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	DRM_INFO("radeon: cp finalized\n");
 }
@@ -2399,7 +2512,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 /*
  * Global GPU functions
  */
-void r100_errata(struct radeon_device *rdev)
+static void r100_errata(struct radeon_device *rdev)
 {
 	rdev->pll_errata = 0;
 
@@ -2414,51 +2527,7 @@ void r100_errata(struct radeon_device *rdev)
 	}
 }
 
-/* Wait for vertical sync on primary CRTC */
-void r100_gpu_wait_for_vsync(struct radeon_device *rdev)
-{
-	uint32_t crtc_gen_cntl, tmp;
-	int i;
-
-	crtc_gen_cntl = RREG32(RADEON_CRTC_GEN_CNTL);
-	if ((crtc_gen_cntl & RADEON_CRTC_DISP_REQ_EN_B) ||
-	    !(crtc_gen_cntl & RADEON_CRTC_EN)) {
-		return;
-	}
-	/* Clear the CRTC_VBLANK_SAVE bit */
-	WREG32(RADEON_CRTC_STATUS, RADEON_CRTC_VBLANK_SAVE_CLEAR);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_CRTC_STATUS);
-		if (tmp & RADEON_CRTC_VBLANK_SAVE) {
-			return;
-		}
-		DRM_UDELAY(1);
-	}
-}
-
-/* Wait for vertical sync on secondary CRTC */
-void r100_gpu_wait_for_vsync2(struct radeon_device *rdev)
-{
-	uint32_t crtc2_gen_cntl, tmp;
-	int i;
-
-	crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
-	if ((crtc2_gen_cntl & RADEON_CRTC2_DISP_REQ_EN_B) ||
-	    !(crtc2_gen_cntl & RADEON_CRTC2_EN))
-		return;
-
-	/* Clear the CRTC_VBLANK_SAVE bit */
-	WREG32(RADEON_CRTC2_STATUS, RADEON_CRTC2_VBLANK_SAVE_CLEAR);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_CRTC2_STATUS);
-		if (tmp & RADEON_CRTC2_VBLANK_SAVE) {
-			return;
-		}
-		DRM_UDELAY(1);
-	}
-}
-
-int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
+static int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -2819,7 +2888,7 @@ void r100_vga_set_state(struct radeon_device *rdev, bool state)
 	WREG32(RADEON_CONFIG_CNTL, temp);
 }
 
-void r100_mc_init(struct radeon_device *rdev)
+static void r100_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
 
@@ -2891,7 +2960,7 @@ void r100_pll_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	r100_pll_errata_after_data(rdev);
 }
 
-void r100_set_safe_registers(struct radeon_device *rdev)
+static void r100_set_safe_registers(struct radeon_device *rdev)
 {
 	if (ASIC_IS_RN50(rdev)) {
 		rdev->config.r100.reg_safe_bm = rn50_reg_safe_bm;
@@ -3661,6 +3730,12 @@ void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 
+	if (ring->rptr_save_reg) {
+		u32 next_rptr = ring->wptr + 2 + 3;
+		radeon_ring_write(ring, PACKET0(ring->rptr_save_reg, 0));
+		radeon_ring_write(ring, next_rptr);
+	}
+
 	radeon_ring_write(ring, PACKET0(RADEON_CP_IB_BASE, 1));
 	radeon_ring_write(ring, ib->gpu_addr);
 	radeon_ring_write(ring, ib->length_dw);
@@ -3680,9 +3755,10 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &ib, 256);
+	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &ib, NULL, 256);
 	if (r) {
-		return r;
+		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
+		goto free_scratch;
 	}
 	ib.ptr[0] = PACKET0(scratch, 0);
 	ib.ptr[1] = 0xDEADBEEF;
@@ -3693,15 +3769,15 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[6] = PACKET2(0);
 	ib.ptr[7] = PACKET2(0);
 	ib.length_dw = 8;
-	r = radeon_ib_schedule(rdev, &ib);
+	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
-		radeon_scratch_free(rdev, scratch);
-		radeon_ib_free(rdev, &ib);
-		return r;
+		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
+		goto free_ib;
 	}
 	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
-		return r;
+		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		goto free_ib;
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -3717,15 +3793,11 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 			  scratch, tmp);
 		r = -EINVAL;
 	}
-	radeon_scratch_free(rdev, scratch);
+free_ib:
 	radeon_ib_free(rdev, &ib);
+free_scratch:
+	radeon_scratch_free(rdev, scratch);
 	return r;
-}
-
-void r100_ib_fini(struct radeon_device *rdev)
-{
-	radeon_ib_pool_suspend(rdev);
-	radeon_ib_pool_fini(rdev);
 }
 
 void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
@@ -3833,7 +3905,7 @@ static void r100_mc_program(struct radeon_device *rdev)
 	r100_mc_resume(rdev, &save);
 }
 
-void r100_clock_startup(struct radeon_device *rdev)
+static void r100_clock_startup(struct radeon_device *rdev)
 {
 	u32 tmp;
 
@@ -3887,13 +3959,11 @@ static int r100_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_pool_start(rdev);
-	if (r)
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
-
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		return r;
+	}
 
 	return 0;
 }
@@ -3930,7 +4000,6 @@ int r100_resume(struct radeon_device *rdev)
 
 int r100_suspend(struct radeon_device *rdev)
 {
-	radeon_ib_pool_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -3943,7 +4012,7 @@ void r100_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_fini(rdev);
@@ -4050,20 +4119,14 @@ int r100_init(struct radeon_device *rdev)
 	}
 	r100_set_safe_registers(rdev);
 
-	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
-
 	r = r100_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCI)
 			r100_pci_gart_fini(rdev);

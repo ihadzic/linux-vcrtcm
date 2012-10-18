@@ -20,7 +20,7 @@
 #include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -58,10 +58,17 @@ static int cdv_output_init(struct drm_device *dev)
 	cdv_intel_lvds_init(dev, &dev_priv->mode_dev);
 
 	/* These bits indicate HDMI not SDVO on CDV */
-	if (REG_READ(SDVOB) & SDVO_DETECTED)
+	if (REG_READ(SDVOB) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOB);
-	if (REG_READ(SDVOC) & SDVO_DETECTED)
+		if (REG_READ(DP_B) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_B);
+	}
+
+	if (REG_READ(SDVOC) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOC);
+		if (REG_READ(DP_C) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_C);
+	}
 	return 0;
 }
 
@@ -76,21 +83,6 @@ static struct backlight_device *cdv_backlight_device;
 static int cdv_backlight_combination_mode(struct drm_device *dev)
 {
 	return REG_READ(BLC_PWM_CTL2) & PWM_LEGACY_MODE;
-}
-
-static int cdv_get_brightness(struct backlight_device *bd)
-{
-	struct drm_device *dev = bl_get_data(bd);
-	u32 val = REG_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
-
-	if (cdv_backlight_combination_mode(dev)) {
-		u8 lbpc;
-
-		val &= ~1;
-		pci_read_config_byte(dev->pdev, 0xF4, &lbpc);
-		val *= lbpc;
-	}
-	return val;
 }
 
 static u32 cdv_get_max_backlight(struct drm_device *dev)
@@ -110,6 +102,22 @@ static u32 cdv_get_max_backlight(struct drm_device *dev)
 	return max;
 }
 
+static int cdv_get_brightness(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(bd);
+	u32 val = REG_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
+
+	if (cdv_backlight_combination_mode(dev)) {
+		u8 lbpc;
+
+		val &= ~1;
+		pci_read_config_byte(dev->pdev, 0xF4, &lbpc);
+		val *= lbpc;
+	}
+	return (val * 100)/cdv_get_max_backlight(dev);
+
+}
+
 static int cdv_set_brightness(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
@@ -119,6 +127,9 @@ static int cdv_set_brightness(struct backlight_device *bd)
 	/* Percentage 1-100% being valid */
 	if (level < 1)
 		level = 1;
+
+	level *= cdv_get_max_backlight(dev);
+	level /= 100;
 
 	if (cdv_backlight_combination_mode(dev)) {
 		u32 max = cdv_get_max_backlight(dev);
@@ -157,9 +168,9 @@ static int cdv_backlight_init(struct drm_device *dev)
 
 	cdv_backlight_device->props.brightness =
 			cdv_get_brightness(cdv_backlight_device);
-	cdv_backlight_device->props.max_brightness = cdv_get_max_backlight(dev);
 	backlight_update_status(cdv_backlight_device);
 	dev_priv->backlight_device = cdv_backlight_device;
+	dev_priv->backlight_enabled = true;
 	return 0;
 }
 
@@ -446,6 +457,7 @@ static void cdv_get_core_freq(struct drm_device *dev)
 	case 6:
 	case 7:
 		dev_priv->core_freq = 266;
+		break;
 	default:
 		dev_priv->core_freq = 0;
 	}
@@ -483,6 +495,65 @@ static void cdv_hotplug_enable(struct drm_device *dev, bool on)
 		REG_WRITE(PORT_HOTPLUG_EN, 0);
 		REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
 	}	
+}
+
+static const char *force_audio_names[] = {
+	"off",
+	"auto",
+	"on",
+};
+
+void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_property *prop;
+	int i;
+
+	prop = dev_priv->force_audio_property;
+	if (prop == NULL) {
+		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+					   "audio",
+					   ARRAY_SIZE(force_audio_names));
+		if (prop == NULL)
+			return;
+
+		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
+			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
+
+		dev_priv->force_audio_property = prop;
+	}
+	drm_connector_attach_property(connector, prop, 0);
+}
+
+
+static const char *broadcast_rgb_names[] = {
+	"Full",
+	"Limited 16:235",
+};
+
+void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_property *prop;
+	int i;
+
+	prop = dev_priv->broadcast_rgb_property;
+	if (prop == NULL) {
+		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+					   "Broadcast RGB",
+					   ARRAY_SIZE(broadcast_rgb_names));
+		if (prop == NULL)
+			return;
+
+		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
+			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
+
+		dev_priv->broadcast_rgb_property = prop;
+	}
+
+	drm_connector_attach_property(connector, prop, 0);
 }
 
 /* Cedarview */

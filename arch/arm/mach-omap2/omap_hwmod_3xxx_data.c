@@ -14,27 +14,27 @@
  *
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+#include <linux/power/smartreflex.h>
+#include <linux/platform_data/gpio-omap.h>
+
 #include <plat/omap_hwmod.h>
-#include <mach/irqs.h>
-#include <plat/cpu.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
-#include <plat/l3_3xxx.h>
-#include <plat/l4_3xxx.h>
+#include "l3_3xxx.h"
+#include "l4_3xxx.h"
 #include <plat/i2c.h>
-#include <plat/gpio.h>
 #include <plat/mmc.h>
-#include <plat/mcbsp.h>
-#include <plat/mcspi.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
 
-#include "omap_hwmod_common_data.h"
+#include "am35xx.h"
 
-#include "smartreflex.h"
+#include "soc.h"
+#include "omap_hwmod_common_data.h"
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
 #include "wd_timer.h"
-#include <mach/am35xx.h>
 
 /*
  * OMAP3xxx hardware module integration data
@@ -51,9 +51,9 @@
 
 /* L3 */
 static struct omap_hwmod_irq_info omap3xxx_l3_main_irqs[] = {
-	{ .irq = INT_34XX_L3_DBG_IRQ },
-	{ .irq = INT_34XX_L3_APP_IRQ },
-	{ .irq = -1 }
+	{ .irq = 9 + OMAP_INTC_START, },
+	{ .irq = 10 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_l3_main_hwmod = {
@@ -100,9 +100,9 @@ static struct omap_hwmod omap3xxx_mpu_hwmod = {
 
 /* IVA2 (IVA2) */
 static struct omap_hwmod_rst_info omap3xxx_iva_resets[] = {
-	{ .name = "logic", .rst_shift = 0 },
-	{ .name = "seq0", .rst_shift = 1 },
-	{ .name = "seq1", .rst_shift = 2 },
+	{ .name = "logic", .rst_shift = 0, .st_shift = 8 },
+	{ .name = "seq0", .rst_shift = 1, .st_shift = 9 },
+	{ .name = "seq1", .rst_shift = 2, .st_shift = 10 },
 };
 
 static struct omap_hwmod omap3xxx_iva_hwmod = {
@@ -112,6 +112,15 @@ static struct omap_hwmod omap3xxx_iva_hwmod = {
 	.rst_lines	= omap3xxx_iva_resets,
 	.rst_lines_cnt	= ARRAY_SIZE(omap3xxx_iva_resets),
 	.main_clk	= "iva2_ck",
+	.prcm = {
+		.omap2 = {
+			.module_offs = OMAP3430_IVA2_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_IVA2_SHIFT,
+		}
+	},
 };
 
 /* timer class */
@@ -129,7 +138,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_timer_1ms_sysc = {
 static struct omap_hwmod_class omap3xxx_timer_1ms_hwmod_class = {
 	.name = "timer",
 	.sysc = &omap3xxx_timer_1ms_sysc,
-	.rev = OMAP_TIMER_IP_VERSION_1,
 };
 
 static struct omap_hwmod_class_sysconfig omap3xxx_timer_sysc = {
@@ -145,12 +153,11 @@ static struct omap_hwmod_class_sysconfig omap3xxx_timer_sysc = {
 static struct omap_hwmod_class omap3xxx_timer_hwmod_class = {
 	.name = "timer",
 	.sysc = &omap3xxx_timer_sysc,
-	.rev =  OMAP_TIMER_IP_VERSION_1,
 };
 
 /* secure timers dev attribute */
 static struct omap_timer_capability_dev_attr capability_secure_dev_attr = {
-	.timer_capability	= OMAP_TIMER_SECURE,
+	.timer_capability	= OMAP_TIMER_ALWON | OMAP_TIMER_SECURE,
 };
 
 /* always-on timers dev attribute */
@@ -195,7 +202,6 @@ static struct omap_hwmod omap3xxx_timer2_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT2_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_1ms_hwmod_class,
 };
 
@@ -213,7 +219,6 @@ static struct omap_hwmod omap3xxx_timer3_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT3_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -231,7 +236,6 @@ static struct omap_hwmod omap3xxx_timer4_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT4_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -249,7 +253,6 @@ static struct omap_hwmod omap3xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT5_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -267,7 +270,6 @@ static struct omap_hwmod omap3xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT6_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -285,7 +287,6 @@ static struct omap_hwmod omap3xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT7_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -363,8 +364,8 @@ static struct omap_hwmod omap3xxx_timer11_hwmod = {
 
 /* timer12 */
 static struct omap_hwmod_irq_info omap3xxx_timer12_mpu_irqs[] = {
-	{ .irq = 95, },
-	{ .irq = -1 }
+	{ .irq = 95 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_timer12_hwmod = {
@@ -498,8 +499,8 @@ static struct omap_hwmod omap3xxx_uart3_hwmod = {
 
 /* UART4 */
 static struct omap_hwmod_irq_info uart4_mpu_irqs[] = {
-	{ .irq = INT_36XX_UART4_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 80 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info uart4_sdma_reqs[] = {
@@ -526,12 +527,28 @@ static struct omap_hwmod omap36xx_uart4_hwmod = {
 };
 
 static struct omap_hwmod_irq_info am35xx_uart4_mpu_irqs[] = {
-	{ .irq = INT_35XX_UART4_IRQ, },
+	{ .irq = 84 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info am35xx_uart4_sdma_reqs[] = {
 	{ .name = "rx", .dma_req = AM35XX_DMA_UART4_RX, },
 	{ .name = "tx", .dma_req = AM35XX_DMA_UART4_TX, },
+	{ .dma_req = -1 }
+};
+
+/*
+ * XXX AM35xx UART4 cannot complete its softreset without uart1_fck or
+ * uart2_fck being enabled.  So we add uart1_fck as an optional clock,
+ * below, and set the HWMOD_CONTROL_OPT_CLKS_IN_RESET.  This really
+ * should not be needed.  The functional clock structure of the AM35xx
+ * UART4 is extremely unclear and opaque; it is unclear what the role
+ * of uart1/2_fck is for the UART4.  Any clarification from either
+ * empirical testing or the AM3505/3517 hardware designers would be
+ * most welcome.
+ */
+static struct omap_hwmod_opt_clk am35xx_uart4_opt_clks[] = {
+	{ .role = "softreset_uart1_fck", .clk = "uart1_fck" },
 };
 
 static struct omap_hwmod am35xx_uart4_hwmod = {
@@ -543,11 +560,14 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 		.omap2 = {
 			.module_offs = CORE_MOD,
 			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_UART4_SHIFT,
+			.module_bit = AM35XX_EN_UART4_SHIFT,
 			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_EN_UART4_SHIFT,
+			.idlest_idle_bit = AM35XX_ST_UART4_SHIFT,
 		},
 	},
+	.opt_clks	= am35xx_uart4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(am35xx_uart4_opt_clks),
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_uart_class,
 };
 
@@ -663,8 +683,8 @@ static struct omap_hwmod_class omap3xxx_dsi_hwmod_class = {
 };
 
 static struct omap_hwmod_irq_info omap3xxx_dsi1_irqs[] = {
-	{ .irq = 25 },
-	{ .irq = -1 }
+	{ .irq = 25 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 /* dss_dsi1 */
@@ -793,8 +813,8 @@ static struct omap_i2c_dev_attr i2c3_dev_attr = {
 };
 
 static struct omap_hwmod_irq_info i2c3_mpu_irqs[] = {
-	{ .irq = INT_34XX_I2C3_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 61 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info i2c3_sdma_reqs[] = {
@@ -952,8 +972,8 @@ static struct omap_hwmod omap3xxx_gpio4_hwmod = {
 
 /* gpio5 */
 static struct omap_hwmod_irq_info omap3xxx_gpio5_irqs[] = {
-	{ .irq = 33 }, /* INT_34XX_GPIO_BANK5 */
-	{ .irq = -1 }
+	{ .irq = 33 + OMAP_INTC_START, }, /* INT_34XX_GPIO_BANK5 */
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_opt_clk gpio5_opt_clks[] = {
@@ -982,8 +1002,8 @@ static struct omap_hwmod omap3xxx_gpio5_hwmod = {
 
 /* gpio6 */
 static struct omap_hwmod_irq_info omap3xxx_gpio6_irqs[] = {
-	{ .irq = 34 }, /* INT_34XX_GPIO_BANK6 */
-	{ .irq = -1 }
+	{ .irq = 34 + OMAP_INTC_START, }, /* INT_34XX_GPIO_BANK6 */
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_opt_clk gpio6_opt_clks[] = {
@@ -1074,12 +1094,23 @@ static struct omap_hwmod_class omap3xxx_mcbsp_hwmod_class = {
 	.rev  = MCBSP_CONFIG_TYPE3,
 };
 
+/* McBSP functional clock mapping */
+static struct omap_hwmod_opt_clk mcbsp15_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "core_96m_fck" },
+};
+
+static struct omap_hwmod_opt_clk mcbsp234_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "per_96m_fck" },
+};
+
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp1_irqs[] = {
-	{ .name = "common", .irq = 16 },
-	{ .name = "tx", .irq = 59 },
-	{ .name = "rx", .irq = 60 },
-	{ .irq = -1 }
+	{ .name = "common", .irq = 16 + OMAP_INTC_START, },
+	{ .name = "tx", .irq = 59 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 60 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
@@ -1097,14 +1128,16 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP1_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp15_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp15_opt_clks),
 };
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp2_irqs[] = {
-	{ .name = "common", .irq = 17 },
-	{ .name = "tx", .irq = 62 },
-	{ .name = "rx", .irq = 63 },
-	{ .irq = -1 }
+	{ .name = "common", .irq = 17 + OMAP_INTC_START, },
+	{ .name = "tx", .irq = 62 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 63 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_mcbsp_dev_attr omap34xx_mcbsp2_dev_attr = {
@@ -1126,15 +1159,17 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP2_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 	.dev_attr	= &omap34xx_mcbsp2_dev_attr,
 };
 
 /* mcbsp3 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp3_irqs[] = {
-	{ .name = "common", .irq = 22 },
-	{ .name = "tx", .irq = 89 },
-	{ .name = "rx", .irq = 90 },
-	{ .irq = -1 }
+	{ .name = "common", .irq = 22 + OMAP_INTC_START, },
+	{ .name = "tx", .irq = 89 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 90 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_mcbsp_dev_attr omap34xx_mcbsp3_dev_attr = {
@@ -1156,15 +1191,17 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP3_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 	.dev_attr	= &omap34xx_mcbsp3_dev_attr,
 };
 
 /* mcbsp4 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp4_irqs[] = {
-	{ .name = "common", .irq = 23 },
-	{ .name = "tx", .irq = 54 },
-	{ .name = "rx", .irq = 55 },
-	{ .irq = -1 }
+	{ .name = "common", .irq = 23 + OMAP_INTC_START, },
+	{ .name = "tx", .irq = 54 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 55 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp4_sdma_chs[] = {
@@ -1188,14 +1225,16 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP4_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 };
 
 /* mcbsp5 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp5_irqs[] = {
-	{ .name = "common", .irq = 27 },
-	{ .name = "tx", .irq = 81 },
-	{ .name = "rx", .irq = 82 },
-	{ .irq = -1 }
+	{ .name = "common", .irq = 27 + OMAP_INTC_START, },
+	{ .name = "tx", .irq = 81 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 82 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp5_sdma_chs[] = {
@@ -1219,6 +1258,8 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP5_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp15_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp15_opt_clks),
 };
 
 /* 'mcbsp sidetone' class */
@@ -1235,8 +1276,8 @@ static struct omap_hwmod_class omap3xxx_mcbsp_sidetone_hwmod_class = {
 
 /* mcbsp2_sidetone */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp2_sidetone_irqs[] = {
-	{ .name = "irq", .irq = 4 },
-	{ .irq = -1 }
+	{ .name = "irq", .irq = 4 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
@@ -1257,8 +1298,8 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 
 /* mcbsp3_sidetone */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp3_sidetone_irqs[] = {
-	{ .name = "irq", .irq = 5 },
-	{ .irq = -1 }
+	{ .name = "irq", .irq = 5 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
@@ -1320,12 +1361,12 @@ static struct omap_smartreflex_dev_attr sr1_dev_attr = {
 };
 
 static struct omap_hwmod_irq_info omap3_smartreflex_mpu_irqs[] = {
-	{ .irq = 18 },
-	{ .irq = -1 }
+	{ .irq = 18 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap34xx_sr1_hwmod = {
-	.name		= "sr1",
+	.name		= "smartreflex_mpu_iva",
 	.class		= &omap34xx_smartreflex_hwmod_class,
 	.main_clk	= "sr1_fck",
 	.prcm		= {
@@ -1343,7 +1384,7 @@ static struct omap_hwmod omap34xx_sr1_hwmod = {
 };
 
 static struct omap_hwmod omap36xx_sr1_hwmod = {
-	.name		= "sr1",
+	.name		= "smartreflex_mpu_iva",
 	.class		= &omap36xx_smartreflex_hwmod_class,
 	.main_clk	= "sr1_fck",
 	.prcm		= {
@@ -1365,12 +1406,12 @@ static struct omap_smartreflex_dev_attr sr2_dev_attr = {
 };
 
 static struct omap_hwmod_irq_info omap3_smartreflex_core_irqs[] = {
-	{ .irq = 19 },
-	{ .irq = -1 }
+	{ .irq = 19 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap34xx_sr2_hwmod = {
-	.name		= "sr2",
+	.name		= "smartreflex_core",
 	.class		= &omap34xx_smartreflex_hwmod_class,
 	.main_clk	= "sr2_fck",
 	.prcm		= {
@@ -1388,7 +1429,7 @@ static struct omap_hwmod omap34xx_sr2_hwmod = {
 };
 
 static struct omap_hwmod omap36xx_sr2_hwmod = {
-	.name		= "sr2",
+	.name		= "smartreflex_core",
 	.class		= &omap36xx_smartreflex_hwmod_class,
 	.main_clk	= "sr2_fck",
 	.prcm		= {
@@ -1426,8 +1467,8 @@ static struct omap_hwmod_class omap3xxx_mailbox_hwmod_class = {
 };
 
 static struct omap_hwmod_irq_info omap3xxx_mailbox_irqs[] = {
-	{ .irq = 26 },
-	{ .irq = -1 }
+	{ .irq = 26 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_mailbox_hwmod = {
@@ -1517,8 +1558,8 @@ static struct omap_hwmod omap34xx_mcspi2 = {
 
 /* mcspi3 */
 static struct omap_hwmod_irq_info omap34xx_mcspi3_mpu_irqs[] = {
-	{ .name = "irq", .irq = 91 }, /* 91 */
-	{ .irq = -1 }
+	{ .name = "irq", .irq = 91 + OMAP_INTC_START, }, /* 91 */
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi3_sdma_reqs[] = {
@@ -1553,8 +1594,8 @@ static struct omap_hwmod omap34xx_mcspi3 = {
 
 /* mcspi4 */
 static struct omap_hwmod_irq_info omap34xx_mcspi4_mpu_irqs[] = {
-	{ .name = "irq", .irq = INT_34XX_SPI4_IRQ }, /* 48 */
-	{ .irq = -1 }
+	{ .name = "irq", .irq = 48 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi4_sdma_reqs[] = {
@@ -1606,9 +1647,9 @@ static struct omap_hwmod_class usbotg_class = {
 /* usb_otg_hs */
 static struct omap_hwmod_irq_info omap3xxx_usbhsotg_mpu_irqs[] = {
 
-	{ .name = "mc", .irq = 92 },
-	{ .name = "dma", .irq = 93 },
-	{ .irq = -1 }
+	{ .name = "mc", .irq = 92 + OMAP_INTC_START, },
+	{ .name = "dma", .irq = 93 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
@@ -1638,25 +1679,20 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 
 /* usb_otg_hs */
 static struct omap_hwmod_irq_info am35xx_usbhsotg_mpu_irqs[] = {
-
-	{ .name = "mc", .irq = 71 },
-	{ .irq = -1 }
+	{ .name = "mc", .irq = 71 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_class am35xx_usbotg_class = {
 	.name = "am35xx_usbotg",
-	.sysc = NULL,
 };
 
 static struct omap_hwmod am35xx_usbhsotg_hwmod = {
 	.name		= "am35x_otg_hs",
 	.mpu_irqs	= am35xx_usbhsotg_mpu_irqs,
-	.main_clk	= NULL,
-	.prcm = {
-		.omap2 = {
-		},
-	},
+	.main_clk	= "hsotgusb_fck",
 	.class		= &am35xx_usbotg_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* MMC/SD/SDIO common */
@@ -1679,8 +1715,8 @@ static struct omap_hwmod_class omap34xx_mmc_class = {
 /* MMC/SD/SDIO1 */
 
 static struct omap_hwmod_irq_info omap34xx_mmc1_mpu_irqs[] = {
-	{ .irq = 83, },
-	{ .irq = -1 }
+	{ .irq = 83 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc1_sdma_reqs[] = {
@@ -1746,8 +1782,8 @@ static struct omap_hwmod omap3xxx_es3plus_mmc1_hwmod = {
 /* MMC/SD/SDIO2 */
 
 static struct omap_hwmod_irq_info omap34xx_mmc2_mpu_irqs[] = {
-	{ .irq = INT_24XX_MMC2_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 86 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc2_sdma_reqs[] = {
@@ -1807,8 +1843,8 @@ static struct omap_hwmod omap3xxx_es3plus_mmc2_hwmod = {
 /* MMC/SD/SDIO3 */
 
 static struct omap_hwmod_irq_info omap34xx_mmc3_mpu_irqs[] = {
-	{ .irq = 94, },
-	{ .irq = -1 }
+	{ .irq = 94 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc3_sdma_reqs[] = {
@@ -1866,9 +1902,9 @@ static struct omap_hwmod_opt_clk omap3xxx_usb_host_hs_opt_clks[] = {
 };
 
 static struct omap_hwmod_irq_info omap3xxx_usb_host_hs_irqs[] = {
-	{ .name = "ohci-irq", .irq = 76 },
-	{ .name = "ehci-irq", .irq = 77 },
-	{ .irq = -1 }
+	{ .name = "ohci-irq", .irq = 76 + OMAP_INTC_START, },
+	{ .name = "ehci-irq", .irq = 77 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_usb_host_hs_hwmod = {
@@ -1960,8 +1996,8 @@ static struct omap_hwmod_class omap3xxx_usb_tll_hs_hwmod_class = {
 };
 
 static struct omap_hwmod_irq_info omap3xxx_usb_tll_hs_irqs[] = {
-	{ .name = "tll-irq", .irq = 78 },
-	{ .irq = -1 }
+	{ .name = "tll-irq", .irq = 78 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod = {
@@ -2097,9 +2133,10 @@ static struct omap_hwmod_ocp_if omap3xxx_usbhsotg__l3 = {
 static struct omap_hwmod_ocp_if am35xx_usbhsotg__l3 = {
 	.master		= &am35xx_usbhsotg_hwmod,
 	.slave		= &omap3xxx_l3_main_hwmod,
-	.clk		= "core_l3_ick",
+	.clk		= "hsotgusb_ick",
 	.user		= OCP_USER_MPU,
 };
+
 /* L4_CORE -> L4_WKUP interface */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 	.master	= &omap3xxx_l4_core_hwmod,
@@ -2243,6 +2280,7 @@ static struct omap_hwmod_addr_space am35xx_uart4_addr_space[] = {
 		.pa_end		= OMAP3_UART4_AM35XX_BASE + SZ_1K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if am35xx_l4_core__uart4 = {
@@ -2393,7 +2431,7 @@ static struct omap_hwmod_addr_space am35xx_usbhsotg_addrs[] = {
 static struct omap_hwmod_ocp_if am35xx_l4_core__usbhsotg = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &am35xx_usbhsotg_hwmod,
-	.clk		= "l4_ick",
+	.clk		= "hsotgusb_ick",
 	.addr		= am35xx_usbhsotg_addrs,
 	.user		= OCP_USER_MPU,
 };
@@ -3138,6 +3176,107 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* am35xx has Davinci MDIO & EMAC */
+static struct omap_hwmod_class am35xx_mdio_class = {
+	.name = "davinci_mdio",
+};
+
+static struct omap_hwmod am35xx_mdio_hwmod = {
+	.name		= "davinci_mdio",
+	.class		= &am35xx_mdio_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
+	.master		= &am35xx_mdio_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_fck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_mdio_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_MDIO_BASE,
+		.pa_end		= AM35XX_IPSS_MDIO_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci mdio  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__mdio = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_mdio_hwmod,
+	.clk		= "emac_fck",
+	.addr		= am35xx_mdio_addrs,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_irq_info am35xx_emac_mpu_irqs[] = {
+	{ .name = "rxthresh",	.irq = 67 + OMAP_INTC_START, },
+	{ .name = "rx_pulse",	.irq = 68 + OMAP_INTC_START, },
+	{ .name = "tx_pulse",	.irq = 69 + OMAP_INTC_START },
+	{ .name = "misc_pulse",	.irq = 70 + OMAP_INTC_START },
+	{ .irq = -1 },
+};
+
+static struct omap_hwmod_class am35xx_emac_class = {
+	.name = "davinci_emac",
+};
+
+static struct omap_hwmod am35xx_emac_hwmod = {
+	.name		= "davinci_emac",
+	.mpu_irqs	= am35xx_emac_mpu_irqs,
+	.class		= &am35xx_emac_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/* l3_core -> davinci emac interface */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
+	.master		= &am35xx_emac_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_ick",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_emac_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_EMAC_BASE,
+		.pa_end		= AM35XX_IPSS_EMAC_BASE + 0x30000 - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci emac  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__emac = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_emac_hwmod,
+	.clk		= "emac_ick",
+	.addr		= am35xx_emac_addrs,
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3266,6 +3405,10 @@ static struct omap_hwmod_ocp_if *am35xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&am35xx_mdio__l3,
+	&am35xx_l4_core__mdio,
+	&am35xx_emac__l3,
+	&am35xx_l4_core__emac,
 	NULL
 };
 
@@ -3282,6 +3425,8 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL;
 	unsigned int rev;
+
+	omap_hwmod_init();
 
 	/* Register hwmod links common to all OMAP3 */
 	r = omap_hwmod_register_links(omap3xxx_hwmod_ocp_ifs);

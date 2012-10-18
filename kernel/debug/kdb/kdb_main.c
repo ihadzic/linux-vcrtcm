@@ -14,12 +14,14 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/kmsg_dump.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/sysrq.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>
 #include <linux/vmalloc.h>
+#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -138,11 +140,10 @@ static const int __nkdb_err = sizeof(kdbmsgs) / sizeof(kdbmsg_t);
 static char *__env[] = {
 #if defined(CONFIG_SMP)
  "PROMPT=[%d]kdb> ",
- "MOREPROMPT=[%d]more> ",
 #else
  "PROMPT=kdb> ",
- "MOREPROMPT=more> ",
 #endif
+ "MOREPROMPT=more> ",
  "RADIX=16",
  "MDCOUNT=8",			/* lines of md output */
  KDB_PLATFORM_ENV,
@@ -1235,18 +1236,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		*cmdbuf = '\0';
 		*(cmd_hist[cmd_head]) = '\0';
 
-		if (KDB_FLAG(ONLY_DO_DUMP)) {
-			/* kdb is off but a catastrophic error requires a dump.
-			 * Take the dump and reboot.
-			 * Turn on logging so the kdb output appears in the log
-			 * buffer in the dump.
-			 */
-			const char *setargs[] = { "set", "LOGGING", "1" };
-			kdb_set(2, setargs);
-			kdb_reboot(0, NULL);
-			/*NOTREACHED*/
-		}
-
 do_full_getstr:
 #if defined(CONFIG_SMP)
 		snprintf(kdb_prompt_str, CMD_BUFLEN, kdbgetenv("PROMPT"),
@@ -2040,8 +2029,15 @@ static int kdb_env(int argc, const char **argv)
  */
 static int kdb_dmesg(int argc, const char **argv)
 {
-	char *syslog_data[4], *start, *end, c = '\0', *p;
-	int diag, logging, logsize, lines = 0, adjust = 0, n;
+	int diag;
+	int logging;
+	int lines = 0;
+	int adjust = 0;
+	int n = 0;
+	int skip = 0;
+	struct kmsg_dumper dumper = { .active = 1 };
+	size_t len;
+	char buf[201];
 
 	if (argc > 2)
 		return KDB_ARGCOUNT;
@@ -2064,22 +2060,10 @@ static int kdb_dmesg(int argc, const char **argv)
 		kdb_set(2, setargs);
 	}
 
-	/* syslog_data[0,1] physical start, end+1.  syslog_data[2,3]
-	 * logical start, end+1. */
-	kdb_syslog_data(syslog_data);
-	if (syslog_data[2] == syslog_data[3])
-		return 0;
-	logsize = syslog_data[1] - syslog_data[0];
-	start = syslog_data[2];
-	end = syslog_data[3];
-#define KDB_WRAP(p) (((p - syslog_data[0]) % logsize) + syslog_data[0])
-	for (n = 0, p = start; p < end; ++p) {
-		c = *KDB_WRAP(p);
-		if (c == '\n')
-			++n;
-	}
-	if (c != '\n')
-		++n;
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, 1, NULL, 0, NULL))
+		n++;
+
 	if (lines < 0) {
 		if (adjust >= n)
 			kdb_printf("buffer only contains %d lines, nothing "
@@ -2087,21 +2071,11 @@ static int kdb_dmesg(int argc, const char **argv)
 		else if (adjust - lines >= n)
 			kdb_printf("buffer only contains %d lines, last %d "
 				   "lines printed\n", n, n - adjust);
-		if (adjust) {
-			for (; start < end && adjust; ++start) {
-				if (*KDB_WRAP(start) == '\n')
-					--adjust;
-			}
-			if (start < end)
-				++start;
-		}
-		for (p = start; p < end && lines; ++p) {
-			if (*KDB_WRAP(p) == '\n')
-				++lines;
-		}
-		end = p;
+		skip = adjust;
+		lines = abs(lines);
 	} else if (lines > 0) {
-		int skip = n - (adjust + lines);
+		skip = n - lines - adjust;
+		lines = abs(lines);
 		if (adjust >= n) {
 			kdb_printf("buffer only contains %d lines, "
 				   "nothing printed\n", n);
@@ -2112,39 +2086,54 @@ static int kdb_dmesg(int argc, const char **argv)
 			kdb_printf("buffer only contains %d lines, first "
 				   "%d lines printed\n", n, lines);
 		}
-		for (; start < end && skip; ++start) {
-			if (*KDB_WRAP(start) == '\n')
-				--skip;
-		}
-		for (p = start; p < end && lines; ++p) {
-			if (*KDB_WRAP(p) == '\n')
-				--lines;
-		}
-		end = p;
+	} else {
+		lines = n;
 	}
-	/* Do a line at a time (max 200 chars) to reduce protocol overhead */
-	c = '\n';
-	while (start != end) {
-		char buf[201];
-		p = buf;
-		if (KDB_FLAG(CMD_INTERRUPT))
-			return 0;
-		while (start < end && (c = *KDB_WRAP(start)) &&
-		       (p - buf) < sizeof(buf)-1) {
-			++start;
-			*p++ = c;
-			if (c == '\n')
-				break;
+
+	if (skip >= n || skip < 0)
+		return 0;
+
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, 1, buf, sizeof(buf), &len)) {
+		if (skip) {
+			skip--;
+			continue;
 		}
-		*p = '\0';
-		kdb_printf("%s", buf);
+		if (!lines--)
+			break;
+
+		kdb_printf("%.*s\n", (int)len - 1, buf);
 	}
-	if (c != '\n')
-		kdb_printf("\n");
 
 	return 0;
 }
 #endif /* CONFIG_PRINTK */
+
+/* Make sure we balance enable/disable calls, must disable first. */
+static atomic_t kdb_nmi_disabled;
+
+static int kdb_disable_nmi(int argc, const char *argv[])
+{
+	if (atomic_read(&kdb_nmi_disabled))
+		return 0;
+	atomic_set(&kdb_nmi_disabled, 1);
+	arch_kgdb_ops.enable_nmi(0);
+	return 0;
+}
+
+static int kdb_param_enable_nmi(const char *val, const struct kernel_param *kp)
+{
+	if (!atomic_add_unless(&kdb_nmi_disabled, -1, 0))
+		return -EINVAL;
+	arch_kgdb_ops.enable_nmi(1);
+	return 0;
+}
+
+static const struct kernel_param_ops kdb_param_ops_enable_nmi = {
+	.set = kdb_param_enable_nmi,
+};
+module_param_cb(enable_nmi, &kdb_param_ops_enable_nmi, NULL, 0600);
+
 /*
  * kdb_cpu - This function implements the 'cpu' command.
  *	cpu	[<cpunum>]
@@ -2889,6 +2878,10 @@ static void __init kdb_inittab(void)
 	kdb_register_repeat("dmesg", kdb_dmesg, "[lines]",
 	  "Display syslog buffer", 0, KDB_REPEAT_NONE);
 #endif
+	if (arch_kgdb_ops.enable_nmi) {
+		kdb_register_repeat("disable_nmi", kdb_disable_nmi, "",
+		  "Disable NMI entry to KDB", 0, KDB_REPEAT_NONE);
+	}
 	kdb_register_repeat("defcmd", kdb_defcmd, "name \"usage\" \"help\"",
 	  "Define a set of commands, down to endefcmd", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("kill", kdb_kill, "<-signal> <pid>",

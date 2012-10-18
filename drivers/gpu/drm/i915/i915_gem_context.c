@@ -85,8 +85,8 @@
  *
  */
 
-#include "drmP.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 /* This is a HW constraint. The value below is the largest known requirement
@@ -97,8 +97,7 @@
 
 static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
-static int do_switch(struct drm_i915_gem_object *from_obj,
-		     struct i915_hw_context *to, u32 seqno);
+static int do_switch(struct i915_hw_context *to);
 
 static int get_context_size(struct drm_device *dev)
 {
@@ -112,8 +111,11 @@ static int get_context_size(struct drm_device *dev)
 		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	case 7:
-		reg = I915_READ(GEN7_CTX_SIZE);
-		ret = GEN7_CTX_TOTAL_SIZE(reg) * 64;
+		reg = I915_READ(GEN7_CXT_SIZE);
+		if (IS_HASWELL(dev))
+			ret = HSW_CXT_TOTAL_SIZE(reg) * 64;
+		else
+			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
 		BUG();
@@ -136,37 +138,36 @@ static void do_destroy(struct i915_hw_context *ctx)
 	kfree(ctx);
 }
 
-static int
+static struct i915_hw_context *
 create_hw_context(struct drm_device *dev,
-		  struct drm_i915_file_private *file_priv,
-		  struct i915_hw_context **ctx_out)
+		  struct drm_i915_file_private *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_context *ctx;
 	int ret, id;
 
-	*ctx_out = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
-	if (*ctx_out == NULL)
-		return -ENOMEM;
+	ctx = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
+	if (ctx == NULL)
+		return ERR_PTR(-ENOMEM);
 
-	(*ctx_out)->obj = i915_gem_alloc_object(dev,
-						dev_priv->hw_context_size);
-	if ((*ctx_out)->obj == NULL) {
-		kfree(*ctx_out);
+	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
+	if (ctx->obj == NULL) {
+		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* The ring associated with the context object is handled by the normal
 	 * object tracking code. We give an initial ring value simple to pass an
 	 * assertion in the context switch code.
 	 */
-	(*ctx_out)->ring = &dev_priv->ring[RCS];
+	ctx->ring = &dev_priv->ring[RCS];
 
 	/* Default context will never have a file_priv */
 	if (file_priv == NULL)
-		return 0;
+		return ctx;
 
-	(*ctx_out)->file_priv = file_priv;
+	ctx->file_priv = file_priv;
 
 again:
 	if (idr_pre_get(&file_priv->context_idr, GFP_KERNEL) == 0) {
@@ -175,21 +176,21 @@ again:
 		goto err_out;
 	}
 
-	ret = idr_get_new_above(&file_priv->context_idr, *ctx_out,
+	ret = idr_get_new_above(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_ID + 1, &id);
 	if (ret == 0)
-		(*ctx_out)->id = id;
+		ctx->id = id;
 
 	if (ret == -EAGAIN)
 		goto again;
 	else if (ret)
 		goto err_out;
 
-	return 0;
+	return ctx;
 
 err_out:
-	do_destroy(*ctx_out);
-	return ret;
+	do_destroy(ctx);
+	return ERR_PTR(ret);
 }
 
 static inline bool is_default_context(struct i915_hw_context *ctx)
@@ -209,10 +210,9 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	ret = create_hw_context(dev_priv->dev, NULL,
-				&dev_priv->ring[RCS].default_context);
-	if (ret)
-		return ret;
+	ctx = create_hw_context(dev_priv->dev, NULL);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	/* We may need to do things with the shrinker which require us to
 	 * immediately switch back to the default context. This can cause a
@@ -220,21 +220,22 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * may not be available. To avoid this we always pin the
 	 * default context.
 	 */
-	ctx = dev_priv->ring[RCS].default_context;
-	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false);
-	if (ret) {
-		do_destroy(ctx);
-		return ret;
-	}
+	dev_priv->ring[RCS].default_context = ctx;
+	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
+	if (ret)
+		goto err_destroy;
 
-	ret = do_switch(NULL, ctx, 0);
-	if (ret) {
-		i915_gem_object_unpin(ctx->obj);
-		do_destroy(ctx);
-	} else {
-		DRM_DEBUG_DRIVER("Default HW context loaded\n");
-	}
+	ret = do_switch(ctx);
+	if (ret)
+		goto err_unpin;
 
+	DRM_DEBUG_DRIVER("Default HW context loaded\n");
+	return 0;
+
+err_unpin:
+	i915_gem_object_unpin(ctx->obj);
+err_destroy:
+	do_destroy(ctx);
 	return ret;
 }
 
@@ -327,7 +328,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	 * itlb_before_ctx_switch.
 	 */
 	if (IS_GEN6(ring->dev) && ring->itlb_before_ctx_switch) {
-		ret = ring->flush(ring, 0, 0);
+		ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, 0);
 		if (ret)
 			return ret;
 	}
@@ -361,20 +362,32 @@ mi_set_context(struct intel_ring_buffer *ring,
 	return ret;
 }
 
-static int do_switch(struct drm_i915_gem_object *from_obj,
-		     struct i915_hw_context *to,
-		     u32 seqno)
+static int do_switch(struct i915_hw_context *to)
 {
-	struct intel_ring_buffer *ring = NULL;
+	struct intel_ring_buffer *ring = to->ring;
+	struct drm_i915_gem_object *from_obj = ring->last_context_obj;
 	u32 hw_flags = 0;
 	int ret;
 
-	BUG_ON(to == NULL);
 	BUG_ON(from_obj != NULL && from_obj->pin_count == 0);
 
-	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false);
+	if (from_obj == to->obj)
+		return 0;
+
+	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		return ret;
+
+	/* Clear this page out of any CPU caches for coherent swap-in/out. Note
+	 * that thanks to write = false in this call and us not setting any gpu
+	 * write domains when putting a context object onto the active list
+	 * (when switching away from it), this won't block.
+	 * XXX: We need a real interface to do this instead of trickery. */
+	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
+	if (ret) {
+		i915_gem_object_unpin(to->obj);
+		return ret;
+	}
 
 	if (!to->obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
@@ -384,7 +397,6 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 	else if (WARN_ON_ONCE(from_obj == to->obj)) /* not yet expected */
 		hw_flags |= MI_FORCE_RESTORE;
 
-	ring = to->ring;
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret) {
 		i915_gem_object_unpin(to->obj);
@@ -398,6 +410,7 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from_obj != NULL) {
+		u32 seqno = i915_gem_next_request_seqno(ring);
 		from_obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
 		i915_gem_object_move_to_active(from_obj, ring, seqno);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
@@ -408,10 +421,13 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 		 * swapped, but there is no way to do that yet.
 		 */
 		from_obj->dirty = 1;
-		BUG_ON(from_obj->ring != to->ring);
+		BUG_ON(from_obj->ring != ring);
 		i915_gem_object_unpin(from_obj);
+
+		drm_gem_object_unreference(&from_obj->base);
 	}
 
+	drm_gem_object_reference(&to->obj->base);
 	ring->last_context_obj = to->obj;
 	to->is_initialized = true;
 
@@ -436,10 +452,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 			int to_id)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	struct drm_i915_file_private *file_priv = NULL;
 	struct i915_hw_context *to;
-	struct drm_i915_gem_object *from_obj = ring->last_context_obj;
-	int ret;
 
 	if (dev_priv->hw_contexts_disabled)
 		return 0;
@@ -447,34 +460,18 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	if (ring != &dev_priv->ring[RCS])
 		return 0;
 
-	if (file)
-		file_priv = file->driver_priv;
-
 	if (to_id == DEFAULT_CONTEXT_ID) {
 		to = ring->default_context;
 	} else {
-		to = i915_gem_context_get(file_priv, to_id);
+		if (file == NULL)
+			return -EINVAL;
+
+		to = i915_gem_context_get(file->driver_priv, to_id);
 		if (to == NULL)
 			return -ENOENT;
 	}
 
-	if (from_obj == to->obj)
-		return 0;
-
-	ret = do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
-	if (ret)
-		return ret;
-
-	/* Just to make the code a little cleaner we take the object reference
-	 * after the switch was successful. It would be more intuitive to ref
-	 * the 'to' object before the switch but we know the refcount must be >0
-	 * if context_get() succeeded, and we hold struct mutex. So it's safe to
-	 * do this here/now
-	 */
-	drm_gem_object_reference(&to->obj->base);
-	if (from_obj != NULL)
-		drm_gem_object_unreference(&from_obj->base);
-	return ret;
+	return do_switch(to);
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
@@ -496,13 +493,15 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = create_hw_context(dev, file_priv, &ctx);
+	ctx = create_hw_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	args->ctx_id = ctx->id;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
 
-	return ret;
+	return 0;
 }
 
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,

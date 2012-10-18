@@ -507,7 +507,7 @@ static int core_scsi3_pr_seq_non_holder(
 	 * Check if write exclusive initiator ports *NOT* holding the
 	 * WRITE_EXCLUSIVE_* reservation.
 	 */
-	if ((we) && !(registered_nexus)) {
+	if (we && !registered_nexus) {
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			/*
 			 * Conflict for write exclusive
@@ -1540,6 +1540,14 @@ static int core_scsi3_decode_spec_i_port(
 	tidh_new->dest_local_nexus = 1;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
 
+	if (cmd->data_length < 28) {
+		pr_warn("SPC-PR: Received PR OUT parameter list"
+			" length too small: %u\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		ret = -EINVAL;
+		goto out;
+	}
+
 	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * For a PERSISTENT RESERVE OUT specify initiator ports payload,
@@ -2031,7 +2039,7 @@ static int __core_scsi3_write_aptpl_to_file(
 	if (IS_ERR(file) || !file || !file->f_dentry) {
 		pr_err("filp_open(%s) for APTPL metadata"
 			" failed\n", path);
-		return (PTR_ERR(file) < 0 ? PTR_ERR(file) : -ENOENT);
+		return IS_ERR(file) ? PTR_ERR(file) : -ENOENT;
 	}
 
 	iov[0].iov_base = &buf[0];
@@ -2486,7 +2494,7 @@ static int core_scsi3_pro_reserve(
 	 */
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
-	if ((pr_res_holder)) {
+	if (pr_res_holder) {
 		/*
 		 * From spc4r17 Section 5.7.9: Reserving:
 		 *
@@ -3818,7 +3826,7 @@ int target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 			" SPC-2 reservation is held, returning"
 			" RESERVATION_CONFLICT\n");
 		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
-		ret = EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -3828,7 +3836,8 @@ int target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	 */
 	if (!cmd->se_sess) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (cmd->data_length < 24) {
@@ -4029,7 +4038,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 
 	spin_lock(&se_dev->dev_reservation_lock);
 	pr_reg = se_dev->dev_pr_res_holder;
-	if ((pr_reg)) {
+	if (pr_reg) {
 		/*
 		 * Set the hardcoded Additional Length
 		 */

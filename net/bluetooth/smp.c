@@ -20,14 +20,15 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
+#include <crypto/b128ops.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 #include <net/bluetooth/smp.h>
-#include <linux/crypto.h>
-#include <linux/scatterlist.h>
-#include <crypto/b128ops.h>
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
@@ -266,10 +267,10 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, hcon->type,
 			 hcon->dst_type, reason);
 
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
-		cancel_delayed_work_sync(&conn->security_timer);
+	cancel_delayed_work_sync(&conn->security_timer);
+
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		smp_chan_destroy(conn);
-	}
 }
 
 #define JUST_WORKS	0x00
@@ -578,8 +579,11 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		smp = smp_chan_create(conn);
+	else
+		smp = conn->smp_chan;
 
-	smp = conn->smp_chan;
+	if (!smp)
+		return SMP_UNSPECIFIED;
 
 	smp->preq[0] = SMP_CMD_PAIRING_REQ;
 	memcpy(&smp->preq[1], req, sizeof(*req));
@@ -648,7 +652,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	auth |= (req->auth_req | rsp->auth_req) & SMP_AUTH_MITM;
 
-	ret = tk_request(conn, 0, auth, rsp->io_capability, req->io_capability);
+	ret = tk_request(conn, 0, auth, req->io_capability, rsp->io_capability);
 	if (ret)
 		return SMP_UNSPECIFIED;
 
@@ -703,13 +707,16 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
-static u8 smp_ltk_encrypt(struct l2cap_conn *conn)
+static u8 smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 {
 	struct smp_ltk *key;
 	struct hci_conn *hcon = conn->hcon;
 
 	key = hci_find_ltk_by_addr(hcon->hdev, conn->dst, hcon->dst_type);
 	if (!key)
+		return 0;
+
+	if (sec_level > BT_SECURITY_MEDIUM && !key->authenticated)
 		return 0;
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
@@ -732,7 +739,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	hcon->pending_sec_level = authreq_to_seclevel(rp->auth_req);
 
-	if (smp_ltk_encrypt(conn))
+	if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
 		return 0;
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
@@ -753,9 +760,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
-int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
+int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
-	struct hci_conn *hcon = conn->hcon;
+	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct smp_chan *smp = conn->smp_chan;
 	__u8 authreq;
 
@@ -771,7 +778,7 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 		return 1;
 
 	if (hcon->link_mode & HCI_LM_MASTER)
-		if (smp_ltk_encrypt(conn))
+		if (smp_ltk_encrypt(conn, sec_level))
 			goto done;
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))

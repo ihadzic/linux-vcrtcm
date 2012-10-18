@@ -29,11 +29,11 @@
  * registers; newer ones are much simpler and we can use the new DRM plane
  * support.
  */
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fourcc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 static void
@@ -56,14 +56,15 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	sprctl &= ~SPRITE_PIXFORMAT_MASK;
 	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
 	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
+	sprctl &= ~SPRITE_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
-		sprctl |= SPRITE_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
@@ -84,7 +85,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		sprctl |= DVS_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	}
@@ -233,6 +234,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
 	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
+	dvscntr &= ~DVS_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -690,6 +692,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	default:
+		kfree(intel_plane);
 		return -ENODEV;
 	}
 
@@ -704,4 +707,3 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 
 	return ret;
 }
-

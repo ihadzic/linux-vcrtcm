@@ -32,7 +32,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
-#include "radeon_drm.h"
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 
@@ -52,11 +52,7 @@ void radeon_bo_clear_va(struct radeon_bo *bo)
 
 	list_for_each_entry_safe(bo_va, tmp, &bo->va, bo_list) {
 		/* remove from all vm address space */
-		mutex_lock(&bo_va->vm->mutex);
-		list_del(&bo_va->vm_list);
-		mutex_unlock(&bo_va->vm->mutex);
-		list_del(&bo_va->bo_list);
-		kfree(bo_va);
+		radeon_vm_bo_rmv(bo->rdev, bo_va);
 	}
 }
 
@@ -115,9 +111,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 
 	size = ALIGN(size, PAGE_SIZE);
 
-	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
-		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
-	}
+	rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
 	if (kernel) {
 		type = ttm_bo_type_kernel;
 	} else if (sg) {
@@ -633,35 +627,21 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 /**
  * radeon_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_wait:		don't sleep while trying to reserve (return -EBUSY)
+ * @no_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
- * -EBUSY: buffer is busy and @no_wait is true
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, 0);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
 		return r;
 	}
 	return 0;
-}
-
-/* object have to be reserved */
-struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo, struct radeon_vm *vm)
-{
-	struct radeon_bo_va *bo_va;
-
-	list_for_each_entry(bo_va, &rbo->va, bo_list) {
-		if (bo_va->vm == vm) {
-			return bo_va;
-		}
-	}
-	return NULL;
 }

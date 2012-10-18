@@ -20,7 +20,7 @@
 #include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -144,6 +144,10 @@ static int psb_backlight_init(struct drm_device *dev)
 	psb_backlight_device->props.max_brightness = 100;
 	backlight_update_status(psb_backlight_device);
 	dev_priv->backlight_device = psb_backlight_device;
+
+	/* This must occur after the backlight is properly initialised */
+	psb_lid_timer_init(dev_priv);
+
 	return 0;
 }
 
@@ -286,6 +290,7 @@ static void psb_get_core_freq(struct drm_device *dev)
 	case 6:
 	case 7:
 		dev_priv->core_freq = 266;
+		break;
 	default:
 		dev_priv->core_freq = 0;
 	}
@@ -354,13 +359,6 @@ static int psb_chip_setup(struct drm_device *dev)
 	return 0;
 }
 
-/* Not exactly an erratum more an irritation */
-static void psb_chip_errata(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	psb_lid_timer_init(dev_priv);
-}
-
 static void psb_chip_teardown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -379,7 +377,6 @@ const struct psb_ops psb_chip_ops = {
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,
-	.errata = psb_chip_errata,
 
 	.crtc_helper = &psb_intel_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,

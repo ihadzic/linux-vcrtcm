@@ -419,7 +419,7 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 }
 
 /**
- * reserve_bootmem - mark a page range as usable
+ * reserve_bootmem - mark a page range as reserved
  * @addr: starting address of the range
  * @size: size of the range in bytes
  * @flags: reservation flags (see linux/bootmem.h)
@@ -698,7 +698,7 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
 	return ___alloc_bootmem(size, align, goal, limit);
 }
 
-static void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
 				unsigned long size, unsigned long align,
 				unsigned long goal, unsigned long limit)
 {
@@ -709,6 +709,10 @@ again:
 					   align, goal, limit);
 	if (ptr)
 		return ptr;
+
+	/* do not panic in alloc_bootmem_bdata() */
+	if (limit && goal + size > limit)
+		limit = 0;
 
 	ptr = alloc_bootmem_bdata(pgdat->bdata, size, align, goal, limit);
 	if (ptr)

@@ -42,7 +42,6 @@
 #include <asm/machdep.h>
 
 #include "ucc_geth.h"
-#include "fsl_pq_mdio.h"
 
 #undef DEBUG
 
@@ -185,7 +184,7 @@ static void mem_disp(u8 *addr, int size)
 	for (; (u32) i < (u32) addr + size4Aling; i += 4)
 		printk("%08x ", *((u32 *) (i)));
 	for (; (u32) i < (u32) addr + size; i++)
-		printk("%02x", *((u8 *) (i)));
+		printk("%02x", *((i)));
 	if (notAlign == 1)
 		printk("\r\n");
 }
