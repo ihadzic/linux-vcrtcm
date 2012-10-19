@@ -1552,6 +1552,7 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
 	u32 adjusted_clock, test_adjusted_clock;
@@ -1565,6 +1566,8 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 		if (crtc == test_crtc)
 			continue;
 		test_radeon_crtc = to_radeon_crtc(test_crtc);
+		if (test_radeon_crtc->crtc_id >= rdev->num_crtc)
+			continue;
 		if (test_radeon_crtc->encoder &&
 		    !ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_radeon_crtc->encoder))) {
 			/* check if we are already driving this connector with another crtc */
