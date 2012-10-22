@@ -48,10 +48,10 @@
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
 /* PIM functions */
-static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
+static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints);
-static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info);
-static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
+static void v4l2pim_destroy(struct vcrtcm_pcon_info *pcon_info);
+static int v4l2pim_get_properties(struct vcrtcm_pcon_info *pcon_info,
 				  struct vcrtcm_pcon_properties *props);
 
 struct list_head v4l2pim_info_list;
@@ -1091,7 +1091,7 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 	kfree(v4l2pim_info);
 }
 
-static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
+static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints)
 {
 	struct v4l2pim_info *v4l2pim_info;
@@ -1105,7 +1105,7 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 			"Video4Linux2 PCON - minor %i",
 			v4l2pim_info->minor);
 	pcon_info->minor = v4l2pim_info->minor;
-	pcon_info->funcs = &v4l2pim_vcrtcm_pcon_funcs;
+	pcon_info->funcs = v4l2pim_vcrtcm_pcon_funcs;
 	pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
 	pcon_info->cookie = v4l2pim_info;
 	pcon_info->local_pconid = v4l2pim_info->minor;
@@ -1113,7 +1113,7 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 1;
 }
 
-static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info)
+static void v4l2pim_destroy(struct vcrtcm_pcon_info *pcon_info)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
@@ -1127,7 +1127,7 @@ static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info)
 	}
 }
 
-static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
+static int v4l2pim_get_properties(struct vcrtcm_pcon_info *pcon_info,
 				  struct vcrtcm_pcon_properties *props)
 {
 	struct v4l2pim_info *v4l2pim_info;
