@@ -963,7 +963,7 @@ static struct vcrtcm_pcon_props v4l2pim_vcrtcm_pcon_props = {
 	.xfer_mode = VCRTCM_PUSH_PULL
 };
 
-static struct pim_funcs v4l2pim_pim_funcs = {
+static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 	.instantiate = v4l2pim_instantiate,
 	.destroy = v4l2pim_destroy,
 	.get_properties = v4l2pim_get_properties
@@ -1190,12 +1190,12 @@ static void __exit v4l2pim_exit(void)
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
 		/* unregister with VCRTCM */
-		V4L2PIM_DEBUG("Calling vcrtcm_pcon_invalidate for "
+		V4L2PIM_DEBUG("Calling vcrtcm_p_invalidate for "
 		"v4l2pim %p, major %d, minor %d\n",
 		v4l2pim_info, v4l2pim_major,
 		v4l2pim_info->minor);
 
-		vcrtcm_pcon_invalidate(V4L2PIM_PIM_NAME,
+		vcrtcm_p_invalidate(V4L2PIM_PIM_NAME,
 					(uint32_t) v4l2pim_info->minor);
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
