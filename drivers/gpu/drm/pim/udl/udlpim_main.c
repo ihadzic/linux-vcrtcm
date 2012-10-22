@@ -67,11 +67,6 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.disable = udlpim_disable
 };
 
-
-struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props = {
-	.xfer_mode = VCRTCM_PUSH_PULL
-};
-
 static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
 static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info);
@@ -157,7 +152,7 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 					usbdev->product,
 					usbdev->serial);
 			pcon_info->funcs = &udlpim_vcrtcm_pcon_funcs;
-			pcon_info->props = &udlpim_vcrtcm_pcon_props;
+			pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
 			pcon_info->cookie = info;
 			pcon_info->local_pconid = (uint32_t) info->minor;
 			info->used = 1;
