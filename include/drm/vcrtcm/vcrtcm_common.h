@@ -30,6 +30,8 @@
 #include <drm/drm_crtc.h>
 #include <linux/dma-buf.h>
 
+#define PCON_DESC_MAXLEN 512
+
 /* framebuffer/CRTC (emulated) registers */
 struct vcrtcm_fb {
 	u32 ioaddr;
@@ -77,7 +79,41 @@ struct vcrtcm_mode {
 
 struct vcrtcm_pcon_info;
 
-/* functional interface to PCON */
+struct pimmgr_pcon_info {
+	char description[PCON_DESC_MAXLEN];
+	struct pim_info *pim;
+	struct vcrtcm_pcon_funcs *funcs;
+	struct vcrtcm_pcon_props *props;
+	void *cookie;
+	int pconid;
+	int local_pconid;
+	int minor; /* -1 if pcon has no user-accessible minor */
+	struct kobject kobj;
+	struct list_head pcon_list;
+};
+
+struct vcrtcm_pcon_properties {
+	int fps;
+	int attached;
+};
+
+/* Each PIM must implement these functions. */
+struct pim_funcs {
+	/* Create a new PCON instance and populate a pimmgr_pcon_info
+	 * structure with information about the new instance.
+	 * Return 1 upon success. Return 0 upon failure.
+	 */
+	int (*instantiate)(struct pimmgr_pcon_info *pcon_info, uint32_t hints);
+
+	/* Deallocate the given PCON instance and free resources used.
+	 * The PIM can assume that the given PCON has been detached
+	 * and removed from VCRTCM before this function is called.
+	 */
+	void (*destroy)(struct pimmgr_pcon_info *pcon_info);
+
+	int (*get_properties)(struct pimmgr_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
+};
+
 struct vcrtcm_pcon_funcs {
 	int (*attach) (struct vcrtcm_pcon_info *pcon_info);
 	int (*detach) (struct vcrtcm_pcon_info *pcon_info);

@@ -35,7 +35,6 @@
 #include "vcrtcm_common.h"
 
 #define PIM_NAME_MAXLEN 33
-#define PCON_DESC_MAXLEN 512
 
 /* setup/config functions */
 int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
@@ -67,25 +66,7 @@ void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 		      struct vcrtcm_push_buffer_descriptor *pbd,
 		      atomic_t *kmalloc_track, atomic_t *page_track);
 
-struct pimmgr_pcon_info;
 struct vcrtcm_pcon_properties;
-
-/* Each PIM must implement these functions. */
-struct pim_funcs {
-	/* Create a new PCON instance and populate a pimmgr_pcon_info
-	 * structure with information about the new instance.
-	 * Return 1 upon success. Return 0 upon failure.
-	 */
-	int (*instantiate)(struct pimmgr_pcon_info *pcon_info, uint32_t hints);
-
-	/* Deallocate the given PCON instance and free resources used.
-	 * The PIM can assume that the given PCON has been detached
-	 * and removed from VCRTCM before this function is called.
-	 */
-	void (*destroy)(struct pimmgr_pcon_info *pcon_info);
-
-	int (*get_properties)(struct pimmgr_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
-};
 
 struct pim_info {
 	char name[PIM_NAME_MAXLEN];
@@ -95,24 +76,6 @@ struct pim_info {
 
 	struct kobject kobj;
 	struct list_head pim_list;
-};
-
-struct pimmgr_pcon_info {
-	char description[PCON_DESC_MAXLEN];
-	struct pim_info *pim;
-	struct vcrtcm_pcon_funcs *funcs;
-	struct vcrtcm_pcon_props *props;
-	void *cookie;
-	int pconid;
-	int local_pconid;
-	int minor; /* -1 if pcon has no user-accessible minor */
-	struct kobject kobj;
-	struct list_head pcon_list;
-};
-
-struct vcrtcm_pcon_properties {
-	int fps;
-	int attached;
 };
 
 /* Called from inside a new PIM to register with vcrtcm. */
