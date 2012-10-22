@@ -68,7 +68,7 @@ void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 		      atomic_t *kmalloc_track, atomic_t *page_track);
 
 struct pimmgr_pcon_info;
-struct pimmgr_pcon_properties;
+struct vcrtcm_pcon_properties;
 
 /* Each PIM must implement these functions. */
 struct pim_funcs {
@@ -84,7 +84,7 @@ struct pim_funcs {
 	 */
 	void (*destroy)(struct pimmgr_pcon_info *pcon_info);
 
-	int (*get_properties)(struct pimmgr_pcon_info *pcon_info, struct pimmgr_pcon_properties *props);
+	int (*get_properties)(struct pimmgr_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
 };
 
 struct pim_info {
@@ -110,10 +110,11 @@ struct pimmgr_pcon_info {
 	struct list_head pcon_list;
 };
 
-struct pimmgr_pcon_properties {
+struct vcrtcm_pcon_properties {
 	int fps;
 	int attached;
 };
+#define pimmgr_pcon_properties vcrtcm_pcon_properties /* temporary, to enable pims to compile */
 
 /* Called from inside a new PIM to register with pimmgr. */
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs);

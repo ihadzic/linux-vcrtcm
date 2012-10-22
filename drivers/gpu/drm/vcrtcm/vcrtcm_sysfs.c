@@ -194,7 +194,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->local_pconid);
 	} else if (attr == &pcon_fps_attr) {
-		struct pimmgr_pcon_properties props;
+		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
 		if (!pcon->pim->funcs.get_properties)
@@ -208,7 +208,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 			return 0;
 		return scnprintf(buf, PAGE_SIZE, "%d\n", props.fps);
 	} else if (attr == &pcon_attached_attr) {
-		struct pimmgr_pcon_properties props;
+		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
 		if (!pcon->pim->funcs.get_properties)
