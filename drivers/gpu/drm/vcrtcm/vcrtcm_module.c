@@ -23,6 +23,7 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include "vcrtcm_private.h"
+#include "pimmgr_private.h"
 
 struct list_head vcrtcm_pcon_list;
 struct mutex vcrtcm_pcon_list_mutex;
@@ -38,8 +39,7 @@ static int __init vcrtcm_init(void)
 	INIT_LIST_HEAD(&vcrtcm_pcon_list);
 
 	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
-	VCRTCM_INFO("module loaded");
-	return 0;
+	return pimmgr_init();
 }
 
 module_init(vcrtcm_init);
@@ -55,6 +55,7 @@ static void __exit vcrtcm_exit(void)
 	 * even if the PCONs have not explicitly given them up
 	 * (we have no other choice)
 	 */
+	pimmgr_exit();
 	mutex_lock(&vcrtcm_pcon_list_mutex);
 	list_for_each_entry_safe(pcon_info_private, tmp,
 				&vcrtcm_pcon_list, list) {

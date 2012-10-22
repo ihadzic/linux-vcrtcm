@@ -66,6 +66,7 @@ int get_pconid(int pimid, int local_pconid);
 int pconid_valid(int pconid);
 int pconid_get_pimid(int pconid);
 int pconid_get_local_pconid(int pconid);
-
+int pimmgr_init(void);
+void pimmgr_exit(void);
 
 #endif

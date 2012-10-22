@@ -44,7 +44,7 @@ static dev_t pimmgr_dev;
 static struct cdev *pimmgr_cdev;
 static struct device *pimmgr_device;
 
-static int pimmgr_init(void)
+int pimmgr_init(void)
 {
 	struct class *vcrtcm_class;
 
@@ -86,7 +86,7 @@ error:
 	return -ENOMEM;
 }
 
-static void pimmgr_exit(void)
+void pimmgr_exit(void)
 {
 	struct pim_info *info, *tmp;
 	struct class *vcrtcm_class;
@@ -116,8 +116,3 @@ static const struct file_operations pimmgr_fops = {
 	.unlocked_ioctl = pimmgr_ioctl,
 };
 
-module_init(pimmgr_init);
-module_exit(pimmgr_exit);
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("PIM Manager");
-MODULE_AUTHOR("William Katsak (william.katsak@alcatel-lucent.com)");
