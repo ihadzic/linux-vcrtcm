@@ -47,11 +47,15 @@ int udlpim_fake_vblank_slack = 1;
 /* Use to generate minor numbers */
 struct vcrtcm_id_generator udlpim_minor_id_generator;
 
+static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+	struct vcrtcm_pcon_properties *props);
+
 struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.attach = udlpim_attach,
 	.detach = udlpim_detach,
 	.set_fb = udlpim_set_fb,
 	.get_fb = udlpim_get_fb,
+	.get_properties = udlpim_get_properties,
 	.dirty_fb = udlpim_dirty_fb,
 	.wait_fb = udlpim_wait_fb,
 	.get_fb_status = udlpim_get_fb_status,
@@ -76,8 +80,7 @@ static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
 
 static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
-	.destroy = udlpim_destroy,
-	.get_properties = udlpim_get_properties
+	.destroy = udlpim_destroy
 };
 
 static int __init udlpim_init(void)
