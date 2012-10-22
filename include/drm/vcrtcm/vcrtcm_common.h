@@ -97,8 +97,6 @@ struct vcrtcm_pcon_properties {
 	int attached;
 };
 
-#define pim_funcs vcrtcm_pim_funcs
-
 /* Each PIM must implement these functions. */
 struct vcrtcm_pim_funcs {
 	/* Create a new PCON instance and populate a pimmgr_pcon_info

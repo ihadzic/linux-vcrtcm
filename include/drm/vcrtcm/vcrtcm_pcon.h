@@ -80,9 +80,6 @@ struct vcrtcm_pim_info {
 	struct list_head pim_list;
 };
 
-#define vcrtcm_pcon_invalidate vcrtcm_p_invalidate
-#define pim_info vcrtcm_pim_info
-
 /* Called from inside a new PIM to register with vcrtcm. */
 int vcrtcm_pim_register(char *name, struct vcrtcm_pim_funcs *funcs);
 
