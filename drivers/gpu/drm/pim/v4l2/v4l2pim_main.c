@@ -52,7 +52,7 @@ static int v4l2pim_instantiate(struct pimmgr_pcon_info *pcon_info,
 							uint32_t hints);
 static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info);
 static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
-				  struct pimmgr_pcon_properties *props);
+				  struct vcrtcm_pcon_properties *props);
 
 struct list_head v4l2pim_info_list;
 int v4l2pim_major = -1;
@@ -1132,7 +1132,7 @@ static void v4l2pim_destroy(struct pimmgr_pcon_info *pcon_info)
 }
 
 static int v4l2pim_get_properties(struct pimmgr_pcon_info *pcon_info,
-				  struct pimmgr_pcon_properties *props)
+				  struct vcrtcm_pcon_properties *props)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
