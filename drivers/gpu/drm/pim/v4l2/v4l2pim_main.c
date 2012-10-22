@@ -1107,7 +1107,7 @@ static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 	pcon_info->minor = v4l2pim_info->minor;
 	pcon_info->funcs = v4l2pim_vcrtcm_pcon_funcs;
 	pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
-	pcon_info->cookie = v4l2pim_info;
+	pcon_info->pcon_cookie = v4l2pim_info;
 	pcon_info->local_pconid = v4l2pim_info->minor;
 
 	return 1;
