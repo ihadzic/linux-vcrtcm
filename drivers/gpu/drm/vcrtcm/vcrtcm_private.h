@@ -98,10 +98,10 @@ extern struct list_head pim_list;
 extern struct mutex pim_list_mutex;
 
 /* Counter for tracking kmallocs. */
-extern atomic_t pimmgr_kmalloc_track;
+extern atomic_t vcrtcm_kmalloc_track;
 
 /* This is the function that handles IOCTL from userspace. */
-long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* Functions to find PIM info structs. */
 struct pim_info *find_pim_info_by_name(char *name);
@@ -112,11 +112,11 @@ struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct pim_info *pim,
 							int local_pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
-void pimmgr_sysfs_init(struct device *pimmgr_device);
+void vcrtcm_sysfs_init(struct device *vcrtcm_device);
 
 /* Functions called from module init to set up/destroy structures */
-int pimmgr_structures_init(void);
-void pimmgr_structures_destroy(void);
+int vcrtcm_structures_init(void);
+void vcrtcm_structures_destroy(void);
 
 /* Functions for managing mappings between pconids and pimids/local_pconids */
 int alloc_pconid(void);

@@ -232,11 +232,11 @@ static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 }
 
 /* Initialize the pimmgr sysfs stuff (called from init). */
-void pimmgr_sysfs_init(struct device *pimmgr_device)
+void vcrtcm_sysfs_init(struct device *vcrtcm_device)
 {
 	int ret = 0;
 
-	if (!pimmgr_device) {
+	if (!vcrtcm_device) {
 		VCRTCM_ERROR("Invalid device, could not set up sysfs...\n");
 		return;
 	}
@@ -246,12 +246,12 @@ void pimmgr_sysfs_init(struct device *pimmgr_device)
 	memset(&empty_type, 0, sizeof(struct kobj_type));
 
 	ret = kobject_init_and_add(&pims_kobj, &empty_type,
-					&pimmgr_device->kobj, "pims");
+					&vcrtcm_device->kobj, "pims");
 	if (ret < 0)
 		VCRTCM_ERROR("Error creating sysfs pim node...\n");
 
 	ret = kobject_init_and_add(&pcons_kobj, &empty_type,
-					&pimmgr_device->kobj, "pcons");
+					&vcrtcm_device->kobj, "pcons");
 	if (ret < 0)
 		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
 }

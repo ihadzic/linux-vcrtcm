@@ -40,7 +40,7 @@ struct pim_info *create_pim_info(char *name, struct pim_funcs *funcs)
 
 	info = (struct pim_info *) vcrtcm_kmalloc(sizeof(struct pim_info),
 							GFP_KERNEL,
-							&pimmgr_kmalloc_track);
+							&vcrtcm_kmalloc_track);
 
 	if (!info)
 		return NULL;
@@ -92,7 +92,7 @@ void update_pim_info(char *name, struct pim_funcs *funcs)
 void destroy_pim_info(struct pim_info *info)
 {
 	if (info)
-		vcrtcm_kfree(info, &pimmgr_kmalloc_track);
+		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
 }
 
 void add_pim_info(struct pim_info *info)
@@ -267,18 +267,18 @@ void pimmgr_pcon_invalidate(char *name, int local_pconid)
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_p_del(pconid);
 	list_del(&pcon->pcon_list);
-	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
+	vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 }
 EXPORT_SYMBOL(pimmgr_pcon_invalidate);
 
 /* Functions for module init to call to set things up. */
-int pimmgr_structures_init()
+int vcrtcm_structures_init()
 {
 	int result = 0;
 	pconid_table = (struct pconid_mapping *) vcrtcm_kmalloc(
 			sizeof(struct pconid_mapping) * MAX_NUM_PCONIDS,
 			GFP_KERNEL,
-			&pimmgr_kmalloc_track);
+			&vcrtcm_kmalloc_track);
 
 	if (!pconid_table)
 		return -ENOMEM;
@@ -288,17 +288,17 @@ int pimmgr_structures_init()
 	result = vcrtcm_id_generator_init(&pconid_generator, MAX_NUM_PCONIDS);
 
 	if (result < 0) {
-		pimmgr_structures_destroy();
+		vcrtcm_structures_destroy();
 		return result;
 	}
 
 	return 0;
 }
 
-void pimmgr_structures_destroy()
+void vcrtcm_structures_destroy()
 {
 	if (pconid_table)
-		vcrtcm_kfree(pconid_table, &pimmgr_kmalloc_track);
+		vcrtcm_kfree(pconid_table, &vcrtcm_kmalloc_track);
 	vcrtcm_id_generator_destroy(&pconid_generator);
 }
 

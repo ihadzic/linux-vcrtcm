@@ -24,7 +24,7 @@
 #include "vcrtcm_sysfs.h"
 
 /* TODO: Need better errors. */
-long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
+long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
@@ -47,7 +47,7 @@ long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	}
 
 	pcon = vcrtcm_kzalloc(sizeof(struct pimmgr_pcon_info), GFP_KERNEL,
-					&pimmgr_kmalloc_track);
+					&vcrtcm_kmalloc_track);
 	if (!pcon) {
 		VCRTCM_INFO("Could not allocate memory\n");
 		dealloc_pconid(new_pconid);
@@ -64,7 +64,7 @@ long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	if (!value) {
 		VCRTCM_INFO("No pcons of type %s available...\n", info->name);
-		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
+		vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 		dealloc_pconid(new_pconid);
 		return -ENODEV;
 	}
@@ -74,7 +74,7 @@ long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	if (vcrtcm_p_add(pcon->funcs, pcon->props, new_pconid, pcon->cookie)) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
-		vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
+		vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 		dealloc_pconid(new_pconid);
 		return -EBUSY;
 	}
@@ -86,7 +86,7 @@ long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	return 0;
 }
 
-long pimmgr_ioctl_destroy_pcon(int pconid)
+long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
@@ -122,32 +122,32 @@ long pimmgr_ioctl_destroy_pcon(int pconid)
 		VCRTCM_INFO("No destroy function...\n");
 
 	list_del(&pcon->pcon_list);
-	vcrtcm_kfree(pcon, &pimmgr_kmalloc_track);
+	vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 	dealloc_pconid(pconid);
 	return 0;
 }
 
-long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct pimmgr_ioctl_args ioctl_args;
+	struct vcrtcm_ioctl_args ioctl_args;
 	long result = 0;
 
 	PIMMGR_DEBUG("IOCTL entered...\n");
 
-	if (!access_ok(VERIFY_READ, arg, sizeof(struct pimmgr_ioctl_args)))
+	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
 
-	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct pimmgr_ioctl_args)))
+	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
 
 	if (cmd == PIMMGR_IOC_INSTANTIATE) {
 		void *ptr = (void *)arg;
 
 		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct pimmgr_ioctl_args)))
+				sizeof(struct vcrtcm_ioctl_args)))
 			return -EFAULT;
 
-		result = pimmgr_ioctl_instantiate_pcon(
+		result = vcrtcm_ioctl_instantiate_pcon(
 						ioctl_args.arg1.pimid,
 						ioctl_args.arg2.hints,
 						&ioctl_args.result1.pconid);
@@ -155,7 +155,7 @@ long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return result;
 
 		if (copy_to_user(ptr, &ioctl_args,
-					sizeof(struct pimmgr_ioctl_args)))
+					sizeof(struct vcrtcm_ioctl_args)))
 			return -EFAULT;
 
 		return 0;
@@ -165,10 +165,10 @@ long pimmgr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		void *ptr = (void *)arg;
 
 		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct pimmgr_ioctl_args)))
+				sizeof(struct vcrtcm_ioctl_args)))
 			return -EFAULT;
 
-		result = pimmgr_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
+		result = vcrtcm_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
 
 		if (result)
 			return result;

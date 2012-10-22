@@ -40,15 +40,15 @@
 #include "vcrtcm_sysfs.h"
 
 int pimmgr_debug = 1;
-atomic_t pimmgr_kmalloc_track = ATOMIC_INIT(0);
+atomic_t vcrtcm_kmalloc_track = ATOMIC_INIT(0);
 
-static const struct file_operations pimmgr_fops;
+static const struct file_operations vcrtcm_fops;
 struct list_head	pim_list;
 struct mutex		pim_list_mutex;
 
-static dev_t pimmgr_dev;
-static struct cdev *pimmgr_cdev;
-static struct device *pimmgr_device;
+static dev_t vcrtcm_dev;
+static struct cdev *vcrtcm_cdev;
+static struct device *vcrtcm_device;
 
 struct list_head vcrtcm_pcon_list;
 struct mutex vcrtcm_pcon_list_mutex;
@@ -118,37 +118,37 @@ int pimmgr_init(void)
 	INIT_LIST_HEAD(&pim_list);
 	mutex_init(&pim_list_mutex);
 
-	pimmgr_cdev = cdev_alloc();
+	vcrtcm_cdev = cdev_alloc();
 
-	if (!pimmgr_cdev)
+	if (!vcrtcm_cdev)
 		goto error;
 
 	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (!vcrtcm_class)
 		goto error;
 
-	alloc_chrdev_region(&pimmgr_dev, 0, 1, "pimmgr");
+	alloc_chrdev_region(&vcrtcm_dev, 0, 1, "pimmgr");
 
-	pimmgr_cdev->ops = &pimmgr_fops;
-	pimmgr_cdev->owner = THIS_MODULE;
-	cdev_add(pimmgr_cdev, pimmgr_dev, 1);
+	vcrtcm_cdev->ops = &vcrtcm_fops;
+	vcrtcm_cdev->owner = THIS_MODULE;
+	cdev_add(vcrtcm_cdev, vcrtcm_dev, 1);
 
-	pimmgr_device = device_create(vcrtcm_class, NULL, pimmgr_dev,
+	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
 							NULL, "pimmgr");
-	pimmgr_sysfs_init(pimmgr_device);
+	vcrtcm_sysfs_init(vcrtcm_device);
 
-	if (pimmgr_structures_init() < 0)
+	if (vcrtcm_structures_init() < 0)
 		goto error;
 
 	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
 	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("pimmgr driver loaded, major %d, minor %d\n",
-					MAJOR(pimmgr_dev), MINOR(pimmgr_dev));
+					MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
 
 	return 0;
 error:
-	if (pimmgr_cdev)
-		cdev_del(pimmgr_cdev);
+	if (vcrtcm_cdev)
+		cdev_del(vcrtcm_cdev);
 
 	return -ENOMEM;
 }
@@ -160,27 +160,27 @@ void pimmgr_exit(void)
 
 	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
 		list_del(&info->pim_list);
-		vcrtcm_kfree(info, &pimmgr_kmalloc_track);
+		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
 	}
 
 	vcrtcm_class = vcrtcm_sysfs_get_class();
 	if (vcrtcm_class)
-		device_destroy(vcrtcm_class, pimmgr_dev);
+		device_destroy(vcrtcm_class, vcrtcm_dev);
 
-	if (pimmgr_cdev)
-		cdev_del(pimmgr_cdev);
+	if (vcrtcm_cdev)
+		cdev_del(vcrtcm_cdev);
 
-	unregister_chrdev_region(pimmgr_dev, 1);
+	unregister_chrdev_region(vcrtcm_dev, 1);
 
-	pimmgr_structures_destroy();
+	vcrtcm_structures_destroy();
 
-	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&pimmgr_kmalloc_track));
+	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&vcrtcm_kmalloc_track));
 	VCRTCM_INFO("pimmgr unloaded\n");
 }
 
-static const struct file_operations pimmgr_fops = {
+static const struct file_operations vcrtcm_fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = pimmgr_ioctl,
+	.unlocked_ioctl = vcrtcm_ioctl,
 };
 
 module_exit(vcrtcm_exit);

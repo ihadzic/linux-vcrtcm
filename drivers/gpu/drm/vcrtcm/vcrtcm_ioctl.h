@@ -25,7 +25,7 @@
 #define PIMMGR_IOC_INSTANTIATE _IOW(PIMMGR_MAGIC, 1, int)
 #define PIMMGR_IOC_DESTROY _IOW(PIMMGR_MAGIC, 2, int)
 
-struct pimmgr_ioctl_args {
+struct vcrtcm_ioctl_args {
 	union {
 		int pimid;
 		int pconid;
