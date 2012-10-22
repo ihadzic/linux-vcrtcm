@@ -79,7 +79,7 @@ static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info);
 static int udlpim_get_properties(struct pimmgr_pcon_info *pcon_info,
 				 struct vcrtcm_pcon_properties *props);
 
-static struct pim_funcs udlpim_pim_funcs = {
+static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
 	.destroy = udlpim_destroy,
 	.get_properties = udlpim_get_properties
