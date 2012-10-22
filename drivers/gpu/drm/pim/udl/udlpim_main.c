@@ -119,7 +119,7 @@ static int __init udlpim_init(void)
 		return ret;
 	}
 
-	pimmgr_pim_register("udl", &udlpim_pim_funcs);
+	vcrtcm_pim_register("udl", &udlpim_pim_funcs);
 
 	return 0;
 }
@@ -137,7 +137,7 @@ static void __exit udlpim_exit(void)
 	}
 
 	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
-	pimmgr_pim_unregister("udl");
+	vcrtcm_pim_unregister("udl");
 
 	return;
 }
