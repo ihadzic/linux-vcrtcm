@@ -149,8 +149,6 @@ struct vcrtcm_pcon_info {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	enum vcrtcm_xfer_mode xfer_mode;
-	/* TBD merge these cookies */
-	void *cookie;
 	void *pcon_cookie;
 	int pconid; /* index into table maintained by vcrtcm */
 	int local_pconid;

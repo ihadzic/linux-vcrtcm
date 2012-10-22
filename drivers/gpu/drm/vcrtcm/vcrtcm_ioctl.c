@@ -72,7 +72,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
 
-	if (vcrtcm_p_add(&pcon->funcs, pcon->xfer_mode, new_pconid, pcon->cookie)) {
+	if (vcrtcm_p_add(&pcon->funcs, pcon->xfer_mode, new_pconid, pcon->pcon_cookie)) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
 		vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 		dealloc_pconid(new_pconid);
