@@ -1177,7 +1177,7 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
 
 	VCRTCM_INFO("Registering with pimmgr\n");
-	pimmgr_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs);
+	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs);
 
 	VCRTCM_INFO("v4l2 PCON Loaded\n");
 
@@ -1190,12 +1190,12 @@ static void __exit v4l2pim_exit(void)
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
 		/* unregister with VCRTCM */
-		V4L2PIM_DEBUG("Calling pimmgr_pcon_invalidate for "
+		V4L2PIM_DEBUG("Calling vcrtcm_pcon_invalidate for "
 		"v4l2pim %p, major %d, minor %d\n",
 		v4l2pim_info, v4l2pim_major,
 		v4l2pim_info->minor);
 
-		pimmgr_pcon_invalidate(V4L2PIM_PIM_NAME,
+		vcrtcm_pcon_invalidate(V4L2PIM_PIM_NAME,
 					(uint32_t) v4l2pim_info->minor);
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
