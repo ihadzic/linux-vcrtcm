@@ -58,30 +58,56 @@ static int __init vcrtcm_init(void)
 {
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-
 	mutex_init(&vcrtcm_pcon_list_mutex);
 	INIT_LIST_HEAD(&vcrtcm_pcon_list);
-
 	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
-	return pimmgr_init();
+	INIT_LIST_HEAD(&pim_list);
+	mutex_init(&pim_list_mutex);
+	vcrtcm_cdev = cdev_alloc();
+	if (!vcrtcm_cdev)
+		return -ENOMEM;
+	alloc_chrdev_region(&vcrtcm_dev, 0, 1, "pimmgr");
+	vcrtcm_cdev->ops = &vcrtcm_fops;
+	vcrtcm_cdev->owner = THIS_MODULE;
+	cdev_add(vcrtcm_cdev, vcrtcm_dev, 1);
+	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
+							NULL, "pimmgr");
+	vcrtcm_sysfs_init(vcrtcm_device);
+	if (vcrtcm_structures_init() < 0) {
+		cdev_del(vcrtcm_cdev);
+		return -ENOMEM;
+	}
+	VCRTCM_INFO("driver loaded, major %d, minor %d\n",
+					MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
+	return 0;
 }
 
 module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	struct vcrtcm_pcon_info_private *pcon_info_private, *tmp;
+	struct vcrtcm_pcon_info_private *pcon_info_private, *priv_tmp;
+	struct pim_info *info, *info_tmp;
 
 	VCRTCM_INFO("unloading module");
+	list_for_each_entry_safe(info, info_tmp, &pim_list, pim_list) {
+		list_del(&info->pim_list);
+		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
+	}
+	if (vcrtcm_class)
+		device_destroy(vcrtcm_class, vcrtcm_dev);
+	if (vcrtcm_cdev)
+		cdev_del(vcrtcm_cdev);
+	unregister_chrdev_region(vcrtcm_dev, 1);
+	vcrtcm_structures_destroy();
 
 	/*
 	 * any remaining virtual CRTC must now be detached and destroyed
 	 * even if the PCONs have not explicitly given them up
 	 * (we have no other choice)
 	 */
-	pimmgr_exit();
 	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_for_each_entry_safe(pcon_info_private, tmp,
+	list_for_each_entry_safe(pcon_info_private, priv_tmp,
 				&vcrtcm_pcon_list, list) {
 		mutex_lock(&pcon_info_private->pcon_info.mutex);
 		VCRTCM_INFO("removing pcon %u\n",
@@ -107,74 +133,7 @@ static void __exit vcrtcm_exit(void)
 		class_destroy(vcrtcm_class);
 
 	VCRTCM_INFO("all virtual crtcs gone");
-
-}
-
-int pimmgr_init(void)
-{
-	struct class *vcrtcm_class;
-
-	INIT_LIST_HEAD(&pim_list);
-	mutex_init(&pim_list_mutex);
-
-	vcrtcm_cdev = cdev_alloc();
-
-	if (!vcrtcm_cdev)
-		goto error;
-
-	vcrtcm_class = vcrtcm_sysfs_get_class();
-	if (!vcrtcm_class)
-		goto error;
-
-	alloc_chrdev_region(&vcrtcm_dev, 0, 1, "pimmgr");
-
-	vcrtcm_cdev->ops = &vcrtcm_fops;
-	vcrtcm_cdev->owner = THIS_MODULE;
-	cdev_add(vcrtcm_cdev, vcrtcm_dev, 1);
-
-	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
-							NULL, "pimmgr");
-	vcrtcm_sysfs_init(vcrtcm_device);
-
-	if (vcrtcm_structures_init() < 0)
-		goto error;
-
-	VCRTCM_INFO("Bell Labs PIM Manager (pimmgr)\n");
-	VCRTCM_INFO("Copyright (C) 2012 Alcatel-Lucent, Inc.\n");
-	VCRTCM_INFO("pimmgr driver loaded, major %d, minor %d\n",
-					MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
-
-	return 0;
-error:
-	if (vcrtcm_cdev)
-		cdev_del(vcrtcm_cdev);
-
-	return -ENOMEM;
-}
-
-void pimmgr_exit(void)
-{
-	struct pim_info *info, *tmp;
-	struct class *vcrtcm_class;
-
-	list_for_each_entry_safe(info, tmp, &pim_list, pim_list) {
-		list_del(&info->pim_list);
-		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
-	}
-
-	vcrtcm_class = vcrtcm_sysfs_get_class();
-	if (vcrtcm_class)
-		device_destroy(vcrtcm_class, vcrtcm_dev);
-
-	if (vcrtcm_cdev)
-		cdev_del(vcrtcm_cdev);
-
-	unregister_chrdev_region(vcrtcm_dev, 1);
-
-	vcrtcm_structures_destroy();
-
 	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&vcrtcm_kmalloc_track));
-	VCRTCM_INFO("pimmgr unloaded\n");
 }
 
 static const struct file_operations vcrtcm_fops = {
