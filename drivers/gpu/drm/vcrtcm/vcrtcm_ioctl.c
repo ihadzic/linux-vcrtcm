@@ -19,7 +19,6 @@
 
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include <vcrtcm/pimmgr.h>
 #include "vcrtcm_private.h"
 #include "vcrtcm_ioctl.h"
 #include "vcrtcm_sysfs.h"
