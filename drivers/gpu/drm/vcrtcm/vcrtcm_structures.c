@@ -196,7 +196,7 @@ int pconid_get_local_pconid(int pconid)
 }
 
 /* Functions that are exported for PIMs to call */
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs)
+int vcrtcm_pim_register(char *name, struct pim_funcs *funcs)
 {
 	struct pim_info *info;
 
@@ -217,9 +217,9 @@ int pimmgr_pim_register(char *name, struct pim_funcs *funcs)
 
 	return 1;
 }
-EXPORT_SYMBOL(pimmgr_pim_register);
+EXPORT_SYMBOL(vcrtcm_pim_register);
 
-void pimmgr_pim_unregister(char *name)
+void vcrtcm_pim_unregister(char *name)
 {
 	struct pim_info *info = find_pim_info_by_name(name);
 	struct pimmgr_pcon_info *pcon, *tmp;
@@ -233,18 +233,18 @@ void pimmgr_pim_unregister(char *name)
 				&info->active_pcon_list, pcon_list) {
 		VCRTCM_ERROR("PIM %s's PCON with local id %i "
 			"was not invalidated before calling "
-			"pimmgr_pim_unregister(). Doing that now...\n",
+			"vcrtcm_pim_unregister(). Doing that now...\n",
 			name, pcon->local_pconid);
-		pimmgr_pcon_invalidate(name, pcon->local_pconid);
+		vcrtcm_pcon_invalidate(name, pcon->local_pconid);
 	}
 
 	remove_pim_info(info);
 	vcrtcm_sysfs_del_pim(info);
 	destroy_pim_info(info);
 }
-EXPORT_SYMBOL(pimmgr_pim_unregister);
+EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
-void pimmgr_pcon_invalidate(char *name, int local_pconid)
+void vcrtcm_pcon_invalidate(char *name, int local_pconid)
 {
 	struct pim_info *info;
 	struct pimmgr_pcon_info *pcon;
@@ -269,7 +269,7 @@ void pimmgr_pcon_invalidate(char *name, int local_pconid)
 	list_del(&pcon->pcon_list);
 	vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 }
-EXPORT_SYMBOL(pimmgr_pcon_invalidate);
+EXPORT_SYMBOL(vcrtcm_pcon_invalidate);
 
 /* Functions for module init to call to set things up. */
 int vcrtcm_structures_init()

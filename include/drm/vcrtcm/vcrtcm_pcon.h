@@ -116,13 +116,16 @@ struct vcrtcm_pcon_properties {
 };
 
 /* Called from inside a new PIM to register with pimmgr. */
-int pimmgr_pim_register(char *name, struct pim_funcs *funcs);
+int vcrtcm_pim_register(char *name, struct pim_funcs *funcs);
+#define pimmgr_pim_register vcrtcm_pim_register /* to enable pims to compile */
 
 /* Called from inside a new PIM to unregister from pimmgr. */
-void pimmgr_pim_unregister(char *name);
+void vcrtcm_pim_unregister(char *name);
+#define pimmgr_pim_unregister vcrtcm_pim_unregister /* to enable pims to compile */
 
 /* Called from inside a PIM if a PCON becomes invalid */
 /* (due to disconnect, etc.) */
-void pimmgr_pcon_invalidate(char *name, int local_pconid);
+void vcrtcm_pcon_invalidate(char *name, int local_pconid);
+#define pimmgr_pcon_invalidate vcrtcm_pcon_invalidate /* to enable pims to compile */
 
 #endif
