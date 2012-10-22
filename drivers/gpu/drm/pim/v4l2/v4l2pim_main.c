@@ -947,6 +947,7 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 	.detach = v4l2pim_detach,
 	.set_fb = v4l2pim_set_fb,
 	.get_fb = v4l2pim_get_fb,
+	.get_properties = v4l2pim_get_properties,
 	.dirty_fb = v4l2pim_dirty_fb,
 	.wait_fb = v4l2pim_wait_fb,
 	.get_fb_status = v4l2pim_get_fb_status,
@@ -961,8 +962,7 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 
 static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 	.instantiate = v4l2pim_instantiate,
-	.destroy = v4l2pim_destroy,
-	.get_properties = v4l2pim_get_properties
+	.destroy = v4l2pim_destroy
 };
 
 static struct v4l2pim_info *v4l2pim_create_minor(void)
