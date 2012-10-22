@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pcon.h>
-#include <vcrtcm/pimmgr.h>
 
 #include "udlpim.h"
 #include "udlpim_vcrtcm.h"
