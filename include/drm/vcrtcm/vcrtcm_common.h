@@ -80,7 +80,6 @@ struct vcrtcm_mode {
 struct vcrtcm_pcon_info;
 struct pimmgr_pcon_info;
 struct vcrtcm_pcon_properties;
-struct vcrtcm_pcon_props;
 
 /* every PIM must implement these functions */
 struct vcrtcm_pim_funcs {
@@ -137,13 +136,9 @@ enum vcrtcm_xfer_mode {
 
 /* describes properties of the attached PCON */
 /* that GPU needs to know about */
-/* TBD merge these */
 struct vcrtcm_pcon_properties {
 	int fps;
 	int attached;
-};
-struct vcrtcm_pcon_props {
-	enum vcrtcm_xfer_mode xfer_mode;
 };
 
 /* TBD merge pimmgr_pcon_info and vcrtcm_pcon_info */
@@ -151,7 +146,7 @@ struct pimmgr_pcon_info {
 	char description[PCON_DESC_MAXLEN];
 	struct vcrtcm_pim_info *pim;
 	struct vcrtcm_pcon_funcs *funcs;
-	struct vcrtcm_pcon_props *props;
+	enum vcrtcm_xfer_mode xfer_mode;
 	void *cookie;
 	int pconid;
 	int local_pconid;
@@ -167,7 +162,7 @@ struct pimmgr_pcon_info {
 struct vcrtcm_pcon_info {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
-	struct vcrtcm_pcon_props props;
+	enum vcrtcm_xfer_mode xfer_mode;
 	void *pcon_cookie;
 	/* This is an index into a table maintained by pimmgr. */
 	int pconid;

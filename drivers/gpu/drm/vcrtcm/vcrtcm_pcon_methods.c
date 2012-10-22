@@ -221,7 +221,7 @@ EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
  * generic PCON function is executed)
  */
 int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
-		  struct vcrtcm_pcon_props *pcon_props,
+		  enum vcrtcm_xfer_mode xfer_mode,
 		  int pconid, void *pcon_cookie)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private;
@@ -238,7 +238,7 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 				       "refreshing its implementation\n",
 				       pcon_info_private->pcon_info.pconid);
 			pcon_info_private->pcon_info.funcs = *pcon_funcs;
-			pcon_info_private->pcon_info.props = *pcon_props;
+			pcon_info_private->pcon_info.xfer_mode = xfer_mode;
 			mutex_unlock(&pcon_info_private->pcon_info.mutex);
 			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return 0;
@@ -262,7 +262,7 @@ int vcrtcm_p_add(struct vcrtcm_pcon_funcs *pcon_funcs,
 	spin_lock_init(&pcon_info_private->lock);
 	mutex_init(&pcon_info_private->pcon_info.mutex);
 	pcon_info_private->pcon_info.funcs = *pcon_funcs;
-	pcon_info_private->pcon_info.props = *pcon_props;
+	pcon_info_private->pcon_info.xfer_mode = xfer_mode;
 
 	/* populate the info structure and link it to the PCON structure */
 	pcon_info_private->status = 0;

@@ -59,8 +59,8 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 	unsigned int tmp;
 
 	if (radeon_crtc->vcrtcm_pcon_info) {
-		struct vcrtcm_pcon_props *pcon_props =
-			&radeon_crtc->vcrtcm_pcon_info->props;
+		enum vcrtcm_xfer_mode xfer_mode =
+			radeon_crtc->vcrtcm_pcon_info->xfer_mode;
 		DRM_INFO("crtc %d PCON attached, calling vcrtcm_g_set_fb\n",
 			 radeon_crtc->crtc_id);
 		radeon_crtc->vcrtcm_push_fb = fb;
@@ -84,7 +84,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 		 * it also may change when we start doing tiling and if
 		 * we need to align to the tile boundary
 		 */
-		if (pcon_props->xfer_mode == VCRTCM_PEER_PULL)
+		if (xfer_mode == VCRTCM_PEER_PULL)
 			vcrtcm_fb.viewport_y = y;
 		else
 			vcrtcm_fb.viewport_y = 0;

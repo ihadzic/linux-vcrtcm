@@ -38,7 +38,7 @@
 
 /* setup/config functions */
 int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
-		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
+		  enum vcrtcm_xfer_mode xfer_mode,
 		  uint32_t pconid, void *pcon_cookie);
 /* TBD merge these two functions */
 int vcrtcm_p_del(uint32_t pconid);
