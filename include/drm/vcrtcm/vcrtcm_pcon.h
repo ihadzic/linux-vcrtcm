@@ -40,7 +40,9 @@
 int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
 		  struct vcrtcm_pcon_props *vcrtcm_pcon_props,
 		  uint32_t pconid, void *pcon_cookie);
+/* TBD merge these two functions */
 int vcrtcm_p_del(uint32_t pconid);
+void vcrtcm_p_invalidate(char *name, int local_pconid);
 
 /* functions for use by PCON in operational state */
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
@@ -68,24 +70,23 @@ void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 
 struct vcrtcm_pcon_properties;
 
-struct pim_info {
+struct vcrtcm_pim_info {
 	char name[PIM_NAME_MAXLEN];
 	int id;
-	struct pim_funcs funcs;
+	struct vcrtcm_pim_funcs funcs;
 	struct list_head active_pcon_list;
 
 	struct kobject kobj;
 	struct list_head pim_list;
 };
 
+#define vcrtcm_pcon_invalidate vcrtcm_p_invalidate
+#define pim_info vcrtcm_pim_info
+
 /* Called from inside a new PIM to register with vcrtcm. */
-int vcrtcm_pim_register(char *name, struct pim_funcs *funcs);
+int vcrtcm_pim_register(char *name, struct vcrtcm_pim_funcs *funcs);
 
 /* Called from inside a new PIM to unregister from vcrtcm. */
 void vcrtcm_pim_unregister(char *name);
-
-/* Called from inside a PIM if a PCON becomes invalid */
-/* (due to disconnect, etc.) */
-void vcrtcm_pcon_invalidate(char *name, int local_pconid);
 
 #endif

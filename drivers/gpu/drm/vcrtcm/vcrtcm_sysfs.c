@@ -145,8 +145,8 @@ static struct kobj_type pcon_type = {
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
-	struct pim_info *pim = (struct pim_info *)
-				container_of(kobj, struct pim_info, kobj);
+	struct vcrtcm_pim_info *pim = (struct vcrtcm_pim_info *)
+				container_of(kobj, struct vcrtcm_pim_info, kobj);
 
 	if (!pim)
 		return 0;
@@ -176,7 +176,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
 	struct pimmgr_pcon_info *pcon;
-	struct pim_info *pim;
+	struct vcrtcm_pim_info *pim;
 
 	pcon = (struct pimmgr_pcon_info *)
 			container_of(kobj, struct pimmgr_pcon_info, kobj);
@@ -257,7 +257,7 @@ void vcrtcm_sysfs_init(struct device *vcrtcm_device)
 }
 
 /* Add a PIM's info to sysfs. */
-int vcrtcm_sysfs_add_pim(struct pim_info *pim)
+int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim)
 {
 	int ret = 0;
 
@@ -274,7 +274,7 @@ int vcrtcm_sysfs_add_pim(struct pim_info *pim)
 }
 
 /* Delete a PIM's info from sysfs. */
-void vcrtcm_sysfs_del_pim(struct pim_info *pim)
+void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim)
 {
 	if (!pim)
 		return;

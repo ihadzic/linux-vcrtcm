@@ -25,8 +25,8 @@
 #include <linux/sysfs.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 
-int vcrtcm_sysfs_add_pim(struct pim_info *pim);
-void vcrtcm_sysfs_del_pim(struct pim_info *pim);
+int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim);
+void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim);
 int vcrtcm_sysfs_add_pcon(struct pimmgr_pcon_info *pcon);
 void vcrtcm_sysfs_del_pcon(struct pimmgr_pcon_info *pcon);
 

@@ -26,7 +26,7 @@
 /* TODO: Need better errors. */
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
-	struct pim_info *info;
+	struct vcrtcm_pim_info *info;
 	struct pimmgr_pcon_info *pcon;
 	int new_pconid;
 	int value = 0;
@@ -88,7 +88,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
-	struct pim_info *info;
+	struct vcrtcm_pim_info *info;
 	struct pimmgr_pcon_info *pcon;
 	int pimid;
 	int local_pconid;

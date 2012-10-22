@@ -87,7 +87,7 @@ module_init(vcrtcm_init);
 static void __exit vcrtcm_exit(void)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private, *priv_tmp;
-	struct pim_info *info, *info_tmp;
+	struct vcrtcm_pim_info *info, *info_tmp;
 
 	VCRTCM_INFO("unloading module");
 	list_for_each_entry_safe(info, info_tmp, &pim_list, pim_list) {

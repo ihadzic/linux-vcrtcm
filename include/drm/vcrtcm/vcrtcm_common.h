@@ -81,7 +81,7 @@ struct vcrtcm_pcon_info;
 
 struct pimmgr_pcon_info {
 	char description[PCON_DESC_MAXLEN];
-	struct pim_info *pim;
+	struct vcrtcm_pim_info *pim;
 	struct vcrtcm_pcon_funcs *funcs;
 	struct vcrtcm_pcon_props *props;
 	void *cookie;
@@ -97,8 +97,10 @@ struct vcrtcm_pcon_properties {
 	int attached;
 };
 
+#define pim_funcs vcrtcm_pim_funcs
+
 /* Each PIM must implement these functions. */
-struct pim_funcs {
+struct vcrtcm_pim_funcs {
 	/* Create a new PCON instance and populate a pimmgr_pcon_info
 	 * structure with information about the new instance.
 	 * Return 1 upon success. Return 0 upon failure.
