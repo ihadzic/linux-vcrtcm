@@ -80,8 +80,6 @@ extern struct class *vcrtcm_class;
 #ifndef __PIMMGR_PRIVATE_H__
 #define __PIMMGR_PRIVATE_H__
 
-#define PIMMGR_DEBUG(fmt, args...) VCRTCM_DBG(1, pimmgr_debug, fmt, ## args)
-
 #define MAX_NUM_PCONIDS 1024
 
 struct pconid_mapping {
@@ -89,9 +87,6 @@ struct pconid_mapping {
 	int local_pconid;
 	int valid;
 };
-
-/* Debug flag */
-extern int pimmgr_debug;
 
 /* List of registered PIMs */
 extern struct list_head pim_list;

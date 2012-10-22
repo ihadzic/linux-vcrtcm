@@ -132,7 +132,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct vcrtcm_ioctl_args ioctl_args;
 	long result = 0;
 
-	PIMMGR_DEBUG("IOCTL entered...\n");
+	VCRTCM_INFO("IOCTL entered...\n");
 
 	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;

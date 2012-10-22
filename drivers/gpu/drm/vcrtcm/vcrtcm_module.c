@@ -39,7 +39,6 @@
 #include "vcrtcm_ioctl.h"
 #include "vcrtcm_sysfs.h"
 
-int pimmgr_debug = 1;
 atomic_t vcrtcm_kmalloc_track = ATOMIC_INIT(0);
 
 static const struct file_operations vcrtcm_fops;
