@@ -67,11 +67,11 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.disable = udlpim_disable
 };
 
-static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
+static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints);
-static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info);
+static void udlpim_destroy(struct vcrtcm_pcon_info *pcon_info);
 
-static int udlpim_get_properties(struct pimmgr_pcon_info *pcon_info,
+static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
 				 struct vcrtcm_pcon_properties *props);
 
 static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
@@ -137,7 +137,7 @@ static void __exit udlpim_exit(void)
 	return;
 }
 
-static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
+static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints)
 {
 	struct udlpim_info *info;
@@ -151,7 +151,7 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 					usbdev->manufacturer,
 					usbdev->product,
 					usbdev->serial);
-			pcon_info->funcs = &udlpim_vcrtcm_pcon_funcs;
+			pcon_info->funcs = udlpim_vcrtcm_pcon_funcs;
 			pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
 			pcon_info->cookie = info;
 			pcon_info->local_pconid = (uint32_t) info->minor;
@@ -163,7 +163,7 @@ static int udlpim_instantiate(struct pimmgr_pcon_info *pcon_info,
 	return 0;
 }
 
-static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info)
+static void udlpim_destroy(struct vcrtcm_pcon_info *pcon_info)
 {
 	struct udlpim_info *info;
 
@@ -175,7 +175,7 @@ static void udlpim_destroy(struct pimmgr_pcon_info *pcon_info)
 	}
 }
 
-static int udlpim_get_properties(struct pimmgr_pcon_info *pcon_info,
+static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
 				 struct vcrtcm_pcon_properties *props)
 {
 	struct udlpim_info *info;
