@@ -93,9 +93,6 @@ struct vcrtcm_pim_funcs {
 	 * and removed from VCRTCM before this function is called.
 	 */
 	void (*destroy)(struct vcrtcm_pcon_info *pcon_info);
-
-	/* TBD move this to pcon_funcs */
-	int (*get_properties)(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
 };
 
 struct vcrtcm_pcon_funcs {
@@ -126,6 +123,7 @@ struct vcrtcm_pcon_funcs {
 	int (*check_mode) (struct vcrtcm_pcon_info *pcon_info,
 			   struct vcrtcm_mode *mode, int *status);
 	void (*disable) (struct vcrtcm_pcon_info *pcon_info);
+	int (*get_properties)(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
 };
 
 enum vcrtcm_xfer_mode {
