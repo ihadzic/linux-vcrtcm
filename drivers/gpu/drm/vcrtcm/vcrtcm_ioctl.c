@@ -27,7 +27,7 @@
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
 	struct vcrtcm_pim_info *info;
-	struct pimmgr_pcon_info *pcon;
+	struct vcrtcm_pcon_info *pcon;
 	int new_pconid;
 	int value = 0;
 
@@ -46,7 +46,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		return -EINVAL;
 	}
 
-	pcon = vcrtcm_kzalloc(sizeof(struct pimmgr_pcon_info), GFP_KERNEL,
+	pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon_info), GFP_KERNEL,
 					&vcrtcm_kmalloc_track);
 	if (!pcon) {
 		VCRTCM_INFO("Could not allocate memory\n");
@@ -72,7 +72,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
 
-	if (vcrtcm_p_add(pcon->funcs, pcon->xfer_mode, new_pconid, pcon->cookie)) {
+	if (vcrtcm_p_add(&pcon->funcs, pcon->xfer_mode, new_pconid, pcon->cookie)) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
 		vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 		dealloc_pconid(new_pconid);
@@ -89,7 +89,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
 	struct vcrtcm_pim_info *info;
-	struct pimmgr_pcon_info *pcon;
+	struct vcrtcm_pcon_info *pcon;
 	int pimid;
 	int local_pconid;
 	int r = 0;
@@ -106,7 +106,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (!info)
 		return -EINVAL;
 
-	pcon = find_pimmgr_pcon_info(info, local_pconid);
+	pcon = find_pcon_info(info, local_pconid);
 	if (!pcon)
 		return -EINVAL;
 

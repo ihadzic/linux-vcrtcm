@@ -111,10 +111,10 @@ void remove_pim_info(struct vcrtcm_pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct vcrtcm_pim_info *pim,
+struct vcrtcm_pcon_info *find_pcon_info(struct vcrtcm_pim_info *pim,
 							int local_pconid)
 {
-	struct pimmgr_pcon_info *pcon;
+	struct vcrtcm_pcon_info *pcon;
 
 	if (!pim)
 		return NULL;
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(vcrtcm_pim_register);
 void vcrtcm_pim_unregister(char *name)
 {
 	struct vcrtcm_pim_info *info = find_pim_info_by_name(name);
-	struct pimmgr_pcon_info *pcon, *tmp;
+	struct vcrtcm_pcon_info *pcon, *tmp;
 
 	if (!info)
 		return;
@@ -247,14 +247,14 @@ EXPORT_SYMBOL(vcrtcm_pim_unregister);
 void vcrtcm_p_invalidate(char *name, int local_pconid)
 {
 	struct vcrtcm_pim_info *info;
-	struct pimmgr_pcon_info *pcon;
+	struct vcrtcm_pcon_info *pcon;
 	int pconid;
 
 	info = find_pim_info_by_name(name);
 	if (!info)
 		return;
 
-	pcon = find_pimmgr_pcon_info(info, local_pconid);
+	pcon = find_pcon_info(info, local_pconid);
 	if (!pcon)
 		return;
 

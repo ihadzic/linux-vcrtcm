@@ -78,24 +78,24 @@ struct vcrtcm_mode {
 #define VCRTCM_MODE_BAD 1
 
 struct vcrtcm_pcon_info;
-struct pimmgr_pcon_info;
 struct vcrtcm_pcon_properties;
 
 /* every PIM must implement these functions */
 struct vcrtcm_pim_funcs {
-	/* Create a new PCON instance and populate a pimmgr_pcon_info
+	/* Create a new PCON instance and populate a vcrtcm_pcon_info
 	 * structure with information about the new instance.
 	 * Return 1 upon success. Return 0 upon failure.
 	 */
-	int (*instantiate)(struct pimmgr_pcon_info *pcon_info, uint32_t hints);
+	int (*instantiate)(struct vcrtcm_pcon_info *pcon_info, uint32_t hints);
 
 	/* Deallocate the given PCON instance and free resources used.
 	 * The PIM can assume that the given PCON has been detached
 	 * and removed from VCRTCM before this function is called.
 	 */
-	void (*destroy)(struct pimmgr_pcon_info *pcon_info);
+	void (*destroy)(struct vcrtcm_pcon_info *pcon_info);
 
-	int (*get_properties)(struct pimmgr_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
+	/* TBD move this to pcon_funcs */
+	int (*get_properties)(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_pcon_properties *props);
 };
 
 struct vcrtcm_pcon_funcs {
@@ -141,31 +141,24 @@ struct vcrtcm_pcon_properties {
 	int attached;
 };
 
-/* TBD merge pimmgr_pcon_info and vcrtcm_pcon_info */
-struct pimmgr_pcon_info {
-	char description[PCON_DESC_MAXLEN];
-	struct vcrtcm_pim_info *pim;
-	struct vcrtcm_pcon_funcs *funcs;
-	enum vcrtcm_xfer_mode xfer_mode;
-	void *cookie;
-	int pconid;
-	int local_pconid;
-	int minor; /* -1 if pcon has no user-accessible minor */
-	struct kobject kobj;
-	struct list_head pcon_list;
-};
-
 /* everything that vcrtcm knows about a PCON */
 /* The PCON registers this structure by calling vcrtcm_hw_add() */
 /* The GPU driver interacts with the PCON by calling the */
 /* vcrtcm_pcon_funcs provided in this structure */
 struct vcrtcm_pcon_info {
+	char description[PCON_DESC_MAXLEN];
+	struct vcrtcm_pim_info *pim;
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	enum vcrtcm_xfer_mode xfer_mode;
+	/* TBD merge these cookies */
+	void *cookie;
 	void *pcon_cookie;
-	/* This is an index into a table maintained by pimmgr. */
-	int pconid;
+	int pconid; /* index into table maintained by vcrtcm */
+	int local_pconid;
+	int minor; /* -1 if pcon has no user-accessible minor */
+	struct kobject kobj;
+	struct list_head pcon_list;
 };
 
 /* descriptor for push buffer; when push-method is used */

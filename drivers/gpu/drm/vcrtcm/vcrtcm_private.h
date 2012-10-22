@@ -103,7 +103,7 @@ struct vcrtcm_pim_info *find_pim_info_by_name(char *name);
 struct vcrtcm_pim_info *find_pim_info_by_id(int pimid);
 
 /* Function to find an individual PCON instance info struct. */
-struct pimmgr_pcon_info *find_pimmgr_pcon_info(struct vcrtcm_pim_info *pim,
+struct vcrtcm_pcon_info *find_pcon_info(struct vcrtcm_pim_info *pim,
 							int local_pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
