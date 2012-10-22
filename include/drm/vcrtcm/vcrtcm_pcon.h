@@ -68,8 +68,6 @@ void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
 		      struct vcrtcm_push_buffer_descriptor *pbd,
 		      atomic_t *kmalloc_track, atomic_t *page_track);
 
-struct vcrtcm_pcon_properties;
-
 struct vcrtcm_pim_info {
 	char name[PIM_NAME_MAXLEN];
 	int id;

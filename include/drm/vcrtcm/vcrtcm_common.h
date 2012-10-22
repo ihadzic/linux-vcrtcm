@@ -78,26 +78,11 @@ struct vcrtcm_mode {
 #define VCRTCM_MODE_BAD 1
 
 struct vcrtcm_pcon_info;
+struct pimmgr_pcon_info;
+struct vcrtcm_pcon_properties;
+struct vcrtcm_pcon_props;
 
-struct pimmgr_pcon_info {
-	char description[PCON_DESC_MAXLEN];
-	struct vcrtcm_pim_info *pim;
-	struct vcrtcm_pcon_funcs *funcs;
-	struct vcrtcm_pcon_props *props;
-	void *cookie;
-	int pconid;
-	int local_pconid;
-	int minor; /* -1 if pcon has no user-accessible minor */
-	struct kobject kobj;
-	struct list_head pcon_list;
-};
-
-struct vcrtcm_pcon_properties {
-	int fps;
-	int attached;
-};
-
-/* Each PIM must implement these functions. */
+/* every PIM must implement these functions */
 struct vcrtcm_pim_funcs {
 	/* Create a new PCON instance and populate a pimmgr_pcon_info
 	 * structure with information about the new instance.
@@ -152,8 +137,27 @@ enum vcrtcm_xfer_mode {
 
 /* describes properties of the attached PCON */
 /* that GPU needs to know about */
+/* TBD merge these */
+struct vcrtcm_pcon_properties {
+	int fps;
+	int attached;
+};
 struct vcrtcm_pcon_props {
 	enum vcrtcm_xfer_mode xfer_mode;
+};
+
+/* TBD merge pimmgr_pcon_info and vcrtcm_pcon_info */
+struct pimmgr_pcon_info {
+	char description[PCON_DESC_MAXLEN];
+	struct vcrtcm_pim_info *pim;
+	struct vcrtcm_pcon_funcs *funcs;
+	struct vcrtcm_pcon_props *props;
+	void *cookie;
+	int pconid;
+	int local_pconid;
+	int minor; /* -1 if pcon has no user-accessible minor */
+	struct kobject kobj;
+	struct list_head pcon_list;
 };
 
 /* everything that vcrtcm knows about a PCON */
