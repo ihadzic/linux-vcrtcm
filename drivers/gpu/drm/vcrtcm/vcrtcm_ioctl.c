@@ -20,9 +20,9 @@
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/pimmgr.h>
-#include "pimmgr_private.h"
-#include "pimmgr_ioctl.h"
-#include "pimmgr_sysfs.h"
+#include "vcrtcm_private.h"
+#include "vcrtcm_ioctl.h"
+#include "vcrtcm_sysfs.h"
 
 /* TODO: Need better errors. */
 long pimmgr_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)

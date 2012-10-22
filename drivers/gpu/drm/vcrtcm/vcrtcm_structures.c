@@ -21,9 +21,8 @@
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include <vcrtcm/pimmgr.h>
-#include "pimmgr_private.h"
-#include "pimmgr_sysfs.h"
+#include "vcrtcm_private.h"
+#include "vcrtcm_sysfs.h"
 
 static int next_pimid;
 

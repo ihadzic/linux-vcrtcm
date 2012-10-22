@@ -1,3 +1,3 @@
-ccflags-y := -Iinclude/drm -Iinclude/drm/vcrtcm
+ccflags-y := -Iinclude/drm
 obj-$(CONFIG_DRM_VCRTCM) := vcrtcm.o
-vcrtcm-objs := vcrtcm_module.o vcrtcm_pcon_methods.o vcrtcm_gpu_methods.o vcrtcm_utils.o vcrtcm_sysfs.o pimmgr_main.o pimmgr_ioctl.o pimmgr_structures.o pimmgr_sysfs.o
+vcrtcm-objs := vcrtcm_module.o vcrtcm_pcon_methods.o vcrtcm_gpu_methods.o vcrtcm_utils.o vcrtcm_sysfs.o vcrtcm_ioctl.o vcrtcm_structures.o
