@@ -114,7 +114,6 @@ struct vcrtcm_pcon_properties {
 	int fps;
 	int attached;
 };
-#define pimmgr_pcon_properties vcrtcm_pcon_properties /* temporary, to enable pims to compile */
 
 /* Called from inside a new PIM to register with pimmgr. */
 int pimmgr_pim_register(char *name, struct pim_funcs *funcs);
