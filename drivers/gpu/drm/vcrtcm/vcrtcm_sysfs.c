@@ -292,7 +292,7 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon_info)
 
 	ret = kobject_init_and_add(&pcon_info->kobj, &pcon_type,
 		&pcons_kobj, "%i",
-		vcrtcm_get_pconid(pcon_info->pim->id, pcon_info->local_pconid));
+		vcrtcm_get_pconid(pcon_info->pim->id, pcon_info->pconid));
 	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;

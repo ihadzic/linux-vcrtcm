@@ -176,7 +176,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (!pim_info)
 		return -EINVAL;
 
-	pcon_info = vcrtcm_find_pcon_info(pim_info, local_pconid);
+	pcon_info = vcrtcm_find_pcon_info(pim_info, pconid);
 	if (!pcon_info)
 		return -EINVAL;
 

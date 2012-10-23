@@ -104,7 +104,7 @@ struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid);
 
 /* Function to find an individual PCON instance info struct. */
 struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
-							int local_pconid);
+							int pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
 void vcrtcm_sysfs_init(struct device *vcrtcm_device);
@@ -117,7 +117,7 @@ void vcrtcm_structures_destroy(void);
 int vcrtcm_alloc_pconid(void);
 void vcrtcm_dealloc_pconid(int pconid);
 int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid);
-int vcrtcm_get_pconid(int pimid, int local_pconid);
+int vcrtcm_get_pconid(int pimid, int pconid);
 int vcrtcm_pconid_valid(int pconid);
 int vcrtcm_get_pimid(int pconid);
 int vcrtcm_get_local_pconid(int pconid);

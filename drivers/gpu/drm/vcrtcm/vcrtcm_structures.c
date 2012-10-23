@@ -114,8 +114,8 @@ static void remove_pim_info(struct vcrtcm_pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
-							int local_pconid)
+struct vcrtcm_pcon_info *vcrtcm_find_pcon_info_bylocal(
+	struct vcrtcm_pim_info *pim, int local_pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;
 
@@ -125,6 +125,23 @@ struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
 	list_for_each_entry(pcon_info, &pim->active_pcon_list, pcon_list)
 	{
 		if (pcon_info->pim == pim && pcon_info->local_pconid == local_pconid)
+			return pcon_info;
+	}
+
+	return NULL;
+}
+
+struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
+							int pconid)
+{
+	struct vcrtcm_pcon_info *pcon_info;
+
+	if (!pim)
+		return NULL;
+
+	list_for_each_entry(pcon_info, &pim->active_pcon_list, pcon_list)
+	{
+		if (pcon_info->pim == pim && pcon_info->pconid == pconid)
 			return pcon_info;
 	}
 
@@ -164,7 +181,19 @@ int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid)
 	return 0;
 }
 
-int vcrtcm_get_pconid(int pimid, int local_pconid)
+int vcrtcm_get_pconid(int pimid, int pconid)
+{
+	int i;
+	for (i = 0; i < MAX_NUM_PCONIDS; i++) {
+		if (pconid_table[i].pimid == pimid &&
+			pconid_table[i].pconid == pconid) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int vcrtcm_get_pconid_bylocal(int pimid, int local_pconid)
 {
 	int i;
 	for (i = 0; i < MAX_NUM_PCONIDS; i++) {
@@ -240,7 +269,7 @@ void vcrtcm_pim_unregister(char *pim_name)
 			"was not invalidated before calling "
 			"vcrtcm_pim_unregister(). Doing that now...\n",
 			pim_name, pcon_info->local_pconid);
-		vcrtcm_p_invalidate(pim_name, pcon_info->local_pconid);
+		vcrtcm_p_destroy(pim_name, pcon_info->pconid);
 	}
 
 	remove_pim_info(pim_info);
@@ -248,6 +277,25 @@ void vcrtcm_pim_unregister(char *pim_name)
 	destroy_pim_info(pim_info);
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
+
+void vcrtcm_p_destroy(char *pim_name, int pconid)
+{
+	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pcon_info *pcon_info;
+
+	pim_info = find_pim_info_by_name(pim_name);
+	if (!pim_info)
+		return;
+	pcon_info = vcrtcm_find_pcon_info(pim_info, pconid);
+	if (!pcon_info)
+		return;
+	VCRTCM_INFO("Invalidating pcon %d, info %p\n", pconid, pim_info);
+	vcrtcm_sysfs_del_pcon(pcon_info);
+	vcrtcm_del_pcon(pconid);
+	list_del(&pcon_info->pcon_list);
+	vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
+}
+EXPORT_SYMBOL(vcrtcm_p_destroy);
 
 void vcrtcm_p_invalidate(char *pim_name, int local_pconid)
 {
@@ -259,11 +307,11 @@ void vcrtcm_p_invalidate(char *pim_name, int local_pconid)
 	if (!pim_info)
 		return;
 
-	pcon_info = vcrtcm_find_pcon_info(pim_info, local_pconid);
+	pcon_info = vcrtcm_find_pcon_info_bylocal(pim_info, local_pconid);
 	if (!pcon_info)
 		return;
 
-	pconid = vcrtcm_get_pconid(pim_info->id, local_pconid);
+	pconid = vcrtcm_get_pconid_bylocal(pim_info->id, local_pconid);
 	if (pconid < 0)
 		return;
 
