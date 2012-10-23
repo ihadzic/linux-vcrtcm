@@ -31,7 +31,8 @@ static struct mutex pconid_table_mutex;
 static struct vcrtcm_id_generator pconid_generator;
 
 /* Helper functions to manage PIMMGR structures */
-struct vcrtcm_pim_info *create_pim_info(char *name, struct vcrtcm_pim_funcs *funcs)
+static struct vcrtcm_pim_info *create_pim_info(
+	char *name, struct vcrtcm_pim_funcs *funcs)
 {
 	struct vcrtcm_pim_info *info;
 
@@ -53,7 +54,7 @@ struct vcrtcm_pim_info *create_pim_info(char *name, struct vcrtcm_pim_funcs *fun
 	return info;
 }
 
-struct vcrtcm_pim_info *find_pim_info_by_name(char *name)
+static struct vcrtcm_pim_info *find_pim_info_by_name(char *name)
 {
 	struct vcrtcm_pim_info *info;
 
@@ -68,7 +69,7 @@ struct vcrtcm_pim_info *find_pim_info_by_name(char *name)
 	return NULL;
 }
 
-struct vcrtcm_pim_info *find_pim_info_by_id(int pimid)
+struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid)
 {
 	struct vcrtcm_pim_info *info;
 
@@ -79,7 +80,8 @@ struct vcrtcm_pim_info *find_pim_info_by_id(int pimid)
 
 	return NULL;
 }
-void update_pim_info(char *name, struct vcrtcm_pim_funcs *funcs)
+
+static void update_pim_info(char *name, struct vcrtcm_pim_funcs *funcs)
 {
 	struct vcrtcm_pim_info *info = find_pim_info_by_name(name);
 
@@ -89,13 +91,13 @@ void update_pim_info(char *name, struct vcrtcm_pim_funcs *funcs)
 	memcpy(&info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 }
 
-void destroy_pim_info(struct vcrtcm_pim_info *info)
+static void destroy_pim_info(struct vcrtcm_pim_info *info)
 {
 	if (info)
 		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
 }
 
-void add_pim_info(struct vcrtcm_pim_info *info)
+static void add_pim_info(struct vcrtcm_pim_info *info)
 {
 	mutex_lock(&pim_list_mutex);
 	info->id = next_pimid;
@@ -104,14 +106,14 @@ void add_pim_info(struct vcrtcm_pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-void remove_pim_info(struct vcrtcm_pim_info *info)
+static void remove_pim_info(struct vcrtcm_pim_info *info)
 {
 	mutex_lock(&pim_list_mutex);
 	list_del(&info->pim_list);
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct vcrtcm_pcon_info *find_pcon_info(struct vcrtcm_pim_info *pim,
+struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
 							int local_pconid)
 {
 	struct vcrtcm_pcon_info *pcon;
@@ -128,7 +130,7 @@ struct vcrtcm_pcon_info *find_pcon_info(struct vcrtcm_pim_info *pim,
 	return NULL;
 }
 
-int alloc_pconid()
+int vcrtcm_alloc_pconid()
 {
 	int new_pconid = vcrtcm_id_generator_get(&pconid_generator,
 							VCRTCM_ID_REUSE);
@@ -139,7 +141,7 @@ int alloc_pconid()
 	return new_pconid;
 }
 
-void dealloc_pconid(int pconid)
+void vcrtcm_dealloc_pconid(int pconid)
 {
 	pconid_table[pconid].pimid = 0;
 	pconid_table[pconid].local_pconid = 0;
@@ -147,7 +149,7 @@ void dealloc_pconid(int pconid)
 	vcrtcm_id_generator_put(&pconid_generator, pconid);
 }
 
-int pconid_set_mapping(int pconid, int pimid, int local_pconid)
+int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid)
 {
 	if (pconid >= MAX_NUM_PCONIDS)
 		return -1;
@@ -159,7 +161,7 @@ int pconid_set_mapping(int pconid, int pimid, int local_pconid)
 	return 0;
 }
 
-int get_pconid(int pimid, int local_pconid)
+int vcrtcm_get_pconid(int pimid, int local_pconid)
 {
 	int i;
 	for (i = 0; i < MAX_NUM_PCONIDS; i++) {
@@ -171,7 +173,7 @@ int get_pconid(int pimid, int local_pconid)
 	return -1;
 }
 
-int pconid_valid(int pconid)
+int vcrtcm_pconid_valid(int pconid)
 {
 	if (pconid >= MAX_NUM_PCONIDS)
 		return 0;
@@ -179,7 +181,7 @@ int pconid_valid(int pconid)
 	return pconid_table[pconid].valid;
 }
 
-int pconid_get_pimid(int pconid)
+int vcrtcm_get_pimid(int pconid)
 {
 	if (pconid >= MAX_NUM_PCONIDS)
 		return -1;
@@ -187,7 +189,7 @@ int pconid_get_pimid(int pconid)
 	return pconid_table[pconid].pimid;
 }
 
-int pconid_get_local_pconid(int pconid)
+int vcrtcm_get_local_pconid(int pconid)
 {
 	if (pconid >= MAX_NUM_PCONIDS)
 		return -1;
@@ -254,11 +256,11 @@ void vcrtcm_p_invalidate(char *name, int local_pconid)
 	if (!info)
 		return;
 
-	pcon = find_pcon_info(info, local_pconid);
+	pcon = vcrtcm_find_pcon_info(info, local_pconid);
 	if (!pcon)
 		return;
 
-	pconid = get_pconid(info->id, local_pconid);
+	pconid = vcrtcm_get_pconid(info->id, local_pconid);
 	if (pconid < 0)
 		return;
 

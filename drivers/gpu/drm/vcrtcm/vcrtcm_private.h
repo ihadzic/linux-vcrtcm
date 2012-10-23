@@ -99,11 +99,10 @@ extern atomic_t vcrtcm_kmalloc_track;
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* Functions to find PIM info structs. */
-struct vcrtcm_pim_info *find_pim_info_by_name(char *name);
-struct vcrtcm_pim_info *find_pim_info_by_id(int pimid);
+struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid);
 
 /* Function to find an individual PCON instance info struct. */
-struct vcrtcm_pcon_info *find_pcon_info(struct vcrtcm_pim_info *pim,
+struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
 							int local_pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
@@ -114,13 +113,13 @@ int vcrtcm_structures_init(void);
 void vcrtcm_structures_destroy(void);
 
 /* Functions for managing mappings between pconids and pimids/local_pconids */
-int alloc_pconid(void);
-void dealloc_pconid(int pconid);
-int pconid_set_mapping(int pconid, int pimid, int local_pconid);
-int get_pconid(int pimid, int local_pconid);
-int pconid_valid(int pconid);
-int pconid_get_pimid(int pconid);
-int pconid_get_local_pconid(int pconid);
+int vcrtcm_alloc_pconid(void);
+void vcrtcm_dealloc_pconid(int pconid);
+int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid);
+int vcrtcm_get_pconid(int pimid, int local_pconid);
+int vcrtcm_pconid_valid(int pconid);
+int vcrtcm_get_pimid(int pconid);
+int vcrtcm_get_local_pconid(int pconid);
 int vcrtcm_del_pcon(int pconid);
 
 #endif
