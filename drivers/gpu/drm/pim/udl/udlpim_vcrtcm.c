@@ -132,9 +132,6 @@ int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 		udlpim_info->flow_info = NULL;
 		vcrtcm_kfree(flow_info, &udlpim_info->kmalloc_track);
-
-		udlpim_info->main_buffer = NULL;
-		udlpim_info->cursor = NULL;
 		udlpim_info->hline_16 = NULL;
 		udlpim_info->hline_8 = NULL;
 	}
