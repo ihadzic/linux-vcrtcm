@@ -305,8 +305,9 @@ int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		return -EINVAL;
 	}
 
+	mutex_lock(&v4l2pim_info->buffer_mutex);
 	memcpy(vcrtcm_fb, &flow_info->vcrtcm_fb, sizeof(struct vcrtcm_fb));
-
+	mutex_unlock(&v4l2pim_info->buffer_mutex);
 	return 0;
 }
 
@@ -472,9 +473,10 @@ int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 		return -EINVAL;
 	}
 
+	mutex_lock(&v4l2pim_info->buffer_mutex);
 	memcpy(vcrtcm_cursor, &flow_info->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
-
+	mutex_unlock(&v4l2pim_info->buffer_mutex);
 	return 0;
 }
 
