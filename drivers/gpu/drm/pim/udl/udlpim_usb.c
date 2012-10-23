@@ -375,14 +375,15 @@ int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info)
 	int xres = udlpim_info->current_video_mode.xres;
 	int yres = udlpim_info->current_video_mode.yres;
 	int bytes_per_pixel = udlpim_info->bpp / 8;
-	struct vcrtcm_fb *vcrtcm_fb =
-			&udlpim_info->flow_info->vcrtcm_fb;
+	struct udlpim_flow_info *flow_info = udlpim_info->flow_info;
+	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
 
 	start_cycles = get_cycles();
 
 	if (!atomic_read(&udlpim_info->usb_active))
 		return 0;
-
+	if (flow_info->pbd_fb[flow_info->push_buffer_index]->virgin)
+		return 0;
 	urb = udlpim_get_urb(udlpim_info);
 	if (!urb)
 		return 0;
@@ -875,9 +876,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer +
 				urb->transfer_buffer_length;
-
-	struct udlpim_flow_info *flow_info =
-			udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = udlpim_info->flow_info;
 	struct vcrtcm_cursor *vcrtcm_cursor = &flow_info->vcrtcm_cursor;
 	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
 
@@ -905,27 +904,27 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb
 	/*
 	 * Overlay the cursor
 	 */
-	if (udlpim_info->flow_info && udlpim_info->cursor) {
-		if (vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
-		    line_num >= vcrtcm_cursor->location_y &&
-		    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
-			int i, clip = 0;
-			uint32_t *hline_pixel = (uint32_t *)line_start;
-			uint32_t *cursor_pixel = (uint32_t *)udlpim_info->cursor;
-			cursor_pixel +=	(line_num-vcrtcm_cursor->location_y)*vcrtcm_cursor->width;
-			if (vcrtcm_cursor->location_x >= 0)
-				hline_pixel += vcrtcm_cursor->location_x;
-			else
-				clip = -vcrtcm_cursor->location_x;
-			cursor_pixel += clip;
-			for (i = 0; i < vcrtcm_cursor->width - clip; i++) {
-				if (hline_pixel >= (uint32_t *) line_end)
-					break;
-
-				alpha_overlay_argb32(hline_pixel, cursor_pixel);
-				cursor_pixel++;
-				hline_pixel++;
-			}
+	if (udlpim_info->cursor &&
+	    vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
+	    !flow_info->pbd_cursor[flow_info->push_buffer_index]->virgin &&
+	    line_num >= vcrtcm_cursor->location_y &&
+	    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
+		int i, clip = 0;
+		uint32_t *hline_pixel = (uint32_t *)line_start;
+		uint32_t *cursor_pixel = (uint32_t *)udlpim_info->cursor;
+		cursor_pixel += (line_num-vcrtcm_cursor->location_y) *
+			vcrtcm_cursor->width;
+		if (vcrtcm_cursor->location_x >= 0)
+			hline_pixel += vcrtcm_cursor->location_x;
+		else
+			clip = -vcrtcm_cursor->location_x;
+		cursor_pixel += clip;
+		for (i = 0; i < vcrtcm_cursor->width - clip; i++) {
+			if (hline_pixel >= (uint32_t *) line_end)
+				break;
+			alpha_overlay_argb32(hline_pixel, cursor_pixel);
+			cursor_pixel++;
+			hline_pixel++;
 		}
 	}
 
