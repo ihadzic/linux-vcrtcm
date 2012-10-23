@@ -1439,64 +1439,47 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 		return 1;
 
 	split_pixel_argb32(&blank_pixel_32, &blank_pixel_16, &blank_pixel_8);
-
 	udlpim_info->backing_buffer = vm_map_ram(
-					scratch_memory->
-						backing_buffer_pages,
-					scratch_memory->
-						backing_buffer_num_pages,
+					scratch_memory->backing_buffer_pages,
+					scratch_memory->backing_buffer_num_pages,
 					0, PAGE_KERNEL);
-
+	if (!udlpim_info->backing_buffer)
+		goto bb_err;
 	memset(udlpim_info->backing_buffer, blank_pixel_32,
 			scratch_memory->backing_buffer_num_pages * PAGE_SIZE);
 	UDLPIM_DEBUG("Mapped backing buffer pages, starting at: %p\n",
 				udlpim_info->backing_buffer);
-
-	if (!udlpim_info->backing_buffer)
-		goto bb_err;
-
-	udlpim_info->hline_16 = vm_map_ram(
-					scratch_memory->hline_16_pages,
-					scratch_memory->hline_16_num_pages,
-					0, PAGE_KERNEL);
-
+	udlpim_info->hline_16 = vm_map_ram(scratch_memory->hline_16_pages,
+					   scratch_memory->hline_16_num_pages,
+					   0, PAGE_KERNEL);
+	if (!udlpim_info->hline_16)
+		goto hline_16_err;
 	memset(udlpim_info->hline_16, blank_pixel_16,
 			scratch_memory->hline_16_num_pages * PAGE_SIZE);
 	UDLPIM_DEBUG("Mapped hline_16 pages, starting at: %p\n",
 				udlpim_info->hline_16);
 
-	if (!udlpim_info->hline_16)
-		goto hline_16_err;
-
-
-	udlpim_info->hline_8 = vm_map_ram(
-					scratch_memory->hline_8_pages,
-					scratch_memory->hline_8_num_pages,
-					0, PAGE_KERNEL);
-
+	udlpim_info->hline_8 = vm_map_ram(scratch_memory->hline_8_pages,
+					  scratch_memory->hline_8_num_pages,
+					  0, PAGE_KERNEL);
+	if (!udlpim_info->hline_8)
+		goto hline_8_err;
 	memset(udlpim_info->hline_8, blank_pixel_8,
 			scratch_memory->hline_8_num_pages * PAGE_SIZE);
 	UDLPIM_DEBUG("Mapped hline_8 pages, starting at: %p\n",
 				udlpim_info->hline_8);
-
-	if (!udlpim_info->hline_8)
-		goto hline_8_err;
-
-	goto success;
+	return 0;
 
 hline_8_err:
-
 	vm_unmap_ram(udlpim_info->hline_16,
 			scratch_memory->hline_16_num_pages);
+	udlpim_info->hline_16 = NULL;
 hline_16_err:
 	vm_unmap_ram(udlpim_info->backing_buffer,
 			scratch_memory->backing_buffer_num_pages);
+	udlpim_info->backing_buffer = NULL;
 bb_err:
-
 	return -ENOMEM;
-
-success:
-	return 0;
 }
 
 static void udlpim_unmap_scratch_memory(struct udlpim_info *udlpim_info)
@@ -1507,19 +1490,21 @@ static void udlpim_unmap_scratch_memory(struct udlpim_info *udlpim_info)
 	if (!scratch_memory)
 		return;
 
-	if (udlpim_info->backing_buffer)
+	if (udlpim_info->backing_buffer) {
 		vm_unmap_ram(udlpim_info->backing_buffer,
 				scratch_memory->backing_buffer_num_pages);
-
-	if (udlpim_info->hline_16)
+		udlpim_info->backing_buffer = NULL;
+	}
+	if (udlpim_info->hline_16) {
 		vm_unmap_ram(udlpim_info->hline_16,
 				scratch_memory->hline_16_num_pages);
-
-	if (udlpim_info->hline_8)
+		udlpim_info->hline_16 = NULL;
+	}
+	if (udlpim_info->hline_8) {
 		vm_unmap_ram(udlpim_info->hline_8,
 				scratch_memory->hline_8_num_pages);
-
-	return;
+		udlpim_info->hline_8 = NULL;
+	}
 }
 
 /*
