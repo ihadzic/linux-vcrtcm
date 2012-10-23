@@ -32,38 +32,39 @@ static struct vcrtcm_id_generator pconid_generator;
 
 /* Helper functions to manage PIMMGR structures */
 static struct vcrtcm_pim_info *create_pim_info(
-	char *name, struct vcrtcm_pim_funcs *funcs)
+	char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {
-	struct vcrtcm_pim_info *info;
+	struct vcrtcm_pim_info *pim_info;
 
-	if (!name || !funcs)
+	if (!pim_name || !funcs)
 		return NULL;
 
-	info = (struct vcrtcm_pim_info *) vcrtcm_kmalloc(sizeof(struct vcrtcm_pim_info),
+	pim_info = (struct vcrtcm_pim_info *)vcrtcm_kmalloc(
+							sizeof(struct vcrtcm_pim_info),
 							GFP_KERNEL,
 							&vcrtcm_kmalloc_track);
 
-	if (!info)
+	if (!pim_info)
 		return NULL;
 
-	strncpy(info->name, name, PIM_NAME_MAXLEN);
-	memcpy(&info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
-	INIT_LIST_HEAD(&info->active_pcon_list);
-	memset(&info->kobj, 0, sizeof(struct kobject));
+	strncpy(pim_info->name, pim_name, PIM_NAME_MAXLEN);
+	memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
+	INIT_LIST_HEAD(&pim_info->active_pcon_list);
+	memset(&pim_info->kobj, 0, sizeof(struct kobject));
 
-	return info;
+	return pim_info;
 }
 
-static struct vcrtcm_pim_info *find_pim_info_by_name(char *name)
+static struct vcrtcm_pim_info *find_pim_info_by_name(char *pim_name)
 {
-	struct vcrtcm_pim_info *info;
+	struct vcrtcm_pim_info *pim_info;
 
-	if (!name)
+	if (!pim_name)
 		return NULL;
 
-	list_for_each_entry(info, &pim_list, pim_list) {
-		if (strcmp(info->name, name) == 0)
-			return info;
+	list_for_each_entry(pim_info, &pim_list, pim_list) {
+		if (strcmp(pim_info->name, pim_name) == 0)
+			return pim_info;
 	}
 
 	return NULL;
@@ -71,24 +72,24 @@ static struct vcrtcm_pim_info *find_pim_info_by_name(char *name)
 
 struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid)
 {
-	struct vcrtcm_pim_info *info;
+	struct vcrtcm_pim_info *pim_info;
 
-	list_for_each_entry(info, &pim_list, pim_list) {
-		if (info->id == pimid)
-			return info;
+	list_for_each_entry(pim_info, &pim_list, pim_list) {
+		if (pim_info->id == pimid)
+			return pim_info;
 	}
 
 	return NULL;
 }
 
-static void update_pim_info(char *name, struct vcrtcm_pim_funcs *funcs)
+static void update_pim_info(char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {
-	struct vcrtcm_pim_info *info = find_pim_info_by_name(name);
+	struct vcrtcm_pim_info *pim_info = find_pim_info_by_name(pim_name);
 
-	if (!info)
+	if (!pim_info)
 		return;
 
-	memcpy(&info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
+	memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 }
 
 static void destroy_pim_info(struct vcrtcm_pim_info *info)
@@ -116,15 +117,15 @@ static void remove_pim_info(struct vcrtcm_pim_info *info)
 struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
 							int local_pconid)
 {
-	struct vcrtcm_pcon_info *pcon;
+	struct vcrtcm_pcon_info *pcon_info;
 
 	if (!pim)
 		return NULL;
 
-	list_for_each_entry(pcon, &pim->active_pcon_list, pcon_list)
+	list_for_each_entry(pcon_info, &pim->active_pcon_list, pcon_list)
 	{
-		if (pcon->pim == pim && pcon->local_pconid == local_pconid)
-			return pcon;
+		if (pcon_info->pim == pim && pcon_info->local_pconid == local_pconid)
+			return pcon_info;
 	}
 
 	return NULL;
@@ -198,78 +199,78 @@ int vcrtcm_get_local_pconid(int pconid)
 }
 
 /* Functions that are exported for PIMs to call */
-int vcrtcm_pim_register(char *name, struct vcrtcm_pim_funcs *funcs)
+int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {
-	struct vcrtcm_pim_info *info;
+	struct vcrtcm_pim_info *pim_info;
 
-	VCRTCM_INFO("Registering PIM %s, funcs at %p\n", name, funcs);
+	VCRTCM_INFO("Registering PIM %s, funcs at %p\n", pim_name, funcs);
 
-	info = find_pim_info_by_name(name);
-	if (info) {
-		update_pim_info(name, funcs);
+	pim_info = find_pim_info_by_name(pim_name);
+	if (pim_info) {
+		update_pim_info(pim_name, funcs);
 		return 1;
 	}
 
-	info = create_pim_info(name, funcs);
-	if (!info)
+	pim_info = create_pim_info(pim_name, funcs);
+	if (!pim_info)
 		return -ENOMEM;
 
-	add_pim_info(info);
-	vcrtcm_sysfs_add_pim(info);
+	add_pim_info(pim_info);
+	vcrtcm_sysfs_add_pim(pim_info);
 
 	return 1;
 }
 EXPORT_SYMBOL(vcrtcm_pim_register);
 
-void vcrtcm_pim_unregister(char *name)
+void vcrtcm_pim_unregister(char *pim_name)
 {
-	struct vcrtcm_pim_info *info = find_pim_info_by_name(name);
-	struct vcrtcm_pcon_info *pcon, *tmp;
+	struct vcrtcm_pim_info *pim_info = find_pim_info_by_name(pim_name);
+	struct vcrtcm_pcon_info *pcon_info, *tmp;
 
-	if (!info)
+	if (!pim_info)
 		return;
 
-	VCRTCM_INFO("Unregistering PIM %s\n", name);
+	VCRTCM_INFO("Unregistering PIM %s\n", pim_name);
 
-	list_for_each_entry_safe(pcon, tmp,
-				&info->active_pcon_list, pcon_list) {
+	list_for_each_entry_safe(pcon_info, tmp,
+				&pim_info->active_pcon_list, pcon_list) {
 		VCRTCM_ERROR("PIM %s's PCON with local id %i "
 			"was not invalidated before calling "
 			"vcrtcm_pim_unregister(). Doing that now...\n",
-			name, pcon->local_pconid);
-		vcrtcm_p_invalidate(name, pcon->local_pconid);
+			pim_name, pcon_info->local_pconid);
+		vcrtcm_p_invalidate(pim_name, pcon_info->local_pconid);
 	}
 
-	remove_pim_info(info);
-	vcrtcm_sysfs_del_pim(info);
-	destroy_pim_info(info);
+	remove_pim_info(pim_info);
+	vcrtcm_sysfs_del_pim(pim_info);
+	destroy_pim_info(pim_info);
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
-void vcrtcm_p_invalidate(char *name, int local_pconid)
+void vcrtcm_p_invalidate(char *pim_name, int local_pconid)
 {
-	struct vcrtcm_pim_info *info;
-	struct vcrtcm_pcon_info *pcon;
+	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pcon_info *pcon_info;
 	int pconid;
 
-	info = find_pim_info_by_name(name);
-	if (!info)
+	pim_info = find_pim_info_by_name(pim_name);
+	if (!pim_info)
 		return;
 
-	pcon = vcrtcm_find_pcon_info(info, local_pconid);
-	if (!pcon)
+	pcon_info = vcrtcm_find_pcon_info(pim_info, local_pconid);
+	if (!pcon_info)
 		return;
 
-	pconid = vcrtcm_get_pconid(info->id, local_pconid);
+	pconid = vcrtcm_get_pconid(pim_info->id, local_pconid);
 	if (pconid < 0)
 		return;
 
-	VCRTCM_INFO("Invalidating pcon, info %p, pconid %i\n", info, pconid);
+	VCRTCM_INFO("Invalidating pcon, info %p, pconid %i\n", pim_info, pconid);
 
-	vcrtcm_sysfs_del_pcon(pcon);
+	vcrtcm_sysfs_del_pcon(pcon_info);
 	vcrtcm_del_pcon(pconid);
-	list_del(&pcon->pcon_list);
-	vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
+	list_del(&pcon_info->pcon_list);
+	vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
 }
 EXPORT_SYMBOL(vcrtcm_p_invalidate);
 

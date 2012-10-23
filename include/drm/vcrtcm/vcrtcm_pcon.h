@@ -36,7 +36,7 @@
 
 #define PIM_NAME_MAXLEN 33
 
-void vcrtcm_p_invalidate(char *name, int local_pconid);
+void vcrtcm_p_invalidate(char *pim_name, int local_pconid);
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
 void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info);
 int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
@@ -69,7 +69,7 @@ struct vcrtcm_pim_info {
 	struct list_head pim_list;
 };
 
-int vcrtcm_pim_register(char *name, struct vcrtcm_pim_funcs *funcs);
-void vcrtcm_pim_unregister(char *name);
+int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs);
+void vcrtcm_pim_unregister(char *pim_name);
 
 #endif

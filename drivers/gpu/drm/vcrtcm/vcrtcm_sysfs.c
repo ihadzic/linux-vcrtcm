@@ -145,20 +145,20 @@ static struct kobj_type pcon_type = {
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
-	struct vcrtcm_pim_info *pim = (struct vcrtcm_pim_info *)
+	struct vcrtcm_pim_info *pim_info = (struct vcrtcm_pim_info *)
 				container_of(kobj, struct vcrtcm_pim_info, kobj);
 
-	if (!pim)
+	if (!pim_info)
 		return 0;
 	if (attr == &pim_name_attr) {
-		return scnprintf(buf, PAGE_SIZE, "%s\n", pim->name);
+		return scnprintf(buf, PAGE_SIZE, "%s\n", pim_info->name);
 	} else if (attr == &pim_id_attr) {
-		return scnprintf(buf, PAGE_SIZE, "%d\n", pim->id);
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pim_info->id);
 	} else if (attr == &pim_desc_attr) {
 		return scnprintf(buf,
 				PAGE_SIZE,
 				"This is the PIM that handles type %s\n",
-				pim->name);
+				pim_info->name);
 	}
 
 	return 0;
@@ -175,32 +175,32 @@ static ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
 static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
-	struct vcrtcm_pcon_info *pcon;
-	struct vcrtcm_pim_info *pim;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct vcrtcm_pim_info *pim_info;
 
-	pcon = (struct vcrtcm_pcon_info *)
+	pcon_info = (struct vcrtcm_pcon_info *)
 			container_of(kobj, struct vcrtcm_pcon_info, kobj);
-	if (!pcon)
+	if (!pcon_info)
 		return 0;
 
 	if (attr == &pcon_desc_attr) {
-		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon->description);
+		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon_info->description);
 	} else if (attr == &pcon_minor_attr) {
-		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->minor);
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon_info->minor);
 	} else if (attr == &pcon_local_pconid_attr) {
-		pim = pcon->pim;
-		if (!pim)
+		pim_info = pcon_info->pim;
+		if (!pim_info)
 			return 0;
 
-		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->local_pconid);
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon_info->local_pconid);
 	} else if (attr == &pcon_fps_attr) {
 		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
-		if (!pcon->funcs.get_properties)
+		if (!pcon_info->funcs.get_properties)
 			return 0;
-		result = pcon->funcs.
-				get_properties(pcon, &props);
+		result = pcon_info->funcs.
+				get_properties(pcon_info, &props);
 		if (!result)
 			return 0;
 
@@ -211,10 +211,10 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
-		if (!pcon->funcs.get_properties)
+		if (!pcon_info->funcs.get_properties)
 			return 0;
-		result = pcon->funcs.
-				get_properties(pcon, &props);
+		result = pcon_info->funcs.
+				get_properties(pcon_info, &props);
 		if (!result)
 			return 0;
 
@@ -257,15 +257,15 @@ void vcrtcm_sysfs_init(struct device *vcrtcm_device)
 }
 
 /* Add a PIM's info to sysfs. */
-int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim)
+int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim_info)
 {
 	int ret = 0;
 
-	if (!pim)
+	if (!pim_info)
 		return -EINVAL;
 
-	ret = kobject_init_and_add(&pim->kobj, &pim_type,
-					&pims_kobj, "%s", pim->name);
+	ret = kobject_init_and_add(&pim_info->kobj, &pim_type,
+					&pims_kobj, "%s", pim_info->name);
 
 	if (ret < 0)
 		VCRTCM_ERROR("Error adding pim to sysfs\n");
@@ -274,35 +274,36 @@ int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim)
 }
 
 /* Delete a PIM's info from sysfs. */
-void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim)
+void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim_info)
 {
-	if (!pim)
+	if (!pim_info)
 		return;
 
-	kobject_del(&pim->kobj);
+	kobject_del(&pim_info->kobj);
 }
 
 /* Add a PCON's info to sysfs. */
-int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon)
+int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon_info)
 {
 	int ret = 0;
 
-	if (!pcon)
+	if (!pcon_info)
 		return -EINVAL;
 
-	ret = kobject_init_and_add(&pcon->kobj, &pcon_type, &pcons_kobj, "%i",
-		vcrtcm_get_pconid(pcon->pim->id, pcon->local_pconid));
+	ret = kobject_init_and_add(&pcon_info->kobj, &pcon_type,
+		&pcons_kobj, "%i",
+		vcrtcm_get_pconid(pcon_info->pim->id, pcon_info->local_pconid));
 	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;
 	}
 
-	ret = sysfs_create_link(&pcon->pim->kobj, &pcon->kobj,
-						pcon->kobj.name);
+	ret = sysfs_create_link(&pcon_info->pim->kobj, &pcon_info->kobj,
+						pcon_info->kobj.name);
 	if (ret < 0)
 		VCRTCM_ERROR("Error linking pcon to pim in sysfs\n");
 
-	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj, "pim");
+	ret = sysfs_create_link(&pcon_info->kobj, &pcon_info->pim->kobj, "pim");
 
 	if (ret < 0)
 		VCRTCM_ERROR("Error linking pim to pcon in sysfs\n");
@@ -311,11 +312,11 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon)
 }
 
 /* Delete a PCON's info from sysfs. */
-void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon)
+void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon_info)
 {
-	if (!pcon)
+	if (!pcon_info)
 		return;
 
-	sysfs_remove_link(&pcon->pim->kobj, pcon->kobj.name);
-	kobject_del(&pcon->kobj);
+	sysfs_remove_link(&pcon_info->pim->kobj, pcon_info->kobj.name);
+	kobject_del(&pcon_info->kobj);
 }
