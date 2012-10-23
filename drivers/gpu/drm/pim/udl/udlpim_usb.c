@@ -396,7 +396,6 @@ int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info)
 			vcrtcm_fb->viewport_x * (vcrtcm_fb->bpp >> 3);
 
 		if (udlpim_render_hline(udlpim_info, &urb,
-				(char *) udlpim_info->main_buffer,
 				&cmd, byte_offset, xres * bytes_per_pixel,
 				&bytes_identical, &bytes_sent))
 			goto error;
@@ -858,10 +857,10 @@ static void udlpim_compress_hline_8(
 	return;
 }
 
-static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb_ptr,
-				const char *front, char **urb_buf_ptr,
-				u32 byte_offset, u32 byte_width,
-				int *ident_ptr, int *sent_ptr)
+static int udlpim_render_hline(struct udlpim_info *udlpim_info,
+			       struct urb **urb_ptr, char **urb_buf_ptr,
+			       u32 byte_offset, u32 byte_width,
+			       int *ident_ptr, int *sent_ptr)
 {
 	const u8 *line_start, *line_end, *next_pixel,
 		*line_end16, *line_end8,
@@ -888,7 +887,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb
 	int dev_offset = line_num * udlpim_info->current_video_mode.xres * 4;
 
 	/* These are offsets in the source (virtual) frame buffer */
-	line_start = (u8 *) (front + byte_offset);
+	line_start = (u8 *)udlpim_info->main_buffer + byte_offset;
 	next_pixel = line_start;
 	line_end = next_pixel + byte_width;
 

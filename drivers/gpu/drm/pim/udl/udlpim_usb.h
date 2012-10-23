@@ -36,10 +36,10 @@ static void udlpim_compress_hline_8(
 	uint32_t *device_address_ptr,
 	uint8_t **command_buffer_ptr,
 	const uint8_t *const cmd_buffer_end);
-static int udlpim_render_hline(struct udlpim_info *udlpim_info, struct urb **urb_ptr,
-				const char *front, char **urb_buf_ptr,
-				u32 byte_offset, u32 byte_width,
-				int *ident_ptr, int *sent_ptr);
+static int udlpim_render_hline(struct udlpim_info *udlpim_info,
+			       struct urb **urb_ptr, char **urb_buf_ptr,
+			       u32 byte_offset, u32 byte_width,
+			       int *ident_ptr, int *sent_ptr);
 static int udlpim_blank_hw_fb(struct udlpim_info *udlpim_info, unsigned color);
 
 /* USB management functions */
