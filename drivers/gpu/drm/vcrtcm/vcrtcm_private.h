@@ -85,6 +85,7 @@ extern struct class *vcrtcm_class;
 struct pconid_mapping {
 	int pimid;
 	int local_pconid;
+	int pconid;
 	int valid;
 };
 

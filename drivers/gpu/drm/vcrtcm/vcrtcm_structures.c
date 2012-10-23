@@ -146,6 +146,7 @@ void vcrtcm_dealloc_pconid(int pconid)
 {
 	pconid_table[pconid].pimid = 0;
 	pconid_table[pconid].local_pconid = 0;
+	pconid_table[pconid].pconid = -1;
 	pconid_table[pconid].valid = 0;
 	vcrtcm_id_generator_put(&pconid_generator, pconid);
 }
@@ -156,6 +157,7 @@ int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid)
 		return -1;
 
 	pconid_table[pconid].pimid = pimid;
+	pconid_table[pconid].pconid = pconid;
 	pconid_table[pconid].local_pconid = local_pconid;
 	pconid_table[pconid].valid = 1;
 
