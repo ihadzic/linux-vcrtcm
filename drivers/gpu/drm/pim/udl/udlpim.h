@@ -103,6 +103,7 @@ struct udlpim_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
+	int pconid;
 	int used;
 
 	struct udlpim_flow_info *flow_info;

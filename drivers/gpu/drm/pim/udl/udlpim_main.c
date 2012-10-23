@@ -158,6 +158,7 @@ static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 			pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
 			pcon_info->pcon_cookie = info;
 			pcon_info->local_pconid = (uint32_t) info->minor;
+			info->pconid = pcon_info->pconid;
 			info->used = 1;
 			return 1;
 		}

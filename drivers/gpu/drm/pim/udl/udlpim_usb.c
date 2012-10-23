@@ -229,7 +229,7 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
 
 	if (udlpim_info->used)
-		vcrtcm_p_invalidate("udl", (uint32_t) udlpim_info->minor);
+		vcrtcm_p_destroy("udl", (uint32_t) udlpim_info->pconid);
 
 	/* Return minor number */
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, udlpim_info->minor);
