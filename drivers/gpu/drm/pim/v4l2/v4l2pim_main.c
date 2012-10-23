@@ -965,7 +965,7 @@ static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 	.destroy = v4l2pim_destroy
 };
 
-static struct v4l2pim_info *v4l2pim_create_minor(void)
+static struct v4l2pim_info *v4l2pim_create_minor(int pconid)
 {
 	struct v4l2pim_info *v4l2pim_info;
 	struct video_device *vfd;
@@ -991,6 +991,7 @@ static struct v4l2pim_info *v4l2pim_create_minor(void)
 		return NULL;
 	}
 
+	v4l2pim_info->pconid = pconid;
 	mutex_init(&v4l2pim_info->mlock);
 	spin_lock_init(&v4l2pim_info->slock);
 
@@ -1096,7 +1097,7 @@ static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 {
 	struct v4l2pim_info *v4l2pim_info;
 
-	v4l2pim_info = v4l2pim_create_minor();
+	v4l2pim_info = v4l2pim_create_minor(pcon_info->pconid);
 
 	if (!v4l2pim_info)
 		return 0;
@@ -1186,13 +1187,13 @@ static void __exit v4l2pim_exit(void)
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
 		/* unregister with VCRTCM */
-		V4L2PIM_DEBUG("Calling vcrtcm_p_invalidate for "
-		"v4l2pim %p, major %d, minor %d\n",
-		v4l2pim_info, v4l2pim_major,
+		V4L2PIM_DEBUG("Calling vcrtcm_p_destroy for "
+		"v4l2pim %p, pcon %d, major %d, minor %d\n",
+		v4l2pim_info, v4l2pim_info->pconid, v4l2pim_major,
 		v4l2pim_info->minor);
 
-		vcrtcm_p_invalidate(V4L2PIM_PIM_NAME,
-					(uint32_t) v4l2pim_info->minor);
+		vcrtcm_p_destroy(V4L2PIM_PIM_NAME,
+					(uint32_t) v4l2pim_info->pconid);
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
