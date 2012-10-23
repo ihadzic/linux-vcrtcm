@@ -151,14 +151,13 @@ void vcrtcm_dealloc_pconid(int pconid)
 	vcrtcm_id_generator_put(&pconid_generator, pconid);
 }
 
-int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid)
+int vcrtcm_set_mapping(int pconid, int pimid)
 {
 	if (pconid >= MAX_NUM_PCONIDS)
 		return -1;
 
 	pconid_table[pconid].pimid = pimid;
 	pconid_table[pconid].pconid = pconid;
-	pconid_table[pconid].local_pconid = local_pconid;
 	pconid_table[pconid].valid = 1;
 
 	return 0;
@@ -236,10 +235,10 @@ void vcrtcm_pim_unregister(char *pim_name)
 
 	list_for_each_entry_safe(pcon_info, tmp,
 				&pim_info->active_pcon_list, pcon_list) {
-		VCRTCM_ERROR("PIM %s's PCON with local id %i "
+		VCRTCM_ERROR("PIM %s's PCON %i "
 			"was not invalidated before calling "
 			"vcrtcm_pim_unregister(). Doing that now...\n",
-			pim_name, pcon_info->local_pconid);
+			pim_name, pcon_info->pconid);
 		vcrtcm_p_destroy(pim_name, pcon_info->pconid);
 	}
 

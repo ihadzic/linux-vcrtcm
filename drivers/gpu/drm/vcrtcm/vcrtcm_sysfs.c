@@ -192,7 +192,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		if (!pim_info)
 			return 0;
 
-		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon_info->local_pconid);
+		return scnprintf(buf, PAGE_SIZE, "unknown\n");
 	} else if (attr == &pcon_fps_attr) {
 		struct vcrtcm_pcon_properties props;
 		int result = 0;

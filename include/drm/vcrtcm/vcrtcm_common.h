@@ -151,7 +151,6 @@ struct vcrtcm_pcon_info {
 	enum vcrtcm_xfer_mode xfer_mode;
 	void *pcon_cookie;
 	int pconid; /* index into table maintained by vcrtcm */
-	int local_pconid;
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcon_list;

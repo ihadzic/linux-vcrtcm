@@ -116,7 +116,7 @@ void vcrtcm_structures_destroy(void);
 /* Functions for managing mappings between pconids and pimids/local_pconids */
 int vcrtcm_alloc_pconid(void);
 void vcrtcm_dealloc_pconid(int pconid);
-int vcrtcm_set_mapping(int pconid, int pimid, int local_pconid);
+int vcrtcm_set_mapping(int pconid, int pimid);
 int vcrtcm_get_pconid(int pimid, int pconid);
 int vcrtcm_pconid_valid(int pconid);
 int vcrtcm_get_pimid(int pconid);

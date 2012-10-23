@@ -135,8 +135,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		vcrtcm_dealloc_pconid(new_pconid);
 		return -ENODEV;
 	}
-	value = vcrtcm_set_mapping(new_pconid, pim_info->id,
-		pcon_info->local_pconid);
+	value = vcrtcm_set_mapping(new_pconid, pim_info->id);
 
 	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
 
@@ -161,7 +160,6 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info;
 	int pimid;
-	int local_pconid;
 	int r = 0;
 
 	VCRTCM_INFO("in destroy pcon id %i...\n", pconid);
@@ -170,8 +168,6 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		return -EINVAL;
 
 	pimid = vcrtcm_get_pimid(pconid);
-	local_pconid = vcrtcm_get_local_pconid(pconid);
-
 	pim_info = vcrtcm_find_pim_info_by_id(pimid);
 	if (!pim_info)
 		return -EINVAL;
