@@ -190,14 +190,6 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	VCRTCM_INFO("DisplayLink USB device attached.\n");
 	VCRTCM_INFO("successfully registered"
 		" minor %d\n", udlpim_info->minor);
-/*
-	UDLPIM_DEBUG("Calling vcrtcm_p_add for udlpim %p major %d minor %d\n",
-		udlpim_info, udlpim_major, udlpim_info->minor);
-	if (vcrtcm_p_add(&udlpim_vcrtcm_pcon_funcs, &udlpim_vcrtcm_pcon_props,
-			  udlpim_major, udlpim_info->minor, 0, udlpim_info))
-		VCRTCM_WARNING("vcrtcm_p_add failed, udlpim major %d, minor %d,"
-			" won't work\n", udlpim_major, udlpim_info->minor);
-*/
 	list_add_tail(&udlpim_info->list, &udlpim_info_list);
 
 	return 0;
