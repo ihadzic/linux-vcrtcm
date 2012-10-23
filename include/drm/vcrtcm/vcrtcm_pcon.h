@@ -37,9 +37,6 @@
 #define PIM_NAME_MAXLEN 33
 
 /* setup/config functions */
-int vcrtcm_p_add(struct vcrtcm_pcon_funcs *vcrtcm_pcon_funcs,
-		  enum vcrtcm_xfer_mode xfer_mode,
-		  uint32_t pconid, void *pcon_cookie);
 /* TBD merge these two functions */
 int vcrtcm_p_del(uint32_t pconid);
 void vcrtcm_p_invalidate(char *name, int local_pconid);
