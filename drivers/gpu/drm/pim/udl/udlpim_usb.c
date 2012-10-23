@@ -225,11 +225,6 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 
-	/* unregister with VCRTCM */
-	/* UDLPIM_DEBUG("Calling vcrtcm_p_del for "
-		"udlpim %p, major %d, minor %d\n",
-		udlpim_info, udlpim_major, udlpim_info->minor); */
-
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
 	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
 
