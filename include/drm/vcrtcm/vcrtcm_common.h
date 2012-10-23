@@ -148,6 +148,7 @@ struct vcrtcm_push_buffer_descriptor {
 	struct dma_buf *dma_buf;
 	/* populated by PCON */
 	struct vcrtcm_pcon_info *owner_pcon;
+	int virgin;
 	struct page **pages;
 	unsigned long num_pages;
 };
