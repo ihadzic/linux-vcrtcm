@@ -36,7 +36,6 @@
 
 #define PIM_NAME_MAXLEN 33
 
-void vcrtcm_p_invalidate(char *pim_name, int local_pconid);
 void vcrtcm_p_destroy(char *pim_name, int pconid);
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
 void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info);
