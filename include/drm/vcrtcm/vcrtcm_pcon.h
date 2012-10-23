@@ -36,12 +36,7 @@
 
 #define PIM_NAME_MAXLEN 33
 
-/* setup/config functions */
-/* TBD merge these two functions */
-int vcrtcm_p_del(uint32_t pconid);
 void vcrtcm_p_invalidate(char *name, int local_pconid);
-
-/* functions for use by PCON in operational state */
 void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
 void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info);
 int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
@@ -70,15 +65,11 @@ struct vcrtcm_pim_info {
 	int id;
 	struct vcrtcm_pim_funcs funcs;
 	struct list_head active_pcon_list;
-
 	struct kobject kobj;
 	struct list_head pim_list;
 };
 
-/* Called from inside a new PIM to register with vcrtcm. */
 int vcrtcm_pim_register(char *name, struct vcrtcm_pim_funcs *funcs);
-
-/* Called from inside a new PIM to unregister from vcrtcm. */
 void vcrtcm_pim_unregister(char *name);
 
 #endif

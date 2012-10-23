@@ -178,7 +178,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (!pcon)
 		return -EINVAL;
 
-	r = vcrtcm_p_del(pconid);
+	r = vcrtcm_del_pcon(pconid);
 	if (r)
 		return -EBUSY;
 

@@ -265,7 +265,7 @@ void vcrtcm_p_invalidate(char *name, int local_pconid)
 	VCRTCM_INFO("Invalidating pcon, info %p, pconid %i\n", info, pconid);
 
 	vcrtcm_sysfs_del_pcon(pcon);
-	vcrtcm_p_del(pconid);
+	vcrtcm_del_pcon(pconid);
 	list_del(&pcon->pcon_list);
 	vcrtcm_kfree(pcon, &vcrtcm_kmalloc_track);
 }

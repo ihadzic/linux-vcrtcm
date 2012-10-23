@@ -213,11 +213,7 @@ void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
-/*
- * called by the pixel consumer (PCON)
- * (typically on exit) to unregister its implementation with PCON
- */
-int vcrtcm_p_del(int pconid)
+int vcrtcm_del_pcon(int pconid)
 {
 	struct vcrtcm_pcon_info_private *pcon_info_private;
 	int r = 0;
@@ -277,7 +273,6 @@ int vcrtcm_p_del(int pconid)
 	VCRTCM_WARNING("requested pcon %i not found\n", pconid);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(vcrtcm_p_del);
 
 /*
  * The PCON can use this function wait for the GPU to finish rendering
