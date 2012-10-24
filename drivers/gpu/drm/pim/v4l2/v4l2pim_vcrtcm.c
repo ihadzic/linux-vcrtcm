@@ -700,7 +700,8 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		V4L2PIM_DEBUG("transmission not happening\n");
 	}
 
-	if (flow_info->pb_needs_xmit[push_buffer_index]) {
+	if ((flow_info->pb_needs_xmit[push_buffer_index]) &&
+	    (!flow_info->pbd_fb[push_buffer_index]->virgin)) {
 		struct vcrtcm_cursor *cursor;
 		unsigned int hpixels, vpixels;
 		unsigned int vp_offset, hlen, p, vpx, vpy, Bpp;
@@ -721,7 +722,8 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 
 		/* Overlay the cursor on the framebuffer */
 		cursor = &flow_info->vcrtcm_cursor;
-		if (cursor->flag != VCRTCM_CURSOR_FLAG_HIDE) {
+		if ((cursor->flag != VCRTCM_CURSOR_FLAG_HIDE) &&
+		    (!flow_info->pbd_cursor[push_buffer_index]->virgin)) {
 			uint32_t *fb_end;
 			int clip_y = 0;
 			mb = v4l2pim_info->main_buffer + vp_offset;
