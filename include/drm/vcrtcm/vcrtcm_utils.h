@@ -60,7 +60,7 @@ struct vcrtcm_id_generator {
 	int num_ids;
 	int used_count;
 	int increasing_pos;
-	uint64_t *used_ids;
+	VCRTCM_ID_GEN_MASK_TYPE *used_ids;
 	struct mutex mutex;
 };
 
