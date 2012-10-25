@@ -264,6 +264,7 @@ void vcrtcm_p_destroy(char *pim_name, int pconid)
 	vcrtcm_del_pcon(pconid);
 	list_del(&pcon_info->pcon_list);
 	vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
+	vcrtcm_dealloc_pconid(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
