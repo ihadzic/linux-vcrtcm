@@ -31,6 +31,14 @@
 
 #define VCRTCM_STATUS_PCON_IN_USE 0x01
 #define VCRTCM_DMA_BUF_PERMS 0600
+#define MAX_NUM_PCONIDS 1024
+
+struct pconid_mapping {
+	int pimid;
+	int local_pconid;
+	int pconid;
+	int valid;
+};
 
 /* main structure for keeping track of each PCON-CRTC relationship */
 struct vcrtcm_pcon_info_private {
@@ -54,40 +62,6 @@ extern struct list_head vcrtcm_pcon_list;
 extern struct mutex vcrtcm_pcon_list_mutex;
 extern int vcrtcm_debug;
 extern struct class *vcrtcm_class;
-
-#define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)
-
-#endif
-/*
- * Copyright (C) 2012 Alcatel-Lucent, Inc.
- * Author: Bill Katsak <william.katsak@alcatel-lucent.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
-#ifndef __PIMMGR_PRIVATE_H__
-#define __PIMMGR_PRIVATE_H__
-
-#define MAX_NUM_PCONIDS 1024
-
-struct pconid_mapping {
-	int pimid;
-	int local_pconid;
-	int pconid;
-	int valid;
-};
 
 /* List of registered PIMs */
 extern struct list_head pim_list;
@@ -122,5 +96,7 @@ int vcrtcm_pconid_valid(int pconid);
 int vcrtcm_get_pimid(int pconid);
 int vcrtcm_get_local_pconid(int pconid);
 int vcrtcm_del_pcon(int pconid);
+
+#define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)
 
 #endif
