@@ -159,11 +159,11 @@ static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 			pcon_info->pcon_cookie = info;
 			info->pconid = pcon_info->pconid;
 			info->used = 1;
-			return 1;
+			return 0;
 		}
 	}
 
-	return 0;
+	return -ENODEV;
 }
 
 static void udlpim_destroy(struct vcrtcm_pcon_info *pcon_info)
