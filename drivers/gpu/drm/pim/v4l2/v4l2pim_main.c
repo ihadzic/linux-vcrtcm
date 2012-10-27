@@ -1100,7 +1100,7 @@ static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 	v4l2pim_info = v4l2pim_create_minor(pcon_info->pconid);
 
 	if (!v4l2pim_info)
-		return 0;
+		return -ENODEV;
 
 	scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - minor %i",
@@ -1109,7 +1109,7 @@ static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 	pcon_info->funcs = v4l2pim_vcrtcm_pcon_funcs;
 	pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
 	pcon_info->pcon_cookie = v4l2pim_info;
-	return 1;
+	return 0;
 }
 
 static void v4l2pim_destroy(struct vcrtcm_pcon_info *pcon_info)
