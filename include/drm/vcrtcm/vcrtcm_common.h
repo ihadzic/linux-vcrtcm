@@ -84,7 +84,7 @@ struct vcrtcm_pcon_properties;
 struct vcrtcm_pim_funcs {
 	/* Create a new PCON instance and populate a vcrtcm_pcon_info
 	 * structure with information about the new instance.
-	 * Return 1 upon success. Return 0 upon failure.
+	 * Return error code.
 	 */
 	int (*instantiate)(struct vcrtcm_pcon_info *pcon_info, uint32_t hints);
 

@@ -95,7 +95,6 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info;
 	int new_pconid;
-	int value = 0;
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
@@ -124,18 +123,19 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	pcon_info->pconid = new_pconid;
 	pcon_info->pim = pim_info;
 	pcon_info->minor = -1;
-	if (pim_info->funcs.instantiate)
-		value = pim_info->funcs.instantiate(pcon_info, hints);
+	if (pim_info->funcs.instantiate) {
+		r = pim_info->funcs.instantiate(pcon_info, hints);
+		if (r) {
+			VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
+			vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
+			vcrtcm_dealloc_pconid(new_pconid);
+			return r;
+		}
+	}
 	else
 		VCRTCM_INFO("No instantiate function...\n");
 
-	if (!value) {
-		VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
-		vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
-		vcrtcm_dealloc_pconid(new_pconid);
-		return -ENODEV;
-	}
-	value = vcrtcm_set_mapping(new_pconid, pim_info->id);
+	vcrtcm_set_mapping(new_pconid, pim_info->id);
 
 	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
 
