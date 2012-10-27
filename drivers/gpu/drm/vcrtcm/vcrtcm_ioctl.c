@@ -94,101 +94,75 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
 	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info;
-	int new_pconid;
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
-	new_pconid = vcrtcm_alloc_pconid();
-	if (new_pconid < 0) {
+	pcon_info = vcrtcm_alloc_pconid();
+	if (!pcon_info) {
 		VCRTCM_ERROR("No pconids available...");
-		return -EMFILE;
+		return -ENODEV;
 	}
 
 	pim_info = vcrtcm_find_pim_info_by_id(pimid);
 
 	if (!pim_info) {
 		VCRTCM_INFO("Invalid pimid\n");
-		vcrtcm_dealloc_pconid(new_pconid);
+		vcrtcm_dealloc_pconid(pcon_info->pconid);
 		return -EINVAL;
 	}
 
-	pcon_info = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon_info), GFP_KERNEL,
-					&vcrtcm_kmalloc_track);
-	if (!pcon_info) {
-		VCRTCM_INFO("Could not allocate memory\n");
-		vcrtcm_dealloc_pconid(new_pconid);
-		return -ENOMEM;
-	}
-
-	pcon_info->pconid = new_pconid;
 	pcon_info->pim = pim_info;
 	pcon_info->minor = -1;
 	if (pim_info->funcs.instantiate) {
 		r = pim_info->funcs.instantiate(pcon_info, hints);
 		if (r) {
 			VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
-			vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
-			vcrtcm_dealloc_pconid(new_pconid);
+			vcrtcm_dealloc_pconid(pcon_info->pconid);
 			return r;
 		}
 	}
 	else
 		VCRTCM_INFO("No instantiate function...\n");
 
-	vcrtcm_set_mapping(new_pconid, pim_info->id);
+	VCRTCM_INFO("New pcon created, id %i\n", pcon_info->pconid);
 
-	VCRTCM_INFO("New pcon created, id %i\n", new_pconid);
-
-	r = add_pcon(&pcon_info->funcs, pcon_info->xfer_mode, new_pconid,
+	r = add_pcon(&pcon_info->funcs, pcon_info->xfer_mode, pcon_info->pconid,
 		pcon_info->pcon_cookie);
 	if (r) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
-		vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
-		vcrtcm_dealloc_pconid(new_pconid);
+		vcrtcm_dealloc_pconid(pcon_info->pconid);
 		return r;
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon_info);
 	list_add_tail(&pcon_info->pcon_list, &pim_info->active_pcon_list);
 
-	*pconid = new_pconid;
+	*pconid = pcon_info->pconid;
 	return 0;
 }
 
 long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
-	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info;
-	int pimid;
 	int r = 0;
 
 	VCRTCM_INFO("in destroy pcon id %i...\n", pconid);
-
-	if (!vcrtcm_pconid_valid(pconid))
-		return -EINVAL;
-
-	pimid = vcrtcm_get_pimid(pconid);
-	pim_info = vcrtcm_find_pim_info_by_id(pimid);
-	if (!pim_info)
-		return -EINVAL;
-
-	pcon_info = vcrtcm_find_pcon_info(pim_info, pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return -EINVAL;
-
 	r = vcrtcm_del_pcon(pconid);
 	if (r)
 		return -EBUSY;
-
 	vcrtcm_sysfs_del_pcon(pcon_info);
-
-	if (pim_info->funcs.destroy)
-		pim_info->funcs.destroy(pcon_info);
-	else
-		VCRTCM_INFO("No destroy function...\n");
-
+	if (!pcon_info->pim)
+		VCRTCM_ERROR("pcon has no pim!\n");
+	else {
+		if (pcon_info->pim->funcs.destroy)
+			pcon_info->pim->funcs.destroy(pcon_info);
+		else
+			VCRTCM_INFO("No destroy function...\n");
+	}
 	list_del(&pcon_info->pcon_list);
-	vcrtcm_kfree(pcon_info, &vcrtcm_kmalloc_track);
 	vcrtcm_dealloc_pconid(pconid);
 	return 0;
 }

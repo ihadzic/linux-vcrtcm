@@ -33,13 +33,6 @@
 #define VCRTCM_DMA_BUF_PERMS 0600
 #define MAX_NUM_PCONIDS 1024
 
-struct pconid_mapping {
-	int pimid;
-	int local_pconid;
-	int pconid;
-	int valid;
-};
-
 /* main structure for keeping track of each PCON-CRTC relationship */
 struct vcrtcm_pcon_info_private {
 	struct list_head list;
@@ -58,6 +51,10 @@ struct vcrtcm_pcon_info_private {
 	struct vcrtcm_pcon_info pcon_info;
 };
 
+struct pconid_table_entry {
+	struct vcrtcm_pcon_info *pcon_info;
+};
+
 extern struct list_head vcrtcm_pcon_list;
 extern struct mutex vcrtcm_pcon_list_mutex;
 extern int vcrtcm_debug;
@@ -73,12 +70,8 @@ extern atomic_t vcrtcm_kmalloc_track;
 /* This is the function that handles IOCTL from userspace. */
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
-/* Functions to find PIM info structs. */
+/* Function to find PIM info struct. */
 struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid);
-
-/* Function to find an individual PCON instance info struct. */
-struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
-							int pconid);
 
 /* Function to initialize the pimmgr sysfs stuff */
 void vcrtcm_sysfs_init(struct device *vcrtcm_device);
@@ -87,14 +80,11 @@ void vcrtcm_sysfs_init(struct device *vcrtcm_device);
 int vcrtcm_structures_init(void);
 void vcrtcm_structures_destroy(void);
 
-/* Functions for managing mappings between pconids and pimids/local_pconids */
-int vcrtcm_alloc_pconid(void);
+/* Functions for managing mappings between pconids and pcon_infos */
+struct vcrtcm_pcon_info *vcrtcm_alloc_pconid(void);
+struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid);
 void vcrtcm_dealloc_pconid(int pconid);
-int vcrtcm_set_mapping(int pconid, int pimid);
-int vcrtcm_get_pconid(int pimid, int pconid);
 int vcrtcm_pconid_valid(int pconid);
-int vcrtcm_get_pimid(int pconid);
-int vcrtcm_get_local_pconid(int pconid);
 int vcrtcm_del_pcon(int pconid);
 
 #define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)

@@ -25,10 +25,8 @@
 #include "vcrtcm_sysfs.h"
 
 static int next_pimid;
-
-static struct pconid_mapping *pconid_table;
+static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static struct mutex pconid_table_mutex;
-static struct vcrtcm_id_generator pconid_generator;
 
 /* Helper functions to manage PIMMGR structures */
 static struct vcrtcm_pim_info *create_pim_info(
@@ -114,89 +112,58 @@ static void remove_pim_info(struct vcrtcm_pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct vcrtcm_pcon_info *vcrtcm_find_pcon_info(struct vcrtcm_pim_info *pim,
-							int pconid)
+struct vcrtcm_pcon_info *vcrtcm_alloc_pconid()
 {
-	struct vcrtcm_pcon_info *pcon_info;
+	int k;
 
-	if (!pim)
-		return NULL;
-
-	list_for_each_entry(pcon_info, &pim->active_pcon_list, pcon_list)
-	{
-		if (pcon_info->pim == pim && pcon_info->pconid == pconid)
+	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
+		struct pconid_table_entry *entry = &pconid_table[k];
+		if (!entry->pcon_info) {
+			struct vcrtcm_pcon_info *pcon_info;
+			pcon_info = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon_info),
+				GFP_KERNEL, &vcrtcm_kmalloc_track);
+			if (!pcon_info) {
+				VCRTCM_INFO("allocate of pcon_info failed\n");
+				return NULL;
+			}
+			pcon_info->pconid = k;
+			entry->pcon_info = pcon_info;
 			return pcon_info;
+		}
 	}
-
 	return NULL;
-}
-
-int vcrtcm_alloc_pconid()
-{
-	int new_pconid = vcrtcm_id_generator_get(&pconid_generator,
-							VCRTCM_ID_REUSE);
-
-	if (new_pconid < 0)
-		return -1;
-
-	return new_pconid;
 }
 
 void vcrtcm_dealloc_pconid(int pconid)
 {
-	pconid_table[pconid].pimid = 0;
-	pconid_table[pconid].local_pconid = 0;
-	pconid_table[pconid].pconid = -1;
-	pconid_table[pconid].valid = 0;
-	vcrtcm_id_generator_put(&pconid_generator, pconid);
-}
+	struct pconid_table_entry *entry;
 
-int vcrtcm_set_mapping(int pconid, int pimid)
-{
 	if (pconid >= MAX_NUM_PCONIDS)
-		return -1;
-
-	pconid_table[pconid].pimid = pimid;
-	pconid_table[pconid].pconid = pconid;
-	pconid_table[pconid].valid = 1;
-
-	return 0;
+		return;
+	entry = &pconid_table[pconid];
+	if (entry->pcon_info != NULL)
+		vcrtcm_kfree(entry->pcon_info, &vcrtcm_kmalloc_track);
+	entry->pcon_info = NULL;
 }
 
-int vcrtcm_get_pconid(int pimid, int pconid)
+struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid)
 {
-	int i;
-	for (i = 0; i < MAX_NUM_PCONIDS; i++) {
-		if (pconid_table[i].pimid == pimid &&
-			pconid_table[i].pconid == pconid) {
-			return i;
-		}
-	}
-	return -1;
+	struct pconid_table_entry *entry;
+
+	if (pconid >= MAX_NUM_PCONIDS)
+		return 0;
+	entry = &pconid_table[pconid];
+	return entry->pcon_info;
 }
 
 int vcrtcm_pconid_valid(int pconid)
 {
+	struct pconid_table_entry *entry;
+
 	if (pconid >= MAX_NUM_PCONIDS)
 		return 0;
-
-	return pconid_table[pconid].valid;
-}
-
-int vcrtcm_get_pimid(int pconid)
-{
-	if (pconid >= MAX_NUM_PCONIDS)
-		return -1;
-
-	return pconid_table[pconid].pimid;
-}
-
-int vcrtcm_get_local_pconid(int pconid)
-{
-	if (pconid >= MAX_NUM_PCONIDS)
-		return -1;
-
-	return pconid_table[pconid].local_pconid;
+	entry = &pconid_table[pconid];
+	return entry->pcon_info != NULL;
 }
 
 /* Functions that are exported for PIMs to call */
@@ -250,16 +217,12 @@ EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
 void vcrtcm_p_destroy(char *pim_name, int pconid)
 {
-	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info;
 
-	pim_info = find_pim_info_by_name(pim_name);
-	if (!pim_info)
-		return;
-	pcon_info = vcrtcm_find_pcon_info(pim_info, pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return;
-	VCRTCM_INFO("Invalidating pcon %d, info %p\n", pconid, pim_info);
+	VCRTCM_INFO("Invalidating pcon %d\n", pconid);
 	vcrtcm_sysfs_del_pcon(pcon_info);
 	vcrtcm_del_pcon(pconid);
 	list_del(&pcon_info->pcon_list);
@@ -268,34 +231,12 @@ void vcrtcm_p_destroy(char *pim_name, int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
-/* Functions for module init to call to set things up. */
 int vcrtcm_structures_init()
 {
-	int result = 0;
-	pconid_table = (struct pconid_mapping *) vcrtcm_kmalloc(
-			sizeof(struct pconid_mapping) * MAX_NUM_PCONIDS,
-			GFP_KERNEL,
-			&vcrtcm_kmalloc_track);
-
-	if (!pconid_table)
-		return -ENOMEM;
-
 	mutex_init(&pconid_table_mutex);
-
-	result = vcrtcm_id_generator_init(&pconid_generator, MAX_NUM_PCONIDS);
-
-	if (result < 0) {
-		vcrtcm_structures_destroy();
-		return result;
-	}
-
 	return 0;
 }
 
 void vcrtcm_structures_destroy()
 {
-	if (pconid_table)
-		vcrtcm_kfree(pconid_table, &vcrtcm_kmalloc_track);
-	vcrtcm_id_generator_destroy(&pconid_generator);
 }
-
