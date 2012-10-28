@@ -173,7 +173,7 @@ struct vcrtcm_pcon_info {
 	int pconid; /* index into table maintained by vcrtcm */
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
-	struct list_head pcon_list;
+	struct list_head pcons_in_pim_list;
 	/* general lock for fields subject to concurrent access */
 	spinlock_t lock;
 	/* see VCRTCM_STATUS_PCON constants above for possible status bits */

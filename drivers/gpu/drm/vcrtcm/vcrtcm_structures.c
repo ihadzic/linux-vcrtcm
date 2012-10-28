@@ -191,7 +191,7 @@ void vcrtcm_pim_unregister(char *pim_name)
 	VCRTCM_INFO("Unregistering PIM %s\n", pim_name);
 
 	list_for_each_entry_safe(pcon_info, tmp,
-				&pim_info->active_pcon_list, pcon_list) {
+				&pim_info->active_pcon_list, pcons_in_pim_list) {
 		VCRTCM_ERROR("PIM %s's PCON %i "
 			"was not invalidated before calling "
 			"vcrtcm_pim_unregister(). Doing that now...\n",
@@ -215,7 +215,7 @@ void vcrtcm_p_destroy(char *pim_name, int pconid)
 	VCRTCM_INFO("Invalidating pcon %d\n", pconid);
 	vcrtcm_sysfs_del_pcon(pcon_info);
 	vcrtcm_del_pcon(pconid);
-	list_del(&pcon_info->pcon_list);
+	list_del(&pcon_info->pcons_in_pim_list);
 	vcrtcm_dealloc_pcon_info(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);

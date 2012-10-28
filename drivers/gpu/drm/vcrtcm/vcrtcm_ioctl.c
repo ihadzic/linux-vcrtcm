@@ -99,7 +99,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	}
 
 	vcrtcm_sysfs_add_pcon(pcon_info);
-	list_add_tail(&pcon_info->pcon_list, &pim_info->active_pcon_list);
+	list_add_tail(&pcon_info->pcons_in_pim_list, &pim_info->active_pcon_list);
 
 	*pconid = pcon_info->pconid;
 	return 0;
@@ -126,7 +126,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		else
 			VCRTCM_INFO("No destroy function...\n");
 	}
-	list_del(&pcon_info->pcon_list);
+	list_del(&pcon_info->pcons_in_pim_list);
 	vcrtcm_dealloc_pcon_info(pconid);
 	return 0;
 }
