@@ -208,57 +208,45 @@ int vcrtcm_del_pcon(int pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;
 	int r = 0;
+	unsigned long flags;
 
-	/* find the entry that should be removed */
-	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_for_each_entry(pcon_info, &vcrtcm_pcon_list, list) {
-		if (pcon_info->pconid == pconid) {
-			unsigned long flags;
-			mutex_lock(&pcon_info->mutex);
-			VCRTCM_INFO("found an existing pcon %i "
-				    "removing\n",
-				    pcon_info->pconid);
-			spin_lock_irqsave(&pcon_info->lock, flags);
-			if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
-				pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-				spin_unlock_irqrestore(&pcon_info->lock,
-						       flags);
-				VCRTCM_INFO("pcon in use by CRTC %p, "
-					    "forcing detach\n",
-					    pcon_info->drm_crtc);
-				if (pcon_info->funcs.detach) {
-					r = pcon_info->funcs.detach(pcon_info);
-					if (r) {
-						VCRTCM_ERROR("could not force detach on CRTC %p\n",
-							pcon_info->drm_crtc);
-						spin_lock_irqsave(&pcon_info->lock, flags);
-						pcon_info->status
-							|= VCRTCM_STATUS_PCON_IN_USE;
-						spin_unlock_irqrestore(&pcon_info->lock, flags);
-						mutex_unlock(&pcon_info->mutex);
-						mutex_unlock(&vcrtcm_pcon_list_mutex);
-						return r;
-					}
-				}
-				if (pcon_info->gpu_funcs.detach)
-					pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
-			} else
-				spin_unlock_irqrestore(&pcon_info->lock, flags);
-			list_del(&pcon_info->list);
-			mutex_unlock(&pcon_info->mutex);
-			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
-			mutex_unlock(&vcrtcm_pcon_list_mutex);
-			return 0;
-		}
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info) {
+		VCRTCM_WARNING("requested pcon %i not found\n", pconid);
+		return -EINVAL;
 	}
-	mutex_unlock(&vcrtcm_pcon_list_mutex);
-
-	/*
-	 * if we got here, then the caller is attempting to remove something
-	 * that does not exist
-	 */
-	VCRTCM_WARNING("requested pcon %i not found\n", pconid);
-	return -EINVAL;
+	mutex_lock(&pcon_info->mutex);
+	VCRTCM_INFO("removing pcon %i\n", pconid);
+	spin_lock_irqsave(&pcon_info->lock, flags);
+	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+		pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+		spin_unlock_irqrestore(&pcon_info->lock,
+					   flags);
+		VCRTCM_INFO("pcon in use by CRTC %p, "
+				"forcing detach\n",
+				pcon_info->drm_crtc);
+		if (pcon_info->funcs.detach) {
+			r = pcon_info->funcs.detach(pcon_info);
+			if (r) {
+				VCRTCM_ERROR("could not force detach on CRTC %p\n",
+					pcon_info->drm_crtc);
+				spin_lock_irqsave(&pcon_info->lock, flags);
+				pcon_info->status
+					|= VCRTCM_STATUS_PCON_IN_USE;
+				spin_unlock_irqrestore(&pcon_info->lock, flags);
+				mutex_unlock(&pcon_info->mutex);
+				mutex_unlock(&vcrtcm_pcon_list_mutex);
+				return r;
+			}
+		}
+		if (pcon_info->gpu_funcs.detach)
+			pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
+	} else
+		spin_unlock_irqrestore(&pcon_info->lock, flags);
+	list_del(&pcon_info->list);
+	mutex_unlock(&pcon_info->mutex);
+	vcrtcm_dealloc_pcon_info(pconid);
+	return 0;
 }
 
 /*
