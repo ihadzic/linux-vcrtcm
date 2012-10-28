@@ -23,7 +23,6 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include "vcrtcm_private.h"
-#include "vcrtcm_private.h"
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
@@ -35,7 +34,6 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_pcon.h>
-#include "vcrtcm_private.h"
 #include "vcrtcm_ioctl.h"
 #include "vcrtcm_sysfs.h"
 
@@ -86,7 +84,7 @@ module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	struct vcrtcm_pcon_info_private *pcon_info_private, *priv_tmp;
+	struct vcrtcm_pcon_info *pcon_info, *priv_tmp;
 	struct vcrtcm_pim_info *info, *info_tmp;
 
 	VCRTCM_INFO("unloading module");
@@ -107,25 +105,22 @@ static void __exit vcrtcm_exit(void)
 	 * (we have no other choice)
 	 */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_for_each_entry_safe(pcon_info_private, priv_tmp,
+	list_for_each_entry_safe(pcon_info, priv_tmp,
 				&vcrtcm_pcon_list, list) {
-		mutex_lock(&pcon_info_private->pcon_info.mutex);
+		mutex_lock(&pcon_info->mutex);
 		VCRTCM_INFO("removing pcon %u\n",
-			    pcon_info_private->pcon_info.pconid);
-		if (pcon_info_private->status & VCRTCM_STATUS_PCON_IN_USE) {
+			    pcon_info->pconid);
+		if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 			VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-				    pcon_info_private->drm_crtc);
-			if (pcon_info_private->pcon_info.funcs.detach)
-				pcon_info_private->
-				    pcon_info.funcs.
-				    detach(&pcon_info_private->pcon_info);
-			if (pcon_info_private->gpu_funcs.detach)
-				pcon_info_private->gpu_funcs.detach(
-					pcon_info_private->drm_crtc);
+				    pcon_info->drm_crtc);
+			if (pcon_info->funcs.detach)
+				pcon_info->funcs.detach(pcon_info);
+			if (pcon_info->gpu_funcs.detach)
+				pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
 		}
-		list_del(&pcon_info_private->list);
-		mutex_unlock(&pcon_info_private->pcon_info.mutex);
-		kfree(pcon_info_private);
+		list_del(&pcon_info->list);
+		mutex_unlock(&pcon_info->mutex);
+		vcrtcm_dealloc_pconid(pcon_info->pconid);
 	}
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 

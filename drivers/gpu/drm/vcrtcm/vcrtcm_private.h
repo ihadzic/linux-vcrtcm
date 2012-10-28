@@ -33,24 +33,6 @@
 #define VCRTCM_DMA_BUF_PERMS 0600
 #define MAX_NUM_PCONIDS 1024
 
-/* main structure for keeping track of each PCON-CRTC relationship */
-struct vcrtcm_pcon_info_private {
-	struct list_head list;
-	/* general lock for fields subject to concurrent access */
-	spinlock_t lock;
-	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
-	int status;
-	/* records the time when last (emulated) vblank occurred */
-	struct timeval vblank_time;
-	int vblank_time_valid;
-	/* identifies the CRTC using this PCON */
-	struct drm_crtc *drm_crtc;
-	/* functional interface to GPU driver */
-	struct vcrtcm_gpu_funcs gpu_funcs;
-	/* public PCON information */
-	struct vcrtcm_pcon_info pcon_info;
-};
-
 struct pconid_table_entry {
 	struct vcrtcm_pcon_info *pcon_info;
 };

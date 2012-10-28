@@ -139,6 +139,26 @@ struct vcrtcm_pcon_properties {
 	int attached;
 };
 
+/* functional interface to GPU driver */
+struct vcrtcm_gpu_funcs {
+
+	/* callback into GPU driver when detach is called */
+	void (*detach) (struct drm_crtc *drm_crtc);
+
+	/* VBLANK emulation function  */
+	void (*vblank) (struct drm_crtc *drm_crtc);
+
+	/* synchronization with GPU rendering (e.g. fence wait) */
+	void (*wait_fb) (struct drm_crtc *drm_crtc);
+
+	/* PCON requests from GPU to push the buffer to it */
+	int (*push) (struct drm_crtc *scrtc,
+		     struct drm_gem_object *dbuf_fb,
+		     struct drm_gem_object *dbuf_cursor);
+	/* PCON signals a hotplug event to GPU */
+	void (*hotplug) (struct drm_crtc *crtc);
+};
+
 /* everything that vcrtcm knows about a PCON */
 /* The PCON registers this structure by calling vcrtcm_hw_add() */
 /* The GPU driver interacts with the PCON by calling the */
@@ -154,6 +174,18 @@ struct vcrtcm_pcon_info {
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcon_list;
+	struct list_head list;
+	/* general lock for fields subject to concurrent access */
+	spinlock_t lock;
+	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
+	int status;
+	/* records the time when last (emulated) vblank occurred */
+	struct timeval vblank_time;
+	int vblank_time_valid;
+	/* identifies the CRTC using this PCON */
+	struct drm_crtc *drm_crtc;
+	/* functional interface to GPU driver */
+	struct vcrtcm_gpu_funcs gpu_funcs;
 };
 
 /* descriptor for push buffer; when push-method is used */
@@ -174,26 +206,6 @@ struct vcrtcm_push_buffer_descriptor {
 	int virgin;
 	struct page **pages;
 	unsigned long num_pages;
-};
-
-/* functional interface to GPU driver */
-struct vcrtcm_gpu_funcs {
-
-	/* callback into GPU driver when detach is called */
-	void (*detach) (struct drm_crtc *drm_crtc);
-
-	/* VBLANK emulation function  */
-	void (*vblank) (struct drm_crtc *drm_crtc);
-
-	/* synchronization with GPU rendering (e.g. fence wait) */
-	void (*wait_fb) (struct drm_crtc *drm_crtc);
-
-	/* PCON requests from GPU to push the buffer to it */
-	int (*push) (struct drm_crtc *scrtc,
-		     struct drm_gem_object *dbuf_fb,
-		     struct drm_gem_object *dbuf_cursor);
-	/* PCON signals a hotplug event to GPU */
-	void (*hotplug) (struct drm_crtc *crtc);
 };
 
 #endif

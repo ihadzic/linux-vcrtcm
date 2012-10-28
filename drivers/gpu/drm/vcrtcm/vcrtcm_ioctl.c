@@ -23,67 +23,37 @@
 #include "vcrtcm_ioctl.h"
 #include "vcrtcm_sysfs.h"
 
-static int add_pcon(struct vcrtcm_pcon_funcs *pcon_funcs,
-		enum vcrtcm_xfer_mode xfer_mode,
-		int pconid, void *pcon_cookie)
+static int add_pcon(struct vcrtcm_pcon_info *pcon_info,  /* TBD merge */
+	struct vcrtcm_pcon_funcs *pcon_funcs,
+	enum vcrtcm_xfer_mode xfer_mode,
+	int pconid, void *pcon_cookie)
 {
-	struct vcrtcm_pcon_info_private *pcon_info_private;
-
-	/* first check whether we are already registered */
-	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_for_each_entry(pcon_info_private, &vcrtcm_pcon_list, list) {
-		if (pcon_info_private->pcon_info.pconid == pconid) {
-		    /* if the PCON already exists, we just overwrite
-		       the provided functions (assuming that the PCON
-		       that called us knows what it's doing */
-		    mutex_lock(&pcon_info_private->pcon_info.mutex);
-		    VCRTCM_WARNING("found an existing pcon %i, "
-				"refreshing its implementation\n",
-				pcon_info_private->pcon_info.pconid);
-		    pcon_info_private->pcon_info.funcs = *pcon_funcs;
-		    pcon_info_private->pcon_info.xfer_mode = xfer_mode;
-		    mutex_unlock(&pcon_info_private->pcon_info.mutex);
-		    mutex_unlock(&vcrtcm_pcon_list_mutex);
-		    return 0;
-		}
-	}
-	mutex_unlock(&vcrtcm_pcon_list_mutex);
-
-	/*
-	 * If we got here, then we are dealing with a new implementation
-	 * and we have to allocate and populate the PCON structure
-	 */
-	pcon_info_private =
-		kmalloc(sizeof(struct vcrtcm_pcon_info_private), GFP_KERNEL);
-	if (pcon_info_private == NULL)
-		return -ENOMEM;
-
 	/*
 	 * populate the PCON structures (no need to hold the mutex
 	 *  because no one else sees this structure yet)
 	 */
-	spin_lock_init(&pcon_info_private->lock);
-	mutex_init(&pcon_info_private->pcon_info.mutex);
-	pcon_info_private->pcon_info.funcs = *pcon_funcs;
-	pcon_info_private->pcon_info.xfer_mode = xfer_mode;
+	spin_lock_init(&pcon_info->lock);
+	mutex_init(&pcon_info->mutex);
+	pcon_info->funcs = *pcon_funcs;
+	pcon_info->xfer_mode = xfer_mode;
 
 	/* populate the info structure and link it to the PCON structure */
-	pcon_info_private->status = 0;
-	pcon_info_private->pcon_info.pconid = pconid;
-	pcon_info_private->pcon_info.pcon_cookie = pcon_cookie;
-	pcon_info_private->vblank_time_valid = 0;
-	pcon_info_private->vblank_time.tv_sec = 0;
-	pcon_info_private->vblank_time.tv_usec = 0;
-	pcon_info_private->drm_crtc = NULL;
-	memset(&pcon_info_private->gpu_funcs, 0,
+	pcon_info->status = 0;
+	pcon_info->pconid = pconid;
+	pcon_info->pcon_cookie = pcon_cookie;
+	pcon_info->vblank_time_valid = 0;
+	pcon_info->vblank_time.tv_sec = 0;
+	pcon_info->vblank_time.tv_usec = 0;
+	pcon_info->drm_crtc = NULL;
+	memset(&pcon_info->gpu_funcs, 0,
 		   sizeof(struct vcrtcm_gpu_funcs));
 
 	VCRTCM_INFO("adding new pcon %i\n",
-		    pcon_info_private->pcon_info.pconid);
+		    pcon_info->pconid);
 
 	/* make the new PCON available to the rest of the system */
 	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_add(&pcon_info_private->list, &vcrtcm_pcon_list);
+	list_add(&pcon_info->list, &vcrtcm_pcon_list);
 	mutex_unlock(&vcrtcm_pcon_list_mutex);
 
 	return 0;
@@ -126,7 +96,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	VCRTCM_INFO("New pcon created, id %i\n", pcon_info->pconid);
 
-	r = add_pcon(&pcon_info->funcs, pcon_info->xfer_mode, pcon_info->pconid,
+	r = add_pcon(pcon_info, &pcon_info->funcs, pcon_info->xfer_mode, pcon_info->pconid,
 		pcon_info->pcon_cookie);
 	if (r) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
