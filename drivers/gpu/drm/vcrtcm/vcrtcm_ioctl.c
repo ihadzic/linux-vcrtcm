@@ -67,7 +67,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
-	pcon_info = vcrtcm_alloc_pconid();
+	pcon_info = vcrtcm_alloc_pcon_info();
 	if (!pcon_info) {
 		VCRTCM_ERROR("No pconids available...");
 		return -ENODEV;
@@ -77,7 +77,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 
 	if (!pim_info) {
 		VCRTCM_INFO("Invalid pimid\n");
-		vcrtcm_dealloc_pconid(pcon_info->pconid);
+		vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 		return -EINVAL;
 	}
 
@@ -87,7 +87,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		r = pim_info->funcs.instantiate(pcon_info, hints);
 		if (r) {
 			VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
-			vcrtcm_dealloc_pconid(pcon_info->pconid);
+			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 			return r;
 		}
 	}
@@ -100,7 +100,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		pcon_info->pcon_cookie);
 	if (r) {
 		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
-		vcrtcm_dealloc_pconid(pcon_info->pconid);
+		vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 		return r;
 	}
 
@@ -133,7 +133,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 			VCRTCM_INFO("No destroy function...\n");
 	}
 	list_del(&pcon_info->pcon_list);
-	vcrtcm_dealloc_pconid(pconid);
+	vcrtcm_dealloc_pcon_info(pconid);
 	return 0;
 }
 

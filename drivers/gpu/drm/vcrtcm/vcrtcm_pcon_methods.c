@@ -246,7 +246,7 @@ int vcrtcm_del_pcon(int pconid)
 				spin_unlock_irqrestore(&pcon_info->lock, flags);
 			list_del(&pcon_info->list);
 			mutex_unlock(&pcon_info->mutex);
-			vcrtcm_dealloc_pconid(pcon_info->pconid);
+			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return 0;
 		}

@@ -63,9 +63,9 @@ int vcrtcm_structures_init(void);
 void vcrtcm_structures_destroy(void);
 
 /* Functions for managing mappings between pconids and pcon_infos */
-struct vcrtcm_pcon_info *vcrtcm_alloc_pconid(void);
+struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info(void);
 struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid);
-void vcrtcm_dealloc_pconid(int pconid);
+void vcrtcm_dealloc_pcon_info(int pconid);
 int vcrtcm_pconid_valid(int pconid);
 int vcrtcm_del_pcon(int pconid);
 

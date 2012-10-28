@@ -80,16 +80,6 @@ struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid)
 	return NULL;
 }
 
-static void update_pim_info(char *pim_name, struct vcrtcm_pim_funcs *funcs)
-{
-	struct vcrtcm_pim_info *pim_info = find_pim_info_by_name(pim_name);
-
-	if (!pim_info)
-		return;
-
-	memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
-}
-
 static void destroy_pim_info(struct vcrtcm_pim_info *info)
 {
 	if (info)
@@ -112,7 +102,7 @@ static void remove_pim_info(struct vcrtcm_pim_info *info)
 	mutex_unlock(&pim_list_mutex);
 }
 
-struct vcrtcm_pcon_info *vcrtcm_alloc_pconid()
+struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info()
 {
 	int k;
 
@@ -134,7 +124,7 @@ struct vcrtcm_pcon_info *vcrtcm_alloc_pconid()
 	return NULL;
 }
 
-void vcrtcm_dealloc_pconid(int pconid)
+void vcrtcm_dealloc_pcon_info(int pconid)
 {
 	struct pconid_table_entry *entry;
 
@@ -175,7 +165,7 @@ int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs)
 
 	pim_info = find_pim_info_by_name(pim_name);
 	if (pim_info) {
-		update_pim_info(pim_name, funcs);
+		memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 		return 1;
 	}
 
@@ -226,7 +216,7 @@ void vcrtcm_p_destroy(char *pim_name, int pconid)
 	vcrtcm_sysfs_del_pcon(pcon_info);
 	vcrtcm_del_pcon(pconid);
 	list_del(&pcon_info->pcon_list);
-	vcrtcm_dealloc_pconid(pconid);
+	vcrtcm_dealloc_pcon_info(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
