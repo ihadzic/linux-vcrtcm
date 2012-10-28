@@ -23,36 +23,6 @@
 #include "vcrtcm_ioctl.h"
 #include "vcrtcm_sysfs.h"
 
-static int add_pcon(struct vcrtcm_pcon_info *pcon_info,  /* TBD merge */
-	struct vcrtcm_pcon_funcs *pcon_funcs,
-	enum vcrtcm_xfer_mode xfer_mode,
-	int pconid, void *pcon_cookie)
-{
-	/*
-	 * populate the PCON structures (no need to hold the mutex
-	 *  because no one else sees this structure yet)
-	 */
-	spin_lock_init(&pcon_info->lock);
-	mutex_init(&pcon_info->mutex);
-	pcon_info->funcs = *pcon_funcs;
-	pcon_info->xfer_mode = xfer_mode;
-
-	/* populate the info structure and link it to the PCON structure */
-	pcon_info->status = 0;
-	pcon_info->pconid = pconid;
-	pcon_info->pcon_cookie = pcon_cookie;
-	pcon_info->vblank_time_valid = 0;
-	pcon_info->vblank_time.tv_sec = 0;
-	pcon_info->vblank_time.tv_usec = 0;
-	pcon_info->drm_crtc = NULL;
-	memset(&pcon_info->gpu_funcs, 0,
-		   sizeof(struct vcrtcm_gpu_funcs));
-
-	VCRTCM_INFO("adding new pcon %i\n", pcon_info->pconid);
-
-	return 0;
-}
-
 /* TODO: Need better errors. */
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
@@ -87,20 +57,17 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	}
 	else
 		VCRTCM_INFO("No instantiate function...\n");
-
 	VCRTCM_INFO("New pcon created, id %i\n", pcon_info->pconid);
-
-	r = add_pcon(pcon_info, &pcon_info->funcs, pcon_info->xfer_mode, pcon_info->pconid,
-		pcon_info->pcon_cookie);
-	if (r) {
-		VCRTCM_INFO("Error registering pcon with vcrtcm\n");
-		vcrtcm_dealloc_pcon_info(pcon_info->pconid);
-		return r;
-	}
-
+	spin_lock_init(&pcon_info->lock);
+	mutex_init(&pcon_info->mutex);
+	pcon_info->status = 0;
+	pcon_info->vblank_time_valid = 0;
+	pcon_info->vblank_time.tv_sec = 0;
+	pcon_info->vblank_time.tv_usec = 0;
+	pcon_info->drm_crtc = NULL;
+	memset(&pcon_info->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
 	vcrtcm_sysfs_add_pcon(pcon_info);
 	list_add_tail(&pcon_info->pcons_in_pim_list, &pim_info->active_pcon_list);
-
 	*pconid = pcon_info->pconid;
 	return 0;
 }
