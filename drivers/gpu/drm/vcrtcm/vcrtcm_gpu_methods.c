@@ -34,66 +34,58 @@ int vcrtcm_g_attach(int pconid,
 {
 
 	struct vcrtcm_pcon_info *pcon_info;
+	unsigned long flags;
 
-	/* find the entry that should be remove */
-	mutex_lock(&vcrtcm_pcon_list_mutex);
-	/* TBD use get_pcon_info() instead of searching list */
-	list_for_each_entry(pcon_info, &vcrtcm_pcon_list, list) {
-		if (pcon_info->pconid == pconid) {
-			unsigned long flags;
-			mutex_lock(&pcon_info->mutex);
-			spin_lock_irqsave(&pcon_info->lock, flags);
-			if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
-				spin_unlock_irqrestore(&pcon_info->lock,
-							flags);
-				VCRTCM_ERROR("pcon %i already attached "
-					     "to crtc_drm %p\n",
-					     pconid, drm_crtc);
-				mutex_unlock(&pcon_info->mutex);
-				mutex_unlock(&vcrtcm_pcon_list_mutex);
-				return -EBUSY;
-			}
-			spin_unlock_irqrestore(&pcon_info->lock, flags);
-			/*
-			 * if we got here, then we have found the PCON
-			 * and it's free for us to attach to
-			 */
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info) {
+		VCRTCM_ERROR("pcon %i not found\n", pconid);
+		return -EINVAL;
+	}
+	mutex_lock(&pcon_info->mutex);
+	spin_lock_irqsave(&pcon_info->lock, flags);
+	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+		spin_unlock_irqrestore(&pcon_info->lock,
+					flags);
+		VCRTCM_ERROR("pcon %i already attached "
+				 "to crtc_drm %p\n",
+				 pconid, drm_crtc);
+		mutex_unlock(&pcon_info->mutex);
+		mutex_unlock(&vcrtcm_pcon_list_mutex);
+		return -EBUSY;
+	}
+	spin_unlock_irqrestore(&pcon_info->lock, flags);
+	/*
+	 * if we got here, then we have found the PCON
+	 * and it's free for us to attach to
+	 */
 
-			/* call the device specific back-end of attach */
-			if (pcon_info->funcs.attach) {
-				int r;
-				r = pcon_info->funcs.attach(pcon_info);
-				if (r) {
-					VCRTCM_ERROR("back-end attach call failed\n");
-					mutex_unlock(&pcon_info->mutex);
-					mutex_unlock(&vcrtcm_pcon_list_mutex);
-					return r;
-				}
-			}
-			/* nothing can fail now, populate the structure */
-			pcon_info->pconid = pconid;
-			pcon_info->drm_crtc = drm_crtc;
-			pcon_info->gpu_funcs = *gpu_funcs;
-
-			/* point the GPU driver to PCON we've just attached */
-			*pcon_info_ret = pcon_info;
-
-			/* very last thing to do: change the status */
-			spin_lock_irqsave(&pcon_info->lock, flags);
-			pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
-			spin_unlock_irqrestore(&pcon_info->lock,
-					       flags);
+	/* call the device specific back-end of attach */
+	if (pcon_info->funcs.attach) {
+		int r;
+		r = pcon_info->funcs.attach(pcon_info);
+		if (r) {
+			VCRTCM_ERROR("back-end attach call failed\n");
 			mutex_unlock(&pcon_info->mutex);
 			mutex_unlock(&vcrtcm_pcon_list_mutex);
-			return 0;
-
+			return r;
 		}
 	}
-	mutex_unlock(&vcrtcm_pcon_list_mutex);
+	/* nothing can fail now, populate the structure */
+	pcon_info->pconid = pconid;
+	pcon_info->drm_crtc = drm_crtc;
+	pcon_info->gpu_funcs = *gpu_funcs;
 
-	/* if we got here, then the PCON was not found */
-	VCRTCM_ERROR("pcon %i not found\n", pconid);
-	return -EINVAL;
+	/* point the GPU driver to PCON we've just attached */
+	*pcon_info_ret = pcon_info;
+
+	/* very last thing to do: change the status */
+	spin_lock_irqsave(&pcon_info->lock, flags);
+	pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
+	spin_unlock_irqrestore(&pcon_info->lock,
+				   flags);
+	mutex_unlock(&pcon_info->mutex);
+	mutex_unlock(&vcrtcm_pcon_list_mutex);
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
 
