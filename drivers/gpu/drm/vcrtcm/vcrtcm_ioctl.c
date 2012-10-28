@@ -48,13 +48,7 @@ static int add_pcon(struct vcrtcm_pcon_info *pcon_info,  /* TBD merge */
 	memset(&pcon_info->gpu_funcs, 0,
 		   sizeof(struct vcrtcm_gpu_funcs));
 
-	VCRTCM_INFO("adding new pcon %i\n",
-		    pcon_info->pconid);
-
-	/* make the new PCON available to the rest of the system */
-	mutex_lock(&vcrtcm_pcon_list_mutex);
-	list_add(&pcon_info->list, &vcrtcm_pcon_list);
-	mutex_unlock(&vcrtcm_pcon_list_mutex);
+	VCRTCM_INFO("adding new pcon %i\n", pcon_info->pconid);
 
 	return 0;
 }

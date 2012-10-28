@@ -47,17 +47,12 @@ static dev_t vcrtcm_dev;
 static struct cdev *vcrtcm_cdev;
 static struct device *vcrtcm_device;
 
-struct list_head vcrtcm_pcon_list;
-struct mutex vcrtcm_pcon_list_mutex;
-
 int vcrtcm_debug;
 
 static int __init vcrtcm_init(void)
 {
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	mutex_init(&vcrtcm_pcon_list_mutex);
-	INIT_LIST_HEAD(&vcrtcm_pcon_list);
 	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
 	INIT_LIST_HEAD(&pim_list);
 	mutex_init(&pim_list_mutex);
@@ -119,7 +114,6 @@ static void __exit vcrtcm_exit(void)
 				if (pcon_info->gpu_funcs.detach)
 					pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
 			}
-			list_del(&pcon_info->list);
 			mutex_unlock(&pcon_info->mutex);
 			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 		}

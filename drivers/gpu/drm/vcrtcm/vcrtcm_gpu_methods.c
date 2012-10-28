@@ -50,7 +50,6 @@ int vcrtcm_g_attach(int pconid,
 				 "to crtc_drm %p\n",
 				 pconid, drm_crtc);
 		mutex_unlock(&pcon_info->mutex);
-		mutex_unlock(&vcrtcm_pcon_list_mutex);
 		return -EBUSY;
 	}
 	spin_unlock_irqrestore(&pcon_info->lock, flags);
@@ -66,7 +65,6 @@ int vcrtcm_g_attach(int pconid,
 		if (r) {
 			VCRTCM_ERROR("back-end attach call failed\n");
 			mutex_unlock(&pcon_info->mutex);
-			mutex_unlock(&vcrtcm_pcon_list_mutex);
 			return r;
 		}
 	}
@@ -84,7 +82,6 @@ int vcrtcm_g_attach(int pconid,
 	spin_unlock_irqrestore(&pcon_info->lock,
 				   flags);
 	mutex_unlock(&pcon_info->mutex);
-	mutex_unlock(&vcrtcm_pcon_list_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);

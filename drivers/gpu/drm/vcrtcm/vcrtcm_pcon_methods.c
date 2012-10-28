@@ -235,7 +235,6 @@ int vcrtcm_del_pcon(int pconid)
 					|= VCRTCM_STATUS_PCON_IN_USE;
 				spin_unlock_irqrestore(&pcon_info->lock, flags);
 				mutex_unlock(&pcon_info->mutex);
-				mutex_unlock(&vcrtcm_pcon_list_mutex);
 				return r;
 			}
 		}
@@ -243,7 +242,6 @@ int vcrtcm_del_pcon(int pconid)
 			pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
 	} else
 		spin_unlock_irqrestore(&pcon_info->lock, flags);
-	list_del(&pcon_info->list);
 	mutex_unlock(&pcon_info->mutex);
 	vcrtcm_dealloc_pcon_info(pconid);
 	return 0;
