@@ -138,7 +138,7 @@ void vcrtcm_dealloc_pconid(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid >= MAX_NUM_PCONIDS)
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
 		return;
 	entry = &pconid_table[pconid];
 	if (entry->pcon_info != NULL)
@@ -150,8 +150,8 @@ struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid >= MAX_NUM_PCONIDS)
-		return 0;
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
+		return NULL;
 	entry = &pconid_table[pconid];
 	return entry->pcon_info;
 }
@@ -160,7 +160,7 @@ int vcrtcm_pconid_valid(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid >= MAX_NUM_PCONIDS)
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
 		return 0;
 	entry = &pconid_table[pconid];
 	return entry->pcon_info != NULL;
