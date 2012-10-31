@@ -44,7 +44,7 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 			BUG_ON(!pbd->gpu_private);
 			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, pbd,
+			vcrtcm_p_free_pb(flow_info->pconid, pbd,
 					 &udlpim_info->kmalloc_track,
 					 &udlpim_info->page_track);
 		}
@@ -72,7 +72,7 @@ int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		}
 
 		flow_info->udlpim_info = udlpim_info;
-		flow_info->vcrtcm_pcon_info = vcrtcm_pcon_info;
+		flow_info->pconid = vcrtcm_pcon_info->pconid;
 		flow_info->fps = 0;
 		flow_info->fb_force_xmit = 0;
 		flow_info->fb_xmit_allowed = 0;
@@ -124,7 +124,7 @@ int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
 	cancel_delayed_work_sync(&udlpim_info->query_edid_work);
 
-	if (flow_info->vcrtcm_pcon_info == vcrtcm_pcon_info) {
+	if (flow_info->pconid == vcrtcm_pcon_info->pconid) {
 		UDLPIM_DEBUG("Found descriptor that should be removed.\n");
 
 		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
@@ -168,7 +168,7 @@ static int udlpim_realloc_pb(struct udlpim_info *udlpim_info,
 		vm_unmap_ram(pb_mapped_ram1, pbd1->num_pages);
 		pb_mapped_ram1 = NULL;
 	}
-	pbd0 = vcrtcm_p_realloc_pb(flow_info->vcrtcm_pcon_info->pconid, pbd0,
+	pbd0 = vcrtcm_p_realloc_pb(flow_info->pconid, pbd0,
 				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
 				   &udlpim_info->kmalloc_track,
 				   &udlpim_info->page_track);
@@ -176,7 +176,7 @@ static int udlpim_realloc_pb(struct udlpim_info *udlpim_info,
 		r = PTR_ERR(pbd0);
 		goto out_err0;
 	}
-	pbd1 = vcrtcm_p_realloc_pb(flow_info->vcrtcm_pcon_info->pconid, pbd1,
+	pbd1 = vcrtcm_p_realloc_pb(flow_info->pconid, pbd1,
 				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
 				   &udlpim_info->kmalloc_track,
 				   &udlpim_info->page_track);
@@ -223,11 +223,11 @@ out_err3:
 	if (pbd0)
 		vm_unmap_ram(pb_mapped_ram0, pbd0->num_pages);
 out_err2:
-	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, pbd1,
+	vcrtcm_p_free_pb(flow_info->pconid, pbd1,
 			 &udlpim_info->kmalloc_track,
 			 &udlpim_info->page_track);
 out_err1:
-	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, pbd0,
+	vcrtcm_p_free_pb(flow_info->pconid, pbd0,
 			 &udlpim_info->kmalloc_track,
 			 &udlpim_info->page_track);
 out_err0:
@@ -810,14 +810,14 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
-		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info->pconid,
+		r = vcrtcm_p_push(flow_info->pconid,
 				  flow_info->pbd_fb[push_buffer_index],
 				  flow_info->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info->pconid);
+			vcrtcm_p_emulate_vblank(flow_info->pconid);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for USB transmission in the next
@@ -842,7 +842,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
-		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info->pconid);
+		vcrtcm_p_emulate_vblank(flow_info->pconid);
 		UDLPIM_DEBUG("transmission not happening\n");
 	}
 

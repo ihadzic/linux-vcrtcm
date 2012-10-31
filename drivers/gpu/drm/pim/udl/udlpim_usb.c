@@ -606,7 +606,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		UDLPIM_DEBUG("Calling hotplug.\n");
-		vcrtcm_p_hotplug(flow_info->vcrtcm_pcon_info->pconid);
+		vcrtcm_p_hotplug(flow_info->pconid);
 	}
 
 	if (old_edid)

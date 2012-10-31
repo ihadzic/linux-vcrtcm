@@ -161,6 +161,7 @@ struct udlpim_info {
 
 struct udlpim_flow_info {
 	struct list_head list;
+	int pconid;
 	int fps;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -168,7 +169,6 @@ struct udlpim_flow_info {
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
-	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
 	struct vcrtcm_fb vcrtcm_fb;
 	struct vcrtcm_cursor vcrtcm_cursor;
 	struct vcrtcm_push_buffer_descriptor *pbd_fb[2];
