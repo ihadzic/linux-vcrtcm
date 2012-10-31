@@ -1190,8 +1190,7 @@ static void __exit v4l2pim_exit(void)
 		v4l2pim_info, v4l2pim_info->pconid, v4l2pim_major,
 		v4l2pim_info->minor);
 
-		vcrtcm_p_destroy(V4L2PIM_PIM_NAME,
-					(uint32_t) v4l2pim_info->pconid);
+		vcrtcm_p_destroy(v4l2pim_info->pconid);
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);

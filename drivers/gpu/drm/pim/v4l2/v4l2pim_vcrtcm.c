@@ -42,7 +42,7 @@ static void v4l2pim_free_pb(struct v4l2pim_info *v4l2pim_info,
 			BUG_ON(!pbd->gpu_private);
 			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd,
+			vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, pbd,
 					 &v4l2pim_info->kmalloc_track,
 					 &v4l2pim_info->page_track);
 		}
@@ -59,7 +59,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 	void *pb, *old_pb = NULL;
 
 	for (i = 0; i < 2; i++) {
-		pbd = vcrtcm_p_alloc_pb(flow_info->vcrtcm_pcon_info, num_pages,
+		pbd = vcrtcm_p_alloc_pb(flow_info->vcrtcm_pcon_info->pconid, num_pages,
 					GFP_KERNEL | __GFP_HIGHMEM,
 					&v4l2pim_info->kmalloc_track,
 					&v4l2pim_info->page_track);
@@ -89,7 +89,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 		return r;
 
 out_err1:
-	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, pbd,
+	vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, pbd,
 			 &v4l2pim_info->kmalloc_track,
 			 &v4l2pim_info->page_track);
 out_err0:
@@ -108,7 +108,7 @@ out_err0:
 			flow_info->pbd_cursor[0] = NULL;
 			flow_info->pb_cursor[0] = NULL;
 		}
-		vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info, old_pbd,
+		vcrtcm_p_free_pb(flow_info->vcrtcm_pcon_info->pconid, old_pbd,
 				 &v4l2pim_info->kmalloc_track,
 				 &v4l2pim_info->page_track);
 	}
@@ -181,7 +181,7 @@ int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 	VCRTCM_INFO("Detaching v4l2pim %d from pcon %p\n",
 		v4l2pim_info->minor, vcrtcm_pcon_info);
 
-	vcrtcm_p_wait_fb(vcrtcm_pcon_info);
+	vcrtcm_p_wait_fb(vcrtcm_pcon_info->pconid);
 	flow_info = v4l2pim_info->flow_info;
 
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
@@ -664,14 +664,14 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
-		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info,
+		r = vcrtcm_p_push(flow_info->vcrtcm_pcon_info->pconid,
 				  flow_info->pbd_fb[push_buffer_index],
 				  flow_info->pbd_cursor[push_buffer_index]);
 
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);
+			vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info->pconid);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for transmission in the next
@@ -696,7 +696,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
 		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
 
-		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info);
+		vcrtcm_p_emulate_vblank(flow_info->vcrtcm_pcon_info->pconid);
 		V4L2PIM_DEBUG("transmission not happening\n");
 	}
 
