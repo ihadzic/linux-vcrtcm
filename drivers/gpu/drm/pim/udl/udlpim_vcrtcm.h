@@ -22,27 +22,27 @@
 
 /* VCRTCM interface function prototypes */
 
-int udlpim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int udlpim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int udlpim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
-int udlpim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
-int udlpim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);
-int udlpim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps);
-int udlpim_page_flip(struct vcrtcm_pcon_info *vcrtcm_pcon_info, u32 ioaddr);
-int udlpim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
-int udlpim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
-void udlpim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int udlpim_attach(int pconid, void *cookie);
+int udlpim_detach(int pconid, void *cookie);
+int udlpim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
+int udlpim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
+int udlpim_set_fps(int pconid, void *cookie, int fps);
+int udlpim_get_fps(int pconid, void *cookie, int *fps);
+int udlpim_page_flip(int pconid, void *cookie, u32 ioaddr);
+int udlpim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
+int udlpim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
+void udlpim_disable(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */
-int udlpim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
-int udlpim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
-int udlpim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status);
-int udlpim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state);
-int udlpim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state);
-int udlpim_connected(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *status);
-int udlpim_get_modes(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode **modes,
+int udlpim_dirty_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
+int udlpim_wait_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
+int udlpim_get_fb_status(int pconid, void *cookie, struct drm_crtc *drm_crtc, u32 *status);
+int udlpim_set_dpms(int pconid, void *cookie, int state);
+int udlpim_get_dpms(int pconid, void *cookie, int *state);
+int udlpim_connected(int pconid, void *cookie, int *status);
+int udlpim_get_modes(int pconid, void *cookie, struct vcrtcm_mode **modes,
 			int *count);
-int udlpim_check_mode(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_mode *mode,
+int udlpim_check_mode(int pconid, void *cookie, struct vcrtcm_mode *mode,
 			int *status);
 
 /* Scheduled/delayed work functions */

@@ -47,7 +47,7 @@ int udlpim_fake_vblank_slack = 1;
 /* Use to generate minor numbers */
 struct vcrtcm_id_generator udlpim_minor_id_generator;
 
-static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+static int udlpim_get_properties(int pconid, void *cookie,
 	struct vcrtcm_pcon_properties *props);
 
 struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
@@ -73,9 +73,9 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 
 static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints);
-static void udlpim_destroy(struct vcrtcm_pcon_info *pcon_info);
+static void udlpim_destroy(int pconid, void *cookie);
 
-static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+static int udlpim_get_properties(int pconid, void *cookie,
 				 struct vcrtcm_pcon_properties *props);
 
 static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
@@ -166,25 +166,25 @@ static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 	return -ENODEV;
 }
 
-static void udlpim_destroy(struct vcrtcm_pcon_info *pcon_info)
+static void udlpim_destroy(int pconid, void *cookie)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pcon_info->pconid) {
+		if (info->pconid == pconid) {
 			info->used = 0;
 			return;
 		}
 	}
 }
 
-static int udlpim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+static int udlpim_get_properties(int pconid, void *cookie,
 				 struct vcrtcm_pcon_properties *props)
 {
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pcon_info->pconid) {
+		if (info->pconid == pconid) {
 			struct udlpim_flow_info *flow = info->flow_info;
 			props->fps = flow ? flow->fps : -1;
 			props->attached = flow ? 1 : 0;
