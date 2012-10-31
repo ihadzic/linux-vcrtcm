@@ -244,7 +244,7 @@ int vcrtcm_del_pcon(int pconid)
 				"forcing detach\n",
 				pcon_info->drm_crtc);
 		if (pcon_info->funcs.detach) {
-			r = pcon_info->funcs.detach(pcon_info);
+			r = pcon_info->funcs.detach(pcon_info->pconid, pcon_info->pcon_cookie);
 			if (r) {
 				VCRTCM_ERROR("could not force detach on CRTC %p\n",
 					pcon_info->drm_crtc);

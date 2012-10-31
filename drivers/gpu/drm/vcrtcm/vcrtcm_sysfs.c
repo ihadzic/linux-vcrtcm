@@ -199,8 +199,8 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 		if (!pcon_info->funcs.get_properties)
 			return 0;
-		result = pcon_info->funcs.
-				get_properties(pcon_info, &props);
+		result = pcon_info->funcs.get_properties(pcon_info->pconid,
+			pcon_info->pcon_cookie, &props);
 		if (!result)
 			return 0;
 
@@ -213,8 +213,8 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 		if (!pcon_info->funcs.get_properties)
 			return 0;
-		result = pcon_info->funcs.
-				get_properties(pcon_info, &props);
+		result = pcon_info->funcs.get_properties(pcon_info->pconid,
+			pcon_info->pcon_cookie, &props);
 		if (!result)
 			return 0;
 

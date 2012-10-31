@@ -89,7 +89,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_ERROR("pcon has no pim!\n");
 	else {
 		if (pcon_info->pim->funcs.destroy)
-			pcon_info->pim->funcs.destroy(pcon_info);
+			pcon_info->pim->funcs.destroy(pcon_info->pconid, pcon_info->pcon_cookie);
 		else
 			VCRTCM_INFO("No destroy function...\n");
 	}
