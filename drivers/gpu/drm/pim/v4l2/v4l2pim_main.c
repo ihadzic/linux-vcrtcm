@@ -47,10 +47,6 @@
 #define V4L2PIM_VERSION \
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
-/* PIM functions */
-static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
-							uint32_t hints);
-static void v4l2pim_destroy(int pconid, void *cookie);
 static int v4l2pim_get_properties(int pconid, void *cookie,
 				  struct vcrtcm_pcon_properties *props);
 
@@ -960,11 +956,6 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 	.disable = v4l2pim_disable
 };
 
-static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
-	.instantiate = v4l2pim_instantiate,
-	.destroy = v4l2pim_destroy
-};
-
 static struct v4l2pim_info *v4l2pim_create_minor(int pconid)
 {
 	struct v4l2pim_info *v4l2pim_info;
@@ -1092,23 +1083,24 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 	kfree(v4l2pim_info);
 }
 
-static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
-							uint32_t hints)
+static int v4l2pim_instantiate(int pconid, uint32_t hints,
+	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
-	v4l2pim_info = v4l2pim_create_minor(pcon_info->pconid);
+	v4l2pim_info = v4l2pim_create_minor(pconid);
 
 	if (!v4l2pim_info)
 		return -ENODEV;
 
-	scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
+	scnprintf(description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - minor %i",
 			v4l2pim_info->minor);
-	pcon_info->minor = v4l2pim_info->minor;
-	pcon_info->funcs = v4l2pim_vcrtcm_pcon_funcs;
-	pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
-	pcon_info->pcon_cookie = v4l2pim_info;
+	*minor = v4l2pim_info->minor;
+	*funcs = v4l2pim_vcrtcm_pcon_funcs;
+	*xfer_mode = VCRTCM_PUSH_PULL;
+	*cookie = v4l2pim_info;
 	return 0;
 }
 
@@ -1124,6 +1116,11 @@ static void v4l2pim_destroy(int pconid, void *cookie)
 		}
 	}
 }
+
+static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
+	.instantiate = v4l2pim_instantiate,
+	.destroy = v4l2pim_destroy
+};
 
 static int v4l2pim_get_properties(int pconid, void *cookie,
 				  struct vcrtcm_pcon_properties *props)
