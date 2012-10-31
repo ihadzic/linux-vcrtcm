@@ -50,8 +50,8 @@
 /* PIM functions */
 static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 							uint32_t hints);
-static void v4l2pim_destroy(struct vcrtcm_pcon_info *pcon_info);
-static int v4l2pim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+static void v4l2pim_destroy(int pconid, void *cookie);
+static int v4l2pim_get_properties(int pconid, void *cookie,
 				  struct vcrtcm_pcon_properties *props);
 
 struct list_head v4l2pim_info_list;
@@ -1112,27 +1112,26 @@ static int v4l2pim_instantiate(struct vcrtcm_pcon_info *pcon_info,
 	return 0;
 }
 
-static void v4l2pim_destroy(struct vcrtcm_pcon_info *pcon_info)
+static void v4l2pim_destroy(int pconid, void *cookie)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->pconid == pcon_info->pconid) {
-			V4L2PIM_DEBUG("Destroying pcon %i\n",
-				      pcon_info->pconid);
+		if (v4l2pim_info->pconid == pconid) {
+			V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
 			v4l2pim_destroy_minor(v4l2pim_info);
 			return;
 		}
 	}
 }
 
-static int v4l2pim_get_properties(struct vcrtcm_pcon_info *pcon_info,
+static int v4l2pim_get_properties(int pconid, void *cookie,
 				  struct vcrtcm_pcon_properties *props)
 {
 	struct v4l2pim_info *v4l2pim_info;
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->pconid == pcon_info->pconid) {
+		if (v4l2pim_info->pconid == pconid) {
 			struct v4l2pim_flow_info *flow =
 						v4l2pim_info->flow_info;
 			props->fps = flow ? flow->fps : -1;

@@ -23,22 +23,22 @@
 
 /* VCRTCM interface function prototypes */
 
-int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
-int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
-int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_fb *vcrtcm_fb);
-int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps);
-int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps);
-int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
-int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct vcrtcm_cursor *vcrtcm_cursor);
-void v4l2pim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info);
+int v4l2pim_attach(int pconid, void *cookie);
+int v4l2pim_detach(int pconid, void *cookie);
+int v4l2pim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
+int v4l2pim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
+int v4l2pim_set_fps(int pconid, void *cookie, int fps);
+int v4l2pim_get_fps(int pconid, void *cookie, int *fps);
+int v4l2pim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
+int v4l2pim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
+void v4l2pim_disable(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */
-int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
-int v4l2pim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc);
-int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info, struct drm_crtc *drm_crtc, u32 *status);
-int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state);
-int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state);
+int v4l2pim_dirty_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
+int v4l2pim_wait_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
+int v4l2pim_get_fb_status(int pconid, void *cookie, struct drm_crtc *drm_crtc, u32 *status);
+int v4l2pim_set_dpms(int pconid, void *cookie, int state);
+int v4l2pim_get_dpms(int pconid, void *cookie, int *state);
 
 /* Scheduled/delayed work functions */
 void v4l2pim_fake_vblank(struct work_struct *work);

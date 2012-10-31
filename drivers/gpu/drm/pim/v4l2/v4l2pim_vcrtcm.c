@@ -115,13 +115,13 @@ out_err0:
 	return r;
 }
 
-int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int v4l2pim_attach(int pconid, void *cookie)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 
-	VCRTCM_INFO("Attaching vl2pcon %d to pcon %p\n",
-		v4l2pim_info->minor, vcrtcm_pcon_info);
+	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
+		v4l2pim_info->minor, pconid);
 
 	if (v4l2pim_info->flow_info) {
 		VCRTCM_ERROR("minor already served\n");
@@ -136,7 +136,7 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 		}
 
 		flow_info->v4l2pim_info = v4l2pim_info;
-		flow_info->pconid = vcrtcm_pcon_info->pconid;
+		flow_info->pconid = pconid;
 		flow_info->fps = 0;
 		flow_info->fb_force_xmit = 0;
 		flow_info->fb_xmit_allowed = 0;
@@ -159,34 +159,34 @@ int v4l2pim_attach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
 
 		v4l2pim_info->flow_info = flow_info;
 
-		VCRTCM_INFO("v4l2pim %d now serves pcon %p\n",
-			    v4l2pim_info->minor, vcrtcm_pcon_info);
+		VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
+			    v4l2pim_info->minor, pconid);
 
 		return 0;
 	}
 }
 
-int v4l2pim_detach(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+int v4l2pim_detach(int pconid, void *cookie)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	if (atomic_read(&v4l2pim_info->users) > 0) {
-		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %p, file open",
-			v4l2pim_info->minor, vcrtcm_pcon_info);
+		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %d, file open",
+			v4l2pim_info->minor, pconid);
 		return -EBUSY;
 	}
 
-	VCRTCM_INFO("Detaching v4l2pim %d from pcon %p\n",
-		v4l2pim_info->minor, vcrtcm_pcon_info);
+	VCRTCM_INFO("Detaching v4l2pim %d from pcon %d\n",
+		v4l2pim_info->minor, pconid);
 
-	vcrtcm_p_wait_fb(vcrtcm_pcon_info->pconid);
+	vcrtcm_p_wait_fb(pconid);
 	flow_info = v4l2pim_info->flow_info;
 
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
 
-	if (flow_info->pconid == vcrtcm_pcon_info->pconid) {
+	if (flow_info->pconid == pconid) {
 		V4L2PIM_DEBUG("Found descriptor that should be removed.\n");
 
 		v4l2pim_free_pb(v4l2pim_info, flow_info,
@@ -260,11 +260,11 @@ static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
 	return r;
 }
 
-int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_set_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 	int r = 0;
 	int size;
@@ -290,11 +290,11 @@ int v4l2pim_set_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return r;
 }
 
-int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_get_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("minor %d.\n", v4l2pim_info->minor);
@@ -311,11 +311,11 @@ int v4l2pim_get_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return 0;
 }
 
-int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_dirty_fb(int pconid, void *cookie,
 		     struct drm_crtc *drm_crtc)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
@@ -332,18 +332,18 @@ int v4l2pim_dirty_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return 0;
 }
 
-int v4l2pim_wait_fb(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_wait_fb(int pconid, void *cookie,
 		    struct drm_crtc *drm_crtc)
 {
 	return 0;
 }
 
-int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_get_fb_status(int pconid, void *cookie,
 			  struct drm_crtc *drm_crtc, u32 *status)
 {
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	unsigned long flags;
 
 	V4L2PIM_DEBUG("\n");
@@ -358,10 +358,10 @@ int v4l2pim_get_fb_status(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return 0;
 }
 
-int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
+int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 	unsigned long jiffies_snapshot;
 
@@ -403,10 +403,10 @@ int v4l2pim_set_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int fps)
 	return 0;
 }
 
-int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
+int v4l2pim_get_fps(int pconid, void *cookie, int *fps)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("\n");
@@ -428,11 +428,11 @@ int v4l2pim_get_fps(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *fps)
 	}
 }
 
-int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_set_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 	int r = 0;
 	int size;
@@ -457,11 +457,11 @@ int v4l2pim_set_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return r;
 }
 
-int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
+int v4l2pim_get_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
@@ -480,10 +480,10 @@ int v4l2pim_get_cursor(struct vcrtcm_pcon_info *vcrtcm_pcon_info,
 	return 0;
 }
 
-int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
+int v4l2pim_set_dpms(int pconid, void *cookie, int state)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("minor %d, state %d\n", v4l2pim_info->minor, state);
@@ -500,10 +500,10 @@ int v4l2pim_set_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int state)
 	return 0;
 }
 
-int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
+int v4l2pim_get_dpms(int pconid, void *cookie, int *state)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *) vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info;
 
 	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
@@ -520,10 +520,10 @@ int v4l2pim_get_dpms(struct vcrtcm_pcon_info *vcrtcm_pcon_info, int *state)
 	return 0;
 }
 
-void v4l2pim_disable(struct vcrtcm_pcon_info *vcrtcm_pcon_info)
+void v4l2pim_disable(int pconid, void *cookie)
 {
 	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)vcrtcm_pcon_info->pcon_cookie;
+		(struct v4l2pim_info *)cookie;
 	struct v4l2pim_flow_info *flow_info =
 			v4l2pim_info->flow_info;
 
