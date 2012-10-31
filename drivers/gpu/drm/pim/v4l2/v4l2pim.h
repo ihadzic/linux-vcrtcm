@@ -111,6 +111,7 @@ struct v4l2pim_info {
 
 struct v4l2pim_flow_info {
 	struct list_head list;
+	int pconid;
 	int fb_xmit_counter;
 	int fb_force_xmit;
 	int fb_xmit_allowed;
@@ -118,7 +119,6 @@ struct v4l2pim_flow_info {
 	unsigned long fb_xmit_period_jiffies;
 	unsigned long last_xmit_jiffies;
 	unsigned long next_vblank_jiffies;
-	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
 	struct vcrtcm_fb vcrtcm_fb;
 	struct vcrtcm_cursor vcrtcm_cursor;
 	struct vcrtcm_push_buffer_descriptor *pbd_fb[2];
