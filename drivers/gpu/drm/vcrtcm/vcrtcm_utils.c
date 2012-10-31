@@ -176,8 +176,10 @@ EXPORT_SYMBOL(vcrtcm_alloc_page);
 
 void vcrtcm_free_page(struct page *page, atomic_t *page_track)
 {
-	__free_page(page);
-	atomic_dec(page_track);
+	if (page) {
+		__free_page(page);
+		atomic_dec(page_track);
+	}
 }
 EXPORT_SYMBOL(vcrtcm_free_page);
 
@@ -201,8 +203,10 @@ EXPORT_SYMBOL(vcrtcm_kzalloc);
 
 void vcrtcm_kfree(void *ptr, atomic_t *kmalloc_track)
 {
-	kfree(ptr);
-	atomic_dec(kmalloc_track);
+	if (ptr) {
+		kfree(ptr);
+		atomic_dec(kmalloc_track);
+	}
 }
 EXPORT_SYMBOL(vcrtcm_kfree);
 
@@ -226,7 +230,9 @@ EXPORT_SYMBOL(vcrtcm_vzalloc);
 
 void vcrtcm_vfree(void *ptr, atomic_t *vmalloc_track)
 {
-	vfree(ptr);
-	atomic_dec(vmalloc_track);
+	if (ptr) {
+		vfree(ptr);
+		atomic_dec(vmalloc_track);
+	}
 }
 EXPORT_SYMBOL(vcrtcm_vfree);
