@@ -19,6 +19,7 @@
 
 
 #include <linux/module.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 #include "vcrtcm_private.h"
 
 /*
@@ -41,7 +42,7 @@ static struct sg_table
 
 	pcon_info = vcrtcm_get_pcon_info(pbd->pconid);
 	if (!pcon_info)
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	crtc = pcon_info->drm_crtc;
 	dev = crtc->dev;
 	mutex_lock(&dev->struct_mutex);
@@ -143,16 +144,24 @@ static const struct dma_buf_ops vcrtcm_dma_buf_ops = {
  * before this function is called. Also called by vcrtcm_p_alloc_pb,
  * which is used by PCONs whose backing store is in main memory.
  */
-int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_p_register_prime(int pconid,
 			    struct vcrtcm_push_buffer_descriptor *pbd)
 {
-	struct drm_crtc *crtc = pcon_info->drm_crtc;
-	struct drm_device *dev = crtc->dev;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct drm_crtc *crtc;
+	struct drm_device *dev;
 	struct dma_buf *dma_buf;
 	int r = 0;
 	int size = PAGE_SIZE * pbd->num_pages;
 	struct drm_gem_object *obj;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info) {
+		r = -ENODEV;
+		goto out_err0;
+	}
+	crtc = pcon_info->drm_crtc;
+	dev = crtc->dev;
 	dma_buf = dma_buf_export(pbd, &vcrtcm_dma_buf_ops,
 				 size, VCRTCM_DMA_BUF_PERMS);
 	if (IS_ERR(dma_buf)) {
@@ -168,8 +177,7 @@ int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
 	}
 	pbd->gpu_private = obj;
 	VCRTCM_DEBUG("pcon %i push buffer GEM object name=%d, size=%d\n",
-		     pcon_info->pconid,
-		     obj->name, obj->size);
+		     pconid, obj->name, obj->size);
 	return r;
 
 out_err1:
@@ -186,16 +194,21 @@ EXPORT_SYMBOL(vcrtcm_p_register_prime);
  * of different size). Also called by vcrtcm_p_free_pb, which is called
  * by PCONs whose backing store is in main memory.
  */
-void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
+void vcrtcm_p_unregister_prime(int pconid,
 			       struct vcrtcm_push_buffer_descriptor *pbd)
 {
-	struct drm_crtc *crtc = pcon_info->drm_crtc;
-	struct drm_device *dev = crtc->dev;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct drm_crtc *crtc;
+	struct drm_device *dev;
 	struct drm_gem_object *obj = pbd->gpu_private;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+	crtc = pcon_info->drm_crtc;
+	dev = crtc->dev;
 	VCRTCM_DEBUG("pcon %i freeing GEM object name=%d, size=%d\n",
-		     pcon_info->pconid,
-		     obj->name, obj->size);
+		     pconid, obj->name, obj->size);
 	/*
 	 * This call is magic: It will free the GEM object, which will
 	 * result in a call to drm_prime_gem_destroy (assuming that there
@@ -256,12 +269,15 @@ int vcrtcm_del_pcon(int pconid)
  * The PCON can use this function wait for the GPU to finish rendering
  * to the frame.  PCONs typically call this to prevent frame tearing.
  */
-void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info)
+void vcrtcm_p_wait_fb(int pconid)
 {
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
+	struct vcrtcm_pcon_info *pcon_info;
 
-	VCRTCM_INFO("waiting for GPU pcon %i\n",
-		    pcon_info->pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon_info->gpu_funcs.wait_fb)
 		pcon_info->gpu_funcs.wait_fb(pcon_info->drm_crtc);
@@ -280,10 +296,14 @@ EXPORT_SYMBOL(vcrtcm_p_wait_fb);
  * the PCON but is emulated by the virtual
  * CRTC implementation in the GPU-hardware-specific driver
  */
-void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info)
+void vcrtcm_p_emulate_vblank(int pconid)
 {
 	unsigned long flags;
+	struct vcrtcm_pcon_info *pcon_info;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
 	spin_lock_irqsave(&pcon_info->lock, flags);
 	if (!pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
@@ -294,7 +314,7 @@ void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info)
 	pcon_info->vblank_time_valid = 1;
 	spin_unlock_irqrestore(&pcon_info->lock, flags);
 	if (pcon_info->gpu_funcs.vblank) {
-		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pcon_info->pconid);
+		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
 		pcon_info->gpu_funcs.vblank(pcon_info->drm_crtc);
 	}
 }
@@ -306,14 +326,19 @@ EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
  * the ctrc that is attached to the specified hal into the push buffer
  * defined by pbd
  */
-int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_p_push(int pconid,
 		struct vcrtcm_push_buffer_descriptor *fpbd,
 		struct vcrtcm_push_buffer_descriptor *cpbd)
 {
-	struct drm_crtc *crtc = pcon_info->drm_crtc;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct drm_crtc *crtc;
 	struct drm_gem_object *push_buffer_fb = NULL;
 	struct drm_gem_object *push_buffer_cursor = NULL;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return -ENODEV;
+	crtc = pcon_info->drm_crtc;
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
 		cpbd->virgin = 0;
@@ -323,8 +348,7 @@ int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
 		fpbd->virgin = 0;
 	}
 	if (pcon_info->gpu_funcs.push) {
-		VCRTCM_DEBUG("push for pcon %i\n",
-			     pcon_info->pconid);
+		VCRTCM_DEBUG("push for pcon %i\n", pconid);
 		return pcon_info->gpu_funcs.push(crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
@@ -336,13 +360,18 @@ EXPORT_SYMBOL(vcrtcm_p_push);
  * called by the PCON to signal hotplug event on a CRTC
  * attached to the specified PCON
  */
-void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info)
+void vcrtcm_p_hotplug(int pconid)
 {
-	struct drm_crtc *crtc = pcon_info->drm_crtc;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct drm_crtc *crtc;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+	crtc = pcon_info->drm_crtc;
 	if (pcon_info->gpu_funcs.hotplug) {
 		pcon_info->gpu_funcs.hotplug(crtc);
-		VCRTCM_DEBUG("pcon %i hotplug\n", pcon_info->pconid);
+		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
 
 	}
 }
@@ -353,14 +382,19 @@ EXPORT_SYMBOL(vcrtcm_p_hotplug);
  * memory to allocate push buffers. This function does the opposite
  * of vcrtcm_p_alloc_pb
  */
-void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
+void vcrtcm_p_free_pb(int pconid,
 		      struct vcrtcm_push_buffer_descriptor *pbd,
 		      atomic_t *kmalloc_track, atomic_t *page_track)
 {
+	struct vcrtcm_pcon_info *pcon_info;
+
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
 	if (pbd) {
 		BUG_ON(!pbd->gpu_private);
 		BUG_ON(!pbd->num_pages);
-		vcrtcm_p_unregister_prime(pcon_info, pbd);
+		vcrtcm_p_unregister_prime(pconid, pbd);
 		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
 					   page_track);
 		vcrtcm_kfree(pbd->pages, kmalloc_track);
@@ -391,16 +425,22 @@ EXPORT_SYMBOL(vcrtcm_p_free_pb);
  * may have to cut their own allocation function.
  */
 struct vcrtcm_push_buffer_descriptor *
-vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
+vcrtcm_p_alloc_pb(int pconid, int npages,
 		  gfp_t gfp_mask, atomic_t *kmalloc_track,
 		  atomic_t *page_track)
 {
 	int r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd;
+	struct vcrtcm_pcon_info *pcon_info;
 
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info) {
+		r = -ENODEV;
+		goto out_err0;
+	}
 	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
 			    GFP_KERNEL, kmalloc_track);
-	pbd->pconid = pcon_info->pconid;
+	pbd->pconid = pconid;
 	pbd->virgin = 1;
 	if (!pbd) {
 		VCRTCM_ERROR("push buffer descriptor alloc failed\n");
@@ -421,7 +461,7 @@ vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
 		goto out_err2;
 	}
 	pbd->num_pages = npages;
-	r = vcrtcm_p_register_prime(pcon_info, pbd);
+	r = vcrtcm_p_register_prime(pconid, pbd);
 	if (r) {
 		VCRTCM_ERROR("export to VCRTCM failed\n");
 		goto out_err3;
@@ -448,28 +488,32 @@ EXPORT_SYMBOL(vcrtcm_p_alloc_pb);
  * vcrtcm_p_alloc_pb and vcrtcm_p_free_pb
  */
 struct vcrtcm_push_buffer_descriptor *
-vcrtcm_p_realloc_pb(struct vcrtcm_pcon_info *pcon_info,
+vcrtcm_p_realloc_pb(int pconid,
 		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
 		    gfp_t gfp_mask,
 		    atomic_t *kmalloc_track, atomic_t *page_track)
 {
 	struct vcrtcm_push_buffer_descriptor *npbd;
+	struct vcrtcm_pcon_info *pcon_info;
 
-	if (npages == 0) {
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		npbd = NULL;
+	else if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
-		vcrtcm_p_free_pb(pcon_info, pbd, kmalloc_track, page_track);
+		vcrtcm_p_free_pb(pconid, pbd, kmalloc_track, page_track);
 		npbd = NULL;
 	} else if (!pbd) {
 		/* no old buffer present */
-		npbd = vcrtcm_p_alloc_pb(pcon_info, npages, gfp_mask,
+		npbd = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask,
 					 kmalloc_track, page_track);
 	} else if (npages == pbd->num_pages) {
 		/* can reuse existing pb */
 		npbd = pbd;
 	} else {
 		VCRTCM_DEBUG("reallocating push buffer\n");
-		vcrtcm_p_free_pb(pcon_info, pbd, kmalloc_track, page_track);
-		npbd = vcrtcm_p_alloc_pb(pcon_info, npages, gfp_mask,
+		vcrtcm_p_free_pb(pconid, pbd, kmalloc_track, page_track);
+		npbd = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask,
 					 kmalloc_track, page_track);
 	}
 	return npbd;

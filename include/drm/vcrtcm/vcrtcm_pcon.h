@@ -36,29 +36,21 @@
 
 #define PIM_NAME_MAXLEN 33
 
-void vcrtcm_p_destroy(char *pim_name, int pconid);
-void vcrtcm_p_emulate_vblank(struct vcrtcm_pcon_info *pcon_info);
-void vcrtcm_p_wait_fb(struct vcrtcm_pcon_info *pcon_info);
-int vcrtcm_p_register_prime(struct vcrtcm_pcon_info *pcon_info,
-			    struct vcrtcm_push_buffer_descriptor *pbd);
-void vcrtcm_p_unregister_prime(struct vcrtcm_pcon_info *pcon_info,
-			       struct vcrtcm_push_buffer_descriptor *pbd);
-int vcrtcm_p_push(struct vcrtcm_pcon_info *pcon_info,
-		struct vcrtcm_push_buffer_descriptor *fpbd,
-		struct vcrtcm_push_buffer_descriptor *cpbd);
-void vcrtcm_p_hotplug(struct vcrtcm_pcon_info *pcon_info);
-struct vcrtcm_push_buffer_descriptor *
-vcrtcm_p_realloc_pb(struct vcrtcm_pcon_info *pcon_info,
-		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
-		    gfp_t gfp_mask,
-		    atomic_t *kmalloc_track, atomic_t *page_track);
-struct vcrtcm_push_buffer_descriptor *
-vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
-		  gfp_t gfp_mask, atomic_t *kmalloc_track,
-		  atomic_t *page_track);
-void vcrtcm_p_free_pb(struct vcrtcm_pcon_info *pcon_info,
-		      struct vcrtcm_push_buffer_descriptor *pbd,
-		      atomic_t *kmalloc_track, atomic_t *page_track);
+void vcrtcm_p_destroy(int pconid);
+void vcrtcm_p_emulate_vblank(int pconid);
+void vcrtcm_p_wait_fb(int pconid);
+int vcrtcm_p_register_prime(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
+void vcrtcm_p_unregister_prime(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
+int vcrtcm_p_push(int pconid, struct vcrtcm_push_buffer_descriptor *fpbd,
+	struct vcrtcm_push_buffer_descriptor *cpbd);
+void vcrtcm_p_hotplug(int pconid);
+struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
+	struct vcrtcm_push_buffer_descriptor *pbd, int npages,
+	gfp_t gfp_mask, atomic_t *kmalloc_track, atomic_t *page_track);
+struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
+	gfp_t gfp_mask, atomic_t *kmalloc_track, atomic_t *page_track);
+void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd,
+	atomic_t *kmalloc_track, atomic_t *page_track);
 
 struct vcrtcm_pim_info {
 	char name[PIM_NAME_MAXLEN];

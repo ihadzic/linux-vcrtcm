@@ -196,7 +196,7 @@ void vcrtcm_pim_unregister(char *pim_name)
 			"was not invalidated before calling "
 			"vcrtcm_pim_unregister(). Doing that now...\n",
 			pim_name, pcon_info->pconid);
-		vcrtcm_p_destroy(pim_name, pcon_info->pconid);
+		vcrtcm_p_destroy(pcon_info->pconid);
 	}
 
 	remove_pim_info(pim_info);
@@ -205,7 +205,7 @@ void vcrtcm_pim_unregister(char *pim_name)
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
-void vcrtcm_p_destroy(char *pim_name, int pconid)
+void vcrtcm_p_destroy(int pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;
 
