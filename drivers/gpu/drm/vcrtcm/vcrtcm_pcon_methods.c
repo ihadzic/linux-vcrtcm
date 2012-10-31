@@ -33,12 +33,17 @@ static struct sg_table
 		    enum dma_data_direction dir)
 {
 	struct vcrtcm_push_buffer_descriptor *pbd = attachment->dmabuf->priv;
-	struct vcrtcm_pcon_info *pcon_info = pbd->owner_pcon;
-	struct drm_crtc *crtc = pcon_info->drm_crtc;
-	struct drm_device *dev = crtc->dev;
+	struct vcrtcm_pcon_info *pcon_info;
+	struct drm_crtc *crtc;
+	struct drm_device *dev;
 	struct sg_table *sg;
 	int nents;
 
+	pcon_info = vcrtcm_get_pcon_info(pbd->pconid);
+	if (!pcon_info)
+		return NULL;
+	crtc = pcon_info->drm_crtc;
+	dev = crtc->dev;
 	mutex_lock(&dev->struct_mutex);
 	sg = drm_prime_pages_to_sg(pbd->pages, pbd->num_pages);
 	/* REVISIT: do something if nents is not equal to requested nents */
@@ -395,7 +400,7 @@ vcrtcm_p_alloc_pb(struct vcrtcm_pcon_info *pcon_info, int npages,
 
 	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
 			    GFP_KERNEL, kmalloc_track);
-	pbd->owner_pcon = pcon_info;
+	pbd->pconid = pcon_info->pconid;
 	pbd->virgin = 1;
 	if (!pbd) {
 		VCRTCM_ERROR("push buffer descriptor alloc failed\n");

@@ -201,7 +201,7 @@ struct vcrtcm_push_buffer_descriptor {
 	void *gpu_private;
 	struct dma_buf *dma_buf;
 	/* populated by PCON */
-	struct vcrtcm_pcon_info *owner_pcon;
+	int pconid;
 	int virgin;
 	struct page **pages;
 	unsigned long num_pages;
