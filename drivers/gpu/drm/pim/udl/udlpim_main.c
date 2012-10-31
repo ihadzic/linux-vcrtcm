@@ -71,12 +71,49 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.disable = udlpim_disable
 };
 
-static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
-							uint32_t hints);
-static void udlpim_destroy(int pconid, void *cookie);
-
 static int udlpim_get_properties(int pconid, void *cookie,
 				 struct vcrtcm_pcon_properties *props);
+
+static int udlpim_instantiate(int pconid, uint32_t hints,
+	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
+	char *description)
+{
+	struct udlpim_info *info;
+	struct usb_device *usbdev;
+
+	list_for_each_entry(info, &udlpim_info_list, list) {
+		if (!info->used) {
+			usbdev = info->udev;
+			scnprintf(description, PCON_DESC_MAXLEN,
+					"%s %s - Serial #%s",
+					usbdev->manufacturer,
+					usbdev->product,
+					usbdev->serial);
+			*minor = -1;
+			*funcs = udlpim_vcrtcm_pcon_funcs;
+			*xfer_mode = VCRTCM_PUSH_PULL;
+			*cookie = info;
+			info->pconid = pconid;
+			info->used = 1;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
+static void udlpim_destroy(int pconid, void *cookie)
+{
+	struct udlpim_info *info;
+
+	list_for_each_entry(info, &udlpim_info_list, list) {
+		if (info->pconid == pconid) {
+			info->used = 0;
+			return;
+		}
+	}
+}
 
 static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
@@ -138,44 +175,6 @@ static void __exit udlpim_exit(void)
 	vcrtcm_pim_unregister("udl");
 
 	return;
-}
-
-static int udlpim_instantiate(struct vcrtcm_pcon_info *pcon_info,
-							uint32_t hints)
-{
-	struct udlpim_info *info;
-	struct usb_device *usbdev;
-
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (!info->used) {
-			usbdev = info->udev;
-			scnprintf(pcon_info->description, PCON_DESC_MAXLEN,
-					"%s %s - Serial #%s",
-					usbdev->manufacturer,
-					usbdev->product,
-					usbdev->serial);
-			pcon_info->funcs = udlpim_vcrtcm_pcon_funcs;
-			pcon_info->xfer_mode = VCRTCM_PUSH_PULL;
-			pcon_info->pcon_cookie = info;
-			info->pconid = pcon_info->pconid;
-			info->used = 1;
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-
-static void udlpim_destroy(int pconid, void *cookie)
-{
-	struct udlpim_info *info;
-
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pconid) {
-			info->used = 0;
-			return;
-		}
-	}
 }
 
 static int udlpim_get_properties(int pconid, void *cookie,
