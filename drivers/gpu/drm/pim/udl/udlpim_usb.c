@@ -229,7 +229,7 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
 
 	if (udlpim_info->used)
-		vcrtcm_p_destroy("udl", (uint32_t) udlpim_info->pconid);
+		vcrtcm_p_destroy(udlpim_info->pconid);
 
 	/* Return minor number */
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, udlpim_info->minor);
@@ -606,7 +606,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		UDLPIM_DEBUG("Calling hotplug.\n");
-		vcrtcm_p_hotplug(flow_info->vcrtcm_pcon_info);
+		vcrtcm_p_hotplug(flow_info->vcrtcm_pcon_info->pconid);
 	}
 
 	if (old_edid)
