@@ -77,22 +77,11 @@ struct vcrtcm_mode {
 #define VCRTCM_MODE_OK  0
 #define VCRTCM_MODE_BAD 1
 
-struct vcrtcm_pcon_info;
-struct vcrtcm_pcon_properties;
-
-/* every PIM must implement these functions */
-struct vcrtcm_pim_funcs {
-	/* Create a new PCON instance and populate a vcrtcm_pcon_info
-	 * structure with information about the new instance.
-	 * Return error code.
-	 */
-	int (*instantiate)(struct vcrtcm_pcon_info *pcon_info, uint32_t hints);
-
-	/* Deallocate the given PCON instance and free resources used.
-	 * The PIM can assume that the given PCON has been detached
-	 * and removed from VCRTCM before this function is called.
-	 */
-	void (*destroy)(int pconid, void *cookie);
+/* describes properties of the attached PCON */
+/* that GPU needs to know about */
+struct vcrtcm_pcon_properties {
+	int fps;
+	int attached;
 };
 
 struct vcrtcm_pcon_funcs {
@@ -129,11 +118,19 @@ enum vcrtcm_xfer_mode {
 	VCRTCM_PUSH_PULL
 };
 
-/* describes properties of the attached PCON */
-/* that GPU needs to know about */
-struct vcrtcm_pcon_properties {
-	int fps;
-	int attached;
+/* every PIM must implement these functions */
+struct vcrtcm_pim_funcs {
+	/* Create a new PCON instance
+	 */
+	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
+		struct vcrtcm_pcon_funcs *funcs, enum vcrtcm_xfer_mode *xfer_mode,
+		int *minor, char *description);
+
+	/* Deallocate the given PCON instance and free resources used.
+	 * The PIM can assume that the given PCON has been detached
+	 * and removed from VCRTCM before this function is called.
+	 */
+	void (*destroy)(int pconid, void *cookie);
 };
 
 /* functional interface to GPU driver */

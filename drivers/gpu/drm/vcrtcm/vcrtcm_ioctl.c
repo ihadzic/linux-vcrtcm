@@ -48,7 +48,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	pcon_info->pim = pim_info;
 	pcon_info->minor = -1;
 	if (pim_info->funcs.instantiate) {
-		r = pim_info->funcs.instantiate(pcon_info, hints);
+		r = pim_info->funcs.instantiate(pcon_info->pconid, hints, &pcon_info->pcon_cookie, &pcon_info->funcs, &pcon_info->xfer_mode, &pcon_info->minor, pcon_info->description);
 		if (r) {
 			VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
 			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
