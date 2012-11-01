@@ -69,7 +69,7 @@ struct v4l2pim_info {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct mutex buffer_mutex;
 	spinlock_t v4l2pim_lock;
 	int enabled_queue;
@@ -108,7 +108,7 @@ struct v4l2pim_info {
 	atomic_t vmalloc_track;
 };
 
-struct v4l2pim_flow_info {
+struct v4l2pim_pcon {
 	struct list_head list;
 	int pconid;
 	int attached;

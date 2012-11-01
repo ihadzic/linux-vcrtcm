@@ -126,7 +126,7 @@ static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 static void
 v4l2pim_fillbuff(struct v4l2pim_info *v4l2pim_info, struct videobuf_buffer *vb)
 {
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct timeval ts;
 	uint8_t *fb, *fbend, *dst;
 	uint32_t fbsize;
@@ -139,12 +139,12 @@ v4l2pim_fillbuff(struct v4l2pim_info *v4l2pim_info, struct videobuf_buffer *vb)
 	dst = videobuf_to_vmalloc(vb);
 	if (!dst)
 		return;
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return;
 
-	w  = flow_info->vcrtcm_fb.hdisplay;
-	h = flow_info->vcrtcm_fb.vdisplay;
+	w  = pcon->vcrtcm_fb.hdisplay;
+	h = pcon->vcrtcm_fb.vdisplay;
 	d = v4l2pim_info->fmt->depth;
 
 	mutex_lock(&v4l2pim_info->sb_lock);
@@ -314,13 +314,13 @@ static int
 buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pim_info = vq->priv_data;
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -345,14 +345,14 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
 	v4l2pim_info = vq->priv_data;
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -362,8 +362,8 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (0 != vb->baddr && vb->bsize < vb->size)
 		return -EINVAL;
 
-	vb->width  = flow_info->vcrtcm_fb.hdisplay;
-	vb->height = flow_info->vcrtcm_fb.vdisplay;
+	vb->width  = pcon->vcrtcm_fb.hdisplay;
+	vb->height = pcon->vcrtcm_fb.vdisplay;
 	vb->field  = field;
 
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
@@ -431,14 +431,14 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -448,8 +448,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	f->fmt.pix.width        = flow_info->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = flow_info->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
+	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
 	f->fmt.pix.pixelformat  = fmt->fourcc;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
@@ -464,15 +464,15 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 	enum v4l2_field field;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -491,8 +491,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	field = V4L2_FIELD_NONE;
 
 	f->fmt.pix.field        = field;
-	f->fmt.pix.width        = flow_info->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = flow_info->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
+	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -505,14 +505,14 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -526,8 +526,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 	v4l2pim_info->fmt = fmt;
-	f->fmt.pix.width        = flow_info->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = flow_info->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
+	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -541,13 +541,13 @@ static ssize_t
 v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -564,13 +564,13 @@ static unsigned int
 v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -609,14 +609,14 @@ static int v4l2pim_release(struct file *file)
 static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 	fb = v4l2pim_info->shadowbuf;
 	fbsize = v4l2pim_info->shadowbufsize;
@@ -714,15 +714,15 @@ static int
 vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	struct v4l2_fract timeperframe;
 	int fps;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
-	fps = HZ / flow_info->fb_xmit_period_jiffies;
+	fps = HZ / pcon->fb_xmit_period_jiffies;
 
 	if (parm->type !=  V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -739,11 +739,11 @@ static int
 vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 
 	if (parm->type !=  V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -758,12 +758,12 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 					struct v4l2_frmsizeenum *fsize)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 
 	if (fsize->index != 0)
@@ -772,8 +772,8 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (fsize->pixel_format == formats[i].fourcc) {
 			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-			fsize->discrete.width = flow_info->vcrtcm_fb.hdisplay;
-			fsize->discrete.height = flow_info->vcrtcm_fb.vdisplay;
+			fsize->discrete.width = pcon->vcrtcm_fb.hdisplay;
+			fsize->discrete.height = pcon->vcrtcm_fb.vdisplay;
 			return 0;
 		}
 
@@ -784,22 +784,22 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 					struct v4l2_frmivalenum *fival)
 {
 	struct v4l2pim_info *v4l2pim_info;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 	int fps;
 
 	v4l2pim_info = video_drvdata(file);
-	flow_info = v4l2pim_info->flow_info;
-	if (!flow_info)
+	pcon = v4l2pim_info->pcon;
+	if (!pcon)
 		return -EINVAL;
 
 	if (fival->index != 0)
 		return -EINVAL;
-	if (fival->width != flow_info->vcrtcm_fb.hdisplay &&
-			fival->height != flow_info->vcrtcm_fb.hdisplay)
+	if (fival->width != pcon->vcrtcm_fb.hdisplay &&
+			fival->height != pcon->vcrtcm_fb.hdisplay)
 		return -EINVAL;
 
-	fps = HZ / flow_info->fb_xmit_period_jiffies;
+	fps = HZ / pcon->fb_xmit_period_jiffies;
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (fival->pixel_format == formats[i].fourcc) {
 			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
@@ -1012,7 +1012,7 @@ struct v4l2pim_info *v4l2pim_create_minor(int pconid)
 
 	v4l2pim_info->workqueue = create_workqueue("v4l2pim_workers");
 
-	v4l2pim_info->flow_info = NULL;
+	v4l2pim_info->pcon = NULL;
 
 	INIT_DELAYED_WORK(&v4l2pim_info->fake_vblank_work, v4l2pim_fake_vblank);
 
@@ -1107,12 +1107,12 @@ static void __exit v4l2pim_exit(void)
 	struct v4l2pim_info *v4l2pim_info, *tmp;
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->flow_info) {
+		if (v4l2pim_info->pcon) {
 			V4L2PIM_DEBUG("Calling vcrtcm_p_destroy for "
 			"v4l2pim %p, pcon %d, major %d, minor %d\n",
-			v4l2pim_info, v4l2pim_info->flow_info->pconid,
+			v4l2pim_info, v4l2pim_info->pcon->pconid,
 			v4l2pim_major, v4l2pim_info->minor);
-			vcrtcm_p_destroy(v4l2pim_info->flow_info->pconid);
+			vcrtcm_p_destroy(v4l2pim_info->pcon->pconid);
 		}
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
