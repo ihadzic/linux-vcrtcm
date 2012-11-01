@@ -123,48 +123,12 @@ int v4l2pim_attach(int pconid, void *cookie)
 	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
 		v4l2pim_info->minor, pconid);
 
-	if (v4l2pim_info->flow_info) {
-		VCRTCM_ERROR("minor already served\n");
-		return -EBUSY;
-	} else {
-		struct v4l2pim_flow_info *flow_info =
-			vcrtcm_kzalloc(sizeof(struct v4l2pim_flow_info),
-				GFP_KERNEL, &v4l2pim_info->kmalloc_track);
-		if (flow_info == NULL) {
-			VCRTCM_ERROR("no memory\n");
-			return -ENOMEM;
-		}
-
-		flow_info->attached = 1;
-		flow_info->v4l2pim_info = v4l2pim_info;
-		flow_info->pconid = pconid;
-		flow_info->fps = 0;
-		flow_info->fb_force_xmit = 0;
-		flow_info->fb_xmit_allowed = 0;
-		flow_info->fb_xmit_counter = 0;
-		flow_info->fb_xmit_period_jiffies = 0;
-		flow_info->next_vblank_jiffies = 0;
-		flow_info->push_buffer_index = 0;
-		flow_info->pb_needs_xmit[0] = 0;
-		flow_info->pb_needs_xmit[1] = 0;
-		flow_info->pbd_fb[0] = NULL;
-		flow_info->pbd_fb[1] = NULL;
-		flow_info->pbd_cursor[0] = NULL;
-		flow_info->pbd_cursor[1] = NULL;
-		flow_info->pb_fb[0] = NULL;
-		flow_info->pb_fb[1] = NULL;
-		flow_info->pb_cursor[0] = NULL;
-		flow_info->pb_cursor[1] = NULL;
-
-		flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
-
-		v4l2pim_info->flow_info = flow_info;
-
-		VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
-			    v4l2pim_info->minor, pconid);
-
-		return 0;
+	if (!v4l2pim_info->flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
 	}
+	v4l2pim_info->flow_info->attached = 1;
+	return 0;
 }
 
 int v4l2pim_detach(int pconid, void *cookie)
@@ -809,6 +773,7 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description)
 {
 	struct v4l2pim_info *v4l2pim_info;
+	struct v4l2pim_flow_info *flow_info;
 
 	v4l2pim_info = v4l2pim_create_minor(pconid);
 
@@ -822,6 +787,41 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	*funcs = v4l2pim_vcrtcm_pcon_funcs;
 	*xfer_mode = VCRTCM_PUSH_PULL;
 	*cookie = v4l2pim_info;
+	flow_info =
+		vcrtcm_kzalloc(sizeof(struct v4l2pim_flow_info),
+			GFP_KERNEL, &v4l2pim_info->kmalloc_track);
+	if (flow_info == NULL) {
+		VCRTCM_ERROR("no memory\n");
+		return -ENOMEM;
+	}
+	flow_info->attached = 0;
+	flow_info->v4l2pim_info = v4l2pim_info;
+	flow_info->pconid = pconid;
+	flow_info->fps = 0;
+	flow_info->fb_force_xmit = 0;
+	flow_info->fb_xmit_allowed = 0;
+	flow_info->fb_xmit_counter = 0;
+	flow_info->fb_xmit_period_jiffies = 0;
+	flow_info->next_vblank_jiffies = 0;
+	flow_info->push_buffer_index = 0;
+	flow_info->pb_needs_xmit[0] = 0;
+	flow_info->pb_needs_xmit[1] = 0;
+	flow_info->pbd_fb[0] = NULL;
+	flow_info->pbd_fb[1] = NULL;
+	flow_info->pbd_cursor[0] = NULL;
+	flow_info->pbd_cursor[1] = NULL;
+	flow_info->pb_fb[0] = NULL;
+	flow_info->pb_fb[1] = NULL;
+	flow_info->pb_cursor[0] = NULL;
+	flow_info->pb_cursor[1] = NULL;
+
+	flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
+
+	v4l2pim_info->flow_info = flow_info;
+
+	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
+			v4l2pim_info->minor, pconid);
+
 	return 0;
 }
 
