@@ -43,7 +43,7 @@ struct vcrtcm_pim_info {
 	char name[PIM_NAME_MAXLEN];
 	int id;
 	struct vcrtcm_pim_funcs funcs;
-	struct list_head active_pcon_list;
+	struct list_head pcons_in_pim_list;
 	struct kobject kobj;
 	struct list_head pim_list;
 };

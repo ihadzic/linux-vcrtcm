@@ -74,7 +74,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	memset(&pcon_info->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
 	vcrtcm_sysfs_add_pcon(pcon_info);
 	list_add_tail(&pcon_info->pcons_in_pim_list,
-		      &pim_info->active_pcon_list);
+		      &pim_info->pcons_in_pim_list);
 	*pconid = pcon_info->pconid;
 	return 0;
 }
