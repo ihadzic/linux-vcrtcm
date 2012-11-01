@@ -98,11 +98,6 @@ int udlpim_detach(int pconid, void *cookie)
 		UDLPIM_DEBUG("Found descriptor that should be removed.\n");
 
 		flow_info->attached = 0;
-		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
-		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
-
-		udlpim_info->flow_info = NULL;
-		vcrtcm_kfree(flow_info, &udlpim_info->kmalloc_track);
 	}
 	return 0;
 }
@@ -948,9 +943,13 @@ void udlpim_destroy(int pconid, void *cookie)
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
 		if (info->pconid == pconid) {
+			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
+			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
+
+			info->flow_info = NULL;
+			vcrtcm_kfree(info->flow_info, &info->kmalloc_track);
 			info->used = 0;
 			return;
 		}
 	}
 }
-
