@@ -135,37 +135,15 @@ int v4l2pim_detach(int pconid, void *cookie)
 {
 	struct v4l2pim_info *v4l2pim_info =
 		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
 
 	if (atomic_read(&v4l2pim_info->users) > 0) {
 		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %d, file open",
 			v4l2pim_info->minor, pconid);
 		return -EBUSY;
 	}
-
 	VCRTCM_INFO("Detaching v4l2pim %d from pcon %d\n",
 		v4l2pim_info->minor, pconid);
-
-	vcrtcm_p_wait_fb(pconid);
-	flow_info = v4l2pim_info->flow_info;
-	flow_info->attached = 0;
-
-	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
-
-	if (flow_info->pconid == pconid) {
-		V4L2PIM_DEBUG("Found descriptor that should be removed.\n");
-
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_FB);
-		v4l2pim_free_pb(v4l2pim_info, flow_info,
-				V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-
-		v4l2pim_info->flow_info = NULL;
-		vcrtcm_kfree(flow_info, &v4l2pim_info->kmalloc_track);
-
-		v4l2pim_info->main_buffer = NULL;
-		v4l2pim_info->cursor = NULL;
-	}
+	v4l2pim_info->flow_info->attached = 0;
 	return 0;
 }
 
@@ -830,8 +808,19 @@ void v4l2pim_destroy(int pconid, void *cookie)
 	struct v4l2pim_info *v4l2pim_info;
 
 	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->flow_info && v4l2pim_info->flow_info->pconid == pconid) {
+		struct v4l2pim_flow_info *flow_info = v4l2pim_info->flow_info;
+		if (flow_info && flow_info->pconid == pconid) {
 			V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
+			vcrtcm_p_wait_fb(pconid);
+			cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
+			v4l2pim_free_pb(v4l2pim_info, flow_info,
+					V4L2PIM_ALLOC_PB_FLAG_FB);
+			v4l2pim_free_pb(v4l2pim_info, flow_info,
+					V4L2PIM_ALLOC_PB_FLAG_CURSOR);
+			v4l2pim_info->flow_info = NULL;
+			vcrtcm_kfree(flow_info, &v4l2pim_info->kmalloc_track);
+			v4l2pim_info->main_buffer = NULL;
+			v4l2pim_info->cursor = NULL;
 			v4l2pim_destroy_minor(v4l2pim_info);
 			return;
 		}
