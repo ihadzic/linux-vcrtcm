@@ -48,8 +48,8 @@ int udlpim_check_mode(int pconid, void *cookie, struct vcrtcm_mode *mode,
 /* Scheduled/delayed work functions */
 void udlpim_fake_vblank(struct work_struct *work);
 void copy_cursor_work(struct work_struct *work);
-int udlpim_do_xmit_fb_pull(struct udlpim_flow_info *flow_info);
-int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info);
+int udlpim_do_xmit_fb_pull(struct udlpim_pcon *pcon);
+int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon);
 
 int udlpim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,

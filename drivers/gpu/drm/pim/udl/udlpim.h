@@ -102,7 +102,7 @@ struct udlpim_scratch_memory_descriptor {
 struct udlpim_info {
 	struct list_head list;
 	int minor;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_pcon *pcon;
 	struct mutex buffer_mutex;
 	spinlock_t udlpim_lock;
 	int enabled_queue;
@@ -153,7 +153,7 @@ struct udlpim_info {
 	atomic_t vmalloc_track;
 };
 
-struct udlpim_flow_info {
+struct udlpim_pcon {
 	struct list_head list;
 	int pconid;
 	int attached;

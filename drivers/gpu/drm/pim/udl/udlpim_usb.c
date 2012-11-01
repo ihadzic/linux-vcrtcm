@@ -164,7 +164,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	udlpim_info->workqueue =
 			alloc_workqueue("udlpim_workers", WQ_MEM_RECLAIM, 5);
 
-	udlpim_info->flow_info = NULL;
+	udlpim_info->pcon = NULL;
 	udlpim_info->scratch_memory = NULL;
 
 	INIT_DELAYED_WORK(&udlpim_info->fake_vblank_work, udlpim_fake_vblank);
@@ -227,8 +227,8 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
 	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
 
-	if (udlpim_info->flow_info)
-		vcrtcm_p_destroy(udlpim_info->flow_info->pconid);
+	if (udlpim_info->pcon)
+		vcrtcm_p_destroy(udlpim_info->pcon->pconid);
 
 	/* Return minor number */
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, udlpim_info->minor);
@@ -360,14 +360,14 @@ int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info)
 	int xres = udlpim_info->current_video_mode.xres;
 	int yres = udlpim_info->current_video_mode.yres;
 	int bytes_per_pixel = udlpim_info->bpp / 8;
-	struct udlpim_flow_info *flow_info = udlpim_info->flow_info;
-	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
+	struct udlpim_pcon *pcon = udlpim_info->pcon;
+	struct vcrtcm_fb *vcrtcm_fb = &pcon->vcrtcm_fb;
 
 	start_cycles = get_cycles();
 
 	if (!atomic_read(&udlpim_info->usb_active))
 		return 0;
-	if (flow_info->pbd_fb[flow_info->push_buffer_index]->virgin)
+	if (pcon->pbd_fb[pcon->push_buffer_index]->virgin)
 		return 0;
 	urb = udlpim_get_urb(udlpim_info);
 	if (!urb)
@@ -542,7 +542,7 @@ int udlpim_free_modelist(struct udlpim_info *udlpim_info,
 /* but is also called once by attach */
 void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 {
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_pcon *pcon;
 	struct fb_monspecs monspecs;
 	char *new_edid, *old_edid;
 	int new_edid_valid = 0;
@@ -552,7 +552,7 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 
 	UDLPIM_DEBUG("In udlpim_query_edid\n");
 
-	flow_info = udlpim_info->flow_info;
+	pcon = udlpim_info->pcon;
 
 	new_edid = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL,
 		&udlpim_info->kmalloc_track);
@@ -601,11 +601,11 @@ void udlpim_query_edid_core(struct udlpim_info *udlpim_info)
 	udlpim_info->monitor_connected = new_edid ? 1 : 0;
 	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
 
-	if (flow_info && ((!old_edid && new_edid) ||
+	if (pcon && ((!old_edid && new_edid) ||
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		UDLPIM_DEBUG("Calling hotplug.\n");
-		vcrtcm_p_hotplug(flow_info->pconid);
+		vcrtcm_p_hotplug(pcon->pconid);
 	}
 
 	if (old_edid)
@@ -860,9 +860,9 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer +
 				urb->transfer_buffer_length;
-	struct udlpim_flow_info *flow_info = udlpim_info->flow_info;
-	struct vcrtcm_cursor *vcrtcm_cursor = &flow_info->vcrtcm_cursor;
-	struct vcrtcm_fb *vcrtcm_fb = &flow_info->vcrtcm_fb;
+	struct udlpim_pcon *pcon = udlpim_info->pcon;
+	struct vcrtcm_cursor *vcrtcm_cursor = &pcon->vcrtcm_cursor;
+	struct vcrtcm_fb *vcrtcm_fb = &pcon->vcrtcm_fb;
 
 	/* We need line_num for the dev_offset and to do the cursor overlay */
 	int line_num = byte_offset / vcrtcm_fb->pitch;
@@ -890,7 +890,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 	 */
 	if (udlpim_info->cursor &&
 	    vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
-	    !flow_info->pbd_cursor[flow_info->push_buffer_index]->virgin &&
+	    !pcon->pbd_cursor[pcon->push_buffer_index]->virgin &&
 	    line_num >= vcrtcm_cursor->location_y &&
 	    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
 		int i, clip = 0;
