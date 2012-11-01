@@ -135,6 +135,7 @@ int v4l2pim_attach(int pconid, void *cookie)
 			return -ENOMEM;
 		}
 
+		flow_info->attached = 1;
 		flow_info->v4l2pim_info = v4l2pim_info;
 		flow_info->pconid = pconid;
 		flow_info->fps = 0;
@@ -183,6 +184,7 @@ int v4l2pim_detach(int pconid, void *cookie)
 
 	vcrtcm_p_wait_fb(pconid);
 	flow_info = v4l2pim_info->flow_info;
+	flow_info->attached = 0;
 
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
 
@@ -846,7 +848,7 @@ int v4l2pim_get_properties(int pconid, void *cookie,
 			struct v4l2pim_flow_info *flow =
 						v4l2pim_info->flow_info;
 			props->fps = flow ? flow->fps : -1;
-			props->attached = flow ? 1 : 0;
+			props->attached = flow ? flow->attached : 0;
 			return 1;
 		}
 	}

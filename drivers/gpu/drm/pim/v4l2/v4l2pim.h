@@ -112,6 +112,7 @@ struct v4l2pim_info {
 struct v4l2pim_flow_info {
 	struct list_head list;
 	int pconid;
+	int attached;
 	int fb_xmit_counter;
 	int fb_force_xmit;
 	int fb_xmit_allowed;
