@@ -22,14 +22,14 @@
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
 
-static void v4l2pim_free_pb(struct v4l2pim_info *v4l2pim_info,
-		struct v4l2pim_flow_info *flow_info, int flag)
+static void v4l2pim_free_pb(struct v4l2pim_flow_info *flow_info, int flag)
 {
-	int i;
-
+	struct v4l2pim_info *info;
 	struct vcrtcm_push_buffer_descriptor *pbd;
 	void *pb_mapped_ram;
+	int i;
 
+	info = flow_info->v4l2pim_info;
 	for (i = 0; i < 2; i++) {
 		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			pbd = flow_info->pbd_fb[i];
@@ -43,26 +43,26 @@ static void v4l2pim_free_pb(struct v4l2pim_info *v4l2pim_info,
 			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
 			vcrtcm_p_free_pb(flow_info->pconid, pbd,
-					 &v4l2pim_info->kmalloc_track,
-					 &v4l2pim_info->page_track);
+					 &info->kmalloc_track,
+					 &info->page_track);
 		}
 	}
 }
 
-static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
-		struct v4l2pim_flow_info *flow_info,
+static int v4l2pim_alloc_pb(struct v4l2pim_flow_info *flow_info,
 		int num_pages, int flag)
 {
 	int i;
 	int r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd, *old_pbd = NULL;
 	void *pb, *old_pb = NULL;
+	struct v4l2pim_info *info = flow_info->v4l2pim_info;
 
 	for (i = 0; i < 2; i++) {
 		pbd = vcrtcm_p_alloc_pb(flow_info->pconid, num_pages,
 					GFP_KERNEL | __GFP_HIGHMEM,
-					&v4l2pim_info->kmalloc_track,
-					&v4l2pim_info->page_track);
+					&info->kmalloc_track,
+					&info->page_track);
 		if (IS_ERR(pbd)) {
 			r = PTR_ERR(pbd);
 			goto out_err0;
@@ -90,8 +90,8 @@ static int v4l2pim_alloc_pb(struct v4l2pim_info *v4l2pim_info,
 
 out_err1:
 	vcrtcm_p_free_pb(flow_info->pconid, pbd,
-			 &v4l2pim_info->kmalloc_track,
-			 &v4l2pim_info->page_track);
+			 &info->kmalloc_track,
+			 &info->page_track);
 out_err0:
 	if (i == 1) {
 		/*
@@ -109,51 +109,57 @@ out_err0:
 			flow_info->pb_cursor[0] = NULL;
 		}
 		vcrtcm_p_free_pb(flow_info->pconid, old_pbd,
-				 &v4l2pim_info->kmalloc_track,
-				 &v4l2pim_info->page_track);
+				 &info->kmalloc_track,
+				 &info->page_track);
 	}
 	return r;
 }
 
 int v4l2pim_attach(int pconid, void *cookie)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
-		v4l2pim_info->minor, pconid);
-
-	if (!v4l2pim_info->flow_info) {
+	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -ENODEV;
 	}
-	v4l2pim_info->flow_info->attached = 1;
+	info = flow_info->v4l2pim_info;
+	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
+		info->minor, pconid);
+
+	flow_info->attached = 1;
 	return 0;
 }
 
 int v4l2pim_detach(int pconid, void *cookie)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	if (atomic_read(&v4l2pim_info->users) > 0) {
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
+	}
+	info = flow_info->v4l2pim_info;
+	if (atomic_read(&info->users) > 0) {
 		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %d, file open",
-			v4l2pim_info->minor, pconid);
+			info->minor, pconid);
 		return -EBUSY;
 	}
 	VCRTCM_INFO("Detaching v4l2pim %d from pcon %d\n",
-		v4l2pim_info->minor, pconid);
-	v4l2pim_info->flow_info->attached = 0;
+		info->minor, pconid);
+	flow_info->attached = 0;
 	return 0;
 }
 
-static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
-			      struct v4l2pim_flow_info *flow_info,
+static int v4l2pim_realloc_pb(struct v4l2pim_flow_info *flow_info,
 			      int size, int flag)
 {
 	int num_pages, r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd0, *pbd1;
 	int need_shadow_buf = 0;
+	struct v4l2pim_info *info = flow_info->v4l2pim_info;
 
 	if (flag ==  V4L2PIM_ALLOC_PB_FLAG_FB) {
 		pbd0 = flow_info->pbd_fb[0];
@@ -170,11 +176,11 @@ static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
 	if (!num_pages) {
 		V4L2PIM_DEBUG("%s: zero size requested\n",
 			      V4L2PIM_ALLOC_PB_STRING(flag));
-		v4l2pim_free_pb(v4l2pim_info, flow_info, flag);
+		v4l2pim_free_pb(flow_info, flag);
 	} else if (!pbd0) {
 		/* no old buffer present */
 		BUG_ON(pbd1);
-		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info, num_pages, flag);
+		r = v4l2pim_alloc_pb(flow_info, num_pages, flag);
 		need_shadow_buf = (flag == V4L2PIM_ALLOC_PB_FLAG_FB) ? 1 : 0;
 	} else if (pbd0->num_pages == num_pages) {
 		V4L2PIM_DEBUG("%s: reusing existing push buffer\n",
@@ -186,8 +192,8 @@ static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
 			      "size=%d, num_pages=%d\n",
 			      V4L2PIM_ALLOC_PB_STRING(flag), size, num_pages);
 		BUG_ON(pbd0->num_pages != pbd1->num_pages);
-		v4l2pim_free_pb(v4l2pim_info, flow_info, flag);
-		r = v4l2pim_alloc_pb(v4l2pim_info, flow_info, num_pages, flag);
+		v4l2pim_free_pb(flow_info, flag);
+		r = v4l2pim_alloc_pb(flow_info, num_pages, flag);
 		need_shadow_buf = (flag == V4L2PIM_ALLOC_PB_FLAG_FB) ? 1 : 0;
 	}
 	if (need_shadow_buf) {
@@ -197,9 +203,9 @@ static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
 		w = flow_info->vcrtcm_fb.hdisplay;
 		h = flow_info->vcrtcm_fb.vdisplay;
 		sb_size = w * h * (flow_info->vcrtcm_fb.bpp >> 3);
-		mutex_lock(&v4l2pim_info->sb_lock);
-		v4l2pim_alloc_shadowbuf(v4l2pim_info, sb_size);
-		mutex_unlock(&v4l2pim_info->sb_lock);
+		mutex_lock(&info->sb_lock);
+		v4l2pim_alloc_shadowbuf(info, sb_size);
+		mutex_unlock(&info->sb_lock);
 	}
 	return r;
 }
@@ -207,72 +213,67 @@ static int v4l2pim_realloc_pb(struct v4l2pim_info *v4l2pim_info,
 int v4l2pim_set_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 	int r = 0;
 	int size;
 
-	V4L2PIM_DEBUG("minor %d.\n", v4l2pim_info->minor);
-
-	flow_info = v4l2pim_info->flow_info;
-
-	/* TODO: Do we need this? */
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
-	mutex_lock(&v4l2pim_info->buffer_mutex);
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d.\n", info->minor);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
-
 	size = flow_info->vcrtcm_fb.pitch * flow_info->vcrtcm_fb.vdisplay;
-	r = v4l2pim_realloc_pb(v4l2pim_info, flow_info, size,
+	r = v4l2pim_realloc_pb(flow_info, size,
 			       V4L2PIM_ALLOC_PB_FLAG_FB);
 	flow_info->fb_xmit_allowed = 1;
-	mutex_unlock(&v4l2pim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return r;
 }
 
 int v4l2pim_get_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	V4L2PIM_DEBUG("minor %d.\n", v4l2pim_info->minor);
-	flow_info = v4l2pim_info->flow_info;
-
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
+	}
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d\n", info->minor);
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
 
-	mutex_lock(&v4l2pim_info->buffer_mutex);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(vcrtcm_fb, &flow_info->vcrtcm_fb, sizeof(struct vcrtcm_fb));
-	mutex_unlock(&v4l2pim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return 0;
 }
 
 int v4l2pim_dirty_fb(int pconid, void *cookie,
 		     struct drm_crtc *drm_crtc)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
+	}
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d\n", info->minor);
 
 	/* just mark the "force" flag, v4l2pim_do_xmit_fb_pull
 	 * does the rest (when called).
 	 */
-
-	flow_info = v4l2pim_info->flow_info;
-
-	if (flow_info)
-		flow_info->fb_force_xmit = 1;
-
+	flow_info->fb_force_xmit = 1;
 	return 0;
 }
 
@@ -285,17 +286,22 @@ int v4l2pim_wait_fb(int pconid, void *cookie,
 int v4l2pim_get_fb_status(int pconid, void *cookie,
 			  struct drm_crtc *drm_crtc, u32 *status)
 {
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
 	unsigned long flags;
 
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
+	}
+	info = flow_info->v4l2pim_info;
 	V4L2PIM_DEBUG("\n");
 
-	spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-	if (v4l2pim_info->status & V4L2PIM_IN_DO_XMIT)
+	spin_lock_irqsave(&info->v4l2pim_lock, flags);
+	if (info->status & V4L2PIM_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
+	spin_unlock_irqrestore(&info->v4l2pim_lock, flags);
 
 	*status = tmp_status;
 
@@ -304,20 +310,15 @@ int v4l2pim_get_fb_status(int pconid, void *cookie,
 
 int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 	unsigned long jiffies_snapshot;
-
-	V4L2PIM_DEBUG("fps %d.\n", fps);
-
-	flow_info = v4l2pim_info->flow_info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
+	info = flow_info->v4l2pim_info;
 	if (fps > V4L2PIM_FPS_HARD_LIMIT) {
 		VCRTCM_ERROR("Frame rate above the hard limit\n");
 		return -EINVAL;
@@ -340,28 +341,24 @@ int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 	}
 
 	/* Schedule initial fake vblank */
-	/*schedule_delayed_work(&v4l2pim_info->fake_vblank_work, 0);*/
-	queue_delayed_work(v4l2pim_info->workqueue,
-			   &v4l2pim_info->fake_vblank_work, 0);
+	/*schedule_delayed_work(&info->fake_vblank_work, 0);*/
+	queue_delayed_work(info->workqueue,
+			   &info->fake_vblank_work, 0);
 
 	return 0;
 }
 
 int v4l2pim_get_fps(int pconid, void *cookie, int *fps)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
-
-	V4L2PIM_DEBUG("\n");
-
-	flow_info = v4l2pim_info->flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("\n");
 	if (flow_info->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
 		VCRTCM_INFO("Zero or negative frame rate, transmission disabled\n");
@@ -375,105 +372,91 @@ int v4l2pim_get_fps(int pconid, void *cookie, int *fps)
 int v4l2pim_set_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 	int r = 0;
 	int size;
 
-	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
-	flow_info = v4l2pim_info->flow_info;
-
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
-	mutex_lock(&v4l2pim_info->buffer_mutex);
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d\n", info->minor);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 	size = flow_info->vcrtcm_cursor.height *
 		flow_info->vcrtcm_cursor.width *
 		(flow_info->vcrtcm_cursor.bpp >> 3);
-	r = v4l2pim_realloc_pb(v4l2pim_info, flow_info, size,
+	r = v4l2pim_realloc_pb(flow_info, size,
 			       V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-	mutex_unlock(&v4l2pim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return r;
 }
 
 int v4l2pim_get_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
-
-	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
-
-	flow_info = v4l2pim_info->flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
-	mutex_lock(&v4l2pim_info->buffer_mutex);
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d\n", info->minor);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(vcrtcm_cursor, &flow_info->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
-	mutex_unlock(&v4l2pim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return 0;
 }
 
 int v4l2pim_set_dpms(int pconid, void *cookie, int state)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
-
-	V4L2PIM_DEBUG("minor %d, state %d\n", v4l2pim_info->minor, state);
-
-	flow_info = v4l2pim_info->flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d, state %d\n", info->minor, state);
 	flow_info->dpms_state = state;
-
 	return 0;
 }
 
 int v4l2pim_get_dpms(int pconid, void *cookie, int *state)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info;
-
-	V4L2PIM_DEBUG("minor %d\n", v4l2pim_info->minor);
-
-	flow_info = v4l2pim_info->flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
-
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("minor %d\n", info->minor);
 	*state = flow_info->dpms_state;
-
 	return 0;
 }
 
 void v4l2pim_disable(int pconid, void *cookie)
 {
-	struct v4l2pim_info *v4l2pim_info =
-		(struct v4l2pim_info *)cookie;
-	struct v4l2pim_flow_info *flow_info =
-			v4l2pim_info->flow_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	mutex_lock(&v4l2pim_info->buffer_mutex);
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return;
+	}
+	info = flow_info->v4l2pim_info;
+	mutex_lock(&info->buffer_mutex);
 	flow_info->fb_xmit_allowed = 0;
-	mutex_unlock(&v4l2pim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 }
 
 
@@ -481,7 +464,7 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
-	struct v4l2pim_info *v4l2pim_info =
+	struct v4l2pim_info *info =
 		container_of(delayed_work, struct v4l2pim_info,
 			     fake_vblank_work);
 	struct v4l2pim_flow_info *flow_info;
@@ -493,16 +476,16 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 	int next_vblank_delay;
 	int v4l2pim_fake_vblank_slack_sane = 0;
 
-	V4L2PIM_DEBUG("minor=%d\n", v4l2pim_info->minor);
+	V4L2PIM_DEBUG("minor=%d\n", info->minor);
 	v4l2pim_fake_vblank_slack_sane =
 			(v4l2pim_fake_vblank_slack_sane <= 0) ? 0 : v4l2pim_fake_vblank_slack;
 
-	if (!v4l2pim_info) {
+	if (!info) {
 		VCRTCM_ERROR("Cannot find v4l2pim_info\n");
 		return;
 	}
 
-	flow_info = v4l2pim_info->flow_info;
+	flow_info = info->flow_info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
@@ -517,9 +500,9 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 			flow_info->next_vblank_jiffies +=
 					flow_info->fb_xmit_period_jiffies;
 
-			mutex_lock(&v4l2pim_info->buffer_mutex);
+			mutex_lock(&info->buffer_mutex);
 			v4l2pim_do_xmit_fb_push(flow_info);
-			mutex_unlock(&v4l2pim_info->buffer_mutex);
+			mutex_unlock(&info->buffer_mutex);
 		}
 
 		if (!next_vblank_jiffies_valid) {
@@ -538,11 +521,11 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 			(int)next_vblank_jiffies - (int)jiffies_snapshot;
 		if (next_vblank_delay <= v4l2pim_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
-		if (!queue_delayed_work(v4l2pim_info->workqueue,
-					&v4l2pim_info->fake_vblank_work,
+		if (!queue_delayed_work(info->workqueue,
+					&info->fake_vblank_work,
 					next_vblank_delay))
 			VCRTCM_WARNING("dup fake vblank, minor %d\n",
-				v4l2pim_info->minor);
+				info->minor);
 	} else
 		V4L2PIM_DEBUG("Next fake vblank not scheduled\n");
 
@@ -551,18 +534,18 @@ void v4l2pim_fake_vblank(struct work_struct *work)
 
 int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 {
-	struct v4l2pim_info *v4l2pim_info = flow_info->v4l2pim_info;
+	struct v4l2pim_info *info = flow_info->v4l2pim_info;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
 	unsigned long flags;
 
 	V4L2PIM_DEBUG("in v4l2pim_do_xmit_fb_push, minor %d\n",
-		      v4l2pim_info->minor);
+		      info->minor);
 
-	spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-	v4l2pim_info->status |= V4L2PIM_IN_DO_XMIT;
-	spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
+	spin_lock_irqsave(&info->v4l2pim_lock, flags);
+	info->status |= V4L2PIM_IN_DO_XMIT;
+	spin_unlock_irqrestore(&info->v4l2pim_lock, flags);
 
 	push_buffer_index = flow_info->push_buffer_index;
 
@@ -604,9 +587,9 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 				flow_info->vcrtcm_fb.hdisplay,
 				flow_info->vcrtcm_fb.vdisplay);
 
-		spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
+		spin_lock_irqsave(&info->v4l2pim_lock, flags);
+		info->status &= ~V4L2PIM_IN_DO_XMIT;
+		spin_unlock_irqrestore(&info->v4l2pim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->pconid,
 				  flow_info->pbd_fb[push_buffer_index],
@@ -636,9 +619,9 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		spin_lock_irqsave(&v4l2pim_info->v4l2pim_lock, flags);
-		v4l2pim_info->status &= ~V4L2PIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&v4l2pim_info->v4l2pim_lock, flags);
+		spin_lock_irqsave(&info->v4l2pim_lock, flags);
+		info->status &= ~V4L2PIM_IN_DO_XMIT;
+		spin_unlock_irqrestore(&info->v4l2pim_lock, flags);
 
 		vcrtcm_p_emulate_vblank(flow_info->pconid);
 		V4L2PIM_DEBUG("transmission not happening\n");
@@ -661,8 +644,8 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		vp_offset = p * vpy + vpx * Bpp;
 		hlen = hpixels * Bpp;
 
-		v4l2pim_info->main_buffer = flow_info->pb_fb[push_buffer_index];
-		v4l2pim_info->cursor = flow_info->pb_cursor[push_buffer_index];
+		info->main_buffer = flow_info->pb_fb[push_buffer_index];
+		info->cursor = flow_info->pb_cursor[push_buffer_index];
 
 		/* Overlay the cursor on the framebuffer */
 		cursor = &flow_info->vcrtcm_cursor;
@@ -670,7 +653,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		    (!flow_info->pbd_cursor[push_buffer_index]->virgin)) {
 			uint32_t *fb_end;
 			int clip_y = 0;
-			mb = v4l2pim_info->main_buffer + vp_offset;
+			mb = info->main_buffer + vp_offset;
 			fb_end = (uint32_t *) (mb + p * (vpixels - 1));
 			fb_end += hpixels;
 			if (cursor->location_y < 0)
@@ -684,7 +667,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 
 				if (cursor->location_x < 0)
 					clip_x = -cursor->location_x;
-				cursor_pixel = (uint32_t *) v4l2pim_info->cursor;
+				cursor_pixel = (uint32_t *) info->cursor;
 				cursor_pixel += i * cursor->width;
 				cursor_pixel += clip_x;
 
@@ -708,18 +691,18 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: initiating copy\n",
 				push_buffer_index);
 		jiffies_snapshot = jiffies;
-		mutex_lock(&v4l2pim_info->sb_lock);
-		if (v4l2pim_info->shadowbuf) {
-			v4l2pim_info->jshadowbuf = jiffies;
-			mb = v4l2pim_info->main_buffer + vp_offset;
-			sb = v4l2pim_info->shadowbuf;
+		mutex_lock(&info->sb_lock);
+		if (info->shadowbuf) {
+			info->jshadowbuf = jiffies;
+			mb = info->main_buffer + vp_offset;
+			sb = info->shadowbuf;
 			for (i = 0; i < vpixels; i++) {
 				memcpy(sb, mb, hlen);
 				mb += p;
 				sb += hlen;
 			}
 		}
-		mutex_unlock(&v4l2pim_info->sb_lock);
+		mutex_unlock(&info->sb_lock);
 		V4L2PIM_DEBUG("copy took %u ms\n",
 			      jiffies_to_msecs(jiffies - jiffies_snapshot));
 		flow_info->pb_needs_xmit[push_buffer_index] = 0;
@@ -750,30 +733,28 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description)
 {
-	struct v4l2pim_info *v4l2pim_info;
+	struct v4l2pim_info *info;
 	struct v4l2pim_flow_info *flow_info;
 
-	v4l2pim_info = v4l2pim_create_minor(pconid);
-
-	if (!v4l2pim_info)
+	info = v4l2pim_create_minor(pconid);
+	if (!info)
 		return -ENODEV;
-
 	scnprintf(description, PCON_DESC_MAXLEN,
 			"Video4Linux2 PCON - minor %i",
-			v4l2pim_info->minor);
-	*minor = v4l2pim_info->minor;
+			info->minor);
+	*minor = info->minor;
 	*funcs = v4l2pim_vcrtcm_pcon_funcs;
 	*xfer_mode = VCRTCM_PUSH_PULL;
-	*cookie = v4l2pim_info;
 	flow_info =
 		vcrtcm_kzalloc(sizeof(struct v4l2pim_flow_info),
-			GFP_KERNEL, &v4l2pim_info->kmalloc_track);
+			GFP_KERNEL, &info->kmalloc_track);
 	if (flow_info == NULL) {
 		VCRTCM_ERROR("no memory\n");
 		return -ENOMEM;
 	}
+	*cookie = flow_info;
 	flow_info->attached = 0;
-	flow_info->v4l2pim_info = v4l2pim_info;
+	flow_info->v4l2pim_info = info;
 	flow_info->pconid = pconid;
 	flow_info->fps = 0;
 	flow_info->fb_force_xmit = 0;
@@ -795,49 +776,48 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 
 	flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 
-	v4l2pim_info->flow_info = flow_info;
+	info->flow_info = flow_info;
 
 	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
-			v4l2pim_info->minor, pconid);
+			info->minor, pconid);
 
 	return 0;
 }
 
 void v4l2pim_destroy(int pconid, void *cookie)
 {
-	struct v4l2pim_info *v4l2pim_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		struct v4l2pim_flow_info *flow_info = v4l2pim_info->flow_info;
-		if (flow_info && flow_info->pconid == pconid) {
-			V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
-			vcrtcm_p_wait_fb(pconid);
-			cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
-			v4l2pim_free_pb(v4l2pim_info, flow_info,
-					V4L2PIM_ALLOC_PB_FLAG_FB);
-			v4l2pim_free_pb(v4l2pim_info, flow_info,
-					V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-			v4l2pim_info->flow_info = NULL;
-			vcrtcm_kfree(flow_info, &v4l2pim_info->kmalloc_track);
-			v4l2pim_info->main_buffer = NULL;
-			v4l2pim_info->cursor = NULL;
-			v4l2pim_destroy_minor(v4l2pim_info);
-			return;
-		}
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return;
 	}
+	info = flow_info->v4l2pim_info;
+	V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
+	vcrtcm_p_wait_fb(pconid);
+	cancel_delayed_work_sync(&info->fake_vblank_work);
+	v4l2pim_free_pb(flow_info, V4L2PIM_ALLOC_PB_FLAG_FB);
+	v4l2pim_free_pb(flow_info, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
+	info->flow_info = NULL;
+	vcrtcm_kfree(flow_info, &info->kmalloc_track);
+	info->main_buffer = NULL;
+	info->cursor = NULL;
+	v4l2pim_destroy_minor(info);
 }
 
 int v4l2pim_get_properties(int pconid, void *cookie,
 				  struct vcrtcm_pcon_properties *props)
 {
-	struct v4l2pim_info *v4l2pim_info;
+	struct v4l2pim_flow_info *flow_info = cookie;
+	struct v4l2pim_info *info;
 
-	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->flow_info && v4l2pim_info->flow_info->pconid == pconid) {
-			props->fps = v4l2pim_info->flow_info ? v4l2pim_info->flow_info->fps : -1;
-			props->attached = v4l2pim_info->flow_info ? v4l2pim_info->flow_info->attached : 0;
-			return 1;
-		}
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -ENODEV;
 	}
+	info = flow_info->v4l2pim_info;
+	props->fps = flow_info->fps;
+	props->attached = flow_info->attached;
 	return 0;
 }
