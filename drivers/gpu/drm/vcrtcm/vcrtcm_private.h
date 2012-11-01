@@ -23,6 +23,7 @@
 
 #include <vcrtcm/vcrtcm_common.h>
 #include <vcrtcm/vcrtcm_utils.h>
+#include <vcrtcm/vcrtcm_pcon.h>
 
 /*
  * Private data structures for Virtual CRTC Manager and modules
@@ -35,6 +36,15 @@
 
 struct pconid_table_entry {
 	struct vcrtcm_pcon_info *pcon_info;
+};
+
+struct vcrtcm_pim_info {
+	char name[PIM_NAME_MAXLEN];
+	int id;
+	struct vcrtcm_pim_funcs funcs;
+	struct list_head active_pcon_list;
+	struct kobject kobj;
+	struct list_head pim_list;
 };
 
 extern struct list_head vcrtcm_pcon_list;
