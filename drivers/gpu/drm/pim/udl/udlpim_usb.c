@@ -154,7 +154,6 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 
 	udlpim_info->minor = new_minor;
 	udlpim_num_minors++;
-	udlpim_info->used = 0;
 
 	mutex_init(&udlpim_info->buffer_mutex);
 	spin_lock_init(&udlpim_info->udlpim_lock);
@@ -228,7 +227,7 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
 	/* vcrtcm_p_del(udlpim_major, udlpim_info->minor, 0); */
 
-	if (udlpim_info->used)
+	if (udlpim_info->flow_info)
 		vcrtcm_p_destroy(udlpim_info->flow_info->pconid);
 
 	/* Return minor number */

@@ -875,7 +875,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 	struct usb_device *usbdev;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (!info->used) {
+		if (!info->flow_info) {
 			struct udlpim_flow_info *flow_info;
 
 			usbdev = info->udev;
@@ -895,7 +895,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 				return -ENOMEM;
 			}
 			*cookie = flow_info;
-			info->used = 1;
 			flow_info->udlpim_info = info;
 			flow_info->pconid = pconid;
 			flow_info->attached = 0;
@@ -948,6 +947,5 @@ void udlpim_destroy(int pconid, void *cookie)
 	udlpim_free_pb(info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	info->flow_info = NULL;
-	info->used = 0;
 	vcrtcm_kfree(flow_info, &info->kmalloc_track);
 }
