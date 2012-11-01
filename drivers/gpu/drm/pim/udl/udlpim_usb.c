@@ -906,7 +906,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 		for (i = 0; i < vcrtcm_cursor->width - clip; i++) {
 			if (hline_pixel >= (uint32_t *) line_end)
 				break;
-			alpha_overlay_argb32(hline_pixel, cursor_pixel);
+			udlpim_alpha_overlay_argb32(hline_pixel, cursor_pixel);
 			cursor_pixel++;
 			hline_pixel++;
 		}
@@ -946,7 +946,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 
 	for (pixel32 = (uint32_t *) next_pixel;
 			pixel32 < (uint32_t *) line_end; pixel32++) {
-		split_pixel_argb32(pixel32, pixel16, pixel8);
+		udlpim_split_pixel_argb32(pixel32, pixel16, pixel8);
 		pixel16++;
 		pixel8++;
 	}
@@ -1051,7 +1051,7 @@ static int udlpim_blank_hw_fb(struct udlpim_info *udlpim_info, unsigned color)
 	hline_8 = vcrtcm_kmalloc(sizeof(uint8_t) * xres, GFP_KERNEL,
 			&udlpim_info->kmalloc_track);
 
-	split_pixel_argb32(&blank_color32, &blank_color16, &blank_color8);
+	udlpim_split_pixel_argb32(&blank_color32, &blank_color16, &blank_color8);
 
 	for (i = 0; i < xres; i++) {
 		hline_16[i] = blank_color16;
@@ -1422,7 +1422,7 @@ static int udlpim_map_scratch_memory(struct udlpim_info *udlpim_info)
 	if (!scratch_memory)
 		return 1;
 
-	split_pixel_argb32(&blank_pixel_32, &blank_pixel_16, &blank_pixel_8);
+	udlpim_split_pixel_argb32(&blank_pixel_32, &blank_pixel_16, &blank_pixel_8);
 	udlpim_info->backing_buffer = vm_map_ram(
 					scratch_memory->backing_buffer_pages,
 					scratch_memory->backing_buffer_num_pages,

@@ -164,7 +164,7 @@ static void udlpim_release_urb_work(struct work_struct *work);
 /** Read the blue component (0..255) of a 32 bpp colour. */
 #define RGB_GETBLU(col) (uint8_t)(((col) >> 16) & 0xFF)
 
-inline uint8_t rgb8(const uint32_t *ptr)
+inline uint8_t udlpim_rgb8(const uint32_t *ptr)
 
 {
 	uint8_t red = RGB_GETRED(*ptr);
@@ -174,7 +174,7 @@ inline uint8_t rgb8(const uint32_t *ptr)
 	return RGB8(red, grn, blu);
 }
 
-inline uint16_t rgb16(const uint32_t *ptr)
+inline uint16_t udlpim_rgb16(const uint32_t *ptr)
 {
 	uint8_t red = RGB_GETRED(*ptr);
 	uint8_t grn = RGB_GETGRN(*ptr);
@@ -183,7 +183,7 @@ inline uint16_t rgb16(const uint32_t *ptr)
 	return (RG16(blu, grn) << 8) + GB16(grn, red);
 }
 
-inline void split_pixel_argb32(const uint32_t *pixel32,
+inline void udlpim_split_pixel_argb32(const uint32_t *pixel32,
 		uint16_t *pixel16, uint8_t *pixel8)
 {
 	uint8_t red = RGB_GETRED(*pixel32);
@@ -198,7 +198,7 @@ inline void split_pixel_argb32(const uint32_t *pixel32,
 	return;
 }
 
-inline void alpha_overlay_argb32(uint32_t *fb_pixel, uint32_t *overlay_pixel)
+inline void udlpim_alpha_overlay_argb32(uint32_t *fb_pixel, uint32_t *overlay_pixel)
 {
 	if (*overlay_pixel >> 24 > 0)
 		*fb_pixel = *overlay_pixel;
@@ -206,11 +206,11 @@ inline void alpha_overlay_argb32(uint32_t *fb_pixel, uint32_t *overlay_pixel)
 	return;
 }
 
-inline void overlay_cursor(uint32_t *cursor_pixel,
+inline void udlpim_overlay_cursor(uint32_t *cursor_pixel,
 		uint16_t *hline16_pixel, uint8_t *hline8_pixel)
 {
 	if (*cursor_pixel >> 24 > 0) {
-		split_pixel_argb32(cursor_pixel, hline16_pixel, hline8_pixel);
+		udlpim_split_pixel_argb32(cursor_pixel, hline16_pixel, hline8_pixel);
 	}
 
 	return;
