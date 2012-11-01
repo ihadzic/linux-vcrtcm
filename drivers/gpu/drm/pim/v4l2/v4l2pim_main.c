@@ -831,12 +831,12 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
 	if (size % PAGE_SIZE > 0)
 		num_pages++;
 
-	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages, GFP_KERNEL,
-			       &v4l2pim_info->kmalloc_track);
+	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages,
+		GFP_KERNEL, &v4l2pim_info->kmalloc_track);
 	if (!pages)
 		goto sb_alloc_err;
-	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages, num_pages,
-					&v4l2pim_info->page_track);
+	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages,
+		num_pages, &v4l2pim_info->page_track);
 	if (result != 0)
 		goto sb_alloc_mpages_err;
 	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
@@ -961,7 +961,6 @@ struct v4l2pim_info *v4l2pim_create_minor(int pconid)
 		return NULL;
 	}
 
-	v4l2pim_info->pconid = pconid;
 	mutex_init(&v4l2pim_info->mlock);
 	spin_lock_init(&v4l2pim_info->slock);
 
@@ -1108,13 +1107,13 @@ static void __exit v4l2pim_exit(void)
 	struct v4l2pim_info *v4l2pim_info, *tmp;
 	VCRTCM_INFO("Cleaning up v4l2pim\n");
 	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
-		/* unregister with VCRTCM */
-		V4L2PIM_DEBUG("Calling vcrtcm_p_destroy for "
-		"v4l2pim %p, pcon %d, major %d, minor %d\n",
-		v4l2pim_info, v4l2pim_info->pconid, v4l2pim_major,
-		v4l2pim_info->minor);
-
-		vcrtcm_p_destroy(v4l2pim_info->pconid);
+		if (v4l2pim_info->flow_info) {
+			V4L2PIM_DEBUG("Calling vcrtcm_p_destroy for "
+			"v4l2pim %p, pcon %d, major %d, minor %d\n",
+			v4l2pim_info, v4l2pim_info->flow_info->pconid,
+			v4l2pim_major, v4l2pim_info->minor);
+			vcrtcm_p_destroy(v4l2pim_info->flow_info->pconid);
+		}
 		v4l2pim_destroy_minor(v4l2pim_info);
 	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
