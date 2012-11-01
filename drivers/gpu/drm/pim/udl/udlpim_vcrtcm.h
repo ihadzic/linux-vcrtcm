@@ -51,4 +51,10 @@ void copy_cursor_work(struct work_struct *work);
 int udlpim_do_xmit_fb_pull(struct udlpim_flow_info *flow_info);
 int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info);
 
+int udlpim_instantiate(int pconid, uint32_t hints,
+	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
+	char *description);
+void udlpim_destroy(int pconid, void *cookie);
+
 #endif

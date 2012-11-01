@@ -47,74 +47,6 @@ int udlpim_fake_vblank_slack = 1;
 /* Use to generate minor numbers */
 struct vcrtcm_id_generator udlpim_minor_id_generator;
 
-static int udlpim_get_properties(int pconid, void *cookie,
-	struct vcrtcm_pcon_properties *props);
-
-struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
-	.attach = udlpim_attach,
-	.detach = udlpim_detach,
-	.set_fb = udlpim_set_fb,
-	.get_fb = udlpim_get_fb,
-	.get_properties = udlpim_get_properties,
-	.dirty_fb = udlpim_dirty_fb,
-	.wait_fb = udlpim_wait_fb,
-	.get_fb_status = udlpim_get_fb_status,
-	.set_fps = udlpim_set_fps,
-	.get_fps = udlpim_get_fps,
-	.set_cursor = udlpim_set_cursor,
-	.get_cursor = udlpim_get_cursor,
-	.set_dpms = udlpim_set_dpms,
-	.get_dpms = udlpim_get_dpms,
-	.connected = udlpim_connected,
-	.get_modes = udlpim_get_modes,
-	.check_mode = udlpim_check_mode,
-	.disable = udlpim_disable
-};
-
-static int udlpim_get_properties(int pconid, void *cookie,
-				 struct vcrtcm_pcon_properties *props);
-
-static int udlpim_instantiate(int pconid, uint32_t hints,
-	void **cookie, struct vcrtcm_pcon_funcs *funcs,
-	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
-	char *description)
-{
-	struct udlpim_info *info;
-	struct usb_device *usbdev;
-
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (!info->used) {
-			usbdev = info->udev;
-			scnprintf(description, PCON_DESC_MAXLEN,
-					"%s %s - Serial #%s",
-					usbdev->manufacturer,
-					usbdev->product,
-					usbdev->serial);
-			*minor = -1;
-			*funcs = udlpim_vcrtcm_pcon_funcs;
-			*xfer_mode = VCRTCM_PUSH_PULL;
-			*cookie = info;
-			info->pconid = pconid;
-			info->used = 1;
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-
-static void udlpim_destroy(int pconid, void *cookie)
-{
-	struct udlpim_info *info;
-
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pconid) {
-			info->used = 0;
-			return;
-		}
-	}
-}
-
 static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
 	.instantiate = udlpim_instantiate,
 	.destroy = udlpim_destroy
@@ -175,23 +107,6 @@ static void __exit udlpim_exit(void)
 	vcrtcm_pim_unregister("udl");
 
 	return;
-}
-
-static int udlpim_get_properties(int pconid, void *cookie,
-				 struct vcrtcm_pcon_properties *props)
-{
-	struct udlpim_info *info;
-
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pconid) {
-			struct udlpim_flow_info *flow = info->flow_info;
-			props->fps = flow ? flow->fps : -1;
-			props->attached = flow ? 1 : 0;
-			return 1;
-		}
-	}
-
-	return 0;
 }
 
 module_init(udlpim_init);
