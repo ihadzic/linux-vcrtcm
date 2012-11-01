@@ -836,7 +836,7 @@ static int udlpim_get_properties(int pconid, void *cookie,
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pconid) {
+		if (info->flow_info && info->flow_info->pconid == pconid) {
 			struct udlpim_flow_info *flow = info->flow_info;
 			props->fps = flow ? flow->fps : -1;
 			props->attached = flow ? flow->attached : 0;
@@ -889,8 +889,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
 			*cookie = info;
-			info->pconid = pconid;
-			info->used = 1;
 			flow_info =
 				vcrtcm_kzalloc(sizeof(struct udlpim_flow_info),
 					GFP_KERNEL, &info->kmalloc_track);
@@ -898,6 +896,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 				VCRTCM_ERROR("attach: no memory\n");
 				return -ENOMEM;
 			}
+			info->used = 1;
 			flow_info->udlpim_info = info;
 			flow_info->pconid = pconid;
 			flow_info->attached = 0;
@@ -942,7 +941,7 @@ void udlpim_destroy(int pconid, void *cookie)
 	struct udlpim_info *info;
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->pconid == pconid) {
+		if (info->flow_info && info->flow_info->pconid == pconid) {
 			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
 			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 

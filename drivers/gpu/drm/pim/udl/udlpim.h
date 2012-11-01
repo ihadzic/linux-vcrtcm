@@ -100,21 +100,16 @@ struct udlpim_scratch_memory_descriptor {
 };
 
 struct udlpim_info {
-	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
-	int pconid;
 	int used;
-
 	struct udlpim_flow_info *flow_info;
 	struct mutex buffer_mutex;
 	spinlock_t udlpim_lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
-
 	struct workqueue_struct *workqueue;
-
 	struct delayed_work fake_vblank_work;
 	struct delayed_work query_edid_work;
 
