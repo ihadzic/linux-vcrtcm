@@ -64,35 +64,37 @@ static void udlpim_free_pb(struct udlpim_info *udlpim_info,
 
 int udlpim_attach(int pconid, void *cookie)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
-	VCRTCM_INFO("Attaching udlpim %d to pcon %d\n",
-		udlpim_info->minor, pconid);
-
-	flow_info = udlpim_info->flow_info;
-	if (!flow_info)
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -ENODEV;
+	}
+	info = flow_info->udlpim_info;
+	VCRTCM_INFO("Attaching udlpim %d to pcon %d\n",
+		flow_info->udlpim_info->minor, pconid);
 	flow_info->attached = 1;
-
 	return 0;
 }
 
 int udlpim_detach(int pconid, void *cookie)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
 	VCRTCM_INFO("Detaching udlpim %d from pcon %d\n",
-		udlpim_info->minor, pconid);
+		info->minor, pconid);
 
 	vcrtcm_p_wait_fb(pconid);
-	flow_info = udlpim_info->flow_info;
 
-	cancel_delayed_work_sync(&udlpim_info->fake_vblank_work);
-	cancel_delayed_work_sync(&udlpim_info->query_edid_work);
+	cancel_delayed_work_sync(&info->fake_vblank_work);
+	cancel_delayed_work_sync(&info->query_edid_work);
 
 	if (flow_info->pconid == pconid) {
 		UDLPIM_DEBUG("Found descriptor that should be removed.\n");
@@ -214,9 +216,8 @@ out_err0:
 int udlpim_set_fb(int pconid, void *cookie,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
 	int found_mode = 0;
@@ -224,20 +225,18 @@ int udlpim_set_fb(int pconid, void *cookie,
 	int i = 0;
 	int size;
 
-	UDLPIM_DEBUG("minor %d.\n", udlpim_info->minor);
-
-	flow_info = udlpim_info->flow_info;
-
 	/* TODO: Do we need this? */
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
-	mutex_lock(&udlpim_info->buffer_mutex);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 
-	udlpim_build_modelist(udlpim_info,
+	udlpim_build_modelist(info,
 			&udlpim_video_modes, &udlpim_mode_count);
 
 	/* Find a matching video mode and switch the DL device to that mode */
@@ -250,8 +249,8 @@ int udlpim_set_fb(int pconid, void *cookie,
 		if (udlpim_video_modes[i].xres == vcrtcm_fb->hdisplay &&
 			udlpim_video_modes[i].yres == vcrtcm_fb->vdisplay) {
 			/* If the modes match */
-			udlpim_info->bpp = vcrtcm_fb->bpp;
-			udlpim_setup_screen(udlpim_info,
+			info->bpp = vcrtcm_fb->bpp;
+			udlpim_setup_screen(info,
 					&udlpim_video_modes[i], vcrtcm_fb);
 			found_mode = 1;
 			flow_info->fb_xmit_allowed = 1;
@@ -259,63 +258,60 @@ int udlpim_set_fb(int pconid, void *cookie,
 		}
 	}
 
-	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
+	udlpim_free_modelist(info, udlpim_video_modes);
 
 	if (!found_mode) {
 		VCRTCM_ERROR("could not find matching mode...\n");
 		flow_info->fb_xmit_allowed = 0;
-		udlpim_error_screen(udlpim_info);
-		mutex_unlock(&udlpim_info->buffer_mutex);
+		udlpim_error_screen(info);
+		mutex_unlock(&info->buffer_mutex);
 		return 0;
 	}
 
 	size = flow_info->vcrtcm_fb.pitch *
 		flow_info->vcrtcm_fb.vdisplay;
-	r = udlpim_realloc_pb(udlpim_info, flow_info, size,
+	r = udlpim_realloc_pb(info, flow_info, size,
 			      UDLPIM_ALLOC_PB_FLAG_FB);
-	mutex_unlock(&udlpim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return r;
 }
 
 int udlpim_get_fb(int pconid, void *cookie,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
-
-	UDLPIM_DEBUG("minor %d.\n", udlpim_info->minor);
-	flow_info = udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
-	mutex_lock(&udlpim_info->buffer_mutex);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(vcrtcm_fb, &flow_info->vcrtcm_fb, sizeof(struct vcrtcm_fb));
-	mutex_unlock(&udlpim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return 0;
 }
 
 int udlpim_dirty_fb(int pconid, void *cookie,
 		    struct drm_crtc *drm_crtc)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
-	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
 	/* just mark the "force" flag, udlpim_do_xmit_fb_pull
 	 * does the rest (when called).
 	 */
-
-	flow_info = udlpim_info->flow_info;
-
-	if (flow_info)
-		flow_info->fb_force_xmit = 1;
-
+	flow_info->fb_force_xmit = 1;
 	return 0;
 }
 
@@ -328,39 +324,38 @@ int udlpim_wait_fb(int pconid, void *cookie,
 int udlpim_get_fb_status(int pconid, void *cookie,
 			 struct drm_crtc *drm_crtc, u32 *status)
 {
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
 	unsigned long flags;
 
 	UDLPIM_DEBUG("\n");
-
-	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-	if (udlpim_info->status & UDLPIM_IN_DO_XMIT)
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
+	spin_lock_irqsave(&info->udlpim_lock, flags);
+	if (info->status & UDLPIM_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
-
+	spin_unlock_irqrestore(&info->udlpim_lock, flags);
 	*status = tmp_status;
-
 	return 0;
 }
 
 
 int udlpim_set_fps(int pconid, void *cookie, int fps)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	unsigned long jiffies_snapshot;
-
-	UDLPIM_DEBUG("fps %d.\n", fps);
-
-	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("fps %d\n", fps);
 
 	if (fps > UDLPIM_FPS_HARD_LIMIT) {
 		VCRTCM_ERROR("Frame rate above the hard limit\n");
@@ -384,26 +379,23 @@ int udlpim_set_fps(int pconid, void *cookie, int fps)
 	}
 
 	/* Schedule initial fake vblank */
-	/*schedule_delayed_work(&udlpim_info->fake_vblank_work, 0);*/
-	queue_delayed_work(udlpim_info->workqueue, &udlpim_info->fake_vblank_work, 0);
+	/*schedule_delayed_work(&info->fake_vblank_work, 0);*/
+	queue_delayed_work(info->workqueue, &info->fake_vblank_work, 0);
 
 	return 0;
 }
 
 int udlpim_get_fps(int pconid, void *cookie, int *fps)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
 	UDLPIM_DEBUG("\n");
-
-	flow_info = udlpim_info->flow_info;
-
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
 
 	if (flow_info->fb_xmit_period_jiffies <= 0) {
 		*fps = 0;
@@ -419,77 +411,68 @@ int udlpim_get_fps(int pconid, void *cookie, int *fps)
 int udlpim_set_cursor(int pconid, void *cookie,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	int r = 0;
 	int size;
-
-	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
-
-	flow_info = udlpim_info->flow_info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
-	mutex_lock(&udlpim_info->buffer_mutex);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(&flow_info->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 	size = flow_info->vcrtcm_cursor.height *
 		flow_info->vcrtcm_cursor.width *
 		(flow_info->vcrtcm_cursor.bpp >> 3);
-	r = udlpim_realloc_pb(udlpim_info, flow_info, size,
+	r = udlpim_realloc_pb(info, flow_info, size,
 			      UDLPIM_ALLOC_PB_FLAG_CURSOR);
-	mutex_unlock(&udlpim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return r;
 }
 
 int udlpim_get_cursor(int pconid, void *cookie,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
-
-	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
-
-	flow_info = udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
-	mutex_lock(&udlpim_info->buffer_mutex);
+	mutex_lock(&info->buffer_mutex);
 	memcpy(vcrtcm_cursor, &flow_info->vcrtcm_cursor,
 		sizeof(struct vcrtcm_cursor));
-	mutex_unlock(&udlpim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 	return 0;
 }
 
 int udlpim_set_dpms(int pconid, void *cookie, int state)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
-
-	UDLPIM_DEBUG("minor %d, state %d\n", udlpim_info->minor, state);
-
-	flow_info = udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d, state %d\n", info->minor, state);
 
 	flow_info->dpms_state = state;
 
 	if (state == VCRTCM_DPMS_STATE_ON) {
-		udlpim_dpms_wakeup(udlpim_info);
+		udlpim_dpms_wakeup(info);
 	} else if (state == VCRTCM_DPMS_STATE_OFF) {
-		udlpim_dpms_sleep(udlpim_info);
+		udlpim_dpms_sleep(info);
 	}
 
 	return 0;
@@ -497,18 +480,15 @@ int udlpim_set_dpms(int pconid, void *cookie, int state)
 
 int udlpim_get_dpms(int pconid, void *cookie, int *state)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info;
-
-	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
-
-	flow_info = udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
 	if (!flow_info) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
 	*state = flow_info->dpms_state;
 
@@ -517,11 +497,16 @@ int udlpim_get_dpms(int pconid, void *cookie, int *state)
 
 int udlpim_connected(int pconid, void *cookie, int *status)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	UDLPIM_DEBUG("udlpim_info %p\n", udlpim_info);
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
-	if (udlpim_info->monitor_connected) {
+	UDLPIM_DEBUG("");
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
+	if (info->monitor_connected) {
 		UDLPIM_DEBUG("...connected\n");
 		*status = VCRTCM_PCON_CONNECTED;
 	} else {
@@ -534,22 +519,27 @@ int udlpim_connected(int pconid, void *cookie, int *status)
 int udlpim_get_modes(int pconid, void *cookie,
 		     struct vcrtcm_mode **modes, int *count)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	struct udlpim_video_mode *udlpim_video_modes;
-	struct vcrtcm_mode *vcrtcm_mode_list =
-			udlpim_info->last_vcrtcm_mode_list;
+	struct vcrtcm_mode *vcrtcm_mode_list;
 	int udlpim_mode_count = 0;
 	int vcrtcm_mode_count = 0;
 	int retval = 0;
 	int i = 0;
 
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
+	vcrtcm_mode_list = info->last_vcrtcm_mode_list;
 	*modes = NULL;
 	*count = 0;
 
 	UDLPIM_DEBUG("\n");
 
-	retval = udlpim_build_modelist(udlpim_info,
+	retval = udlpim_build_modelist(info,
 			&udlpim_video_modes, &udlpim_mode_count);
 
 	if (retval < 0)
@@ -562,7 +552,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 
 	/* Erase our old VCRTCM modelist. */
 	if (vcrtcm_mode_list) {
-		vcrtcm_kfree(vcrtcm_mode_list, &udlpim_info->kmalloc_track);
+		vcrtcm_kfree(vcrtcm_mode_list, &info->kmalloc_track);
 		vcrtcm_mode_list = NULL;
 		vcrtcm_mode_count = 0;
 	}
@@ -570,7 +560,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 	/* Build the new vcrtcm_mode list. */
 	vcrtcm_mode_list =
 		vcrtcm_kmalloc(sizeof(struct vcrtcm_mode) * udlpim_mode_count,
-			GFP_KERNEL, &udlpim_info->kmalloc_track);
+			GFP_KERNEL, &info->kmalloc_track);
 
 	/* Copy the udlpim_video_mode list to the vcrtcm_mode list. */
 	for (i = 0; i < udlpim_mode_count; i++) {
@@ -580,12 +570,12 @@ int udlpim_get_modes(int pconid, void *cookie,
 	}
 
 	vcrtcm_mode_count = udlpim_mode_count;
-	udlpim_info->last_vcrtcm_mode_list = vcrtcm_mode_list;
+	info->last_vcrtcm_mode_list = vcrtcm_mode_list;
 
 	*modes = vcrtcm_mode_list;
 	*count = vcrtcm_mode_count;
 
-	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
+	udlpim_free_modelist(info, udlpim_video_modes);
 
 	return 0;
 }
@@ -593,18 +583,23 @@ int udlpim_get_modes(int pconid, void *cookie,
 int udlpim_check_mode(int pconid, void *cookie,
 		      struct vcrtcm_mode *mode, int *status)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
 	int retval;
 	int i;
 
 	UDLPIM_DEBUG("\n");
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
+	}
+	info = flow_info->udlpim_info;
 
 	*status = VCRTCM_MODE_BAD;
 
-	retval = udlpim_build_modelist(udlpim_info,
+	retval = udlpim_build_modelist(info,
 			&udlpim_video_modes, &udlpim_mode_count);
 
 	if (retval < 0)
@@ -626,21 +621,24 @@ int udlpim_check_mode(int pconid, void *cookie,
 		}
 	}
 
-	udlpim_free_modelist(udlpim_info, udlpim_video_modes);
+	udlpim_free_modelist(info, udlpim_video_modes);
 
 	return 0;
 }
 
 void udlpim_disable(int pconid, void *cookie)
 {
-	struct udlpim_info *udlpim_info =
-		(struct udlpim_info *)cookie;
-	struct udlpim_flow_info *flow_info =
-			udlpim_info->flow_info;
+	struct udlpim_flow_info *flow_info = cookie;
+	struct udlpim_info *info;
 
-	mutex_lock(&udlpim_info->buffer_mutex);
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return;
+	}
+	info = flow_info->udlpim_info;
+	mutex_lock(&info->buffer_mutex);
 	flow_info->fb_xmit_allowed = 0;
-	mutex_unlock(&udlpim_info->buffer_mutex);
+	mutex_unlock(&info->buffer_mutex);
 }
 
 void udlpim_fake_vblank(struct work_struct *work)
@@ -716,17 +714,18 @@ void udlpim_fake_vblank(struct work_struct *work)
 
 int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 {
-	struct udlpim_info *udlpim_info = flow_info->udlpim_info;
+	struct udlpim_info *info;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
 	unsigned long flags;
 
-	UDLPIM_DEBUG("minor %d\n", udlpim_info->minor);
+	info = flow_info->udlpim_info;
+	UDLPIM_DEBUG("minor %d\n", info->minor);
 
-	spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-	udlpim_info->status |= UDLPIM_IN_DO_XMIT;
-	spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
+	spin_lock_irqsave(&info->udlpim_lock, flags);
+	info->status |= UDLPIM_IN_DO_XMIT;
+	spin_unlock_irqrestore(&info->udlpim_lock, flags);
 
 	push_buffer_index = flow_info->push_buffer_index;
 
@@ -744,7 +743,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 	     time_after(jiffies_snapshot, flow_info->last_xmit_jiffies +
 			UDLPIM_XMIT_HARD_DEADLINE)) &&
 			have_push_buffer &&
-			udlpim_info->monitor_connected &&
+			info->monitor_connected &&
 			flow_info->fb_xmit_allowed) {
 		/* Someone has either indicated that there has been rendering
 		 * activity or we went for max time without transmission, so we
@@ -772,9 +771,9 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 				flow_info->vcrtcm_fb.hdisplay,
 				flow_info->vcrtcm_fb.vdisplay);
 
-		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
+		spin_lock_irqsave(&info->udlpim_lock, flags);
+		info->status &= ~UDLPIM_IN_DO_XMIT;
+		spin_unlock_irqrestore(&info->udlpim_lock, flags);
 
 		r = vcrtcm_p_push(flow_info->pconid,
 				  flow_info->pbd_fb[push_buffer_index],
@@ -804,9 +803,9 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		spin_lock_irqsave(&udlpim_info->udlpim_lock, flags);
-		udlpim_info->status &= ~UDLPIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&udlpim_info->udlpim_lock, flags);
+		spin_lock_irqsave(&info->udlpim_lock, flags);
+		info->status &= ~UDLPIM_IN_DO_XMIT;
+		spin_unlock_irqrestore(&info->udlpim_lock, flags);
 
 		vcrtcm_p_emulate_vblank(flow_info->pconid);
 		UDLPIM_DEBUG("transmission not happening\n");
@@ -817,11 +816,11 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 		UDLPIM_DEBUG("[%d]: initiating USB transfer\n",
 				push_buffer_index);
 
-		udlpim_info->main_buffer = flow_info->pb_fb[push_buffer_index];
-		udlpim_info->cursor = flow_info->pb_cursor[push_buffer_index];
+		info->main_buffer = flow_info->pb_fb[push_buffer_index];
+		info->cursor = flow_info->pb_cursor[push_buffer_index];
 
 		jiffies_snapshot = jiffies;
-		udlpim_transmit_framebuffer(udlpim_info);
+		udlpim_transmit_framebuffer(info);
 		UDLPIM_DEBUG("transmit over USB took %u ms\n",
 			     jiffies_to_msecs(jiffies - jiffies_snapshot));
 		flow_info->pb_needs_xmit[push_buffer_index] = 0;
@@ -833,19 +832,19 @@ int udlpim_do_xmit_fb_push(struct udlpim_flow_info *flow_info)
 static int udlpim_get_properties(int pconid, void *cookie,
 				 struct vcrtcm_pcon_properties *props)
 {
+	struct udlpim_flow_info *flow_info = cookie;
 	struct udlpim_info *info;
 
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->flow_info && info->flow_info->pconid == pconid) {
-			struct udlpim_flow_info *flow = info->flow_info;
-			props->fps = flow ? flow->fps : -1;
-			props->attached = flow ? flow->attached : 0;
-			return 1;
-		}
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return -EINVAL;
 	}
-
+	info = flow_info->udlpim_info;
+	props->fps = flow_info->fps;
+	props->attached = flow_info->attached;
 	return 0;
 }
+
 struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.attach = udlpim_attach,
 	.detach = udlpim_detach,
@@ -888,7 +887,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*minor = -1;
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
-			*cookie = info;
 			flow_info =
 				vcrtcm_kzalloc(sizeof(struct udlpim_flow_info),
 					GFP_KERNEL, &info->kmalloc_track);
@@ -896,6 +894,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 				VCRTCM_ERROR("attach: no memory\n");
 				return -ENOMEM;
 			}
+			*cookie = flow_info;
 			info->used = 1;
 			flow_info->udlpim_info = info;
 			flow_info->pconid = pconid;
@@ -938,17 +937,17 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 
 void udlpim_destroy(int pconid, void *cookie)
 {
+	struct udlpim_flow_info *flow_info = cookie;
 	struct udlpim_info *info;
 
-	list_for_each_entry(info, &udlpim_info_list, list) {
-		if (info->flow_info && info->flow_info->pconid == pconid) {
-			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
-			udlpim_free_pb(info, info->flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
-
-			info->flow_info = NULL;
-			vcrtcm_kfree(info->flow_info, &info->kmalloc_track);
-			info->used = 0;
-			return;
-		}
+	if (!flow_info) {
+		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+		return;
 	}
+	info = flow_info->udlpim_info;
+	udlpim_free_pb(info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
+	udlpim_free_pb(info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
+	info->flow_info = NULL;
+	info->used = 0;
+	vcrtcm_kfree(flow_info, &info->kmalloc_track);
 }
