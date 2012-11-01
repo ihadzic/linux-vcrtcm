@@ -48,9 +48,15 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	pcon_info->pim = pim_info;
 	pcon_info->minor = -1;
 	if (pim_info->funcs.instantiate) {
-		r = pim_info->funcs.instantiate(pcon_info->pconid, hints, &pcon_info->pcon_cookie, &pcon_info->funcs, &pcon_info->xfer_mode, &pcon_info->minor, pcon_info->description);
+		r = pim_info->funcs.instantiate(pcon_info->pconid, hints,
+						&pcon_info->pcon_cookie,
+						&pcon_info->funcs,
+						&pcon_info->xfer_mode,
+						&pcon_info->minor,
+						pcon_info->description);
 		if (r) {
-			VCRTCM_INFO("No pcons of type %s available...\n", pim_info->name);
+			VCRTCM_INFO("No pcons of type %s available...\n",
+				    pim_info->name);
 			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 			return r;
 		}
@@ -67,7 +73,8 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	pcon_info->drm_crtc = NULL;
 	memset(&pcon_info->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
 	vcrtcm_sysfs_add_pcon(pcon_info);
-	list_add_tail(&pcon_info->pcons_in_pim_list, &pim_info->active_pcon_list);
+	list_add_tail(&pcon_info->pcons_in_pim_list,
+		      &pim_info->active_pcon_list);
 	*pconid = pcon_info->pconid;
 	return 0;
 }
@@ -89,7 +96,8 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_ERROR("pcon has no pim!\n");
 	else {
 		if (pcon_info->pim->funcs.destroy)
-			pcon_info->pim->funcs.destroy(pcon_info->pconid, pcon_info->pcon_cookie);
+			pcon_info->pim->funcs.destroy(pcon_info->pconid,
+						      pcon_info->pcon_cookie);
 		else
 			VCRTCM_INFO("No destroy function...\n");
 	}
@@ -118,8 +126,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				sizeof(struct vcrtcm_ioctl_args)))
 			return -EFAULT;
 
-		result = vcrtcm_ioctl_instantiate_pcon(
-						ioctl_args.arg1.pimid,
+		result = vcrtcm_ioctl_instantiate_pcon(ioctl_args.arg1.pimid,
 						ioctl_args.arg2.hints,
 						&ioctl_args.result1.pconid);
 		if (result)

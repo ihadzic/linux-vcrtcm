@@ -238,19 +238,17 @@ int vcrtcm_del_pcon(int pconid)
 	spin_lock_irqsave(&pcon_info->lock, flags);
 	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-		spin_unlock_irqrestore(&pcon_info->lock,
-					   flags);
-		VCRTCM_INFO("pcon in use by CRTC %p, "
-				"forcing detach\n",
+		spin_unlock_irqrestore(&pcon_info->lock, flags);
+		VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 				pcon_info->drm_crtc);
 		if (pcon_info->funcs.detach) {
-			r = pcon_info->funcs.detach(pcon_info->pconid, pcon_info->pcon_cookie);
+			r = pcon_info->funcs.detach(pcon_info->pconid,
+						    pcon_info->pcon_cookie);
 			if (r) {
 				VCRTCM_ERROR("could not force detach on CRTC %p\n",
 					pcon_info->drm_crtc);
 				spin_lock_irqsave(&pcon_info->lock, flags);
-				pcon_info->status
-					|= VCRTCM_STATUS_PCON_IN_USE;
+				pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
 				spin_unlock_irqrestore(&pcon_info->lock, flags);
 				mutex_unlock(&pcon_info->mutex);
 				return r;

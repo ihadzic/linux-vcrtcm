@@ -46,9 +46,8 @@ int vcrtcm_g_attach(int pconid,
 	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		spin_unlock_irqrestore(&pcon_info->lock,
 					flags);
-		VCRTCM_ERROR("pcon %i already attached "
-				 "to crtc_drm %p\n",
-				 pconid, drm_crtc);
+		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
+			     pconid, drm_crtc);
 		mutex_unlock(&pcon_info->mutex);
 		return -EBUSY;
 	}
@@ -61,7 +60,8 @@ int vcrtcm_g_attach(int pconid,
 	/* call the device specific back-end of attach */
 	if (pcon_info->funcs.attach) {
 		int r;
-		r = pcon_info->funcs.attach(pcon_info->pconid, pcon_info->pcon_cookie);
+		r = pcon_info->funcs.attach(pcon_info->pconid,
+					    pcon_info->pcon_cookie);
 		if (r) {
 			VCRTCM_ERROR("back-end attach call failed\n");
 			mutex_unlock(&pcon_info->mutex);
@@ -79,8 +79,7 @@ int vcrtcm_g_attach(int pconid,
 	/* very last thing to do: change the status */
 	spin_lock_irqsave(&pcon_info->lock, flags);
 	pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&pcon_info->lock,
-				   flags);
+	spin_unlock_irqrestore(&pcon_info->lock, flags);
 	mutex_unlock(&pcon_info->mutex);
 	return 0;
 }
@@ -119,7 +118,8 @@ int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info)
 	if (pcon_info->funcs.detach) {
 		int r;
 
-		r = pcon_info->funcs.detach(pcon_info->pconid, pcon_info->pcon_cookie);
+		r = pcon_info->funcs.detach(pcon_info->pconid,
+					    pcon_info->pcon_cookie);
 		if (r) {
 			spin_lock_irqsave(&pcon_info->lock, flags);
 			pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
@@ -155,9 +155,10 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb)
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.set_fb) {
-		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n", pcon_info->pconid);
+		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n",
+			     pcon_info->pconid);
 		r = pcon_info->funcs.set_fb(pcon_info->pconid,
-			pcon_info->pcon_cookie, fb);
+					    pcon_info->pcon_cookie, fb);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %i\n",
 			       pcon_info->pconid);
@@ -180,7 +181,8 @@ int vcrtcm_get_fb(struct vcrtcm_pcon_info *pcon_info,
 
 	mutex_lock(&pcon_info->mutex);
 	if (pcon_info->funcs.get_fb) {
-		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n", pcon_info->pconid);
+		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
+			     pcon_info->pconid);
 		r = pcon_info->funcs.get_fb(pcon_info->pconid,
 			pcon_info->pcon_cookie, fb);
 	} else {
@@ -598,7 +600,8 @@ void vcrtcm_g_disable(struct vcrtcm_pcon_info *pcon_info)
 		VCRTCM_DEBUG("calling disable backend, pcon %i\n",
 			pcon_info->pconid);
 
-		pcon_info->funcs.disable(pcon_info->pconid, pcon_info->pcon_cookie);
+		pcon_info->funcs.disable(pcon_info->pconid,
+					 pcon_info->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %i\n",
 			pcon_info->pconid);
