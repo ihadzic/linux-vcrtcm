@@ -24,6 +24,7 @@
 #include <vcrtcm/vcrtcm_common.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 
 /*
  * Private data structures for Virtual CRTC Manager and modules

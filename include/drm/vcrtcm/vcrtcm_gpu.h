@@ -17,10 +17,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
 /*
-  Public interface for Virtual CRTC Manager to the GPU
-  GPU drivers should include this file only
+     The VCRTCM-GPU API
 */
 
 #ifndef __VCRTCM_GPU_H__
@@ -28,11 +26,63 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <linux/dma-buf.h>
+#include <vcrtcm/vcrtcm_common.h>
 
-#include "vcrtcm_common.h"
+struct vcrtcm_pcon_info;
+struct vcrtcm_cursor;
+struct vcrtcm_fb;
+struct vcrtcm_mode;
+
+/* functional interface to GPU driver */
+struct vcrtcm_gpu_funcs {
+	/* callback into GPU driver when detach is called */
+	void (*detach) (struct drm_crtc *drm_crtc);
+
+	/* VBLANK emulation function  */
+	void (*vblank) (struct drm_crtc *drm_crtc);
+
+	/* synchronization with GPU rendering (e.g. fence wait) */
+	void (*wait_fb) (struct drm_crtc *drm_crtc);
+
+	/* PCON requests from GPU to push the buffer to it */
+	int (*push) (struct drm_crtc *scrtc,
+			 struct drm_gem_object *dbuf_fb,
+			 struct drm_gem_object *dbuf_cursor);
+	/* PCON signals a hotplug event to GPU */
+	void (*hotplug) (struct drm_crtc *crtc);
+};
+
+/* everything that vcrtcm knows about a PCON */
+/* The PCON registers this structure by calling vcrtcm_hw_add() */
+/* The GPU driver interacts with the PCON by calling the */
+/* vcrtcm_pcon_funcs provided in this structure */
+struct vcrtcm_pcon_info {
+	char description[PCON_DESC_MAXLEN];
+	struct vcrtcm_pim_info *pim;
+	struct mutex mutex;
+	struct vcrtcm_pcon_funcs funcs;
+	enum vcrtcm_xfer_mode xfer_mode;
+	void *pcon_cookie;
+	int pconid; /* index into table maintained by vcrtcm */
+	int minor; /* -1 if pcon has no user-accessible minor */
+	struct kobject kobj;
+	struct list_head pcons_in_pim_list;
+	/* general lock for fields subject to concurrent access */
+	spinlock_t lock;
+	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
+	int status;
+	/* records the time when last (emulated) vblank occurred */
+	struct timeval vblank_time;
+	int vblank_time_valid;
+	/* identifies the CRTC using this PCON */
+	struct drm_crtc *drm_crtc;
+	/* functional interface to GPU driver */
+	struct vcrtcm_gpu_funcs gpu_funcs;
+};
 
 /* setup/config functions */
-int vcrtcm_g_attach(uint32_t pconid,
+int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
 		  struct vcrtcm_pcon_info **pcon_info);

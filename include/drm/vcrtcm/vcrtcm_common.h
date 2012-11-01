@@ -18,19 +18,40 @@
 */
 
 
-
 /*
-   Public data structures for Virtual CRTC Manager and modules
-   that use it (GPU driver and PCONs)
+     This file defines those things that are common to the VCRTCM-PIM
+     and VCRTCM-GPU APIs.
 */
+
 #ifndef __VCRTCM_COMMON_H__
 #define __VCRTCM_COMMON_H__
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <linux/dma-buf.h>
+#define VCRTCM_FB_STATUS_IDLE  0x0
+#define VCRTCM_FB_STATUS_XMIT  0x1
+
+#define VCRTCM_DPMS_STATE_ON  0x1
+#define VCRTCM_DPMS_STATE_OFF 0x0
+
+#define VCRTCM_MODE_OK  0
+#define VCRTCM_MODE_BAD 1
+
+#define VCRTCM_PCON_DISCONNECTED 0
+#define VCRTCM_PCON_CONNECTED    1
+
+#define VCRTCM_CURSOR_FLAG_HIDE 0x1
+#define VCRTCM_PFLIP_DEFERRED 1
 
 #define PCON_DESC_MAXLEN 512
+
+struct vcrtcm_mode;
+struct drm_crtc;
+struct vcrtcm_pcon_properties;
+
+enum vcrtcm_xfer_mode {
+	VCRTCM_PEER_PULL,
+	VCRTCM_PEER_PUSH,
+	VCRTCM_PUSH_PULL
+};
 
 /* framebuffer/CRTC (emulated) registers */
 struct vcrtcm_fb {
@@ -44,8 +65,6 @@ struct vcrtcm_fb {
 	unsigned int hdisplay;
 	unsigned int vdisplay;
 };
-
-#define VCRTCM_CURSOR_FLAG_HIDE 0x1
 
 struct vcrtcm_cursor {
 	u32 ioaddr;
@@ -61,27 +80,6 @@ struct vcrtcm_mode {
 	int w;
 	int h;
 	int refresh;
-};
-
-#define VCRTCM_DPMS_STATE_ON  0x1
-#define VCRTCM_DPMS_STATE_OFF 0x0
-
-#define VCRTCM_FB_STATUS_IDLE  0x0
-#define VCRTCM_FB_STATUS_XMIT  0x1
-
-#define VCRTCM_PFLIP_DEFERRED 1
-
-#define VCRTCM_PCON_DISCONNECTED 0
-#define VCRTCM_PCON_CONNECTED    1
-
-#define VCRTCM_MODE_OK  0
-#define VCRTCM_MODE_BAD 1
-
-/* describes properties of the attached PCON */
-/* that GPU needs to know about */
-struct vcrtcm_pcon_properties {
-	int fps;
-	int attached;
 };
 
 struct vcrtcm_pcon_funcs {
@@ -110,95 +108,6 @@ struct vcrtcm_pcon_funcs {
 	void (*disable)(int pconid, void *cookie);
 	int (*get_properties)(int pconid, void *cookie,
 		struct vcrtcm_pcon_properties *props);
-};
-
-enum vcrtcm_xfer_mode {
-	VCRTCM_PEER_PULL,
-	VCRTCM_PEER_PUSH,
-	VCRTCM_PUSH_PULL
-};
-
-/* every PIM must implement these functions */
-struct vcrtcm_pim_funcs {
-	/* Create a new PCON instance
-	 */
-	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
-		struct vcrtcm_pcon_funcs *funcs, enum vcrtcm_xfer_mode *xfer_mode,
-		int *minor, char *description);
-
-	/* Deallocate the given PCON instance and free resources used.
-	 * The PIM can assume that the given PCON has been detached
-	 * and removed from VCRTCM before this function is called.
-	 */
-	void (*destroy)(int pconid, void *cookie);
-};
-
-/* functional interface to GPU driver */
-struct vcrtcm_gpu_funcs {
-
-	/* callback into GPU driver when detach is called */
-	void (*detach) (struct drm_crtc *drm_crtc);
-
-	/* VBLANK emulation function  */
-	void (*vblank) (struct drm_crtc *drm_crtc);
-
-	/* synchronization with GPU rendering (e.g. fence wait) */
-	void (*wait_fb) (struct drm_crtc *drm_crtc);
-
-	/* PCON requests from GPU to push the buffer to it */
-	int (*push) (struct drm_crtc *scrtc,
-		     struct drm_gem_object *dbuf_fb,
-		     struct drm_gem_object *dbuf_cursor);
-	/* PCON signals a hotplug event to GPU */
-	void (*hotplug) (struct drm_crtc *crtc);
-};
-
-/* everything that vcrtcm knows about a PCON */
-/* The PCON registers this structure by calling vcrtcm_hw_add() */
-/* The GPU driver interacts with the PCON by calling the */
-/* vcrtcm_pcon_funcs provided in this structure */
-struct vcrtcm_pcon_info {
-	char description[PCON_DESC_MAXLEN];
-	struct vcrtcm_pim_info *pim;
-	struct mutex mutex;
-	struct vcrtcm_pcon_funcs funcs;
-	enum vcrtcm_xfer_mode xfer_mode;
-	void *pcon_cookie;
-	int pconid; /* index into table maintained by vcrtcm */
-	int minor; /* -1 if pcon has no user-accessible minor */
-	struct kobject kobj;
-	struct list_head pcons_in_pim_list;
-	/* general lock for fields subject to concurrent access */
-	spinlock_t lock;
-	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
-	int status;
-	/* records the time when last (emulated) vblank occurred */
-	struct timeval vblank_time;
-	int vblank_time_valid;
-	/* identifies the CRTC using this PCON */
-	struct drm_crtc *drm_crtc;
-	/* functional interface to GPU driver */
-	struct vcrtcm_gpu_funcs gpu_funcs;
-};
-
-/* descriptor for push buffer; when push-method is used */
-/* the PCON must obtain the buffer from GPU because it */
-/* must be a proper buffer object (GEM or TTM or whatever */
-/* the specific GPU "likes"; the PCON, however only cares about the pages */
-/* so this is a "minimalistic" descriptor that satisfies the PCON */
-/* the only TTM-ish restriction is that the list of pages first */
-/* lists all lo-mem pages followed by all hi-mem pages */
-/* of course, we need an object pointer so that we can return the buffer */
-/* when we don't need it any more */
-struct vcrtcm_push_buffer_descriptor {
-	/* populated by VCRTCM */
-	void *gpu_private;
-	struct dma_buf *dma_buf;
-	/* populated by PCON */
-	int pconid;
-	int virgin;
-	struct page **pages;
-	unsigned long num_pages;
 };
 
 #endif
