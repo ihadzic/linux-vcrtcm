@@ -32,6 +32,12 @@ int v4l2pim_get_fps(int pconid, void *cookie, int *fps);
 int v4l2pim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 int v4l2pim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 void v4l2pim_disable(int pconid, void *cookie);
+int v4l2pim_get_properties(int pconid, void *cookie,
+	struct vcrtcm_pcon_properties *props);
+int v4l2pim_instantiate(int pconid, uint32_t hints,
+	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description);
+void v4l2pim_destroy(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */
 int v4l2pim_dirty_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);

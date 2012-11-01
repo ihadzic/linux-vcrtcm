@@ -136,5 +136,7 @@ struct v4l2pim_flow_info {
 int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
 				unsigned long size);
 void v4l2pim_free_shadowbuf(struct v4l2pim_info *v4l2pim_info);
+struct v4l2pim_info *v4l2pim_create_minor(int pconid);
+void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info);
 
 #endif

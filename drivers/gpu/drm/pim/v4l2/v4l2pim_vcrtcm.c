@@ -783,3 +783,72 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_flow_info *flow_info)
 
 	return r;
 }
+
+static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
+	.attach = v4l2pim_attach,
+	.detach = v4l2pim_detach,
+	.set_fb = v4l2pim_set_fb,
+	.get_fb = v4l2pim_get_fb,
+	.get_properties = v4l2pim_get_properties,
+	.dirty_fb = v4l2pim_dirty_fb,
+	.wait_fb = v4l2pim_wait_fb,
+	.get_fb_status = v4l2pim_get_fb_status,
+	.set_fps = v4l2pim_set_fps,
+	.get_fps = v4l2pim_get_fps,
+	.set_cursor = v4l2pim_set_cursor,
+	.get_cursor = v4l2pim_get_cursor,
+	.set_dpms = v4l2pim_set_dpms,
+	.get_dpms = v4l2pim_get_dpms,
+	.disable = v4l2pim_disable
+};
+
+int v4l2pim_instantiate(int pconid, uint32_t hints,
+	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description)
+{
+	struct v4l2pim_info *v4l2pim_info;
+
+	v4l2pim_info = v4l2pim_create_minor(pconid);
+
+	if (!v4l2pim_info)
+		return -ENODEV;
+
+	scnprintf(description, PCON_DESC_MAXLEN,
+			"Video4Linux2 PCON - minor %i",
+			v4l2pim_info->minor);
+	*minor = v4l2pim_info->minor;
+	*funcs = v4l2pim_vcrtcm_pcon_funcs;
+	*xfer_mode = VCRTCM_PUSH_PULL;
+	*cookie = v4l2pim_info;
+	return 0;
+}
+
+void v4l2pim_destroy(int pconid, void *cookie)
+{
+	struct v4l2pim_info *v4l2pim_info;
+
+	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
+		if (v4l2pim_info->pconid == pconid) {
+			V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
+			v4l2pim_destroy_minor(v4l2pim_info);
+			return;
+		}
+	}
+}
+
+int v4l2pim_get_properties(int pconid, void *cookie,
+				  struct vcrtcm_pcon_properties *props)
+{
+	struct v4l2pim_info *v4l2pim_info;
+
+	list_for_each_entry(v4l2pim_info, &v4l2pim_info_list, list) {
+		if (v4l2pim_info->pconid == pconid) {
+			struct v4l2pim_flow_info *flow =
+						v4l2pim_info->flow_info;
+			props->fps = flow ? flow->fps : -1;
+			props->attached = flow ? 1 : 0;
+			return 1;
+		}
+	}
+	return 0;
+}
