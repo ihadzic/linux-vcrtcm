@@ -192,23 +192,17 @@ EXPORT_SYMBOL(vcrtcm_pim_register);
 
 void vcrtcm_pim_unregister(char *pim_name)
 {
-	struct vcrtcm_pim_info *pim_info = find_pim_info_by_name(pim_name);
+	struct vcrtcm_pim_info *pim_info;
 	struct vcrtcm_pcon_info *pcon_info, *tmp;
 
+	pim_info = find_pim_info_by_name(pim_name);
 	if (!pim_info)
 		return;
-
-	VCRTCM_INFO("Unregistering PIM %s\n", pim_name);
-
+	VCRTCM_INFO("unregistering PIM %s\n", pim_name);
 	list_for_each_entry_safe(pcon_info, tmp,
-				&pim_info->pcons_in_pim_list, pcons_in_pim_list) {
-		VCRTCM_ERROR("PIM %s's PCON %i "
-			"was not invalidated before calling "
-			"vcrtcm_pim_unregister(). Doing that now...\n",
-			pim_name, pcon_info->pconid);
+			&pim_info->pcons_in_pim_list, pcons_in_pim_list) {
 		vcrtcm_p_destroy(pcon_info->pconid);
 	}
-
 	remove_pim_info(pim_info);
 	vcrtcm_sysfs_del_pim(pim_info);
 	destroy_pim_info(pim_info);
@@ -222,7 +216,7 @@ void vcrtcm_p_destroy(int pconid)
 	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return;
-	VCRTCM_INFO("Invalidating pcon %d\n", pconid);
+	VCRTCM_INFO("destroying pcon %d\n", pconid);
 	vcrtcm_sysfs_del_pcon(pcon_info);
 	vcrtcm_del_pcon(pconid);
 	list_del(&pcon_info->pcons_in_pim_list);
