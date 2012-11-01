@@ -66,59 +66,17 @@ int udlpim_attach(int pconid, void *cookie)
 {
 	struct udlpim_info *udlpim_info =
 		(struct udlpim_info *)cookie;
+	struct udlpim_flow_info *flow_info;
 
 	VCRTCM_INFO("Attaching udlpim %d to pcon %d\n",
 		udlpim_info->minor, pconid);
 
-	if (udlpim_info->flow_info) {
-		VCRTCM_ERROR("attach: minor already served\n");
-		return -EBUSY;
-	} else {
-		struct udlpim_flow_info *flow_info =
-			vcrtcm_kzalloc(sizeof(struct udlpim_flow_info),
-				GFP_KERNEL, &udlpim_info->kmalloc_track);
-		if (flow_info == NULL) {
-			VCRTCM_ERROR("attach: no memory\n");
-			return -ENOMEM;
-		}
+	flow_info = udlpim_info->flow_info;
+	if (!flow_info)
+		return -ENODEV;
+	flow_info->attached = 1;
 
-		flow_info->udlpim_info = udlpim_info;
-		flow_info->pconid = pconid;
-		flow_info->attached = 1;
-		flow_info->fps = 0;
-		flow_info->fb_force_xmit = 0;
-		flow_info->fb_xmit_allowed = 0;
-		flow_info->fb_xmit_counter = 0;
-		flow_info->fb_xmit_period_jiffies = 0;
-		flow_info->next_vblank_jiffies = 0;
-		flow_info->push_buffer_index = 0;
-		flow_info->pb_needs_xmit[0] = 0;
-		flow_info->pb_needs_xmit[1] = 0;
-		flow_info->pbd_fb[0] = NULL;
-		flow_info->pbd_fb[1] = NULL;
-		flow_info->pbd_cursor[0] = NULL;
-		flow_info->pbd_cursor[1] = NULL;
-		flow_info->pb_fb[0] = NULL;
-		flow_info->pb_fb[1] = NULL;
-		flow_info->pb_cursor[0] = NULL;
-		flow_info->pb_cursor[1] = NULL;
-
-		flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
-
-		udlpim_info->flow_info = flow_info;
-
-		/* Do an initial query of the EDID */
-		udlpim_query_edid_core(udlpim_info);
-
-		/* Start the EDID query thread */
-		queue_delayed_work(udlpim_info->workqueue,
-					&udlpim_info->query_edid_work, 0);
-
-		VCRTCM_INFO("udlpim %d now serves pcon %d\n",
-			udlpim_info->minor, pconid);
-
-		return 0;
-	}
+	return 0;
 }
 
 int udlpim_detach(int pconid, void *cookie)
@@ -924,6 +882,8 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 
 	list_for_each_entry(info, &udlpim_info_list, list) {
 		if (!info->used) {
+			struct udlpim_flow_info *flow_info;
+
 			usbdev = info->udev;
 			scnprintf(description, PCON_DESC_MAXLEN,
 					"%s %s - Serial #%s",
@@ -936,6 +896,45 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*cookie = info;
 			info->pconid = pconid;
 			info->used = 1;
+			flow_info =
+				vcrtcm_kzalloc(sizeof(struct udlpim_flow_info),
+					GFP_KERNEL, &info->kmalloc_track);
+			if (flow_info == NULL) {
+				VCRTCM_ERROR("attach: no memory\n");
+				return -ENOMEM;
+			}
+			flow_info->udlpim_info = info;
+			flow_info->pconid = pconid;
+			flow_info->attached = 0;
+			flow_info->fps = 0;
+			flow_info->fb_force_xmit = 0;
+			flow_info->fb_xmit_allowed = 0;
+			flow_info->fb_xmit_counter = 0;
+			flow_info->fb_xmit_period_jiffies = 0;
+			flow_info->next_vblank_jiffies = 0;
+			flow_info->push_buffer_index = 0;
+			flow_info->pb_needs_xmit[0] = 0;
+			flow_info->pb_needs_xmit[1] = 0;
+			flow_info->pbd_fb[0] = NULL;
+			flow_info->pbd_fb[1] = NULL;
+			flow_info->pbd_cursor[0] = NULL;
+			flow_info->pbd_cursor[1] = NULL;
+			flow_info->pb_fb[0] = NULL;
+			flow_info->pb_fb[1] = NULL;
+			flow_info->pb_cursor[0] = NULL;
+			flow_info->pb_cursor[1] = NULL;
+			flow_info->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
+			info->flow_info = flow_info;
+
+			/* Do an initial query of the EDID */
+			udlpim_query_edid_core(info);
+
+			/* Start the EDID query thread */
+			queue_delayed_work(info->workqueue,
+						&info->query_edid_work, 0);
+
+			VCRTCM_INFO("udlpim %d now serves pcon %d\n",
+				info->minor, pconid);
 			return 0;
 		}
 	}
