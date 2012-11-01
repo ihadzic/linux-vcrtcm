@@ -162,6 +162,7 @@ struct udlpim_info {
 struct udlpim_flow_info {
 	struct list_head list;
 	int pconid;
+	int attached;
 	int fps;
 	int fb_xmit_counter;
 	int fb_force_xmit;
@@ -177,12 +178,9 @@ struct udlpim_flow_info {
 	void *pb_cursor[2];
 	int pb_needs_xmit[2];
 	int push_buffer_index;
-
 	int dpms_state;
-
 	struct udlpim_info *udlpim_info;
 };
-
 
 /* USB/HW functions that VCRTCM functions need access to */
 int udlpim_setup_screen(struct udlpim_info *udlpim_info,

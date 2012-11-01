@@ -84,6 +84,7 @@ int udlpim_attach(int pconid, void *cookie)
 
 		flow_info->udlpim_info = udlpim_info;
 		flow_info->pconid = pconid;
+		flow_info->attached = 1;
 		flow_info->fps = 0;
 		flow_info->fb_force_xmit = 0;
 		flow_info->fb_xmit_allowed = 0;
@@ -138,6 +139,7 @@ int udlpim_detach(int pconid, void *cookie)
 	if (flow_info->pconid == pconid) {
 		UDLPIM_DEBUG("Found descriptor that should be removed.\n");
 
+		flow_info->attached = 0;
 		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_FB);
 		udlpim_free_pb(udlpim_info, flow_info, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 
@@ -721,7 +723,7 @@ void udlpim_fake_vblank(struct work_struct *work)
 
 	jiffies_snapshot = jiffies;
 
-	if (flow_info->fb_xmit_period_jiffies > 0) {
+	if (flow_info->attached && flow_info->fb_xmit_period_jiffies > 0) {
 		if (time_after_eq(jiffies_snapshot + udlpim_fake_vblank_slack_sane,
 				flow_info->next_vblank_jiffies)) {
 			flow_info->next_vblank_jiffies +=
@@ -884,7 +886,7 @@ static int udlpim_get_properties(int pconid, void *cookie,
 		if (info->pconid == pconid) {
 			struct udlpim_flow_info *flow = info->flow_info;
 			props->fps = flow ? flow->fps : -1;
-			props->attached = flow ? 1 : 0;
+			props->attached = flow ? flow->attached : 0;
 			return 1;
 		}
 	}
