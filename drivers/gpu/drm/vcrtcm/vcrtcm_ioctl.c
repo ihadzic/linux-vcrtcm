@@ -68,6 +68,9 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	return 0;
 }
 
+/* NB: if you change the implementation of this function, you might
+ * also need to change the implementation of vcrtcm_p_detach_pcon()
+ */
 long vcrtcm_ioctl_detach_pcon(int pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;

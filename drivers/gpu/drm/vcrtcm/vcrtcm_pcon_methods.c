@@ -493,8 +493,44 @@ vcrtcm_p_realloc_pb(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
 
+/* this function is actually not in the vcrtcm-pim api,
+ * but it could be added to that api, if needed.
+ * NB: if you change the implementation of this function, you might
+ * also need to change the implementation of vcrtcm_p_detach_pcon()
+ */
+void vcrtcm_p_detach_pcon(int pconid)
+{
+	struct vcrtcm_pcon_info *pcon_info;
+	unsigned long flags;
+
+	VCRTCM_INFO("detach pcon id %i\n", pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+	mutex_lock(&pcon_info->mutex);
+	spin_lock_irqsave(&pcon_info->lock, flags);
+	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+		pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+		spin_unlock_irqrestore(&pcon_info->lock, flags);
+		if (pcon_info->gpu_funcs.detach)
+			pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
+	} else
+		spin_unlock_irqrestore(&pcon_info->lock, flags);
+	mutex_unlock(&pcon_info->mutex);
+}
+
 void vcrtcm_p_destroy(int pconid)
 {
-	VCRTCM_ERROR("vcrtcm_p_destroy TBD\n");
+	struct vcrtcm_pcon_info *pcon_info;
+
+	VCRTCM_INFO("destroy pcon id %i\n", pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+
+	/* implicit detach */
+	vcrtcm_p_detach_pcon(pconid);
+
+	vcrtcm_destroy_pcon(pcon_info);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
