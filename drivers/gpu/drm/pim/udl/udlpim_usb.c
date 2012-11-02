@@ -448,7 +448,7 @@ int udlpim_build_modelist(struct udlpim_info *udlpim_info,
 			}
 		}
 		num_modes = monspecs.modedb_len;
-	} else if (enable_default_modes) {
+	} else if (udlpim_enable_default_modes) {
 		/*
 		 * Add the standard VESA modes to our modelist
 		 * Since we don't have EDID, there may be modes that
@@ -956,7 +956,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 	line_end16 = (u8 *)(pixel16);
 	line_end8 = (u8 *)(pixel8);
 
-	if (!true32bpp) {
+	if (!udlpim_true32bpp) {
 		while (next_pixel16 < line_end16) {
 			udlpim_compress_hline_16(
 					(const uint16_t **) &next_pixel16,
@@ -980,7 +980,7 @@ static int udlpim_render_hline(struct udlpim_info *udlpim_info,
 		}
 	}
 
-	else if (true32bpp) {
+	else if (udlpim_true32bpp) {
 		while (next_pixel16 < line_end16 || next_pixel8 < line_end8) {
 			udlpim_compress_hline_16(
 					(const uint16_t **) &next_pixel16,
@@ -1068,14 +1068,14 @@ static int udlpim_blank_hw_fb(struct udlpim_info *udlpim_info, unsigned color)
 		dev_addr8 = udlpim_info->base8 + xres * i;
 
 		while (line_start16 < line_end16 ||
-				(true32bpp && (line_start8 < line_end8))) {
+				(udlpim_true32bpp && (line_start8 < line_end8))) {
 			udlpim_compress_hline_16(
 				(const uint16_t **) &line_start16,
 				(const uint16_t *) line_end16,
 				&dev_addr16,
 				(u8 **) &cmd, (u8 *) cmd_end);
 
-			if (true32bpp)
+			if (udlpim_true32bpp)
 				udlpim_compress_hline_8(
 					(const uint8_t **) &line_start8,
 					(const uint8_t *) line_end8,
@@ -1522,9 +1522,9 @@ static int udlpim_set_video_mode(struct udlpim_info *udlpim_info,
 	*/
 	wrptr = udlpim_vidreg_lock(buf);
 
-	if (!true32bpp)
+	if (!udlpim_true32bpp)
 		wrptr = udlpim_set_color_depth(wrptr, 0x00);
-	else if (true32bpp)
+	else if (udlpim_true32bpp)
 		wrptr = udlpim_set_color_depth(wrptr, 0x01);
 
 	/* set base for 16bpp segment to 0 */

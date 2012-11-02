@@ -44,12 +44,12 @@
 #define UDLPIM_EDID_QUERY_TIME HZ
 #define UDLPIM_EDID_QUERY_TRIES 3
 
-#define UDLPIM_DEBUG(fmt, args...) VCRTCM_DBG(1, debug, fmt, ## args)
+#define UDLPIM_DEBUG(fmt, args...) VCRTCM_DBG(1, udlpim_debug, fmt, ## args)
 
 /* Module options */
-extern int true32bpp;
-extern int debug;
-extern int enable_default_modes;
+extern int udlpim_true32bpp;
+extern int udlpim_debug;
+extern int udlpim_enable_default_modes;
 
 extern struct usb_driver udlpim_driver;
 extern struct list_head udlpim_info_list;

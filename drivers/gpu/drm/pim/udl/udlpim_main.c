@@ -35,9 +35,9 @@
 #include "udlpim_vcrtcm.h"
 
 /* Module option(s) */
-int true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
-int debug; /* Enable the printing of debugging information */
-int enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
+int udlpim_true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
+int udlpim_debug; /* Enable the printing of debugging information */
+int udlpim_enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
 
 struct list_head udlpim_info_list;
 int udlpim_major = -1;
@@ -112,14 +112,14 @@ static void __exit udlpim_exit(void)
 module_init(udlpim_init);
 module_exit(udlpim_exit);
 
-module_param(true32bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(true32bpp,
+module_param(udlpim_true32bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(udlpim_true32bpp,
 	"Enable support for true 32bpp color. *Experimental and buggy*");
 
-module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param_named(debug, udlpim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(debug, "Enable debugging information.");
 
-module_param(enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param_named(enable_default_modes, udlpim_enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(enable_default_modes,
 	"Support standard VESA modes if the monitor doesn't provide any.");
 
