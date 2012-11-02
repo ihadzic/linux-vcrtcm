@@ -17,13 +17,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __PIMMGR_IOCTL_H__
-#define __PIMMGR_IOCTL_H__
+#ifndef __VCRTCM_IOCTL_H__
+#define __VCRTCM_IOCTL_H__
 
 /* IOCTLs */
-#define PIMMGR_MAGIC 'K'
-#define PIMMGR_IOC_INSTANTIATE _IOW(PIMMGR_MAGIC, 1, int)
-#define PIMMGR_IOC_DESTROY _IOW(PIMMGR_MAGIC, 2, int)
+#define VCRTCM_MAGIC 'K'
+#define VCRTCM_IOC_INSTANTIATE _IOW(VCRTCM_MAGIC, 1, int)
+#define VCRTCM_IOC_DESTROY _IOW(VCRTCM_MAGIC, 2, int)
 
 struct vcrtcm_ioctl_args {
 	union {

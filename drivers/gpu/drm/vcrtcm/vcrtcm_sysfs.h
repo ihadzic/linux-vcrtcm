@@ -17,8 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __PIMMGR_SYSFS_H__
-#define __PIMMGR_SYSFS_H__
+#ifndef __VCRTCM_SYSFS_H__
+#define __VCRTCM_SYSFS_H__
 
 #include <linux/module.h>
 #include <linux/kobject.h>

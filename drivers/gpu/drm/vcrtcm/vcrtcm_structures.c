@@ -28,7 +28,7 @@ static int next_pimid;
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static struct mutex pconid_table_mutex;
 
-/* Helper functions to manage PIMMGR structures */
+/* Helper functions to manage VCRTCM structures */
 static struct vcrtcm_pim_info *create_pim_info(
 	char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {

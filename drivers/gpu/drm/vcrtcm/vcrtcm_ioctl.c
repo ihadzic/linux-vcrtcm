@@ -119,7 +119,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
 
-	if (cmd == PIMMGR_IOC_INSTANTIATE) {
+	if (cmd == VCRTCM_IOC_INSTANTIATE) {
 		void *ptr = (void *)arg;
 
 		if (copy_from_user(&ioctl_args, ptr,
@@ -139,7 +139,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return 0;
 	}
 
-	else if (cmd == PIMMGR_IOC_DESTROY) {
+	else if (cmd == VCRTCM_IOC_DESTROY) {
 		void *ptr = (void *)arg;
 
 		if (copy_from_user(&ioctl_args, ptr,
