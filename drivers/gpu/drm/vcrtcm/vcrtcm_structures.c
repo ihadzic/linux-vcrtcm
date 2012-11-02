@@ -212,21 +212,6 @@ void vcrtcm_pim_unregister(char *pim_name)
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
-void vcrtcm_p_destroy(int pconid)
-{
-	struct vcrtcm_pcon_info *pcon_info;
-
-	pcon_info = vcrtcm_get_pcon_info(pconid);
-	if (!pcon_info)
-		return;
-	VCRTCM_INFO("destroying pcon %d\n", pconid);
-	vcrtcm_sysfs_del_pcon(pcon_info);
-	vcrtcm_del_pcon(pconid);
-	list_del(&pcon_info->pcons_in_pim_list);
-	vcrtcm_dealloc_pcon_info(pconid);
-}
-EXPORT_SYMBOL(vcrtcm_p_destroy);
-
 int vcrtcm_structures_init()
 {
 	mutex_init(&pconid_table_mutex);

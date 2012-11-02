@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <vcrtcm/vcrtcm_pcon.h>
 #include "vcrtcm_private.h"
+#include "vcrtcm_sysfs.h"
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped
@@ -222,45 +223,14 @@ void vcrtcm_p_unregister_prime(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
-int vcrtcm_del_pcon(int pconid)
+void vcrtcm_destroy_pcon(struct vcrtcm_pcon_info *pcon_info)
 {
-	struct vcrtcm_pcon_info *pcon_info;
-	int r = 0;
-	unsigned long flags;
-
-	pcon_info = vcrtcm_get_pcon_info(pconid);
-	if (!pcon_info) {
-		VCRTCM_WARNING("requested pcon %i not found\n", pconid);
-		return -EINVAL;
-	}
+	VCRTCM_INFO("destroying pcon %i\n", pcon_info->pconid);
 	mutex_lock(&pcon_info->mutex);
-	VCRTCM_INFO("removing pcon %i\n", pconid);
-	spin_lock_irqsave(&pcon_info->lock, flags);
-	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
-		pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-		spin_unlock_irqrestore(&pcon_info->lock, flags);
-		VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-				pcon_info->drm_crtc);
-		if (pcon_info->funcs.detach) {
-			r = pcon_info->funcs.detach(pcon_info->pconid,
-						    pcon_info->pcon_cookie);
-			if (r) {
-				VCRTCM_ERROR("could not force detach on CRTC %p\n",
-					pcon_info->drm_crtc);
-				spin_lock_irqsave(&pcon_info->lock, flags);
-				pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
-				spin_unlock_irqrestore(&pcon_info->lock, flags);
-				mutex_unlock(&pcon_info->mutex);
-				return r;
-			}
-		}
-		if (pcon_info->gpu_funcs.detach)
-			pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
-	} else
-		spin_unlock_irqrestore(&pcon_info->lock, flags);
+	list_del(&pcon_info->pcons_in_pim_list);
+	vcrtcm_sysfs_del_pcon(pcon_info);
 	mutex_unlock(&pcon_info->mutex);
-	vcrtcm_dealloc_pcon_info(pconid);
-	return 0;
+	vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 }
 
 /*
@@ -517,3 +487,9 @@ vcrtcm_p_realloc_pb(int pconid,
 	return npbd;
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
+
+void vcrtcm_p_destroy(int pconid)
+{
+	VCRTCM_ERROR("vcrtcm_p_destroy TBD\n");
+}
+EXPORT_SYMBOL(vcrtcm_p_destroy);

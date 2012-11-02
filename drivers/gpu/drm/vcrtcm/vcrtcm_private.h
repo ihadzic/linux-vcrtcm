@@ -77,8 +77,8 @@ void vcrtcm_structures_destroy(void);
 struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info(void);
 struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid);
 void vcrtcm_dealloc_pcon_info(int pconid);
-int vcrtcm_pconid_valid(int pconid);
-int vcrtcm_del_pcon(int pconid);
+
+void vcrtcm_destroy_pcon(struct vcrtcm_pcon_info *pcon_info);
 
 #define VCRTCM_DEBUG(fmt, args...) VCRTCM_DBG(1, vcrtcm_debug, fmt, ## args)
 

@@ -17,7 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include "vcrtcm_private.h"
 #include "vcrtcm_ioctl.h"
@@ -64,30 +64,68 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	return 0;
 }
 
-long vcrtcm_ioctl_destroy_pcon(int pconid)
+long vcrtcm_ioctl_detach_pcon(int pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;
-	int r = 0;
+	unsigned long flags;
 
-	VCRTCM_INFO("in destroy pcon id %i...\n", pconid);
+	VCRTCM_INFO("detach pcon id %i\n", pconid);
 	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return -EINVAL;
-	r = vcrtcm_del_pcon(pconid);
-	if (r)
-		return -EBUSY;
-	vcrtcm_sysfs_del_pcon(pcon_info);
-	if (!pcon_info->pim)
-		VCRTCM_ERROR("pcon has no pim!\n");
-	else {
-		if (pcon_info->pim->funcs.destroy)
-			pcon_info->pim->funcs.destroy(pcon_info->pconid,
-						      pcon_info->pcon_cookie);
-		else
-			VCRTCM_INFO("No destroy function...\n");
+
+	mutex_lock(&pcon_info->mutex);
+	spin_lock_irqsave(&pcon_info->lock, flags);
+	if (!(pcon_info->status & VCRTCM_STATUS_PCON_IN_USE)) {
+		spin_unlock_irqrestore(&pcon_info->lock, flags);
+		mutex_unlock(&pcon_info->mutex);
+		return 0;
 	}
-	list_del(&pcon_info->pcons_in_pim_list);
-	vcrtcm_dealloc_pcon_info(pconid);
+	pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+	spin_unlock_irqrestore(&pcon_info->lock, flags);
+	if (pcon_info->funcs.detach) {
+		int r;
+
+		r = pcon_info->funcs.detach(pcon_info->pconid,
+						pcon_info->pcon_cookie);
+		if (r) {
+			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
+				pcon_info->pconid);
+			spin_lock_irqsave(&pcon_info->lock, flags);
+			pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
+			spin_unlock_irqrestore(&pcon_info->lock, flags);
+			mutex_unlock(&pcon_info->mutex);
+			return r;
+		}
+	}
+	if (pcon_info->gpu_funcs.detach)
+		pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
+	mutex_unlock(&pcon_info->mutex);
+	return 0;
+}
+
+long vcrtcm_ioctl_destroy_pcon(int pconid)
+{
+	struct vcrtcm_pcon_info *pcon_info;
+	void *cookie;
+	struct vcrtcm_pim_funcs funcs;
+	int r;
+
+	VCRTCM_INFO("destroy pcon id %i\n", pconid);
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return -EINVAL;
+
+	/* implicit detach */
+	r = vcrtcm_ioctl_detach_pcon(pconid);
+	if (r)
+		return r;
+
+	cookie = pcon_info->pcon_cookie;
+	funcs = pcon_info->pim->funcs;
+	vcrtcm_destroy_pcon(pcon_info);
+	if (funcs.destroy)
+		funcs.destroy(pconid, cookie);
 	return 0;
 }
 
@@ -96,7 +134,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct vcrtcm_ioctl_args ioctl_args;
 	long result = 0;
 
-	VCRTCM_INFO("IOCTL entered...\n");
+	VCRTCM_INFO("IOCTL entered\n");
 
 	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
