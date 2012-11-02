@@ -22,7 +22,7 @@
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
 
-static void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
+void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
 {
 	struct v4l2pim_info *info;
 	struct vcrtcm_push_buffer_descriptor *pbd;
@@ -787,23 +787,13 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 void v4l2pim_destroy(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = cookie;
-	struct v4l2pim_info *info;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return;
 	}
-	info = pcon->v4l2pim_info;
-	V4L2PIM_DEBUG("Destroying pcon %i\n", pconid);
-	vcrtcm_p_wait_fb(pconid);
-	cancel_delayed_work_sync(&info->fake_vblank_work);
-	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
-	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-	info->pcon = NULL;
-	vcrtcm_kfree(pcon, &info->kmalloc_track);
-	info->main_buffer = NULL;
-	info->cursor = NULL;
-	v4l2pim_destroy_minor(info);
+	V4L2PIM_DEBUG("destroying pcon %i\n", pconid);
+	v4l2pim_destroy_minor(pcon->v4l2pim_info);
 }
 
 int v4l2pim_get_properties(int pconid, void *cookie,

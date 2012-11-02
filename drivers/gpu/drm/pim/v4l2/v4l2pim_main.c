@@ -1033,6 +1033,11 @@ free_info:
 
 void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 {
+	if (v4l2pim_info->pcon) {
+		v4l2pim_free_pb(v4l2pim_info->pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
+		v4l2pim_free_pb(v4l2pim_info->pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
+		vcrtcm_kfree(v4l2pim_info->pcon, &v4l2pim_info->kmalloc_track);
+	}
 	video_unregister_device(v4l2pim_info->vfd);
 	v4l2_device_unregister(&v4l2pim_info->v4l2_dev);
 	cancel_delayed_work_sync(&v4l2pim_info->fake_vblank_work);
@@ -1040,23 +1045,9 @@ void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info)
 	if (v4l2pim_info->shadowbuf)
 		v4l2pim_free_shadowbuf(v4l2pim_info);
 	mutex_unlock(&v4l2pim_info->sb_lock);
-
-	V4L2PIM_DEBUG("freeing main buffer: %p, cursor %p\n",
-			v4l2pim_info->main_buffer,
-					v4l2pim_info->cursor);
-	V4L2PIM_DEBUG("freeing v4l2pim_info data %p\n",
-			v4l2pim_info);
-	V4L2PIM_DEBUG("page_track : %d\n",
-			atomic_read(&v4l2pim_info->page_track));
-	V4L2PIM_DEBUG("kmalloc_track: %d\n",
-			atomic_read(&v4l2pim_info->kmalloc_track));
-	V4L2PIM_DEBUG("vmalloc_track: %d\n",
-			atomic_read(&v4l2pim_info->vmalloc_track));
-
 	vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
 					v4l2pim_info->minor);
 	v4l2pim_num_minors--;
-
 	list_del(&v4l2pim_info->list);
 	kfree(v4l2pim_info);
 }
@@ -1105,21 +1096,14 @@ static int __init v4l2pim_init(void)
 static void __exit v4l2pim_exit(void)
 {
 	struct v4l2pim_info *v4l2pim_info, *tmp;
-	VCRTCM_INFO("Cleaning up v4l2pim\n");
-	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list) {
-		if (v4l2pim_info->pcon) {
-			V4L2PIM_DEBUG("Calling vcrtcm_p_destroy for "
-			"v4l2pim %p, pcon %d, major %d, minor %d\n",
-			v4l2pim_info, v4l2pim_info->pcon->pconid,
-			v4l2pim_major, v4l2pim_info->minor);
-			vcrtcm_p_destroy(v4l2pim_info->pcon->pconid);
-		}
+
+	VCRTCM_INFO("shutting down v4l2pim\n");
+	vcrtcm_pim_unregister(V4L2PIM_PIM_NAME);
+	list_for_each_entry_safe(v4l2pim_info, tmp, &v4l2pim_info_list, list)
 		v4l2pim_destroy_minor(v4l2pim_info);
-	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
 	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
-
-	return;
+	VCRTCM_INFO("exiting v4l2pim\n");
 }
 
 module_init(v4l2pim_init);

@@ -52,4 +52,6 @@ void copy_cursor_work(struct work_struct *work);
 int v4l2pim_do_xmit_fb_pull(struct v4l2pim_pcon *pcon);
 int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon);
 
+void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag);
+
 #endif
