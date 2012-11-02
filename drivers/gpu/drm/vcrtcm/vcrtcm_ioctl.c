@@ -31,22 +31,17 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
-	pcon_info = vcrtcm_alloc_pcon_info();
-	if (!pcon_info) {
-		VCRTCM_ERROR("No pconids available...");
-		return -ENODEV;
-	}
-
 	pim_info = vcrtcm_find_pim_info_by_id(pimid);
-
 	if (!pim_info) {
-		VCRTCM_INFO("Invalid pimid\n");
-		vcrtcm_dealloc_pcon_info(pcon_info->pconid);
+		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
 	}
-
+	pcon_info = vcrtcm_alloc_pcon_info();
+	if (!pcon_info) {
+		VCRTCM_ERROR("no pconids available");
+		return -ENODEV;
+	}
 	pcon_info->pim = pim_info;
-	pcon_info->minor = -1;
 	if (pim_info->funcs.instantiate) {
 		r = pim_info->funcs.instantiate(pcon_info->pconid, hints,
 						&pcon_info->pcon_cookie,
@@ -55,23 +50,13 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 						&pcon_info->minor,
 						pcon_info->description);
 		if (r) {
-			VCRTCM_INFO("No pcons of type %s available...\n",
+			VCRTCM_INFO("no pcons of type %s available...\n",
 				    pim_info->name);
 			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
 			return r;
 		}
 	}
-	else
-		VCRTCM_INFO("No instantiate function...\n");
-	VCRTCM_INFO("New pcon created, id %i\n", pcon_info->pconid);
-	spin_lock_init(&pcon_info->lock);
-	mutex_init(&pcon_info->mutex);
-	pcon_info->status = 0;
-	pcon_info->vblank_time_valid = 0;
-	pcon_info->vblank_time.tv_sec = 0;
-	pcon_info->vblank_time.tv_usec = 0;
-	pcon_info->drm_crtc = NULL;
-	memset(&pcon_info->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
+	VCRTCM_INFO("new pcon created, id %i\n", pcon_info->pconid);
 	vcrtcm_sysfs_add_pcon(pcon_info);
 	list_add_tail(&pcon_info->pcons_in_pim_list,
 		      &pim_info->pcons_in_pim_list);

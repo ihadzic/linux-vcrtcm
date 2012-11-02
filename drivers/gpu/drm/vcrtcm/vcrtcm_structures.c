@@ -119,6 +119,9 @@ struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info()
 				return NULL;
 			}
 			pcon_info->pconid = k;
+			pcon_info->minor = -1;
+			spin_lock_init(&pcon_info->lock);
+			mutex_init(&pcon_info->mutex);
 			entry->pcon_info = pcon_info;
 			mutex_unlock(&pconid_table_mutex);
 			return pcon_info;
