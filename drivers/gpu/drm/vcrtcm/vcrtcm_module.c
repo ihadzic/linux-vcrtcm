@@ -22,7 +22,8 @@
 #include <linux/moduleparam.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include "vcrtcm_private.h"
+#include <vcrtcm/vcrtcm_pim.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
@@ -31,11 +32,11 @@
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-#include <vcrtcm/vcrtcm_sysfs.h>
-#include <vcrtcm/vcrtcm_utils.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include "vcrtcm_module.h"
 #include "vcrtcm_ioctl.h"
-#include "vcrtcm_sysfs.h"
+#include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_pcon_table.h"
+#include "vcrtcm_pim_table.h"
 
 atomic_t vcrtcm_kmalloc_track = ATOMIC_INIT(0);
 
@@ -66,7 +67,7 @@ static int __init vcrtcm_init(void)
 	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
 							NULL, "pimmgr");
 	vcrtcm_sysfs_init(vcrtcm_device);
-	if (vcrtcm_structures_init() < 0) {
+	if (vcrtcm_pcon_table_init() < 0) {
 		cdev_del(vcrtcm_cdev);
 		return -ENOMEM;
 	}
@@ -92,7 +93,6 @@ static void __exit vcrtcm_exit(void)
 	if (vcrtcm_cdev)
 		cdev_del(vcrtcm_cdev);
 	unregister_chrdev_region(vcrtcm_dev, 1);
-	vcrtcm_structures_destroy();
 
 	/*
 	 * any remaining virtual CRTC must now be detached and destroyed

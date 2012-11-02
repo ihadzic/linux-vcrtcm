@@ -17,18 +17,25 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __VCRTCM_SYSFS_H__
-#define __VCRTCM_SYSFS_H__
+#ifndef __VCRTCM_SYSFSPRIV_H__
+#define __VCRTCM_SYSFSPRIV_H__
 
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 
+struct vcrtcm_pim_info;
+struct vcrtcm_pcon_info;
+
 int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim);
 void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim);
 int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon);
 void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon);
+void vcrtcm_sysfs_init(struct device *vcrtcm_device);
+void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon_info);
+
+extern struct class *vcrtcm_class;
 
 #endif
 

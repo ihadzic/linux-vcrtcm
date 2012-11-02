@@ -21,8 +21,10 @@
  * Various utility functions for Virtual CRTC Manager and PIMs
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_utils.h>
+#include "vcrtcm_utils_priv.h"
 
 int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 {

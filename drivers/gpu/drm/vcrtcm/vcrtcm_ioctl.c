@@ -17,11 +17,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/module.h>
 #include <vcrtcm/vcrtcm_pim.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include "vcrtcm_private.h"
 #include "vcrtcm_ioctl.h"
-#include "vcrtcm_sysfs.h"
+#include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_pim_table.h"
+#include "vcrtcm_pcon_table.h"
+#include "vcrtcm_pcon_methods.h"
 
 /* TODO: Need better errors. */
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)

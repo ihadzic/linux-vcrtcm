@@ -19,9 +19,14 @@
 
 
 #include <linux/module.h>
+#include <linux/dma-buf.h>
 #include <vcrtcm/vcrtcm_pcon.h>
-#include "vcrtcm_private.h"
-#include "vcrtcm_sysfs.h"
+#include <vcrtcm/vcrtcm_gpu.h>
+#include "vcrtcm_pcon_methods.h"
+#include "vcrtcm_pcon_table.h"
+#include "vcrtcm_utils_priv.h"
+#include "vcrtcm_module.h"
+#include "vcrtcm_sysfs_priv.h"
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped

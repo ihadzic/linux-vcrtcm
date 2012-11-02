@@ -18,7 +18,12 @@
  */
 
 #include <linux/module.h>
-#include "vcrtcm_private.h"
+#include <vcrtcm/vcrtcm_gpu.h>
+#include <vcrtcm/vcrtcm_utils.h>
+#include "vcrtcm_gpu_methods.h"
+#include "vcrtcm_pcon_table.h"
+#include "vcrtcm_utils_priv.h"
+#include "vcrtcm_module.h"
 
 /*
  * called by the GPU driver to attach its CRTC to the
