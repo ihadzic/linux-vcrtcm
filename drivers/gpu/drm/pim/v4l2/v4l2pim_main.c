@@ -52,7 +52,7 @@ int v4l2pim_major = -1;
 int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
-int debug; /* Enable the printing of debugging information */
+int v4l2pim_debug; /* Enable the printing of debugging information */
 
 /* ID generator for allocating minor numbers */
 static struct vcrtcm_id_generator v4l2pim_minor_id_generator;
@@ -1125,8 +1125,8 @@ static void __exit v4l2pim_exit(void)
 module_init(v4l2pim_init);
 module_exit(v4l2pim_exit);
 
-MODULE_PARM_DESC(debug, "Enable debugging information.");
-module_param(debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information.");
+module_param_named(debug, v4l2pim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 

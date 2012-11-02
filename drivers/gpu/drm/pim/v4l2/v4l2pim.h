@@ -49,9 +49,9 @@
 #define V4L2PIM_ALLOC_PB_FLAG_CURSOR 0x1
 #define V4L2PIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
 
-#define V4L2PIM_DEBUG(fmt, args...) VCRTCM_DBG(1, debug, fmt, ## args)
+#define V4L2PIM_DEBUG(fmt, args...) VCRTCM_DBG(1, v4l2pim_debug, fmt, ## args)
 
-extern int debug;
+extern int v4l2pim_debug;
 
 extern struct list_head v4l2pim_info_list;
 extern int v4l2pim_major;
