@@ -23,7 +23,7 @@
 
 extern int vcrtcm_debug;
 extern atomic_t vcrtcm_kmalloc_track;
-extern struct list_head    pim_list;
-extern struct mutex        pim_list_mutex;
+extern struct list_head    vcrtcm_pim_list;
+extern struct mutex        vcrtcm_pim_list_mutex;
 
 #endif

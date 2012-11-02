@@ -41,8 +41,8 @@
 atomic_t vcrtcm_kmalloc_track = ATOMIC_INIT(0);
 
 static const struct file_operations vcrtcm_fops;
-struct list_head	pim_list;
-struct mutex		pim_list_mutex;
+struct list_head	vcrtcm_pim_list;
+struct mutex		vcrtcm_pim_list_mutex;
 
 static dev_t vcrtcm_dev;
 static struct cdev *vcrtcm_cdev;
@@ -55,8 +55,8 @@ static int __init vcrtcm_init(void)
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
-	INIT_LIST_HEAD(&pim_list);
-	mutex_init(&pim_list_mutex);
+	INIT_LIST_HEAD(&vcrtcm_pim_list);
+	mutex_init(&vcrtcm_pim_list_mutex);
 	vcrtcm_cdev = cdev_alloc();
 	if (!vcrtcm_cdev)
 		return -ENOMEM;
@@ -84,7 +84,7 @@ static void __exit vcrtcm_exit(void)
 	int pconid;
 
 	VCRTCM_INFO("unloading module");
-	list_for_each_entry_safe(info, info_tmp, &pim_list, pim_list) {
+	list_for_each_entry_safe(info, info_tmp, &vcrtcm_pim_list, pim_list) {
 		list_del(&info->pim_list);
 		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
 	}

@@ -33,11 +33,11 @@ struct vcrtcm_pim_info {
 };
 
 struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid);
-struct vcrtcm_pim_info *find_pim_info_by_name(char *pim_name);
-struct vcrtcm_pim_info *create_pim_info(
+struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_name(char *pim_name);
+struct vcrtcm_pim_info *vcrtcm_create_pim_info(
 	char *pim_name, struct vcrtcm_pim_funcs *funcs);
-void destroy_pim_info(struct vcrtcm_pim_info *info);
-void add_pim_info(struct vcrtcm_pim_info *info);
-void remove_pim_info(struct vcrtcm_pim_info *info);
+void vcrtcm_destroy_pim_info(struct vcrtcm_pim_info *info);
+void vcrtcm_add_pim_info(struct vcrtcm_pim_info *info);
+void vcrtcm_remove_pim_info(struct vcrtcm_pim_info *info);
 
 #endif
