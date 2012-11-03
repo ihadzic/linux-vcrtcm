@@ -886,8 +886,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*minornum = -1;
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
-			pcon =
-				vcrtcm_kzalloc(sizeof(struct udlpim_pcon),
+			pcon = vcrtcm_kzalloc(sizeof(struct udlpim_pcon),
 					GFP_KERNEL, &minor->kmalloc_track);
 			if (pcon == NULL) {
 				VCRTCM_ERROR("attach: no memory\n");
@@ -896,24 +895,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*cookie = pcon;
 			pcon->minor = minor;
 			pcon->pconid = pconid;
-			pcon->attached = 0;
-			pcon->fps = 0;
-			pcon->fb_force_xmit = 0;
-			pcon->fb_xmit_allowed = 0;
-			pcon->fb_xmit_counter = 0;
-			pcon->fb_xmit_period_jiffies = 0;
-			pcon->next_vblank_jiffies = 0;
-			pcon->push_buffer_index = 0;
-			pcon->pb_needs_xmit[0] = 0;
-			pcon->pb_needs_xmit[1] = 0;
-			pcon->pbd_fb[0] = NULL;
-			pcon->pbd_fb[1] = NULL;
-			pcon->pbd_cursor[0] = NULL;
-			pcon->pbd_cursor[1] = NULL;
-			pcon->pb_fb[0] = NULL;
-			pcon->pb_fb[1] = NULL;
-			pcon->pb_cursor[0] = NULL;
-			pcon->pb_cursor[1] = NULL;
 			pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 			minor->pcon = pcon;
 
