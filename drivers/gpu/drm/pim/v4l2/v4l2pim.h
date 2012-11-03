@@ -109,7 +109,6 @@ struct v4l2pim_info {
 };
 
 struct v4l2pim_pcon {
-	struct list_head list;
 	int pconid;
 	int attached;
 	int fb_xmit_counter;
