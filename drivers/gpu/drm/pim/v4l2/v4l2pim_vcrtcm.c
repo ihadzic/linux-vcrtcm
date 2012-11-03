@@ -745,42 +745,19 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	*minor = info->minor;
 	*funcs = v4l2pim_vcrtcm_pcon_funcs;
 	*xfer_mode = VCRTCM_PUSH_PULL;
-	pcon =
-		vcrtcm_kzalloc(sizeof(struct v4l2pim_pcon),
+	pcon = vcrtcm_kzalloc(sizeof(struct v4l2pim_pcon),
 			GFP_KERNEL, &info->kmalloc_track);
 	if (pcon == NULL) {
 		VCRTCM_ERROR("no memory\n");
 		return -ENOMEM;
 	}
 	*cookie = pcon;
-	pcon->attached = 0;
 	pcon->v4l2pim_info = info;
 	pcon->pconid = pconid;
-	pcon->fps = 0;
-	pcon->fb_force_xmit = 0;
-	pcon->fb_xmit_allowed = 0;
-	pcon->fb_xmit_counter = 0;
-	pcon->fb_xmit_period_jiffies = 0;
-	pcon->next_vblank_jiffies = 0;
-	pcon->push_buffer_index = 0;
-	pcon->pb_needs_xmit[0] = 0;
-	pcon->pb_needs_xmit[1] = 0;
-	pcon->pbd_fb[0] = NULL;
-	pcon->pbd_fb[1] = NULL;
-	pcon->pbd_cursor[0] = NULL;
-	pcon->pbd_cursor[1] = NULL;
-	pcon->pb_fb[0] = NULL;
-	pcon->pb_fb[1] = NULL;
-	pcon->pb_cursor[0] = NULL;
-	pcon->pb_cursor[1] = NULL;
-
 	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
-
 	info->pcon = pcon;
-
 	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
 			info->minor, pconid);
-
 	return 0;
 }
 
