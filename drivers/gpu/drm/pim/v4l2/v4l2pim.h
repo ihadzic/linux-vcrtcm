@@ -53,7 +53,7 @@
 
 extern int v4l2pim_debug;
 
-extern struct list_head v4l2pim_info_list;
+extern struct list_head v4l2pim_minor_list;
 extern int v4l2pim_major;
 extern int v4l2pim_num_minors;
 extern int v4l2pim_fake_vblank_slack;
@@ -65,7 +65,7 @@ struct v4l2pim_fmt {
 	enum v4l2_colorspace colorspace;
 };
 
-struct v4l2pim_info {
+struct v4l2pim_minor {
 	/* vcrtcm stuff */
 	struct list_head list;
 	int minor;
@@ -129,13 +129,13 @@ struct v4l2pim_pcon {
 
 	int dpms_state;
 
-	struct v4l2pim_info *v4l2pim_info;
+	struct v4l2pim_minor *minor;
 };
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_info *v4l2pim_info,
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
 				unsigned long size);
-void v4l2pim_free_shadowbuf(struct v4l2pim_info *v4l2pim_info);
-struct v4l2pim_info *v4l2pim_create_minor(int pconid);
-void v4l2pim_destroy_minor(struct v4l2pim_info *v4l2pim_info);
+void v4l2pim_free_shadowbuf(struct v4l2pim_minor *v4l2pim_minor);
+struct v4l2pim_minor *v4l2pim_create_minor(int pconid);
+void v4l2pim_destroy_minor(struct v4l2pim_minor *v4l2pim_minor);
 
 #endif
