@@ -71,15 +71,10 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 /* NB: if you change the implementation of this function, you might
  * also need to change the implementation of vcrtcm_p_detach_pcon()
  */
-long vcrtcm_ioctl_detach_pcon(int pconid)
+long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon_info *pcon_info,
+	int explicit)
 {
-	struct vcrtcm_pcon_info *pcon_info;
 	unsigned long flags;
-
-	VCRTCM_INFO("detach pcon id %i\n", pconid);
-	pcon_info = vcrtcm_get_pcon_info(pconid);
-	if (!pcon_info)
-		return -EINVAL;
 
 	mutex_lock(&pcon_info->mutex);
 	spin_lock_irqsave(&pcon_info->lock, flags);
@@ -90,6 +85,11 @@ long vcrtcm_ioctl_detach_pcon(int pconid)
 	}
 	pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 	spin_unlock_irqrestore(&pcon_info->lock, flags);
+	if (explicit)
+		VCRTCM_INFO("detaching pcon id %i\n", pcon_info->pconid);
+	else
+		VCRTCM_INFO("doing implicit detach of pcon id %i\n",
+			pcon_info->pconid);
 	if (pcon_info->funcs.detach) {
 		int r;
 
@@ -118,16 +118,15 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	struct vcrtcm_pim_funcs funcs;
 	int r;
 
-	VCRTCM_INFO("destroy pcon id %i\n", pconid);
 	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return -EINVAL;
-
-	/* implicit detach */
-	r = vcrtcm_ioctl_detach_pcon(pconid);
-	if (r)
+	r = do_vcrtcm_ioctl_detach_pcon(pcon_info, 0);
+	if (r) {
+		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);
 		return r;
-
+	}
+	VCRTCM_INFO("destroying pcon id %i\n", pconid);
 	cookie = pcon_info->pcon_cookie;
 	funcs = pcon_info->pim->funcs;
 	vcrtcm_destroy_pcon(pcon_info);

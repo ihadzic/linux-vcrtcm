@@ -25,6 +25,7 @@
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include "vcrtcm_pim_methods.h"
+#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
 
@@ -59,13 +60,13 @@ void vcrtcm_pim_unregister(char *pim_name)
 	pim_info = vcrtcm_find_pim_info_by_name(pim_name);
 	if (!pim_info)
 		return;
-	VCRTCM_INFO("unregistering PIM %s\n", pim_name);
+	VCRTCM_INFO("unregistering %s\n", pim_name);
 	list_for_each_entry_safe(pcon_info, tmp,
-			&pim_info->pcons_in_pim_list, pcons_in_pim_list) {
-		vcrtcm_p_destroy(pcon_info->pconid);
-	}
-	vcrtcm_remove_pim_info(pim_info);
+			&pim_info->pcons_in_pim_list, pcons_in_pim_list)
+		do_vcrtcm_p_destroy(pcon_info, 0);
 	vcrtcm_sysfs_del_pim(pim_info);
+	vcrtcm_remove_pim_info(pim_info);
 	vcrtcm_destroy_pim_info(pim_info);
+	VCRTCM_INFO("finished unregistering %s\n", pim_name);
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);

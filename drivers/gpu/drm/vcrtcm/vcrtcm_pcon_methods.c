@@ -230,7 +230,6 @@ EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon_info *pcon_info)
 {
-	VCRTCM_INFO("destroying pcon %i\n", pcon_info->pconid);
 	mutex_lock(&pcon_info->mutex);
 	list_del(&pcon_info->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon_info);
@@ -496,22 +495,22 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
 /* this function is actually not in the vcrtcm-pim api,
  * but it could be added to that api, if needed.
  * NB: if you change the implementation of this function, you might
- * also need to change the implementation of vcrtcm_p_detach_pcon()
+ * also need to change the implementation of do_vcrtcm_ioctl_detach_pcon()
  */
-void vcrtcm_p_detach_pcon(int pconid)
+void do_vcrtcm_p_detach(struct vcrtcm_pcon_info *pcon_info, int explicit)
 {
-	struct vcrtcm_pcon_info *pcon_info;
 	unsigned long flags;
 
-	VCRTCM_INFO("detach pcon id %i\n", pconid);
-	pcon_info = vcrtcm_get_pcon_info(pconid);
-	if (!pcon_info)
-		return;
 	mutex_lock(&pcon_info->mutex);
 	spin_lock_irqsave(&pcon_info->lock, flags);
 	if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
 		pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 		spin_unlock_irqrestore(&pcon_info->lock, flags);
+		if (explicit)
+			VCRTCM_INFO("detaching pcon id %i\n", pcon_info->pconid);
+		else
+			VCRTCM_INFO("doing implicit detach of pcon id %i\n",
+				pcon_info->pconid);
 		if (pcon_info->gpu_funcs.detach)
 			pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
 	} else
@@ -519,18 +518,35 @@ void vcrtcm_p_detach_pcon(int pconid)
 	mutex_unlock(&pcon_info->mutex);
 }
 
+void vcrtcm_p_detach(int pconid)
+{
+	struct vcrtcm_pcon_info *pcon_info;
+
+	pcon_info = vcrtcm_get_pcon_info(pconid);
+	if (!pcon_info)
+		return;
+	do_vcrtcm_p_detach(pcon_info, 1);
+}
+EXPORT_SYMBOL(vcrtcm_p_detach);
+
+void do_vcrtcm_p_destroy(struct vcrtcm_pcon_info *pcon_info, int explicit)
+{
+	do_vcrtcm_p_detach(pcon_info, 0);
+	if (explicit)
+		VCRTCM_INFO("destroying pcon id %i\n", pcon_info->pconid);
+	else
+		VCRTCM_INFO("doing implicit destroy of pcon id %i\n",
+			pcon_info->pconid);
+	vcrtcm_destroy_pcon(pcon_info);
+}
+
 void vcrtcm_p_destroy(int pconid)
 {
 	struct vcrtcm_pcon_info *pcon_info;
 
-	VCRTCM_INFO("destroy pcon id %i\n", pconid);
 	pcon_info = vcrtcm_get_pcon_info(pconid);
 	if (!pcon_info)
 		return;
-
-	/* implicit detach */
-	vcrtcm_p_detach_pcon(pconid);
-
-	vcrtcm_destroy_pcon(pcon_info);
+	do_vcrtcm_p_destroy(pcon_info, 1);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);

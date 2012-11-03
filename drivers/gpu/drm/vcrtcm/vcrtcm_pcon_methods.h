@@ -24,5 +24,6 @@
 struct vcrtcm_pcon_info;
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon_info *pcon_info);
+void do_vcrtcm_p_destroy(struct vcrtcm_pcon_info *pcon_info, int explicit);
 
 #endif
