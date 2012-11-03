@@ -935,7 +935,7 @@ static struct video_device v4l2pim_template = {
 	.current_norm   = V4L2_STD_UNKNOWN,
 };
 
-struct v4l2pim_minor *v4l2pim_create_minor(int pconid)
+struct v4l2pim_minor *v4l2pim_create_minor()
 {
 	struct v4l2pim_minor *v4l2pim_minor;
 	struct video_device *vfd;
@@ -1033,11 +1033,6 @@ free_info:
 
 void v4l2pim_destroy_minor(struct v4l2pim_minor *v4l2pim_minor)
 {
-	if (v4l2pim_minor->pcon) {
-		v4l2pim_free_pb(v4l2pim_minor->pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
-		v4l2pim_free_pb(v4l2pim_minor->pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
-		vcrtcm_kfree(v4l2pim_minor->pcon, &v4l2pim_minor->kmalloc_track);
-	}
 	video_unregister_device(v4l2pim_minor->vfd);
 	v4l2_device_unregister(&v4l2pim_minor->v4l2_dev);
 	cancel_delayed_work_sync(&v4l2pim_minor->fake_vblank_work);
@@ -1095,12 +1090,14 @@ static int __init v4l2pim_init(void)
 
 static void __exit v4l2pim_exit(void)
 {
-	struct v4l2pim_minor *v4l2pim_minor, *tmp;
+	struct v4l2pim_minor *minor, *tmp;
 
 	VCRTCM_INFO("shutting down v4l2pim\n");
 	vcrtcm_pim_unregister(V4L2PIM_PIM_NAME);
-	list_for_each_entry_safe(v4l2pim_minor, tmp, &v4l2pim_minor_list, list)
-		v4l2pim_destroy_minor(v4l2pim_minor);
+	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
+		v4l2pim_destroy_pcon(minor->pcon);
+		v4l2pim_destroy_minor(minor);
+	}
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
 	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
 	VCRTCM_INFO("exiting v4l2pim\n");

@@ -135,7 +135,7 @@ struct v4l2pim_pcon {
 int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
 				unsigned long size);
 void v4l2pim_free_shadowbuf(struct v4l2pim_minor *v4l2pim_minor);
-struct v4l2pim_minor *v4l2pim_create_minor(int pconid);
+struct v4l2pim_minor *v4l2pim_create_minor(void);
 void v4l2pim_destroy_minor(struct v4l2pim_minor *v4l2pim_minor);
 
 #endif

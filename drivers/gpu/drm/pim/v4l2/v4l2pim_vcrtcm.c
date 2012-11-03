@@ -729,33 +729,47 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 	.disable = v4l2pim_disable
 };
 
+struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)
+{
+	struct v4l2pim_pcon *pcon;
+
+	pcon = vcrtcm_kzalloc(sizeof(struct v4l2pim_pcon),
+			GFP_KERNEL, &minor->kmalloc_track);
+	if (pcon == NULL)
+		return NULL;
+	pcon->pconid = pconid;
+	pcon->minor = minor;
+	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
+	return pcon;
+}
+
+void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
+{
+	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
+	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
+	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
+}
+
 int v4l2pim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum, char *description)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 
-	minor = v4l2pim_create_minor(pconid);
+	minor = v4l2pim_create_minor();
 	if (!minor)
 		return -ENODEV;
+	minor->pcon = v4l2pim_create_pcon(pconid, minor);
+	if (!minor->pcon) {
+		v4l2pim_destroy_minor(minor);
+		return -ENOMEM;
+	}
 	scnprintf(description, PCON_DESC_MAXLEN,
-			"Video4Linux2 PCON - minor %i",
-			minor->minor);
+			"Video4Linux2 PCON - minor %i", minor->minor);
 	*minornum = minor->minor;
 	*funcs = v4l2pim_vcrtcm_pcon_funcs;
 	*xfer_mode = VCRTCM_PUSH_PULL;
-	pcon = vcrtcm_kzalloc(sizeof(struct v4l2pim_pcon),
-			GFP_KERNEL, &minor->kmalloc_track);
-	if (pcon == NULL) {
-		VCRTCM_ERROR("no memory\n");
-		return -ENOMEM;
-	}
-	*cookie = pcon;
-	pcon->minor = minor;
-	pcon->pconid = pconid;
-	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
-	minor->pcon = pcon;
+	*cookie = minor->pcon;
 	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
 			minor->minor, pconid);
 	return 0;
@@ -764,13 +778,16 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 void v4l2pim_destroy(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_minor *minor;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return;
 	}
 	V4L2PIM_DEBUG("destroying pcon %i\n", pconid);
-	v4l2pim_destroy_minor(pcon->minor);
+	minor = pcon->minor;
+	v4l2pim_destroy_pcon(pcon);
+	v4l2pim_destroy_minor(minor);
 }
 
 int v4l2pim_get_properties(int pconid, void *cookie,
