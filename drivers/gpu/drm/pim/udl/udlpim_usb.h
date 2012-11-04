@@ -47,8 +47,7 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id);
 static void udlpim_usb_disconnect(struct usb_interface *interface);
 
-void udlpim_free(struct kref *kref);
-
+void udlpim_free_minor(struct kref *kref);
 
 /* DisplayLink stuff */
 static int udlpim_select_std_channel(struct udlpim_minor *udlpim_minor);

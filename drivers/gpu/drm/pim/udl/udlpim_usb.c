@@ -197,9 +197,9 @@ error:
 	if (udlpim_minor) {
 		VCRTCM_ERROR("Got to error in probe");
 		/* Ref for framebuffer */
-		kref_put(&udlpim_minor->kref, udlpim_free);
+		kref_put(&udlpim_minor->kref, udlpim_free_minor);
 		/* vcrtcm reference */
-		/* kref_put(&udlpim_minor->kref, udlpim_free); */
+		/* kref_put(&udlpim_minor->kref, udlpim_free_minor); */
 	}
 
 	return retval;
@@ -238,12 +238,12 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
 	until udlpim_vcrtcm_detach completes */
 
-	kref_put(&udlpim_minor->kref, udlpim_free); /* last ref from kref_init */
-	/* kref_put(&udlpim_minor->kref, udlpim_free);*/ /* Ref for framebuffer */
+	kref_put(&udlpim_minor->kref, udlpim_free_minor); /* last ref from kref_init */
+	/* kref_put(&udlpim_minor->kref, udlpim_free_minor);*/ /* Ref for framebuffer */
 }
 
 /* This function frees the information for an individual device */
-void udlpim_free(struct kref *kref)
+void udlpim_free_minor(struct kref *kref)
 {
 	struct udlpim_minor *udlpim_minor =
 		container_of(kref, struct udlpim_minor, kref);
