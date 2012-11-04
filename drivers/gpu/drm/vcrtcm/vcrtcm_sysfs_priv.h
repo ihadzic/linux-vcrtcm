@@ -25,15 +25,15 @@
 #include <linux/sysfs.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 
-struct vcrtcm_pim_info;
-struct vcrtcm_pcon_info;
+struct vcrtcm_pim;
+struct vcrtcm_pcon;
 
-int vcrtcm_sysfs_add_pim(struct vcrtcm_pim_info *pim);
-void vcrtcm_sysfs_del_pim(struct vcrtcm_pim_info *pim);
-int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon_info *pcon);
-void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon);
+int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim);
+void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim);
+int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon);
+void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon);
 void vcrtcm_sysfs_init(struct device *vcrtcm_device);
-void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon_info *pcon_info);
+void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon);
 
 extern struct class *vcrtcm_class;
 

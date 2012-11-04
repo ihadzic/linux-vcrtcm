@@ -80,13 +80,13 @@ module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	struct vcrtcm_pim_info *info, *info_tmp;
+	struct vcrtcm_pim *pim, *pim_tmp;
 	int pconid;
 
 	VCRTCM_INFO("unloading module");
-	list_for_each_entry_safe(info, info_tmp, &vcrtcm_pim_list, pim_list) {
-		list_del(&info->pim_list);
-		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
+	list_for_each_entry_safe(pim, pim_tmp, &vcrtcm_pim_list, pim_list) {
+		list_del(&pim->pim_list);
+		vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
 	}
 	if (vcrtcm_class)
 		device_destroy(vcrtcm_class, vcrtcm_dev);
@@ -99,23 +99,23 @@ static void __exit vcrtcm_exit(void)
 	 * even if the PCONs have not explicitly given them up
 	 */
 	for (pconid = 0; pconid < MAX_NUM_PCONIDS; ++pconid) {
-		struct vcrtcm_pcon_info *pcon_info;
+		struct vcrtcm_pcon *pcon;
 
-		pcon_info = vcrtcm_get_pcon_info(pconid);
-		if (pcon_info) {
-			mutex_lock(&pcon_info->mutex);
+		pcon = vcrtcm_get_pcon(pconid);
+		if (pcon) {
+			mutex_lock(&pcon->mutex);
 			VCRTCM_INFO("removing pcon %u\n",
-					pcon_info->pconid);
-			if (pcon_info->status & VCRTCM_STATUS_PCON_IN_USE) {
+					pcon->pconid);
+			if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-						pcon_info->drm_crtc);
-				if (pcon_info->funcs.detach)
-					pcon_info->funcs.detach(pcon_info->pconid, pcon_info->pcon_cookie);
-				if (pcon_info->gpu_funcs.detach)
-					pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
+						pcon->drm_crtc);
+				if (pcon->funcs.detach)
+					pcon->funcs.detach(pcon->pconid, pcon->pcon_cookie);
+				if (pcon->gpu_funcs.detach)
+					pcon->gpu_funcs.detach(pcon->drm_crtc);
 			}
-			mutex_unlock(&pcon_info->mutex);
-			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
+			mutex_unlock(&pcon->mutex);
+			vcrtcm_dealloc_pcon(pcon->pconid);
 		}
 	}
 	if (vcrtcm_class)

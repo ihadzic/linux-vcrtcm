@@ -23,7 +23,7 @@
 
 #include <vcrtcm/vcrtcm_pim.h>
 
-struct vcrtcm_pim_info {
+struct vcrtcm_pim {
 	char name[PIM_NAME_MAXLEN];
 	int id;
 	struct vcrtcm_pim_funcs funcs;
@@ -32,12 +32,12 @@ struct vcrtcm_pim_info {
 	struct list_head pim_list;
 };
 
-struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid);
-struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_name(char *pim_name);
-struct vcrtcm_pim_info *vcrtcm_create_pim_info(
+struct vcrtcm_pim *vcrtcm_find_pim_by_id(int pimid);
+struct vcrtcm_pim *vcrtcm_find_pim_by_name(char *pim_name);
+struct vcrtcm_pim *vcrtcm_create_pim(
 	char *pim_name, struct vcrtcm_pim_funcs *funcs);
-void vcrtcm_destroy_pim_info(struct vcrtcm_pim_info *info);
-void vcrtcm_add_pim_info(struct vcrtcm_pim_info *info);
-void vcrtcm_remove_pim_info(struct vcrtcm_pim_info *info);
+void vcrtcm_destroy_pim(struct vcrtcm_pim *pim);
+void vcrtcm_add_pim(struct vcrtcm_pim *pim);
+void vcrtcm_remove_pim(struct vcrtcm_pim *pim);
 
 #endif

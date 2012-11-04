@@ -30,106 +30,106 @@
 /* TODO: Need better errors. */
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
-	struct vcrtcm_pim_info *pim_info;
-	struct vcrtcm_pcon_info *pcon_info;
+	struct vcrtcm_pim *pim;
+	struct vcrtcm_pcon *pcon;
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon...\n");
-	pim_info = vcrtcm_find_pim_info_by_id(pimid);
-	if (!pim_info) {
+	pim = vcrtcm_find_pim_by_id(pimid);
+	if (!pim) {
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
 	}
-	pcon_info = vcrtcm_alloc_pcon_info();
-	if (!pcon_info) {
+	pcon = vcrtcm_alloc_pcon();
+	if (!pcon) {
 		VCRTCM_ERROR("no pconids available");
 		return -ENODEV;
 	}
-	pcon_info->pim = pim_info;
-	if (pim_info->funcs.instantiate) {
-		r = pim_info->funcs.instantiate(pcon_info->pconid, hints,
-						&pcon_info->pcon_cookie,
-						&pcon_info->funcs,
-						&pcon_info->xfer_mode,
-						&pcon_info->minor,
-						pcon_info->description);
+	pcon->pim = pim;
+	if (pim->funcs.instantiate) {
+		r = pim->funcs.instantiate(pcon->pconid, hints,
+						&pcon->pcon_cookie,
+						&pcon->funcs,
+						&pcon->xfer_mode,
+						&pcon->minor,
+						pcon->description);
 		if (r) {
 			VCRTCM_INFO("no pcons of type %s available...\n",
-				    pim_info->name);
-			vcrtcm_dealloc_pcon_info(pcon_info->pconid);
+				    pim->name);
+			vcrtcm_dealloc_pcon(pcon->pconid);
 			return r;
 		}
 	}
-	VCRTCM_INFO("new pcon created, id %i\n", pcon_info->pconid);
-	vcrtcm_sysfs_add_pcon(pcon_info);
-	list_add_tail(&pcon_info->pcons_in_pim_list,
-		      &pim_info->pcons_in_pim_list);
-	*pconid = pcon_info->pconid;
+	VCRTCM_INFO("new pcon created, id %i\n", pcon->pconid);
+	vcrtcm_sysfs_add_pcon(pcon);
+	list_add_tail(&pcon->pcons_in_pim_list,
+		      &pim->pcons_in_pim_list);
+	*pconid = pcon->pconid;
 	return 0;
 }
 
 /* NB: if you change the implementation of this function, you might
  * also need to change the implementation of vcrtcm_p_detach_pcon()
  */
-long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon_info *pcon_info,
+long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	int explicit)
 {
 	unsigned long flags;
 
-	mutex_lock(&pcon_info->mutex);
-	spin_lock_irqsave(&pcon_info->lock, flags);
-	if (!(pcon_info->status & VCRTCM_STATUS_PCON_IN_USE)) {
-		spin_unlock_irqrestore(&pcon_info->lock, flags);
-		mutex_unlock(&pcon_info->mutex);
+	mutex_lock(&pcon->mutex);
+	spin_lock_irqsave(&pcon->lock, flags);
+	if (!(pcon->status & VCRTCM_STATUS_PCON_IN_USE)) {
+		spin_unlock_irqrestore(&pcon->lock, flags);
+		mutex_unlock(&pcon->mutex);
 		return 0;
 	}
-	pcon_info->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&pcon_info->lock, flags);
+	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+	spin_unlock_irqrestore(&pcon->lock, flags);
 	if (explicit)
-		VCRTCM_INFO("detaching pcon id %i\n", pcon_info->pconid);
+		VCRTCM_INFO("detaching pcon id %i\n", pcon->pconid);
 	else
 		VCRTCM_INFO("doing implicit detach of pcon id %i\n",
-			pcon_info->pconid);
-	if (pcon_info->funcs.detach) {
+			pcon->pconid);
+	if (pcon->funcs.detach) {
 		int r;
 
-		r = pcon_info->funcs.detach(pcon_info->pconid,
-						pcon_info->pcon_cookie);
+		r = pcon->funcs.detach(pcon->pconid,
+						pcon->pcon_cookie);
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
-				pcon_info->pconid);
-			spin_lock_irqsave(&pcon_info->lock, flags);
-			pcon_info->status |= VCRTCM_STATUS_PCON_IN_USE;
-			spin_unlock_irqrestore(&pcon_info->lock, flags);
-			mutex_unlock(&pcon_info->mutex);
+				pcon->pconid);
+			spin_lock_irqsave(&pcon->lock, flags);
+			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
+			spin_unlock_irqrestore(&pcon->lock, flags);
+			mutex_unlock(&pcon->mutex);
 			return r;
 		}
 	}
-	if (pcon_info->gpu_funcs.detach)
-		pcon_info->gpu_funcs.detach(pcon_info->drm_crtc);
-	mutex_unlock(&pcon_info->mutex);
+	if (pcon->gpu_funcs.detach)
+		pcon->gpu_funcs.detach(pcon->drm_crtc);
+	mutex_unlock(&pcon->mutex);
 	return 0;
 }
 
 long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
-	struct vcrtcm_pcon_info *pcon_info;
+	struct vcrtcm_pcon *pcon;
 	void *cookie;
 	struct vcrtcm_pim_funcs funcs;
 	int r;
 
-	pcon_info = vcrtcm_get_pcon_info(pconid);
-	if (!pcon_info)
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon)
 		return -EINVAL;
-	r = do_vcrtcm_ioctl_detach_pcon(pcon_info, 0);
+	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
 	if (r) {
 		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);
 		return r;
 	}
 	VCRTCM_INFO("destroying pcon id %i\n", pconid);
-	cookie = pcon_info->pcon_cookie;
-	funcs = pcon_info->pim->funcs;
-	vcrtcm_destroy_pcon(pcon_info);
+	cookie = pcon->pcon_cookie;
+	funcs = pcon->pim->funcs;
+	vcrtcm_destroy_pcon(pcon);
 	if (funcs.destroy)
 		funcs.destroy(pconid, cookie);
 	return 0;

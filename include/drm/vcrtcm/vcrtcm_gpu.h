@@ -29,7 +29,7 @@
 #include <linux/dma-buf.h>
 #include <vcrtcm/vcrtcm_common.h>
 
-struct vcrtcm_pcon_info;
+struct vcrtcm_pcon;
 struct vcrtcm_cursor;
 struct vcrtcm_fb;
 struct vcrtcm_mode;
@@ -57,9 +57,9 @@ struct vcrtcm_gpu_funcs {
 /* The PCON registers this structure by calling vcrtcm_hw_add() */
 /* The GPU driver interacts with the PCON by calling the */
 /* vcrtcm_pcon_funcs provided in this structure */
-struct vcrtcm_pcon_info {
+struct vcrtcm_pcon {
 	char description[PCON_DESC_MAXLEN];
-	struct vcrtcm_pim_info *pim;
+	struct vcrtcm_pim *pim;
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs funcs;
 	enum vcrtcm_xfer_mode xfer_mode;
@@ -85,32 +85,32 @@ struct vcrtcm_pcon_info {
 int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
-		  struct vcrtcm_pcon_info **pcon_info);
-int vcrtcm_g_detach(struct vcrtcm_pcon_info *pcon_info);
+		  struct vcrtcm_pcon **pcon);
+int vcrtcm_g_detach(struct vcrtcm_pcon *pcon);
 
 /* functions for use by GPU driver in operational state */
-int vcrtcm_g_set_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb);
-int vcrtcm_g_get_fb(struct vcrtcm_pcon_info *pcon_info, struct vcrtcm_fb *fb);
-int vcrtcm_g_page_flip(struct vcrtcm_pcon_info *pcon_info, u32 ioaddr);
-int vcrtcm_g_dirty_fb(struct vcrtcm_pcon_info *pcon_info);
-int vcrtcm_g_wait_fb(struct vcrtcm_pcon_info *pcon_info);
-int vcrtcm_g_get_fb_status(struct vcrtcm_pcon_info *pcon_info, u32 *status);
-int vcrtcm_g_get_fps(struct vcrtcm_pcon_info *pcon_info, int *fps);
-int vcrtcm_g_set_fps(struct vcrtcm_pcon_info *pcon_info, int fps);
-int vcrtcm_g_set_cursor(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
+int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
+int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr);
+int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon, u32 *status);
+int vcrtcm_g_get_fps(struct vcrtcm_pcon *pcon, int *fps);
+int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps);
+int vcrtcm_g_set_cursor(struct vcrtcm_pcon *pcon,
 		      struct vcrtcm_cursor *cursor);
-int vcrtcm_g_get_cursor(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_g_get_cursor(struct vcrtcm_pcon *pcon,
 		      struct vcrtcm_cursor *cursor);
-int vcrtcm_g_set_dpms(struct vcrtcm_pcon_info *pcon_info, int state);
-int vcrtcm_g_get_dpms(struct vcrtcm_pcon_info *pcon_info, int *state);
-int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state);
+int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state);
+int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
 			   struct timeval *vblank_time);
-void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon_info *pcon_info);
-int vcrtcm_g_pcon_connected(struct vcrtcm_pcon_info *pcon_info, int *status);
-int vcrtcm_g_get_modes(struct vcrtcm_pcon_info *pcon_info,
+void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status);
+int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 		     struct vcrtcm_mode **modes, int *count);
-int vcrtcm_g_check_mode(struct vcrtcm_pcon_info *pcon_info,
+int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 		      struct vcrtcm_mode *mode, int *status);
-void vcrtcm_g_disable(struct vcrtcm_pcon_info *pcon_info);
+void vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
 
 #endif

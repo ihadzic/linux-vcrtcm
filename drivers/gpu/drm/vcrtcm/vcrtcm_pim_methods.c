@@ -31,22 +31,22 @@
 
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {
-	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pim *pim;
 
 	VCRTCM_INFO("Registering PIM %s, funcs at %p\n", pim_name, funcs);
 
-	pim_info = vcrtcm_find_pim_info_by_name(pim_name);
-	if (pim_info) {
-		memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
+	pim = vcrtcm_find_pim_by_name(pim_name);
+	if (pim) {
+		memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 		return 1;
 	}
 
-	pim_info = vcrtcm_create_pim_info(pim_name, funcs);
-	if (!pim_info)
+	pim = vcrtcm_create_pim(pim_name, funcs);
+	if (!pim)
 		return -ENOMEM;
 
-	vcrtcm_add_pim_info(pim_info);
-	vcrtcm_sysfs_add_pim(pim_info);
+	vcrtcm_add_pim(pim);
+	vcrtcm_sysfs_add_pim(pim);
 
 	return 1;
 }
@@ -54,19 +54,19 @@ EXPORT_SYMBOL(vcrtcm_pim_register);
 
 void vcrtcm_pim_unregister(char *pim_name)
 {
-	struct vcrtcm_pim_info *pim_info;
-	struct vcrtcm_pcon_info *pcon_info, *tmp;
+	struct vcrtcm_pim *pim;
+	struct vcrtcm_pcon *pcon, *tmp;
 
-	pim_info = vcrtcm_find_pim_info_by_name(pim_name);
-	if (!pim_info)
+	pim = vcrtcm_find_pim_by_name(pim_name);
+	if (!pim)
 		return;
 	VCRTCM_INFO("unregistering %s\n", pim_name);
-	list_for_each_entry_safe(pcon_info, tmp,
-			&pim_info->pcons_in_pim_list, pcons_in_pim_list)
-		do_vcrtcm_p_destroy(pcon_info, 0);
-	vcrtcm_sysfs_del_pim(pim_info);
-	vcrtcm_remove_pim_info(pim_info);
-	vcrtcm_destroy_pim_info(pim_info);
+	list_for_each_entry_safe(pcon, tmp,
+			&pim->pcons_in_pim_list, pcons_in_pim_list)
+		do_vcrtcm_p_destroy(pcon, 0);
+	vcrtcm_sysfs_del_pim(pim);
+	vcrtcm_remove_pim(pim);
+	vcrtcm_destroy_pim(pim);
 	VCRTCM_INFO("finished unregistering %s\n", pim_name);
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);

@@ -29,42 +29,42 @@
 #include "vcrtcm_module.h"
 
 struct pconid_table_entry {
-	struct vcrtcm_pcon_info *pcon_info;
+	struct vcrtcm_pcon *pcon;
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static struct mutex pconid_table_mutex;
 
-struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info()
+struct vcrtcm_pcon *vcrtcm_alloc_pcon()
 {
 	int k;
 
 	mutex_lock(&pconid_table_mutex);
 	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
 		struct pconid_table_entry *entry = &pconid_table[k];
-		if (!entry->pcon_info) {
-			struct vcrtcm_pcon_info *pcon_info;
-			pcon_info = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon_info),
+		if (!entry->pcon) {
+			struct vcrtcm_pcon *pcon;
+			pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon),
 				GFP_KERNEL, &vcrtcm_kmalloc_track);
-			if (!pcon_info) {
-				VCRTCM_INFO("allocate of pcon_info failed\n");
+			if (!pcon) {
+				VCRTCM_INFO("allocate of pcon failed\n");
 				mutex_unlock(&pconid_table_mutex);
 				return NULL;
 			}
-			pcon_info->pconid = k;
-			pcon_info->minor = -1;
-			spin_lock_init(&pcon_info->lock);
-			mutex_init(&pcon_info->mutex);
-			entry->pcon_info = pcon_info;
+			pcon->pconid = k;
+			pcon->minor = -1;
+			spin_lock_init(&pcon->lock);
+			mutex_init(&pcon->mutex);
+			entry->pcon = pcon;
 			mutex_unlock(&pconid_table_mutex);
-			return pcon_info;
+			return pcon;
 		}
 	}
 	mutex_unlock(&pconid_table_mutex);
 	return NULL;
 }
 
-void vcrtcm_dealloc_pcon_info(int pconid)
+void vcrtcm_dealloc_pcon(int pconid)
 {
 	struct pconid_table_entry *entry;
 
@@ -72,20 +72,20 @@ void vcrtcm_dealloc_pcon_info(int pconid)
 		return;
 	mutex_lock(&pconid_table_mutex);
 	entry = &pconid_table[pconid];
-	if (entry->pcon_info != NULL)
-		vcrtcm_kfree(entry->pcon_info, &vcrtcm_kmalloc_track);
-	entry->pcon_info = NULL;
+	if (entry->pcon != NULL)
+		vcrtcm_kfree(entry->pcon, &vcrtcm_kmalloc_track);
+	entry->pcon = NULL;
 	mutex_unlock(&pconid_table_mutex);
 }
 
-struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid)
+struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 {
-	struct vcrtcm_pcon_info *ret;
+	struct vcrtcm_pcon *ret;
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
 		return NULL;
 	mutex_lock(&pconid_table_mutex);
-	ret = pconid_table[pconid].pcon_info;
+	ret = pconid_table[pconid].pcon;
 	mutex_unlock(&pconid_table_mutex);
 	return ret;
 }

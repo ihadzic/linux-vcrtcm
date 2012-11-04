@@ -21,9 +21,9 @@
 #ifndef __VCRTCM_PCONMETHODS_H__
 #define __VCRTCM_PCONMETHODS_H__
 
-struct vcrtcm_pcon_info;
+struct vcrtcm_pcon;
 
-void vcrtcm_destroy_pcon(struct vcrtcm_pcon_info *pcon_info);
-void do_vcrtcm_p_destroy(struct vcrtcm_pcon_info *pcon_info, int explicit);
+void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
+void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit);
 
 #endif

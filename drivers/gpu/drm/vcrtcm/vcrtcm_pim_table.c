@@ -29,75 +29,75 @@
 
 static int next_pimid;
 
-struct vcrtcm_pim_info *vcrtcm_create_pim_info(
+struct vcrtcm_pim *vcrtcm_create_pim(
 	char *pim_name, struct vcrtcm_pim_funcs *funcs)
 {
-	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pim *pim;
 
 	if (!pim_name || !funcs)
 		return NULL;
 
-	pim_info = (struct vcrtcm_pim_info *)vcrtcm_kmalloc(
-						sizeof(struct vcrtcm_pim_info),
+	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc(
+						sizeof(struct vcrtcm_pim),
 							GFP_KERNEL,
 							&vcrtcm_kmalloc_track);
 
-	if (!pim_info)
+	if (!pim)
 		return NULL;
 
-	strncpy(pim_info->name, pim_name, PIM_NAME_MAXLEN);
-	memcpy(&pim_info->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
-	INIT_LIST_HEAD(&pim_info->pcons_in_pim_list);
-	memset(&pim_info->kobj, 0, sizeof(struct kobject));
+	strncpy(pim->name, pim_name, PIM_NAME_MAXLEN);
+	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
+	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
+	memset(&pim->kobj, 0, sizeof(struct kobject));
 
-	return pim_info;
+	return pim;
 }
 
-struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_name(char *pim_name)
+struct vcrtcm_pim *vcrtcm_find_pim_by_name(char *pim_name)
 {
-	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pim *pim;
 
 	if (!pim_name)
 		return NULL;
 
-	list_for_each_entry(pim_info, &vcrtcm_pim_list, pim_list) {
-		if (strcmp(pim_info->name, pim_name) == 0)
-			return pim_info;
+	list_for_each_entry(pim, &vcrtcm_pim_list, pim_list) {
+		if (strcmp(pim->name, pim_name) == 0)
+			return pim;
 	}
 
 	return NULL;
 }
 
-struct vcrtcm_pim_info *vcrtcm_find_pim_info_by_id(int pimid)
+struct vcrtcm_pim *vcrtcm_find_pim_by_id(int pimid)
 {
-	struct vcrtcm_pim_info *pim_info;
+	struct vcrtcm_pim *pim;
 
-	list_for_each_entry(pim_info, &vcrtcm_pim_list, pim_list) {
-		if (pim_info->id == pimid)
-			return pim_info;
+	list_for_each_entry(pim, &vcrtcm_pim_list, pim_list) {
+		if (pim->id == pimid)
+			return pim;
 	}
 
 	return NULL;
 }
 
-void vcrtcm_destroy_pim_info(struct vcrtcm_pim_info *info)
+void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 {
-	if (info)
-		vcrtcm_kfree(info, &vcrtcm_kmalloc_track);
+	if (pim)
+		vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
 }
 
-void vcrtcm_add_pim_info(struct vcrtcm_pim_info *info)
+void vcrtcm_add_pim(struct vcrtcm_pim *pim)
 {
 	mutex_lock(&vcrtcm_pim_list_mutex);
-	info->id = next_pimid;
+	pim->id = next_pimid;
 	next_pimid++;
-	list_add_tail(&info->pim_list, &vcrtcm_pim_list);
+	list_add_tail(&pim->pim_list, &vcrtcm_pim_list);
 	mutex_unlock(&vcrtcm_pim_list_mutex);
 }
 
-void vcrtcm_remove_pim_info(struct vcrtcm_pim_info *info)
+void vcrtcm_remove_pim(struct vcrtcm_pim *pim)
 {
 	mutex_lock(&vcrtcm_pim_list_mutex);
-	list_del(&info->pim_list);
+	list_del(&pim->pim_list);
 	mutex_unlock(&vcrtcm_pim_list_mutex);
 }

@@ -25,11 +25,11 @@
 #define VCRTCM_DMA_BUF_PERMS 0600
 #define MAX_NUM_PCONIDS 1024
 
-struct vcrtcm_pcon_info;
+struct vcrtcm_pcon;
 
-struct vcrtcm_pcon_info *vcrtcm_alloc_pcon_info(void);
-void vcrtcm_dealloc_pcon_info(int pconid);
-struct vcrtcm_pcon_info *vcrtcm_get_pcon_info(int pconid);
+struct vcrtcm_pcon *vcrtcm_alloc_pcon(void);
+void vcrtcm_dealloc_pcon(int pconid);
+struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
 int vcrtcm_pcon_table_init(void);
 
 #endif
