@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"

@@ -20,7 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-buf.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pcon_table.h"
