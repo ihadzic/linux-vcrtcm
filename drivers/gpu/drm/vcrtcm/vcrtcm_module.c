@@ -33,7 +33,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include "vcrtcm_module.h"
-#include "vcrtcm_ioctl.h"
+#include "vcrtcm_ioctl_priv.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"

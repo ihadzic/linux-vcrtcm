@@ -38,6 +38,4 @@ struct vcrtcm_ioctl_args {
 	} result1;
 };
 
-long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-
 #endif

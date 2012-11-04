@@ -21,7 +21,7 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include "vcrtcm_ioctl.h"
+#include "vcrtcm_ioctl_priv.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
