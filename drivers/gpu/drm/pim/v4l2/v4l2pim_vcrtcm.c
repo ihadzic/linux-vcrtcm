@@ -18,7 +18,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
 

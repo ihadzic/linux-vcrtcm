@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
 #include "v4l2pim.h"

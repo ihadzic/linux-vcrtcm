@@ -33,7 +33,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <linux/videodev2.h>
 
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
 #define V4L2PIM_PIM_NAME "v4l2"
