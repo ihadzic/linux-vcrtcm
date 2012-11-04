@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include <linux/usb.h>
 #include <linux/prefetch.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <edid.h>
 

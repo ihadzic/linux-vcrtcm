@@ -23,7 +23,7 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <vcrtcm/vcrtcm_pcon.h>
+#include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
 #define UDLPIM_MAX_DEVICES 64 /* This is currently a hard limitation. */
