@@ -64,42 +64,34 @@ static void udlpim_free_pb(struct udlpim_pcon *pcon, int flag)
 int udlpim_attach(int pconid, void *cookie)
 {
 	struct udlpim_pcon *pcon = cookie;
-	struct udlpim_minor *minor;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -ENODEV;
 	}
-	minor = pcon->minor;
-	VCRTCM_INFO("Attaching udlpim %d to pcon %d\n",
-		pcon->minor->minor, pconid);
+	VCRTCM_INFO("attaching pcon %d\n", pconid);
 	pcon->attached = 1;
 	return 0;
+}
+
+void udlpim_detach_pcon(struct udlpim_pcon *pcon)
+{
+	if (pcon->attached)
+		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
+	cancel_delayed_work_sync(&pcon->minor->fake_vblank_work);
+	cancel_delayed_work_sync(&pcon->minor->query_edid_work);
+	pcon->attached = 0;
 }
 
 int udlpim_detach(int pconid, void *cookie)
 {
 	struct udlpim_pcon *pcon = cookie;
-	struct udlpim_minor *minor;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
-	minor = pcon->minor;
-	VCRTCM_INFO("Detaching udlpim %d from pcon %d\n",
-		minor->minor, pconid);
-
-	vcrtcm_p_wait_fb(pconid);
-
-	cancel_delayed_work_sync(&minor->fake_vblank_work);
-	cancel_delayed_work_sync(&minor->query_edid_work);
-
-	if (pcon->pconid == pconid) {
-		UDLPIM_DEBUG("Found descriptor that should be removed.\n");
-
-		pcon->attached = 0;
-	}
+	udlpim_detach_pcon(pcon);
 	return 0;
 }
 
@@ -865,6 +857,31 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.disable = udlpim_disable
 };
 
+static struct udlpim_pcon *create_pcon(int pconid,
+	struct udlpim_minor *minor)
+{
+	struct udlpim_pcon *pcon;
+
+	pcon = vcrtcm_kzalloc(sizeof(struct udlpim_pcon),
+			GFP_KERNEL, &minor->kmalloc_track);
+	if (pcon == NULL) {
+		VCRTCM_ERROR("create_pcon failed, no memory\n");
+		return NULL;
+	}
+	pcon->pconid = pconid;
+	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
+	pcon->minor = minor;
+	return pcon;
+}
+
+static void destroy_pcon(struct udlpim_pcon *pcon)
+{
+	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
+	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
+	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
+	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
+}
+
 int udlpim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
@@ -875,28 +892,18 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 
 	list_for_each_entry(minor, &udlpim_minor_list, list) {
 		if (!minor->pcon) {
-			struct udlpim_pcon *pcon;
-
+			minor->pcon = create_pcon(pconid, minor);
+			if (!minor->pcon)
+				return -ENOMEM;
 			usbdev = minor->udev;
 			scnprintf(description, PCON_DESC_MAXLEN,
 					"%s %s - Serial #%s",
 					usbdev->manufacturer,
-					usbdev->product,
-					usbdev->serial);
+					usbdev->product, usbdev->serial);
 			*minornum = -1;
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
-			pcon = vcrtcm_kzalloc(sizeof(struct udlpim_pcon),
-					GFP_KERNEL, &minor->kmalloc_track);
-			if (pcon == NULL) {
-				VCRTCM_ERROR("attach: no memory\n");
-				return -ENOMEM;
-			}
-			*cookie = pcon;
-			pcon->minor = minor;
-			pcon->pconid = pconid;
-			pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
-			minor->pcon = pcon;
+			*cookie = minor->pcon;
 
 			/* Do an initial query of the EDID */
 			udlpim_query_edid_core(minor);
@@ -910,7 +917,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			return 0;
 		}
 	}
-
 	return -ENODEV;
 }
 
@@ -919,13 +925,12 @@ void udlpim_destroy(int pconid, void *cookie)
 	struct udlpim_pcon *pcon = cookie;
 	struct udlpim_minor *minor;
 
+	/* the pim destroy callback can assume that the pcon is detached */
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return;
 	}
 	minor = pcon->minor;
-	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
-	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
+	destroy_pcon(pcon);
 	minor->pcon = NULL;
-	vcrtcm_kfree(pcon, &minor->kmalloc_track);
 }
