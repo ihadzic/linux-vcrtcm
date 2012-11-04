@@ -56,5 +56,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
 	char *description);
 void udlpim_destroy(int pconid, void *cookie);
+void udlpim_destroy_pcon(struct udlpim_pcon *pcon);
+void udlpim_detach_pcon(struct udlpim_pcon *pcon);
 
 #endif

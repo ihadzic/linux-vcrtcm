@@ -857,7 +857,7 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.disable = udlpim_disable
 };
 
-static struct udlpim_pcon *create_pcon(int pconid,
+struct udlpim_pcon *udlpim_create_pcon(int pconid,
 	struct udlpim_minor *minor)
 {
 	struct udlpim_pcon *pcon;
@@ -874,7 +874,7 @@ static struct udlpim_pcon *create_pcon(int pconid,
 	return pcon;
 }
 
-static void destroy_pcon(struct udlpim_pcon *pcon)
+void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 {
 	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
@@ -892,7 +892,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 
 	list_for_each_entry(minor, &udlpim_minor_list, list) {
 		if (!minor->pcon) {
-			minor->pcon = create_pcon(pconid, minor);
+			minor->pcon = udlpim_create_pcon(pconid, minor);
 			if (!minor->pcon)
 				return -ENOMEM;
 			usbdev = minor->udev;
@@ -931,6 +931,6 @@ void udlpim_destroy(int pconid, void *cookie)
 		return;
 	}
 	minor = pcon->minor;
-	destroy_pcon(pcon);
+	udlpim_destroy_pcon(pcon);
 	minor->pcon = NULL;
 }

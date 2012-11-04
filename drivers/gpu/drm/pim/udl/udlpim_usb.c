@@ -226,8 +226,12 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	cancel_delayed_work_sync(&minor->fake_vblank_work);
 	/* vcrtcm_p_del(udlpim_major, minor->minor, 0); */
 
-	if (minor->pcon)
+	if (minor->pcon) {
 		vcrtcm_p_destroy(minor->pcon->pconid);
+		udlpim_detach_pcon(minor->pcon);
+		udlpim_destroy_pcon(minor->pcon);
+		minor->pcon = NULL;
+	}
 
 	/* Return minor number */
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, minor->minor);
@@ -247,6 +251,7 @@ void udlpim_free_minor(struct kref *kref)
 	struct udlpim_minor *minor =
 		container_of(kref, struct udlpim_minor, kref);
 
+	VCRTCM_INFO("freeing minor %d\n", minor->minor);
 	cancel_delayed_work_sync(&minor->fake_vblank_work);
 
 	/* this function will wait for all in-flight urbs to complete */
