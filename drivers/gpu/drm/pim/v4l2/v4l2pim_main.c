@@ -1065,13 +1065,11 @@ static int __init v4l2pim_init(void)
 
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, "v4l2pim");
-	v4l2pim_major = MAJOR(dev);
 	if (r) {
-		VCRTCM_ERROR("Can't get major device number, driver unusable\n");
-		v4l2pim_major = -1;
-		v4l2pim_num_minors = 0;
-		return 0;
+		VCRTCM_ERROR("cannot get major device number\n");
+		return r;
 	}
+	v4l2pim_major = MAJOR(dev);
 	VCRTCM_INFO("Using major device number %d\n", v4l2pim_major);
 
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
