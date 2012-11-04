@@ -1095,6 +1095,7 @@ static void __exit v4l2pim_exit(void)
 	VCRTCM_INFO("shutting down v4l2pim\n");
 	vcrtcm_pim_unregister(V4L2PIM_PIM_NAME);
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
+		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
 		v4l2pim_destroy_minor(minor);
 	}

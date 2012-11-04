@@ -132,25 +132,31 @@ int v4l2pim_attach(int pconid, void *cookie)
 	return 0;
 }
 
+int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
+{
+	struct v4l2pim_minor *minor;
+
+	minor = pcon->minor;
+	if (atomic_read(&minor->users) > 0) {
+		VCRTCM_INFO("cannot detach pcon %d, some process has minor %d open",
+			pcon->pconid, minor->minor);
+		return -EBUSY;
+	}
+	if (pcon->attached)
+		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
+	pcon->attached = 0;
+	return 0;
+}
+
 int v4l2pim_detach(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = cookie;
-	struct v4l2pim_minor *minor;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -ENODEV;
 	}
-	minor = pcon->minor;
-	if (atomic_read(&minor->users) > 0) {
-		VCRTCM_INFO("Could not detach v4l2pim %d from pcon %d, file open",
-			minor->minor, pconid);
-		return -EBUSY;
-	}
-	VCRTCM_INFO("Detaching v4l2pim %d from pcon %d\n",
-		minor->minor, pconid);
-	pcon->attached = 0;
-	return 0;
+	return v4l2pim_detach_pcon(pcon);
 }
 
 static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
@@ -745,6 +751,7 @@ struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor
 
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 {
+	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
@@ -780,11 +787,11 @@ void v4l2pim_destroy(int pconid, void *cookie)
 	struct v4l2pim_pcon *pcon = cookie;
 	struct v4l2pim_minor *minor;
 
+	/* the pim destroy callback can assume that the pcon is detached */
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return;
 	}
-	V4L2PIM_DEBUG("destroying pcon %i\n", pconid);
 	minor = pcon->minor;
 	v4l2pim_destroy_pcon(pcon);
 	v4l2pim_destroy_minor(minor);
