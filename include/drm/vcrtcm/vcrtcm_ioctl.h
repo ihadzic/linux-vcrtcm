@@ -24,6 +24,7 @@
 #define VCRTCM_MAGIC 'K'
 #define VCRTCM_IOC_INSTANTIATE _IOW(VCRTCM_MAGIC, 1, int)
 #define VCRTCM_IOC_DESTROY _IOW(VCRTCM_MAGIC, 2, int)
+#define VCRTCM_IOC_PIMTEST _IOW(VCRTCM_MAGIC, 3, int)
 
 struct vcrtcm_ioctl_args {
 	union {
@@ -32,6 +33,7 @@ struct vcrtcm_ioctl_args {
 	} arg1;
 	union {
 		uint32_t hints;
+		uint32_t testarg;
 	} arg2;
 	union {
 		int pconid;

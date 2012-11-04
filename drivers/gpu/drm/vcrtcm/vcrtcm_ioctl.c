@@ -27,6 +27,25 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon_methods.h"
 
+long vcrtcm_ioctl_pimtest(int pimid, int testarg)
+{
+	struct vcrtcm_pim *pim;
+	int r;
+
+	VCRTCM_INFO("in pimtest: %d, %d\n", pimid, testarg);
+	pim = vcrtcm_find_pim_by_id(pimid);
+	if (!pim) {
+		VCRTCM_INFO("invalid pimid\n");
+		return -EINVAL;
+	}
+	if (pim->funcs.test) {
+		r = pim->funcs.test(testarg);
+		VCRTCM_INFO("pimtest returned %d\n", r);
+		return r;
+	}
+	return 0;
+}
+
 /* TODO: Need better errors. */
 long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
@@ -34,7 +53,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	struct vcrtcm_pcon *pcon;
 	int r;
 
-	VCRTCM_INFO("in instantiate pcon...\n");
+	VCRTCM_INFO("in instantiate pcon: %d, %d\n", pimid, hints);
 	pim = vcrtcm_find_pim_by_id(pimid);
 	if (!pim) {
 		VCRTCM_INFO("invalid pimid\n");
@@ -166,9 +185,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		return 0;
-	}
-
-	else if (cmd == VCRTCM_IOC_DESTROY) {
+	} else if (cmd == VCRTCM_IOC_DESTROY) {
 		void *ptr = (void *)arg;
 
 		if (copy_from_user(&ioctl_args, ptr,
@@ -179,6 +196,23 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (result)
 			return result;
+
+		return 0;
+	} else if (cmd == VCRTCM_IOC_PIMTEST) {
+		void *ptr = (void *)arg;
+
+		if (copy_from_user(&ioctl_args, ptr,
+				sizeof(struct vcrtcm_ioctl_args)))
+			return -EFAULT;
+
+		result = vcrtcm_ioctl_pimtest(ioctl_args.arg1.pimid,
+			ioctl_args.arg2.testarg);
+		if (result)
+			return result;
+
+		if (copy_to_user(ptr, &ioctl_args,
+					sizeof(struct vcrtcm_ioctl_args)))
+			return -EFAULT;
 
 		return 0;
 	} else

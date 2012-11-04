@@ -78,6 +78,9 @@ struct vcrtcm_pim_funcs {
 	 * and removed from VCRTCM before this function is called.
 	 */
 	void (*destroy)(int pconid, void *cookie);
+
+	/* Can do anything the user likes. */
+	int (*test)(int arg);
 };
 
 void vcrtcm_p_destroy(int pconid);
