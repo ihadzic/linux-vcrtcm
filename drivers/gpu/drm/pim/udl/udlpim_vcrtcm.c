@@ -879,6 +879,7 @@ void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
+	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
 }
 
