@@ -102,6 +102,7 @@ static void __exit vcrtcm_exit(void)
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 						pcon->drm_crtc);
 				if (pcon->pcon_funcs.detach &&
+					pcon->pcon_callbacks_enabled &&
 					pcon->pim->callbacks_enabled)
 					pcon->pcon_funcs.detach(pcon->pconid,
 						pcon->pcon_cookie);

@@ -109,7 +109,9 @@ long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	else
 		VCRTCM_INFO("doing implicit detach of pcon id %i\n",
 			pcon->pconid);
-	if (pcon->pcon_funcs.detach && pcon->pim->callbacks_enabled) {
+	if (pcon->pcon_funcs.detach &&
+		pcon->pcon_callbacks_enabled &&
+		pcon->pim->callbacks_enabled) {
 		int r;
 
 		r = pcon->pcon_funcs.detach(pcon->pconid,

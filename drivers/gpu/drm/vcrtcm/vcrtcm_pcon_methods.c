@@ -572,3 +572,16 @@ void vcrtcm_p_destroy(int pconid)
 	do_vcrtcm_p_destroy(pcon, 1);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
+
+void vcrtcm_p_disable_callbacks(int pconid)
+{
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return;
+	}
+	pcon->pcon_callbacks_enabled = 0;
+}
+EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);

@@ -63,6 +63,7 @@ struct vcrtcm_pcon {
 	struct mutex mutex;
 	struct vcrtcm_pcon_funcs pcon_funcs;
 	struct vcrtcm_gpu_funcs gpu_funcs;
+	int pcon_callbacks_enabled;
 	enum vcrtcm_xfer_mode xfer_mode;
 	void *pcon_cookie;
 	int pconid; /* index into table maintained by vcrtcm */

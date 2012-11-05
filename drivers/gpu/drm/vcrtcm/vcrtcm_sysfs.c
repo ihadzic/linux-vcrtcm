@@ -199,6 +199,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		int result = 0;
 
 		if (!pcon->pcon_funcs.get_properties ||
+			!pcon->pcon_callbacks_enabled ||
 			!pcon->pim->callbacks_enabled)
 			return 0;
 		result = pcon->pcon_funcs.get_properties(pcon->pconid,
@@ -214,6 +215,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		int result = 0;
 
 		if (!pcon->pcon_funcs.get_properties ||
+			!pcon->pcon_callbacks_enabled ||
 			!pcon->pim->callbacks_enabled)
 			return 0;
 		result = pcon->pcon_funcs.get_properties(pcon->pconid,

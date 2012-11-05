@@ -53,6 +53,7 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon()
 			}
 			pcon->pconid = k;
 			pcon->minor = -1;
+			pcon->pcon_callbacks_enabled = 1;
 			spin_lock_init(&pcon->lock);
 			mutex_init(&pcon->mutex);
 			entry->pcon = pcon;
