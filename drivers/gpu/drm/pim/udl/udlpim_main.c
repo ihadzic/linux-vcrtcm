@@ -43,6 +43,7 @@ struct list_head udlpim_minor_list;
 int udlpim_major = -1;
 int udlpim_num_minors = -1;
 int udlpim_fake_vblank_slack = 1;
+static int pimid;
 
 /* Use to generate minor numbers */
 struct vcrtcm_id_generator udlpim_minor_id_generator;
@@ -76,14 +77,14 @@ static int __init udlpim_init(void)
 		VCRTCM_ERROR("usb_register failed, error %d", r);
 		return r;
 	}
-	vcrtcm_pim_register("udl", &udlpim_pim_funcs);
+	vcrtcm_pim_register("udl", &udlpim_pim_funcs, &pimid);
 	return 0;
 }
 
 static void __exit udlpim_exit(void)
 {
 	VCRTCM_INFO("shutting down udlpim\n");
-	vcrtcm_pim_unregister("udl");
+	vcrtcm_pim_unregister(pimid);
 	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
 	usb_deregister(&udlpim_driver);
 	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
