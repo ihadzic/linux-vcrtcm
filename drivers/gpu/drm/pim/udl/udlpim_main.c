@@ -83,9 +83,18 @@ static int __init udlpim_init(void)
 
 static void __exit udlpim_exit(void)
 {
+	struct udlpim_minor *minor;
+
 	VCRTCM_INFO("shutting down udlpim\n");
-	vcrtcm_pim_unregister(pimid);
+	vcrtcm_pim_disable_callbacks(pimid);
 	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
+	list_for_each_entry(minor, &udlpim_minor_list, list) {
+		if (minor->pcon) {
+			udlpim_detach_pcon(minor->pcon);
+			udlpim_destroy_pcon(minor->pcon);
+		}
+	}
+	vcrtcm_pim_unregister(pimid);
 	usb_deregister(&udlpim_driver);
 	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
 	VCRTCM_INFO("exiting udlpim\n");
