@@ -125,7 +125,7 @@ static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 /************************************************************************/
 
 static void
-v4l2pim_fillbuff(struct v4l2pim_minor *v4l2pim_minor, struct videobuf_buffer *vb)
+v4l2pim_fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
 {
 	struct v4l2pim_pcon *pcon;
 	struct timeval ts;
@@ -133,23 +133,23 @@ v4l2pim_fillbuff(struct v4l2pim_minor *v4l2pim_minor, struct videobuf_buffer *vb
 	uint32_t fbsize;
 	uint32_t w, h, d;
 
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return;
 	dst = videobuf_to_vmalloc(vb);
 	if (!dst)
 		return;
-	pcon = v4l2pim_minor->pcon;
+	pcon = minor->pcon;
 	if (!pcon)
 		return;
 
 	w  = pcon->vcrtcm_fb.hdisplay;
 	h = pcon->vcrtcm_fb.vdisplay;
-	d = v4l2pim_minor->fmt->depth;
+	d = minor->fmt->depth;
 
-	mutex_lock(&v4l2pim_minor->sb_lock);
-	switch (v4l2pim_minor->fmt->fourcc) {
+	mutex_lock(&minor->sb_lock);
+	switch (minor->fmt->fourcc) {
 	case V4L2_PIX_FMT_BGR32:
 		/* native format so just copy */
 		memcpy(dst, fb, fbsize);
@@ -211,7 +211,7 @@ v4l2pim_fillbuff(struct v4l2pim_minor *v4l2pim_minor, struct videobuf_buffer *vb
 		d = 0;
 		break;
 	}
-	mutex_unlock(&v4l2pim_minor->sb_lock);
+	mutex_unlock(&minor->sb_lock);
 
 	vb->size = w * h * (d >> 3);
 	vb->field_count++;
@@ -220,43 +220,43 @@ v4l2pim_fillbuff(struct v4l2pim_minor *v4l2pim_minor, struct videobuf_buffer *vb
 	vb->state = VIDEOBUF_DONE;
 }
 
-static void v4l2pim_thread_tick(struct v4l2pim_minor *v4l2pim_minor)
+static void v4l2pim_thread_tick(struct v4l2pim_minor *minor)
 {
 	struct videobuf_buffer *vb;
 	unsigned long flags = 0;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return;
 
-	spin_lock_irqsave(&v4l2pim_minor->slock, flags);
-	if (list_empty(&v4l2pim_minor->active))
+	spin_lock_irqsave(&minor->slock, flags);
+	if (list_empty(&minor->active))
 		goto unlock;
 
-	vb = list_entry(v4l2pim_minor->active.next,
+	vb = list_entry(minor->active.next,
 			struct videobuf_buffer, queue);
 	if (!waitqueue_active(&vb->done))
 		goto unlock;
 	list_del(&vb->queue);
-	v4l2pim_fillbuff(v4l2pim_minor, vb);
+	v4l2pim_fillbuff(minor, vb);
 	wake_up(&vb->done);
 unlock:
-	spin_unlock_irqrestore(&v4l2pim_minor->slock, flags);
+	spin_unlock_irqrestore(&minor->slock, flags);
 }
 
 static int v4l2pim_thread(void *data)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	unsigned long sleep_time;
 
-	v4l2pim_minor = data;
+	minor = data;
 	sleep_time = msecs_to_jiffies(0);
 	/* set_freezable(); */
 	while (!kthread_should_stop()) {
-		v4l2pim_thread_tick(v4l2pim_minor);
+		v4l2pim_thread_tick(minor);
 		if (kthread_should_stop())
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -267,44 +267,44 @@ static int v4l2pim_thread(void *data)
 
 static void v4l2pim_start_generating(struct file *file)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
 
-	if (test_and_set_bit(0, &v4l2pim_minor->generating))
+	if (test_and_set_bit(0, &minor->generating))
 		return;
-	file->private_data = v4l2pim_minor;
+	file->private_data = minor;
 
-	v4l2pim_minor->kthread = kthread_run(v4l2pim_thread, v4l2pim_minor,
-					v4l2pim_minor->v4l2_dev.name);
-	if (IS_ERR(v4l2pim_minor->kthread)) {
-		clear_bit(0, &v4l2pim_minor->generating);
+	minor->kthread = kthread_run(v4l2pim_thread, minor,
+					minor->v4l2_dev.name);
+	if (IS_ERR(minor->kthread)) {
+		clear_bit(0, &minor->generating);
 		return;
 	}
 }
 
 static void v4l2pim_stop_generating(struct file *file)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
 
 	if (!file->private_data)
 		return;
-	if (!v4l2pim_minor)
+	if (!minor)
 		return;
-	if (!test_and_clear_bit(0, &v4l2pim_minor->generating))
+	if (!test_and_clear_bit(0, &minor->generating))
 		return;
 
-	if (v4l2pim_minor->kthread) {
-		kthread_stop(v4l2pim_minor->kthread);
-		v4l2pim_minor->kthread = NULL;
+	if (minor->kthread) {
+		kthread_stop(minor->kthread);
+		minor->kthread = NULL;
 	}
-	videobuf_stop(&v4l2pim_minor->vb_vidq);
-	videobuf_mmap_free(&v4l2pim_minor->vb_vidq);
+	videobuf_stop(&minor->vb_vidq);
+	videobuf_mmap_free(&minor->vb_vidq);
 }
 
-static int v4l2pim_is_generating(struct v4l2pim_minor *v4l2pim_minor)
+static int v4l2pim_is_generating(struct v4l2pim_minor *minor)
 {
-	return test_bit(0, &v4l2pim_minor->generating);
+	return test_bit(0, &minor->generating);
 }
 
 /************************************************************************/
@@ -314,17 +314,17 @@ static int v4l2pim_is_generating(struct v4l2pim_minor *v4l2pim_minor)
 static int
 buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	v4l2pim_minor = vq->priv_data;
-	pcon = v4l2pim_minor->pcon;
+	minor = vq->priv_data;
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	*size = fbsize;
@@ -345,18 +345,18 @@ static int
 buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
-	v4l2pim_minor = vq->priv_data;
-	pcon = v4l2pim_minor->pcon;
+	minor = vq->priv_data;
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	vb->size = fbsize;
@@ -383,10 +383,10 @@ fail:
 static void
 buf_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = vq->priv_data;
+	struct v4l2pim_minor *minor;
+	minor = vq->priv_data;
 	vb->state = VIDEOBUF_QUEUED;
-	list_add_tail(&vb->queue, &v4l2pim_minor->active);
+	list_add_tail(&vb->queue, &minor->active);
 }
 
 static void buf_release(struct videobuf_queue *vq,
@@ -402,12 +402,12 @@ static void buf_release(struct videobuf_queue *vq,
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 
-	v4l2pim_minor = video_drvdata(file);
+	minor = video_drvdata(file);
 	strcpy(cap->driver, "v4l2pim");
 	strcpy(cap->card, "v4l2pim");
-	strlcpy(cap->bus_info, v4l2pim_minor->v4l2_dev.name,
+	strlcpy(cap->bus_info, minor->v4l2_dev.name,
 		sizeof(cap->bus_info));
 	cap->version = V4L2PIM_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
@@ -431,21 +431,21 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
-	fmt = v4l2pim_minor->fmt;
+	fmt = minor->fmt;
 	if (!fmt)
 		return -EINVAL;
 
@@ -464,19 +464,19 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 	enum v4l2_field field;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	fmt = get_format(f);
@@ -505,35 +505,35 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
-	if (v4l2pim_is_generating(v4l2pim_minor))
+	if (v4l2pim_is_generating(minor))
 		return -EBUSY;
 
 	fmt = get_format(f);
 	if (!fmt)
 		return -EINVAL;
-	v4l2pim_minor->fmt = fmt;
+	minor->fmt = fmt;
 	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
 	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = fmt->colorspace;
-	v4l2pim_minor->vb_vidq.field = f->fmt.pix.field;
+	minor->vb_vidq.field = f->fmt.pix.field;
 
 	return 0;
 }
@@ -541,22 +541,22 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 static ssize_t
 v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
 	v4l2pim_start_generating(file);
-	return videobuf_read_stream(&v4l2pim_minor->vb_vidq,
+	return videobuf_read_stream(&minor->vb_vidq,
 				    data, count, ppos, 0,
 				    file->f_flags & O_NONBLOCK);
 }
@@ -564,44 +564,44 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 static unsigned int
 v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
 	v4l2pim_start_generating(file);
-	return videobuf_poll_stream(file, &v4l2pim_minor->vb_vidq, wait);
+	return videobuf_poll_stream(file, &minor->vb_vidq, wait);
 }
 
 static int v4l2pim_open(struct file *file)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	v4l2pim_minor = video_drvdata(file);
-	atomic_inc(&v4l2pim_minor->users);
+	minor = video_drvdata(file);
+	atomic_inc(&minor->users);
 
 	return 0;
 }
 
 static int v4l2pim_release(struct file *file)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 
 	v4l2pim_stop_generating(file);
-	v4l2pim_minor = video_drvdata(file);
-	atomic_dec(&v4l2pim_minor->users);
+	minor = video_drvdata(file);
+	atomic_dec(&minor->users);
 	module_put(THIS_MODULE);
 
 	return 0;
@@ -609,22 +609,22 @@ static int v4l2pim_release(struct file *file)
 
 static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
 	int ret;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = v4l2pim_minor->shadowbuf;
-	fbsize = v4l2pim_minor->shadowbufsize;
+	fb = minor->shadowbuf;
+	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
-	ret = videobuf_mmap_mapper(&v4l2pim_minor->vb_vidq, vma);
+	ret = videobuf_mmap_mapper(&minor->vb_vidq, vma);
 	return ret;
 }
 
@@ -655,42 +655,42 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
-	return videobuf_reqbufs(&v4l2pim_minor->vb_vidq, p);
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
+	return videobuf_reqbufs(&minor->vb_vidq, p);
 }
 
 static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
-	return videobuf_querybuf(&v4l2pim_minor->vb_vidq, p);
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
+	return videobuf_querybuf(&minor->vb_vidq, p);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
-	return videobuf_qbuf(&v4l2pim_minor->vb_vidq, p);
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
+	return videobuf_qbuf(&minor->vb_vidq, p);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
-	v4l2pim_minor = video_drvdata(file);
-	return videobuf_dqbuf(&v4l2pim_minor->vb_vidq, p,
+	struct v4l2pim_minor *minor;
+	minor = video_drvdata(file);
+	return videobuf_dqbuf(&minor->vb_vidq, p,
 				file->f_flags & O_NONBLOCK);
 }
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	int ret;
 
-	v4l2pim_minor = video_drvdata(file);
+	minor = video_drvdata(file);
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = videobuf_streamon(&v4l2pim_minor->vb_vidq);
+	ret = videobuf_streamon(&minor->vb_vidq);
 	if (ret)
 		return ret;
 	v4l2pim_start_generating(file);
@@ -699,13 +699,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	int ret;
 
-	v4l2pim_minor = video_drvdata(file);
+	minor = video_drvdata(file);
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = videobuf_streamoff(&v4l2pim_minor->vb_vidq);
+	ret = videobuf_streamoff(&minor->vb_vidq);
 	if (!ret)
 		v4l2pim_stop_generating(file);
 	return ret;
@@ -714,13 +714,13 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 static int
 vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2_fract timeperframe;
 	int fps;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
 	fps = HZ / pcon->fb_xmit_period_jiffies;
@@ -739,11 +739,11 @@ vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 static int
 vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
 
@@ -758,12 +758,12 @@ vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 static int vidioc_enum_framesizes(struct file *file, void *fh,
 					struct v4l2_frmsizeenum *fsize)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
 
@@ -784,13 +784,13 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 static int vidioc_enum_frameintervals(struct file *file, void *fh,
 					struct v4l2_frmivalenum *fival)
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 	int fps;
 
-	v4l2pim_minor = video_drvdata(file);
-	pcon = v4l2pim_minor->pcon;
+	minor = video_drvdata(file);
+	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
 
@@ -815,7 +815,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 /* shadowbuf alloc/free                                                 */
 /************************************************************************/
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 				unsigned long size)
 {
 	struct page **pages;
@@ -823,21 +823,21 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
 	uint8_t *shadowbuf;
 	int result;
 
-	if (!v4l2pim_minor)
+	if (!minor)
 		return -EINVAL;
 
-	v4l2pim_free_shadowbuf(v4l2pim_minor);
+	v4l2pim_free_shadowbuf(minor);
 
 	num_pages = size / PAGE_SIZE;
 	if (size % PAGE_SIZE > 0)
 		num_pages++;
 
 	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages,
-		GFP_KERNEL, &v4l2pim_minor->kmalloc_track);
+		GFP_KERNEL, &minor->kmalloc_track);
 	if (!pages)
 		goto sb_alloc_err;
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages,
-		num_pages, &v4l2pim_minor->page_track);
+		num_pages, &minor->page_track);
 	if (result != 0)
 		goto sb_alloc_mpages_err;
 	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
@@ -845,42 +845,42 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
 		goto sb_alloc_map_err;
 	memset(shadowbuf, 0, size);
 
-	v4l2pim_minor->shadowbuf = shadowbuf;
-	v4l2pim_minor->shadowbufsize = size;
-	v4l2pim_minor->shadowbuf_pages = pages;
-	v4l2pim_minor->shadowbuf_num_pages = num_pages;
+	minor->shadowbuf = shadowbuf;
+	minor->shadowbufsize = size;
+	minor->shadowbuf_pages = pages;
+	minor->shadowbuf_num_pages = num_pages;
 
 	return 0;
 
 sb_alloc_map_err:
-	vcrtcm_free_multiple_pages(pages, num_pages, &v4l2pim_minor->page_track);
+	vcrtcm_free_multiple_pages(pages, num_pages, &minor->page_track);
 sb_alloc_mpages_err:
 	if (pages)
-		vcrtcm_kfree(pages, &v4l2pim_minor->kmalloc_track);
+		vcrtcm_kfree(pages, &minor->kmalloc_track);
 sb_alloc_err:
 
 	return -ENOMEM;
 }
 
-void v4l2pim_free_shadowbuf(struct v4l2pim_minor *v4l2pim_minor)
+void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor)
 {
-	if (!v4l2pim_minor)
+	if (!minor)
 		return;
-	if (!v4l2pim_minor->shadowbuf)
+	if (!minor->shadowbuf)
 		return;
 
-	vm_unmap_ram(v4l2pim_minor->shadowbuf,
-			v4l2pim_minor->shadowbuf_num_pages);
-	vcrtcm_free_multiple_pages(v4l2pim_minor->shadowbuf_pages,
-				v4l2pim_minor->shadowbuf_num_pages,
-				&v4l2pim_minor->page_track);
-	vcrtcm_kfree(v4l2pim_minor->shadowbuf_pages,
-			&v4l2pim_minor->kmalloc_track);
+	vm_unmap_ram(minor->shadowbuf,
+			minor->shadowbuf_num_pages);
+	vcrtcm_free_multiple_pages(minor->shadowbuf_pages,
+				minor->shadowbuf_num_pages,
+				&minor->page_track);
+	vcrtcm_kfree(minor->shadowbuf_pages,
+			&minor->kmalloc_track);
 
-	v4l2pim_minor->shadowbuf = NULL;
-	v4l2pim_minor->shadowbufsize = 0;
-	v4l2pim_minor->shadowbuf_pages = NULL;
-	v4l2pim_minor->shadowbuf_num_pages = 0;
+	minor->shadowbuf = NULL;
+	minor->shadowbufsize = 0;
+	minor->shadowbuf_pages = NULL;
+	minor->shadowbuf_num_pages = 0;
 
 	return;
 }
@@ -938,13 +938,13 @@ static struct video_device v4l2pim_template = {
 
 struct v4l2pim_minor *v4l2pim_create_minor()
 {
-	struct v4l2pim_minor *v4l2pim_minor;
+	struct v4l2pim_minor *minor;
 	struct video_device *vfd;
 	unsigned long flags;
 	int ret;
 	int new_minor = -1;
 
-	v4l2pim_minor = NULL;
+	minor = NULL;
 	vfd = NULL;
 
 	if (v4l2pim_num_minors == V4L2PIM_MAX_MINORS)
@@ -955,98 +955,98 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	if (new_minor < 0)
 		return NULL;
 
-	v4l2pim_minor = kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL);
-	if (!v4l2pim_minor) {
+	minor = kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL);
+	if (!minor) {
 		VCRTCM_ERROR("failed alloc of v4l2pim_minor\n");
 		vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
 						new_minor);
 		return NULL;
 	}
 
-	mutex_init(&v4l2pim_minor->mlock);
-	spin_lock_init(&v4l2pim_minor->slock);
+	mutex_init(&minor->mlock);
+	spin_lock_init(&minor->slock);
 
-	atomic_set(&v4l2pim_minor->kmalloc_track, 0);
-	atomic_set(&v4l2pim_minor->page_track, 0);
-	atomic_set(&v4l2pim_minor->vmalloc_track, 0);
-	atomic_set(&v4l2pim_minor->users, 0);
-	v4l2pim_minor->shadowbuf = NULL;
-	v4l2pim_minor->shadowbufsize = 0;
-	mutex_init(&v4l2pim_minor->sb_lock);
-	v4l2pim_minor->shadowbuf_pages = NULL;
-	v4l2pim_minor->shadowbuf_num_pages = 0;
+	atomic_set(&minor->kmalloc_track, 0);
+	atomic_set(&minor->page_track, 0);
+	atomic_set(&minor->vmalloc_track, 0);
+	atomic_set(&minor->users, 0);
+	minor->shadowbuf = NULL;
+	minor->shadowbufsize = 0;
+	mutex_init(&minor->sb_lock);
+	minor->shadowbuf_pages = NULL;
+	minor->shadowbuf_num_pages = 0;
 
-	snprintf(v4l2pim_minor->v4l2_dev.name,
-			sizeof(v4l2pim_minor->v4l2_dev.name),
+	snprintf(minor->v4l2_dev.name,
+			sizeof(minor->v4l2_dev.name),
 			"v4l2pim-%03d", new_minor);
-	ret = v4l2_device_register(NULL, &v4l2pim_minor->v4l2_dev);
+	ret = v4l2_device_register(NULL, &minor->v4l2_dev);
 	if (ret)
 		goto free_info;
-	videobuf_queue_vmalloc_init(&v4l2pim_minor->vb_vidq, &v4l2pim_video_qops,
-					NULL, &v4l2pim_minor->slock,
+	videobuf_queue_vmalloc_init(&minor->vb_vidq, &v4l2pim_video_qops,
+					NULL, &minor->slock,
 					V4L2_BUF_TYPE_VIDEO_CAPTURE,
 					V4L2_FIELD_NONE,
 					sizeof(struct videobuf_buffer),
-					v4l2pim_minor, &v4l2pim_minor->mlock);
-	INIT_LIST_HEAD(&v4l2pim_minor->active);
+					minor, &minor->mlock);
+	INIT_LIST_HEAD(&minor->active);
 	vfd = video_device_alloc();
 	if (!vfd)
 		goto unreg_dev;
 	*vfd = v4l2pim_template;
-	vfd->lock = &v4l2pim_minor->mlock;
-	vfd->v4l2_dev = &v4l2pim_minor->v4l2_dev;
+	vfd->lock = &minor->mlock;
+	vfd->v4l2_dev = &minor->v4l2_dev;
 	vfd->minor = new_minor;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		goto rel_dev;
-	video_set_drvdata(vfd, v4l2pim_minor);
-	v4l2pim_minor->vfd = vfd;
-	v4l2pim_minor->fmt = &formats[0];
+	video_set_drvdata(vfd, minor);
+	minor->vfd = vfd;
+	minor->fmt = &formats[0];
 
-	mutex_init(&v4l2pim_minor->buffer_mutex);
-	spin_lock_init(&v4l2pim_minor->v4l2pim_lock);
+	mutex_init(&minor->buffer_mutex);
+	spin_lock_init(&minor->v4l2pim_lock);
 
-	v4l2pim_minor->minor = new_minor;
-	INIT_LIST_HEAD(&v4l2pim_minor->list);
+	minor->minor = new_minor;
+	INIT_LIST_HEAD(&minor->list);
 
-	init_waitqueue_head(&v4l2pim_minor->xmit_sync_queue);
-	v4l2pim_minor->enabled_queue = 1;
+	init_waitqueue_head(&minor->xmit_sync_queue);
+	minor->enabled_queue = 1;
 
-	v4l2pim_minor->workqueue = create_workqueue("v4l2pim_workers");
+	minor->workqueue = create_workqueue("v4l2pim_workers");
 
-	v4l2pim_minor->pcon = NULL;
+	minor->pcon = NULL;
 
-	INIT_DELAYED_WORK(&v4l2pim_minor->fake_vblank_work, v4l2pim_fake_vblank);
+	INIT_DELAYED_WORK(&minor->fake_vblank_work, v4l2pim_fake_vblank);
 
-	spin_lock_irqsave(&v4l2pim_minor->v4l2pim_lock, flags);
-	v4l2pim_minor->status = 0;
-	spin_unlock_irqrestore(&v4l2pim_minor->v4l2pim_lock, flags);
-	list_add(&v4l2pim_minor->list, &v4l2pim_minor_list);
-	return v4l2pim_minor;
+	spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+	minor->status = 0;
+	spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+	list_add(&minor->list, &v4l2pim_minor_list);
+	return minor;
 rel_dev:
 	video_device_release(vfd);
 unreg_dev:
-	v4l2_device_unregister(&v4l2pim_minor->v4l2_dev);
+	v4l2_device_unregister(&minor->v4l2_dev);
 free_info:
-	kfree(v4l2pim_minor);
+	kfree(minor);
 	return NULL;
 
 }
 
-void v4l2pim_destroy_minor(struct v4l2pim_minor *v4l2pim_minor)
+void v4l2pim_destroy_minor(struct v4l2pim_minor *minor)
 {
-	video_unregister_device(v4l2pim_minor->vfd);
-	v4l2_device_unregister(&v4l2pim_minor->v4l2_dev);
-	cancel_delayed_work_sync(&v4l2pim_minor->fake_vblank_work);
-	mutex_lock(&v4l2pim_minor->sb_lock);
-	if (v4l2pim_minor->shadowbuf)
-		v4l2pim_free_shadowbuf(v4l2pim_minor);
-	mutex_unlock(&v4l2pim_minor->sb_lock);
+	video_unregister_device(minor->vfd);
+	v4l2_device_unregister(&minor->v4l2_dev);
+	cancel_delayed_work_sync(&minor->fake_vblank_work);
+	mutex_lock(&minor->sb_lock);
+	if (minor->shadowbuf)
+		v4l2pim_free_shadowbuf(minor);
+	mutex_unlock(&minor->sb_lock);
 	vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
-					v4l2pim_minor->minor);
+					minor->minor);
 	v4l2pim_num_minors--;
-	list_del(&v4l2pim_minor->list);
-	kfree(v4l2pim_minor);
+	list_del(&minor->list);
+	kfree(minor);
 }
 
 static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
