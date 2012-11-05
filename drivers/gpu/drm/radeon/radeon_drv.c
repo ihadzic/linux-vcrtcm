@@ -143,7 +143,6 @@ int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
 int radeon_num_virt_crtcs;
-int radeon_vbl_emu_async;
 int radeon_fb_virt_crtc = 1;
 int radeon_conn_virt_crtc;
 
@@ -200,9 +199,6 @@ module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
 MODULE_PARM_DESC(num_virt_crtcs, "Number of virtual crtcs to allocate");
 module_param_named(num_virt_crtcs, radeon_num_virt_crtcs, int, 0644);
-
-MODULE_PARM_DESC(vbl_emu_async, "Use asynchronous vblank emulation (0 = disable)");
-module_param_named(vbl_emu_async, radeon_vbl_emu_async, int, 0644);
 
 MODULE_PARM_DESC(fb_virt_crtc, "Use virtual CRTCs fb (0 = disable)");
 module_param_named(fb_virt_crtc, radeon_fb_virt_crtc, int, 0644);

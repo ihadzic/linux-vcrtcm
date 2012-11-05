@@ -96,7 +96,6 @@ extern int radeon_pcie_gen2;
 extern int radeon_msi;
 extern int radeon_lockup_timeout;
 extern int radeon_num_virt_crtcs;
-extern int radeon_vbl_emu_async;
 extern int radeon_fb_virt_crtc;
 extern int radeon_conn_virt_crtc;
 
@@ -1467,18 +1466,6 @@ struct radeon_atif_notification_cfg {
 	int command_code;
 };
 
-/*
- * vblank emulation for virtual CRTCs
- * used in push mode only
- */
-struct radeon_vblank_emu_driver {
-	struct work_struct	cleanup_work;
-	spinlock_t		pending_queue_lock;
-	struct list_head	pending_queue;
-};
-
-void radeon_vbl_emu_cleanup_work(struct work_struct *work);
-
 struct radeon_atif_notifications {
 	bool display_switch;
 	bool expansion_mode_change;
@@ -1612,7 +1599,6 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual crtcs */
 	int num_virtual_crtc;
-	struct radeon_vblank_emu_driver vbl_emu_drv;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;

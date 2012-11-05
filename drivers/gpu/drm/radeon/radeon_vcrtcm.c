@@ -228,7 +228,6 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
 	struct radeon_fence *fence_c = srcrtc->last_push_fence_c;
 	struct radeon_fence *fence_fb = srcrtc->last_push_fence_fb;
-	struct push_vblank_pending *push_vblank_pending = NULL;
 	struct drm_gem_object *sfbbo;
 	struct radeon_framebuffer *srfb;
 	struct radeon_bo *src_rbo, *dst_rbo;
@@ -291,57 +290,23 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	/* if we are dealing with a virtual CRTC, we'll need to emulate */
 	/* vblank, so we need a pending vblank queue element */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
-		/* virtual CRTC (copy + vblank emulation) */
-		if (radeon_vbl_emu_async) {
-			unsigned long flags;
-
-			push_vblank_pending =
-				kmalloc(sizeof(struct push_vblank_pending),
-					GFP_KERNEL);
-			if (!push_vblank_pending)
-				return -ENOMEM;
-
-			push_vblank_pending->radeon_fence = fence_fb;
-			push_vblank_pending->vblank_sent = 0;
-			push_vblank_pending->radeon_crtc = srcrtc;
-			push_vblank_pending->start_jiffies = jiffies;
-			radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
-
-			/*
-			 * we don't wait for fence here, but we put it in
-			 * a queue; when the fence is signaled, the queue
-			 * is checked and if the fence is there, vblank
-			 * emulation is called; not used for physical crtcs
-			 */
-			spin_lock_irqsave(&rdev->vbl_emu_drv.pending_queue_lock,
-					  flags);
-			list_add_tail(&push_vblank_pending->list,
-				      &rdev->vbl_emu_drv.pending_queue);
-			spin_unlock_irqrestore(&rdev->vbl_emu_drv.pending_queue_lock,
-					       flags);
-		} else {
-			/*
-			 * if we are not using asyncrhonous vblank emulation
-			 * then we have no choice but to "speculatively"
-			 * emulate the vblank here; copy has probably not
-			 * completed yet, but it is still safe to signal the
-			 * vblank because any subsequent rendering will
-			 * be pipelined into the GPU's queue after the copy
-			 * and will thus happen after the copy completes
-			 * there should be no frame tearing and things should
-			 * still work; n.b.: since we don't add anything
-			 * to vbl_emu_drv.pending_queue, nobody will look
-			 * at it, ISR is safe without checking the
-			 * radeon_vbl_emu_async parameter
-			 */
-			if (fence_fb)
-				radeon_fence_unref(&fence_fb);
-			radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
-			srcrtc->last_push_fence_fb = fence_fb;
-			if (srcrtc->vcrtcm_pcon_info)
-				vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon_info);
-			radeon_emulate_vblank(scrtc);
-		}
+		/* virtual CRTC (copy + vblank emulation)
+		 *
+		 * we have no choice but to "speculatively"
+		 * emulate the vblank here; copy has probably not
+		 * completed yet, but it is still safe to signal the
+		 * vblank because any subsequent rendering will
+		 * be pipelined into the GPU's queue after the copy
+		 * and will thus happen after the copy completes
+		 * there should be no frame tearing.
+		 */
+		if (fence_fb)
+			radeon_fence_unref(&fence_fb);
+		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
+		srcrtc->last_push_fence_fb = fence_fb;
+		if (srcrtc->vcrtcm_pcon_info)
+			vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon_info);
+		radeon_emulate_vblank(scrtc);
 	} else {
 		/* physical CRTC (just copy, not vblank emulation) */
 		if (fence_fb)

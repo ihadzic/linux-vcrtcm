@@ -1225,28 +1225,3 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 	DRM_INFO("created virtual crtc radeon_crtc_id %d, drm_crtc_id %d\n",
 		 radeon_crtc->crtc_id, radeon_crtc->base.base.id);
 }
-
-void radeon_vbl_emu_cleanup_work(struct work_struct *work)
-{
-	struct radeon_vblank_emu_driver *vbl_emu_drv =
-		container_of(work, struct radeon_vblank_emu_driver,
-			     cleanup_work);
-	unsigned long flags;
-	struct push_vblank_pending *push_vblank_pending, *tmp;
-
-	spin_lock_irqsave(&vbl_emu_drv->pending_queue_lock, flags);
-	list_for_each_entry_safe(push_vblank_pending, tmp,
-				 &vbl_emu_drv->pending_queue, list) {
-		if (push_vblank_pending->vblank_sent) {
-			DRM_DEBUG("push complete crtc_id=%d, time=%lu ms\n",
-				  push_vblank_pending->radeon_crtc->crtc_id,
-				  (push_vblank_pending->end_jiffies-
-				  push_vblank_pending->start_jiffies)*1000/HZ);
-			list_del(&push_vblank_pending->list);
-			WARN_ON(!radeon_fence_signaled(push_vblank_pending->radeon_fence));
-			radeon_fence_unref(&push_vblank_pending->radeon_fence);
-			kfree(push_vblank_pending);
-		}
-	}
-	spin_unlock_irqrestore(&vbl_emu_drv->pending_queue_lock, flags);
-}

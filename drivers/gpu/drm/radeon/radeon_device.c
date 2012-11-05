@@ -1021,11 +1021,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->vm_manager.max_pfn = 1 << 20;
 	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
-	/* vblank emulation init */
-	INIT_LIST_HEAD(&rdev->vbl_emu_drv.pending_queue);
-	spin_lock_init(&rdev->vbl_emu_drv.pending_queue_lock);
-	INIT_WORK(&rdev->vbl_emu_drv.cleanup_work, radeon_vbl_emu_cleanup_work);
-
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)

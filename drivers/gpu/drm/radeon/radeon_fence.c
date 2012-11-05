@@ -135,8 +135,6 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 	uint64_t seq, last_seq, last_emitted;
 	unsigned count_loop = 0;
 	bool wake = false;
-	unsigned long flags;
-	struct push_vblank_pending *push_vblank_pending;
 
 	/* Note there is a scenario here for an infinite loop but it's
 	 * very unlikely to happen. For it to happen, the current polling
@@ -192,22 +190,6 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 		rdev->fence_drv[ring].last_activity = jiffies;
 		wake_up_all(&rdev->fence_queue);
 	}
-	/* check fences that need vblank emulation */
-	spin_lock_irqsave(&rdev->vbl_emu_drv.pending_queue_lock, flags);
-	list_for_each_entry(push_vblank_pending,
-			    &rdev->vbl_emu_drv.pending_queue, list) {
-		if (radeon_fence_signaled(push_vblank_pending->radeon_fence)) {
-			push_vblank_pending->end_jiffies = jiffies;
-			if (push_vblank_pending->radeon_crtc->vcrtcm_pcon_info)
-				vcrtcm_g_set_vblank_time(push_vblank_pending->
-					radeon_crtc->vcrtcm_pcon_info);
-			radeon_emulate_vblank_core(rdev,
-				push_vblank_pending->radeon_crtc);
-			push_vblank_pending->vblank_sent = 1;
-		}
-	}
-	spin_unlock_irqrestore(&rdev->vbl_emu_drv.pending_queue_lock, flags);
-	schedule_work(&rdev->vbl_emu_drv.cleanup_work);
 }
 
 /**
