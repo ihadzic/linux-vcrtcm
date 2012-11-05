@@ -226,9 +226,12 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	cancel_delayed_work_sync(&minor->fake_vblank_work);
 
 	if (minor->pcon) {
-		vcrtcm_p_destroy(minor->pcon->pconid);
+		int pconid = minor->pcon->pconid;
+
+		vcrtcm_p_disable_callbacks(pconid);
 		udlpim_detach_pcon(minor->pcon);
 		udlpim_destroy_pcon(minor->pcon);
+		vcrtcm_p_destroy(pconid);
 		minor->pcon = NULL;
 	}
 
