@@ -950,7 +950,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	if (v4l2pim_num_minors == V4L2PIM_MAX_MINORS)
 		return NULL;
 
-	/* Assign a minor number */
 	new_minor = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
 						VCRTCM_ID_REUSE);
 	if (new_minor < 0)
@@ -959,6 +958,8 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	v4l2pim_minor = kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL);
 	if (!v4l2pim_minor) {
 		VCRTCM_ERROR("failed alloc of v4l2pim_minor\n");
+		vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
+						new_minor);
 		return NULL;
 	}
 
