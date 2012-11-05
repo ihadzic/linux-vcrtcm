@@ -84,11 +84,12 @@ static int __init udlpim_init(void)
 static void __exit udlpim_exit(void)
 {
 	struct udlpim_minor *minor;
+	struct udlpim_minor *tmp;
 
 	VCRTCM_INFO("shutting down udlpim\n");
 	vcrtcm_pim_disable_callbacks(pimid);
 	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
-	list_for_each_entry(minor, &udlpim_minor_list, list) {
+	list_for_each_entry_safe(minor, tmp, &udlpim_minor_list, list) {
 		if (minor->pcon) {
 			udlpim_detach_pcon(minor->pcon);
 			udlpim_destroy_pcon(minor->pcon);
