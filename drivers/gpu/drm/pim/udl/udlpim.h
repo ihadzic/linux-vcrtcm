@@ -104,7 +104,7 @@ struct udlpim_minor {
 	int minor;
 	struct udlpim_pcon *pcon;
 	struct mutex buffer_mutex;
-	spinlock_t udlpim_lock;
+	spinlock_t lock;
 	int enabled_queue;
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;

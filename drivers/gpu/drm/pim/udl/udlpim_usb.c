@@ -98,7 +98,7 @@ static struct udlpim_minor *udlpim_create_minor(void)
 	atomic_set(&minor->page_track, 0);
 	minor->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
 	mutex_init(&minor->buffer_mutex);
-	spin_lock_init(&minor->udlpim_lock);
+	spin_lock_init(&minor->lock);
 	init_waitqueue_head(&minor->xmit_sync_queue);
 	INIT_LIST_HEAD(&minor->list);
 	minor->workqueue =
@@ -444,10 +444,10 @@ int udlpim_build_modelist(struct udlpim_minor *minor,
 		goto error;
 
 	/* Get the spinlock and copy the EDID into our local buffer */
-	spin_lock_irqsave(&minor->udlpim_lock, flags);
+	spin_lock_irqsave(&minor->lock, flags);
 	if (minor->edid)
 		memcpy(edid_copy, minor->edid, EDID_LENGTH);
-	spin_unlock_irqrestore(&minor->udlpim_lock, flags);
+	spin_unlock_irqrestore(&minor->lock, flags);
 
 	/* If we have an EDID, parse it */
 	fb_edid_to_monspecs(edid_copy, &monspecs);
@@ -612,11 +612,11 @@ void udlpim_query_edid_core(struct udlpim_minor *minor)
 		new_edid = NULL;
 	}
 
-	spin_lock_irqsave(&minor->udlpim_lock, flags);
+	spin_lock_irqsave(&minor->lock, flags);
 	old_edid = minor->edid;
 	minor->edid = new_edid;
 	minor->monitor_connected = new_edid ? 1 : 0;
-	spin_unlock_irqrestore(&minor->udlpim_lock, flags);
+	spin_unlock_irqrestore(&minor->lock, flags);
 
 	if (pcon && ((!old_edid && new_edid) ||
 		(old_edid && !new_edid) || (old_edid && new_edid &&
