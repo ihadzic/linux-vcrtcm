@@ -71,7 +71,7 @@ struct v4l2pim_minor {
 	int minor;
 	struct v4l2pim_pcon *pcon;
 	struct mutex buffer_mutex;
-	spinlock_t v4l2pim_lock;
+	spinlock_t lock;
 	int enabled_queue;
 	unsigned long status;
 	atomic_t users;

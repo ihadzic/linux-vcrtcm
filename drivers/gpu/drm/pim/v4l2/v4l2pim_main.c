@@ -1004,7 +1004,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	minor->fmt = &formats[0];
 
 	mutex_init(&minor->buffer_mutex);
-	spin_lock_init(&minor->v4l2pim_lock);
+	spin_lock_init(&minor->lock);
 
 	minor->minor = new_minor;
 	INIT_LIST_HEAD(&minor->list);
@@ -1018,9 +1018,9 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 
 	INIT_DELAYED_WORK(&minor->fake_vblank_work, v4l2pim_fake_vblank);
 
-	spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+	spin_lock_irqsave(&minor->lock, flags);
 	minor->status = 0;
-	spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+	spin_unlock_irqrestore(&minor->lock, flags);
 	list_add(&minor->list, &v4l2pim_minor_list);
 	return minor;
 rel_dev:

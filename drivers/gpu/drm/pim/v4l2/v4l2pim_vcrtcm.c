@@ -304,10 +304,10 @@ int v4l2pim_get_fb_status(int pconid, void *cookie,
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("\n");
 
-	spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+	spin_lock_irqsave(&minor->lock, flags);
 	if (minor->status & V4L2PIM_IN_DO_XMIT)
 		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+	spin_unlock_irqrestore(&minor->lock, flags);
 
 	*status = tmp_status;
 
@@ -549,9 +549,9 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 	V4L2PIM_DEBUG("in v4l2pim_do_xmit_fb_push, minor %d\n",
 		      minor->minor);
 
-	spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+	spin_lock_irqsave(&minor->lock, flags);
 	minor->status |= V4L2PIM_IN_DO_XMIT;
-	spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+	spin_unlock_irqrestore(&minor->lock, flags);
 
 	push_buffer_index = pcon->push_buffer_index;
 
@@ -593,9 +593,9 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 				pcon->vcrtcm_fb.hdisplay,
 				pcon->vcrtcm_fb.vdisplay);
 
-		spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+		spin_lock_irqsave(&minor->lock, flags);
 		minor->status &= ~V4L2PIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+		spin_unlock_irqrestore(&minor->lock, flags);
 
 		r = vcrtcm_p_push(pcon->pconid,
 				  pcon->pbd_fb[push_buffer_index],
@@ -625,9 +625,9 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		spin_lock_irqsave(&minor->v4l2pim_lock, flags);
+		spin_lock_irqsave(&minor->lock, flags);
 		minor->status &= ~V4L2PIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&minor->v4l2pim_lock, flags);
+		spin_unlock_irqrestore(&minor->lock, flags);
 
 		vcrtcm_p_emulate_vblank(pcon->pconid);
 		V4L2PIM_DEBUG("transmission not happening\n");
