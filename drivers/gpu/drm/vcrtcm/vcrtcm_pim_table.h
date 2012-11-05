@@ -32,12 +32,11 @@ struct vcrtcm_pim {
 	struct list_head pim_list;
 };
 
-struct vcrtcm_pim *vcrtcm_find_pim_by_id(int pimid);
-struct vcrtcm_pim *vcrtcm_find_pim_by_name(char *pim_name);
-struct vcrtcm_pim *vcrtcm_create_pim(
-	char *pim_name, struct vcrtcm_pim_funcs *funcs);
+struct vcrtcm_pim *vcrtcm_find_pim(int pimid);
+struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
+	struct vcrtcm_pim_funcs *funcs);
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim);
-void vcrtcm_add_pim(struct vcrtcm_pim *pim);
-void vcrtcm_remove_pim(struct vcrtcm_pim *pim);
+void vcrtcm_init_pim_table(void);
+void vcrtcm_free_pims(void);
 
 #endif

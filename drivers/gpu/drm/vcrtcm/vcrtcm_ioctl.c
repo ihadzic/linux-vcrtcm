@@ -33,7 +33,7 @@ long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 	int r;
 
 	VCRTCM_INFO("in pimtest: %d, %d\n", pimid, testarg);
-	pim = vcrtcm_find_pim_by_id(pimid);
+	pim = vcrtcm_find_pim(pimid);
 	if (!pim) {
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
@@ -54,7 +54,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	int r;
 
 	VCRTCM_INFO("in instantiate pcon: %d, %d\n", pimid, hints);
-	pim = vcrtcm_find_pim_by_id(pimid);
+	pim = vcrtcm_find_pim(pimid);
 	if (!pim) {
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;

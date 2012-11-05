@@ -30,6 +30,6 @@ struct vcrtcm_pcon;
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(void);
 void vcrtcm_dealloc_pcon(int pconid);
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
-int vcrtcm_pcon_table_init(void);
+int vcrtcm_init_pcon_table(void);
 
 #endif

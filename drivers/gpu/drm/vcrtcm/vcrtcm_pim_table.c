@@ -28,6 +28,8 @@
 #include "vcrtcm_module.h"
 
 static int next_pimid;
+static struct list_head pim_list;
+static struct mutex pim_list_mutex;
 
 struct vcrtcm_pim *vcrtcm_create_pim(
 	char *pim_name, struct vcrtcm_pim_funcs *funcs)
@@ -36,68 +38,67 @@ struct vcrtcm_pim *vcrtcm_create_pim(
 
 	if (!pim_name || !funcs)
 		return NULL;
-
+	mutex_lock(&pim_list_mutex);
+	list_for_each_entry(pim, &pim_list, pim_list) {
+		if (strcmp(pim->name, pim_name) == 0) {
+			mutex_unlock(&pim_list_mutex);
+			return ERR_PTR(-EINVAL);
+		}
+	}
 	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc(
-						sizeof(struct vcrtcm_pim),
-							GFP_KERNEL,
-							&vcrtcm_kmalloc_track);
-
-	if (!pim)
-		return NULL;
-
+		sizeof(struct vcrtcm_pim), GFP_KERNEL, &vcrtcm_kmalloc_track);
+	if (!pim) {
+		mutex_unlock(&pim_list_mutex);
+		return ERR_PTR(-ENOMEM);
+	}
 	strncpy(pim->name, pim_name, PIM_NAME_MAXLEN);
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
-
+	pim->id = next_pimid;
+	next_pimid++;
+	list_add_tail(&pim->pim_list, &pim_list);
+	mutex_unlock(&pim_list_mutex);
 	return pim;
 }
 
-struct vcrtcm_pim *vcrtcm_find_pim_by_name(char *pim_name)
+struct vcrtcm_pim *vcrtcm_find_pim(int pimid)
 {
 	struct vcrtcm_pim *pim;
 
-	if (!pim_name)
-		return NULL;
-
-	list_for_each_entry(pim, &vcrtcm_pim_list, pim_list) {
-		if (strcmp(pim->name, pim_name) == 0)
+	mutex_lock(&pim_list_mutex);
+	list_for_each_entry(pim, &pim_list, pim_list) {
+		if (pim->id == pimid) {
+			mutex_unlock(&pim_list_mutex);
 			return pim;
+		}
 	}
-
-	return NULL;
-}
-
-struct vcrtcm_pim *vcrtcm_find_pim_by_id(int pimid)
-{
-	struct vcrtcm_pim *pim;
-
-	list_for_each_entry(pim, &vcrtcm_pim_list, pim_list) {
-		if (pim->id == pimid)
-			return pim;
-	}
-
+	mutex_unlock(&pim_list_mutex);
 	return NULL;
 }
 
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 {
-	if (pim)
-		vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
-}
-
-void vcrtcm_add_pim(struct vcrtcm_pim *pim)
-{
-	mutex_lock(&vcrtcm_pim_list_mutex);
-	pim->id = next_pimid;
-	next_pimid++;
-	list_add_tail(&pim->pim_list, &vcrtcm_pim_list);
-	mutex_unlock(&vcrtcm_pim_list_mutex);
-}
-
-void vcrtcm_remove_pim(struct vcrtcm_pim *pim)
-{
-	mutex_lock(&vcrtcm_pim_list_mutex);
+	mutex_lock(&pim_list_mutex);
 	list_del(&pim->pim_list);
-	mutex_unlock(&vcrtcm_pim_list_mutex);
+	vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
+	mutex_unlock(&pim_list_mutex);
+}
+
+void vcrtcm_init_pim_table()
+{
+	INIT_LIST_HEAD(&pim_list);
+	mutex_init(&pim_list_mutex);
+}
+
+void vcrtcm_free_pims()
+{
+	struct vcrtcm_pim *pim, *pim_tmp;
+
+	mutex_lock(&pim_list_mutex);
+	list_for_each_entry_safe(pim, pim_tmp, &pim_list, pim_list) {
+		list_del(&pim->pim_list);
+		vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
+	}
+	mutex_unlock(&pim_list_mutex);
 }

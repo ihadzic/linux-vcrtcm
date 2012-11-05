@@ -94,7 +94,7 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 	return ret;
 }
 
-int vcrtcm_pcon_table_init()
+int vcrtcm_init_pcon_table()
 {
 	mutex_init(&pconid_table_mutex);
 	return 0;

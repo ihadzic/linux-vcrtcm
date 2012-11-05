@@ -100,7 +100,8 @@ struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
 	gfp_t gfp_mask, atomic_t *kmalloc_track, atomic_t *page_track);
 void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd,
 	atomic_t *kmalloc_track, atomic_t *page_track);
-int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs);
-void vcrtcm_pim_unregister(char *pim_name);
+int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
+	int *pimid);
+void vcrtcm_pim_unregister(int pimid);
 
 #endif
