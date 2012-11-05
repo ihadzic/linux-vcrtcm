@@ -56,6 +56,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
 	pim->id = next_pimid;
+	pim->callbacks_enabled = 1;
 	next_pimid++;
 	list_add_tail(&pim->pim_list, &pim_list);
 	mutex_unlock(&pim_list_mutex);

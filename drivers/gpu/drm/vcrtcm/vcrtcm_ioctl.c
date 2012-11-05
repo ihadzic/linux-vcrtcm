@@ -38,7 +38,7 @@ long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
 	}
-	if (pim->funcs.test) {
+	if (pim->funcs.test && pim->callbacks_enabled) {
 		r = pim->funcs.test(testarg);
 		VCRTCM_INFO("pimtest returned %d\n", r);
 		return r;
@@ -65,10 +65,10 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		return -ENODEV;
 	}
 	pcon->pim = pim;
-	if (pim->funcs.instantiate) {
+	if (pim->funcs.instantiate && pim->callbacks_enabled) {
 		r = pim->funcs.instantiate(pcon->pconid, hints,
 						&pcon->pcon_cookie,
-						&pcon->funcs,
+						&pcon->pcon_funcs,
 						&pcon->xfer_mode,
 						&pcon->minor,
 						pcon->description);
@@ -109,10 +109,10 @@ long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	else
 		VCRTCM_INFO("doing implicit detach of pcon id %i\n",
 			pcon->pconid);
-	if (pcon->funcs.detach) {
+	if (pcon->pcon_funcs.detach && pcon->pim->callbacks_enabled) {
 		int r;
 
-		r = pcon->funcs.detach(pcon->pconid,
+		r = pcon->pcon_funcs.detach(pcon->pconid,
 						pcon->pcon_cookie);
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon %d\n",

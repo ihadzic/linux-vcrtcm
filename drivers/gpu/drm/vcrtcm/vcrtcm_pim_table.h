@@ -30,6 +30,7 @@ struct vcrtcm_pim {
 	struct list_head pcons_in_pim_list;
 	struct kobject kobj;
 	struct list_head pim_list;
+	int callbacks_enabled;
 };
 
 struct vcrtcm_pim *vcrtcm_find_pim(int pimid);

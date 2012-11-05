@@ -61,7 +61,8 @@ struct vcrtcm_pcon {
 	char description[PCON_DESC_MAXLEN];
 	struct vcrtcm_pim *pim;
 	struct mutex mutex;
-	struct vcrtcm_pcon_funcs funcs;
+	struct vcrtcm_pcon_funcs pcon_funcs;
+	struct vcrtcm_gpu_funcs gpu_funcs;
 	enum vcrtcm_xfer_mode xfer_mode;
 	void *pcon_cookie;
 	int pconid; /* index into table maintained by vcrtcm */
@@ -77,8 +78,6 @@ struct vcrtcm_pcon {
 	int vblank_time_valid;
 	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
-	/* functional interface to GPU driver */
-	struct vcrtcm_gpu_funcs gpu_funcs;
 };
 
 /* setup/config functions */

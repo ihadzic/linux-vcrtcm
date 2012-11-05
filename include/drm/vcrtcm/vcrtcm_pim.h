@@ -103,5 +103,6 @@ void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd,
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
 	int *pimid);
 void vcrtcm_pim_unregister(int pimid);
+void vcrtcm_pim_disable_callbacks(int pimid);
 
 #endif

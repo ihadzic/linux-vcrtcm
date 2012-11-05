@@ -198,9 +198,10 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
-		if (!pcon->funcs.get_properties)
+		if (!pcon->pcon_funcs.get_properties ||
+			!pcon->pim->callbacks_enabled)
 			return 0;
-		result = pcon->funcs.get_properties(pcon->pconid,
+		result = pcon->pcon_funcs.get_properties(pcon->pconid,
 			pcon->pcon_cookie, &props);
 		if (!result)
 			return 0;
@@ -212,9 +213,10 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		struct vcrtcm_pcon_properties props;
 		int result = 0;
 
-		if (!pcon->funcs.get_properties)
+		if (!pcon->pcon_funcs.get_properties ||
+			!pcon->pim->callbacks_enabled)
 			return 0;
-		result = pcon->funcs.get_properties(pcon->pconid,
+		result = pcon->pcon_funcs.get_properties(pcon->pconid,
 			pcon->pcon_cookie, &props);
 		if (!result)
 			return 0;

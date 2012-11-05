@@ -34,7 +34,7 @@ int vcrtcm_pim_register(char *pim_name,
 {
 	struct vcrtcm_pim *pim;
 
-	VCRTCM_INFO("registering PIM %s\n", pim_name);
+	VCRTCM_INFO("registering pim %s\n", pim_name);
 	pim = vcrtcm_create_pim(pim_name, funcs);
 	if (IS_ERR(pim))
 		return PTR_ERR(pim);
@@ -61,3 +61,16 @@ void vcrtcm_pim_unregister(int pimid)
 	VCRTCM_INFO("finished unregistering pim\n");
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
+
+void vcrtcm_pim_disable_callbacks(int pimid)
+{
+	struct vcrtcm_pim *pim;
+
+	pim = vcrtcm_find_pim(pimid);
+	if (!pim)
+		return;
+	VCRTCM_INFO("disabling callbacks for pim %s\n", pim->name);
+	pim->callbacks_enabled = 0;
+}
+EXPORT_SYMBOL(vcrtcm_pim_disable_callbacks);
+

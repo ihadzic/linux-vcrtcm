@@ -101,8 +101,10 @@ static void __exit vcrtcm_exit(void)
 			if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 						pcon->drm_crtc);
-				if (pcon->funcs.detach)
-					pcon->funcs.detach(pcon->pconid, pcon->pcon_cookie);
+				if (pcon->pcon_funcs.detach &&
+					pcon->pim->callbacks_enabled)
+					pcon->pcon_funcs.detach(pcon->pconid,
+						pcon->pcon_cookie);
 				if (pcon->gpu_funcs.detach)
 					pcon->gpu_funcs.detach(pcon->drm_crtc);
 			}
