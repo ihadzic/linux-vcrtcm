@@ -70,6 +70,92 @@ static struct udlpim_video_mode fallback_mode = {
 		.vsync_len = 2
 };
 
+static struct udlpim_minor *udlpim_create_minor(void)
+{
+	struct udlpim_minor *minor;
+	int minornum;
+
+	if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
+		VCRTCM_ERROR("Maximum number of minors already assigned.\n");
+		return NULL;
+	}
+	minornum = vcrtcm_id_generator_get(&udlpim_minor_id_generator,
+						VCRTCM_ID_REUSE);
+	if (minornum < 0)
+		return NULL;
+	minor = kzalloc(sizeof(struct udlpim_minor), GFP_KERNEL);
+	if (!minor) {
+		vcrtcm_id_generator_put(&udlpim_minor_id_generator, minornum);
+		return NULL;
+	}
+	minor->minor = minornum;
+	/* we need to wait for both usb and vcrtcm to finish on disconnect */
+	kref_init(&minor->kref); /* matching kref_put in udb .disconnect fn */
+	/*kref_get(&minor->kref); */ /* matching kref_put in vcrtcm detach */
+
+	atomic_set(&minor->kmalloc_track, 0);
+	atomic_set(&minor->vmalloc_track, 0);
+	atomic_set(&minor->page_track, 0);
+	minor->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
+	mutex_init(&minor->buffer_mutex);
+	spin_lock_init(&minor->udlpim_lock);
+	init_waitqueue_head(&minor->xmit_sync_queue);
+	INIT_LIST_HEAD(&minor->list);
+	minor->workqueue =
+			alloc_workqueue("udlpim_workers", WQ_MEM_RECLAIM, 5);
+	minor->enabled_queue = 1;
+	INIT_DELAYED_WORK(&minor->fake_vblank_work, udlpim_fake_vblank);
+	INIT_DELAYED_WORK(&minor->query_edid_work, udlpim_query_edid);
+	memcpy(&minor->default_video_mode,
+			&fallback_mode, sizeof(struct udlpim_video_mode));
+	atomic_set(&minor->usb_active, 1);
+	udlpim_num_minors++;
+	return minor;
+}
+
+static void udlpim_destroy_minor(struct udlpim_minor *minor)
+{
+	int minornum = minor->minor;
+
+	VCRTCM_INFO("destroying minor %d\n", minornum);
+	cancel_delayed_work_sync(&minor->fake_vblank_work);
+
+	/* this function will wait for all in-flight urbs to complete */
+	if (minor->urbs.count > 0)
+		udlpim_free_urb_list(minor);
+
+	UDLPIM_DEBUG("freeing edid: %p\n", minor->edid);
+	if (minor->edid)
+		vcrtcm_kfree(minor->edid, &minor->kmalloc_track);
+
+	if (minor->last_vcrtcm_mode_list)
+		vcrtcm_kfree(minor->last_vcrtcm_mode_list,
+			&minor->kmalloc_track);
+
+	udlpim_unmap_scratch_memory(minor);
+	udlpim_free_scratch_memory(minor);
+
+	UDLPIM_DEBUG("page_track : %d\n",
+		atomic_read(&minor->page_track));
+	UDLPIM_DEBUG("kmalloc_track: %d\n",
+		atomic_read(&minor->kmalloc_track));
+	UDLPIM_DEBUG("vmalloc_track: %d\n",
+		atomic_read(&minor->vmalloc_track));
+
+	list_del(&minor->list);
+	kfree(minor);
+	vcrtcm_id_generator_put(&udlpim_minor_id_generator, minor->minor);
+	udlpim_num_minors--;
+	VCRTCM_INFO("finished destroying minor %d\n", minornum);
+}
+
+static void udlpim_destroy_minor_kref(struct kref *kref)
+{
+	struct udlpim_minor *minor =
+		container_of(kref, struct udlpim_minor, kref);
+	udlpim_destroy_minor(minor);
+}
+
 /******************************************************************************
  * USB/device setup
  * These functions setup the driver for each attached device
@@ -85,29 +171,14 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *usbdev;
 	struct udlpim_minor *minor;
+	int retval = -EINVAL;
 
-	int retval = -ENOMEM;
-	int new_minor = -1;
-	unsigned long flags;
-
-	/* usb initialization */
 	usbdev = interface_to_usbdev(interface);
-
-	minor = kzalloc(sizeof(struct udlpim_minor), GFP_KERNEL);
-
+	minor = udlpim_create_minor();
 	if (minor == NULL) {
 		VCRTCM_ERROR("udlpim_usb_probe: failed alloc of udlpim_minor\n");
-		goto error;
+		return -ENOMEM;
 	}
-
-	/* we need to wait for both usb and vcrtcm to finish on disconnect */
-	kref_init(&minor->kref); /* matching kref_put in udb .disconnect fn */
-	/*kref_get(&minor->kref); */ /* matching kref_put in vcrtcm detach */
-
-	atomic_set(&minor->kmalloc_track, 0);
-	atomic_set(&minor->vmalloc_track, 0);
-	atomic_set(&minor->page_track, 0);
-
 	minor->udev = usbdev;
 	minor->gdev = &usbdev->dev;  /* generic struct device */
 	usb_set_intfdata(interface, minor);
@@ -118,70 +189,19 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
 		usbdev->descriptor.bcdDevice, minor);
 
-	minor->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
-
 	if (!udlpim_parse_vendor_descriptor(minor, usbdev)) {
 		VCRTCM_ERROR("Firmware not recognized. Assume incompatible device.\n");
 		goto error;
 	}
 
 	if (!udlpim_alloc_urb_list(minor, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		retval = -ENOMEM;
 		VCRTCM_ERROR("udlpim_alloc_urb_list failed\n");
+		retval = -ENOMEM;
 		goto error;
 	}
 
 	/* TODO: Investigate USB class business */
 
-	/* Do non-USB/VCRTCM driver setup */
-	INIT_LIST_HEAD(&minor->list);
-
-	/* If we ready have too many minors, error out. */
-	if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
-		VCRTCM_ERROR("Maximum number of minors already assigned. "
-			"Device will be unusable.\n");
-		goto error;
-	}
-
-	/* Assign a minor number */
-	new_minor = vcrtcm_id_generator_get(&udlpim_minor_id_generator,
-						VCRTCM_ID_REUSE);
-	if (new_minor < 0) {
-		VCRTCM_ERROR("Problem getting new minor number. "
-				"Device will be unusable.\n");
-		goto error;
-	}
-
-	minor->minor = new_minor;
-	udlpim_num_minors++;
-
-	mutex_init(&minor->buffer_mutex);
-	spin_lock_init(&minor->udlpim_lock);
-
-	init_waitqueue_head(&minor->xmit_sync_queue);
-	minor->enabled_queue = 1;
-
-	minor->workqueue =
-			alloc_workqueue("udlpim_workers", WQ_MEM_RECLAIM, 5);
-
-	minor->pcon = NULL;
-	minor->scratch_memory = NULL;
-
-	INIT_DELAYED_WORK(&minor->fake_vblank_work, udlpim_fake_vblank);
-	INIT_DELAYED_WORK(&minor->query_edid_work, udlpim_query_edid);
-
-	spin_lock_irqsave(&minor->udlpim_lock, flags);
-	minor->status = 0;
-	minor->monitor_connected = 0;
-	minor->edid = NULL;
-	spin_unlock_irqrestore(&minor->udlpim_lock, flags);
-
-	minor->last_vcrtcm_mode_list = NULL;
-
-	memcpy(&minor->default_video_mode,
-			&fallback_mode, sizeof(struct udlpim_video_mode));
-
-	atomic_set(&minor->usb_active, 1);
 	udlpim_select_std_channel(minor);
 	udlpim_set_video_mode(minor, &minor->default_video_mode);
 	udlpim_blank_hw_fb(minor, UDLPIM_BLANK_COLOR);
@@ -189,18 +209,13 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	VCRTCM_INFO("DisplayLink USB device attached.\n");
 	VCRTCM_INFO("successfully registered minor %d\n", minor->minor);
 	list_add_tail(&minor->list, &udlpim_minor_list);
-
 	return 0;
 
 error:
-	if (minor) {
-		VCRTCM_ERROR("Got to error in probe");
-		/* Ref for framebuffer */
-		kref_put(&minor->kref, udlpim_destroy_minor);
-		/* vcrtcm reference */
-		/* kref_put(&minor->kref, udlpim_destroy_minor); */
-	}
-
+	/* Ref for framebuffer */
+	kref_put(&minor->kref, udlpim_destroy_minor_kref);
+	/* vcrtcm reference */
+	/* kref_put(&minor->kref, udlpim_destroy_minor_kref); */
 	return retval;
 }
 
@@ -232,56 +247,50 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 		udlpim_detach_pcon(minor->pcon);
 		udlpim_destroy_pcon(minor->pcon);
 		vcrtcm_p_destroy(pconid);
-		minor->pcon = NULL;
 	}
 
-	/* Return minor number */
-	vcrtcm_id_generator_put(&udlpim_minor_id_generator, minor->minor);
-	udlpim_num_minors--;
-
-	/* release reference taken by kref_init in probe() */
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
 	until udlpim_vcrtcm_detach completes */
-
-	kref_put(&minor->kref, udlpim_destroy_minor); /* last ref from kref_init */
-	/* kref_put(&minor->kref, udlpim_destroy_minor);*/ /* Ref for framebuffer */
+	kref_put(&minor->kref, udlpim_destroy_minor_kref); /* last ref from kref_init */
+	/* kref_put(&minor->kref, udlpim_destroy_minor_kref);*/ /* Ref for framebuffer */
 }
 
-/* This function frees the information for an individual device */
-void udlpim_destroy_minor(struct kref *kref)
+static void udlpim_free_urb_list(struct udlpim_minor *minor)
 {
-	struct udlpim_minor *minor =
-		container_of(kref, struct udlpim_minor, kref);
-	int minornum = minor->minor;
+	int count = minor->urbs.count;
+	struct list_head *node;
+	struct urb_node *unode;
+	struct urb *urb;
+	int ret;
+	unsigned long flags;
 
-	VCRTCM_INFO("destroying minor %d\n", minornum);
-	cancel_delayed_work_sync(&minor->fake_vblank_work);
+	VCRTCM_INFO("waiting for completes and freeing all render urbs\n");
 
-	/* this function will wait for all in-flight urbs to complete */
-	if (minor->urbs.count > 0)
-		udlpim_free_urb_list(minor);
+	/* keep waiting and freeing, until we've got 'em all */
+	while (count--) {
 
-	UDLPIM_DEBUG("freeing edid: %p\n", minor->edid);
-	if (minor->edid)
-		vcrtcm_kfree(minor->edid, &minor->kmalloc_track);
+		/* Getting interrupted means a leak, but ok at shutdown*/
+		ret = down_interruptible(&minor->urbs.limit_sem);
+		if (ret)
+			break;
 
-	if (minor->last_vcrtcm_mode_list)
-		vcrtcm_kfree(minor->last_vcrtcm_mode_list,
-			&minor->kmalloc_track);
+		spin_lock_irqsave(&minor->urbs.lock, flags);
 
-	udlpim_unmap_scratch_memory(minor);
-	udlpim_free_scratch_memory(minor);
+		node = minor->urbs.list.next; /* have reserved one with sem */
+		list_del_init(node);
 
-	UDLPIM_DEBUG("page_track : %d\n",
-		atomic_read(&minor->page_track));
-	UDLPIM_DEBUG("kmalloc_track: %d\n",
-		atomic_read(&minor->kmalloc_track));
-	UDLPIM_DEBUG("vmalloc_track: %d\n",
-		atomic_read(&minor->vmalloc_track));
+		spin_unlock_irqrestore(&minor->urbs.lock, flags);
 
-	list_del(&minor->list);
-	kfree(minor);
-	VCRTCM_INFO("finished destroying minor %d\n", minornum);
+		unode = list_entry(node, struct urb_node, entry);
+		urb = unode->urb;
+
+		/* Free each separately allocated piece */
+		usb_free_coherent(urb->dev, minor->urbs.size,
+				  urb->transfer_buffer, urb->transfer_dma);
+		usb_free_urb(urb);
+		vcrtcm_kfree(node, &minor->kmalloc_track);
+	}
+
 }
 
 /******************************************************************************
@@ -1777,44 +1786,6 @@ static void udlpim_urb_completion(struct urb *urb)
 		schedule_delayed_work(&unode->release_urb_work, 0);
 	else*/
 	up(&minor->urbs.limit_sem);
-}
-
-static void udlpim_free_urb_list(struct udlpim_minor *minor)
-{
-	int count = minor->urbs.count;
-	struct list_head *node;
-	struct urb_node *unode;
-	struct urb *urb;
-	int ret;
-	unsigned long flags;
-
-	VCRTCM_INFO("waiting for completes and freeing all render urbs\n");
-
-	/* keep waiting and freeing, until we've got 'em all */
-	while (count--) {
-
-		/* Getting interrupted means a leak, but ok at shutdown*/
-		ret = down_interruptible(&minor->urbs.limit_sem);
-		if (ret)
-			break;
-
-		spin_lock_irqsave(&minor->urbs.lock, flags);
-
-		node = minor->urbs.list.next; /* have reserved one with sem */
-		list_del_init(node);
-
-		spin_unlock_irqrestore(&minor->urbs.lock, flags);
-
-		unode = list_entry(node, struct urb_node, entry);
-		urb = unode->urb;
-
-		/* Free each separately allocated piece */
-		usb_free_coherent(urb->dev, minor->urbs.size,
-				  urb->transfer_buffer, urb->transfer_dma);
-		usb_free_urb(urb);
-		vcrtcm_kfree(node, &minor->kmalloc_track);
-	}
-
 }
 
 static int udlpim_alloc_urb_list(struct udlpim_minor *minor,
