@@ -337,6 +337,8 @@ struct radeon_crtc {
 	bool pflip_emulation_enabled;
 	int emulated_vblank_counter;
 	int emulated_pflip_counter;
+	struct radeon_fence *last_push_fence_c;
+	struct radeon_fence *last_push_fence_fb;
 	struct drm_framebuffer *vcrtcm_push_fb;
 	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
 };

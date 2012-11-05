@@ -1155,6 +1155,8 @@ void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 	radeon_crtc->vblank_emulation_enabled = false;
 	radeon_crtc->emulated_pflip_counter = 0;
 	radeon_crtc->pflip_emulation_enabled = false;
+	radeon_crtc->last_push_fence_c = NULL;
+	radeon_crtc->last_push_fence_fb = NULL;
 	radeon_crtc->vcrtcm_pcon_info = NULL;
 	radeon_crtc->vcrtcm_push_fb = NULL;
 }

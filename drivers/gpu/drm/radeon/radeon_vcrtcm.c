@@ -223,10 +223,11 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_cursor)
 {
 	struct radeon_device *rdev = scrtc->dev->dev_private;
-	struct radeon_fence *fence_c = NULL, *fence_fb = NULL;
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
+	struct radeon_fence *fence_c = srcrtc->last_push_fence_c;
+	struct radeon_fence *fence_fb = srcrtc->last_push_fence_fb;
 	struct push_vblank_pending *push_vblank_pending = NULL;
 	struct drm_gem_object *sfbbo;
 	struct radeon_framebuffer *srfb;
@@ -258,8 +259,10 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			DRM_DEBUG("pushing cursor: %d pages "
 				  "from %llx to %llx\n",
 				  num_pages, saddr, daddr);
+			if (fence_c)
+				radeon_fence_unref(&fence_c);
 			radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
-			radeon_fence_unref(&fence_c);
+			srcrtc->last_push_fence_c = fence_c;
 		}
 	}
 
@@ -331,16 +334,20 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			 * at it, ISR is safe without checking the
 			 * radeon_vbl_emu_async parameter
 			 */
+			if (fence_fb)
+				radeon_fence_unref(&fence_fb);
 			radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
+			srcrtc->last_push_fence_fb = fence_fb;
 			if (srcrtc->vcrtcm_pcon_info)
 				vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon_info);
 			radeon_emulate_vblank(scrtc);
-			radeon_fence_unref(&fence_fb);
 		}
 	} else {
 		/* physical CRTC (just copy, not vblank emulation) */
+		if (fence_fb)
+			radeon_fence_unref(&fence_fb);
 		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
-		radeon_fence_unref(&fence_fb);
+		srcrtc->last_push_fence_fb = fence_fb;
 	}
 	return 0;
 }
