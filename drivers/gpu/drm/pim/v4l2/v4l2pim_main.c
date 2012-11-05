@@ -1092,13 +1092,14 @@ static void __exit v4l2pim_exit(void)
 	struct v4l2pim_minor *minor, *tmp;
 
 	VCRTCM_INFO("shutting down v4l2pim\n");
-	vcrtcm_pim_unregister(pimid);
+	vcrtcm_pim_disable_callbacks(pimid);
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
 		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
 		v4l2pim_destroy_minor(minor);
 	}
+	vcrtcm_pim_unregister(pimid);
 	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
 	VCRTCM_INFO("exiting v4l2pim\n");
 }
