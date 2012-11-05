@@ -84,8 +84,8 @@ static void __exit udlpim_exit(void)
 {
 	VCRTCM_INFO("shutting down udlpim\n");
 	vcrtcm_pim_unregister("udl");
-	usb_deregister(&udlpim_driver);
 	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
+	usb_deregister(&udlpim_driver);
 	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
 	VCRTCM_INFO("exiting udlpim\n");
 }
