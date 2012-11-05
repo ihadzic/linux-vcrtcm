@@ -82,11 +82,15 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 {
 	struct vcrtcm_pcon *ret;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
 		return NULL;
+	}
 	mutex_lock(&pconid_table_mutex);
 	ret = pconid_table[pconid].pcon;
 	mutex_unlock(&pconid_table_mutex);
+	if (!ret)
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 	return ret;
 }
 

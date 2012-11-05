@@ -43,7 +43,7 @@ int vcrtcm_g_attach(int pconid,
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("pcon %i not found\n", pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
 	mutex_lock(&pcon->mutex);

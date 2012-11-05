@@ -138,8 +138,10 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	int r;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
+	}
 	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
 	if (r) {
 		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);

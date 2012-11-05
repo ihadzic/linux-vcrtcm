@@ -47,8 +47,10 @@ static struct sg_table
 	int nents;
 
 	pcon = vcrtcm_get_pcon(pbd->pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pbd->pconid);
 		return ERR_PTR(-ENODEV);
+	}
 	crtc = pcon->drm_crtc;
 	dev = crtc->dev;
 	mutex_lock(&dev->struct_mutex);
@@ -163,6 +165,7 @@ int vcrtcm_p_register_prime(int pconid,
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
@@ -209,8 +212,10 @@ void vcrtcm_p_unregister_prime(int pconid,
 	struct drm_gem_object *obj = pbd->gpu_private;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	crtc = pcon->drm_crtc;
 	dev = crtc->dev;
 	VCRTCM_DEBUG("pcon %i freeing GEM object name=%d, size=%d\n",
@@ -247,8 +252,10 @@ void vcrtcm_p_wait_fb(int pconid)
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
@@ -274,8 +281,10 @@ void vcrtcm_p_emulate_vblank(int pconid)
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	spin_lock_irqsave(&pcon->lock, flags);
 	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
@@ -308,8 +317,10 @@ int vcrtcm_p_push(int pconid,
 	struct drm_gem_object *push_buffer_cursor = NULL;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
 	crtc = pcon->drm_crtc;
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
@@ -338,8 +349,10 @@ void vcrtcm_p_hotplug(int pconid)
 	struct drm_crtc *crtc;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
 		pcon->gpu_funcs.hotplug(crtc);
@@ -361,8 +374,10 @@ void vcrtcm_p_free_pb(int pconid,
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	if (pbd) {
 		BUG_ON(!pbd->gpu_private);
 		BUG_ON(!pbd->num_pages);
@@ -407,6 +422,7 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
@@ -469,8 +485,10 @@ vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		npbd = NULL;
+	}
 	else if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
 		vcrtcm_p_free_pb(pconid, pbd, kmalloc_track, page_track);
@@ -523,8 +541,10 @@ void vcrtcm_p_detach(int pconid)
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	do_vcrtcm_p_detach(pcon, 1);
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
@@ -545,8 +565,10 @@ void vcrtcm_p_destroy(int pconid)
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon)
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
+	}
 	do_vcrtcm_p_destroy(pcon, 1);
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
