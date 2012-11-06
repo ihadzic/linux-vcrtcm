@@ -525,9 +525,9 @@ void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 		pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 		spin_unlock_irqrestore(&pcon->lock, flags);
 		if (explicit)
-			VCRTCM_INFO("detaching pcon id %i\n", pcon->pconid);
+			VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 		else
-			VCRTCM_INFO("doing implicit detach of pcon id %i\n",
+			VCRTCM_INFO("doing implicit detach of pcon %i\n",
 				pcon->pconid);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
@@ -553,9 +553,9 @@ void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 {
 	do_vcrtcm_p_detach(pcon, 0);
 	if (explicit)
-		VCRTCM_INFO("destroying pcon id %i\n", pcon->pconid);
+		VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
 	else
-		VCRTCM_INFO("doing implicit destroy of pcon id %i\n",
+		VCRTCM_INFO("doing implicit destroy of pcon %i\n",
 			pcon->pconid);
 	vcrtcm_destroy_pcon(pcon);
 }

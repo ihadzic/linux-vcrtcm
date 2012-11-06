@@ -105,9 +105,9 @@ long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 	spin_unlock_irqrestore(&pcon->lock, flags);
 	if (explicit)
-		VCRTCM_INFO("detaching pcon id %i\n", pcon->pconid);
+		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 	else
-		VCRTCM_INFO("doing implicit detach of pcon id %i\n",
+		VCRTCM_INFO("doing implicit detach of pcon %i\n",
 			pcon->pconid);
 	if (pcon->pcon_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
@@ -149,7 +149,7 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);
 		return r;
 	}
-	VCRTCM_INFO("destroying pcon id %i\n", pconid);
+	VCRTCM_INFO("destroying pcon %i\n", pconid);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
 	vcrtcm_destroy_pcon(pcon);
