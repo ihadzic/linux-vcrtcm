@@ -258,9 +258,13 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			DRM_DEBUG("pushing cursor: %d pages "
 				  "from %llx to %llx\n",
 				  num_pages, saddr, daddr);
-			if (fence_c)
+			if (!fence_c)
+				radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
+			else if (radeon_fence_signaled(fence_c)) {
 				radeon_fence_unref(&fence_c);
-			radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
+				radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
+			} else
+				DRM_DEBUG("overlapped push (cursor)\n");
 			srcrtc->last_push_fence_c = fence_c;
 		}
 	}
@@ -287,32 +291,25 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 
 	DRM_DEBUG("pushing framebuffer: %d pages from %llx to %llx\n",
 		  num_pages, saddr, daddr);
-	/* if we are dealing with a virtual CRTC, we'll need to emulate */
-	/* vblank, so we need a pending vblank queue element */
-	if (srcrtc->crtc_id >= rdev->num_crtc) {
-		/* virtual CRTC (copy + vblank emulation)
-		 *
-		 * we have no choice but to "speculatively"
-		 * emulate the vblank here; copy has probably not
-		 * completed yet, but it is still safe to signal the
-		 * vblank because any subsequent rendering will
-		 * be pipelined into the GPU's queue after the copy
-		 * and will thus happen after the copy completes
-		 * there should be no frame tearing.
-		 */
-		if (fence_fb)
-			radeon_fence_unref(&fence_fb);
+	if (!fence_fb)
 		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
-		srcrtc->last_push_fence_fb = fence_fb;
+	else if (radeon_fence_signaled(fence_fb)) {
+		radeon_fence_unref(&fence_fb);
+		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
+	} else
+		DRM_DEBUG("overlapped push (framebuffer)\n");
+	srcrtc->last_push_fence_fb = fence_fb;
+	/*
+	 * we have no choice but to "speculatively" emulate the vblank here;
+	 * copy has probably not completed yet, but it is still safe to signal
+	 * the vblank because any subsequent rendering will be pipelined into
+	 * the GPU's queue after the copy and will thus happen after the copy
+	 * completes there should be no frame tearing.
+	 */
+	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		if (srcrtc->vcrtcm_pcon_info)
 			vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon_info);
 		radeon_emulate_vblank(scrtc);
-	} else {
-		/* physical CRTC (just copy, not vblank emulation) */
-		if (fence_fb)
-			radeon_fence_unref(&fence_fb);
-		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
-		srcrtc->last_push_fence_fb = fence_fb;
 	}
 	return 0;
 }
