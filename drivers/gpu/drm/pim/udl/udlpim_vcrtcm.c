@@ -543,7 +543,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 
 	/* Erase our old VCRTCM modelist. */
 	if (vcrtcm_mode_list) {
-		vcrtcm_kfree(vcrtcm_mode_list, &minor->kmalloc_track);
+		vcrtcm_kfree(vcrtcm_mode_list);
 		vcrtcm_mode_list = NULL;
 		vcrtcm_mode_count = 0;
 	}
@@ -882,7 +882,7 @@ void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->minor->pcon = NULL;
-	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
+	vcrtcm_kfree(pcon);
 }
 
 int udlpim_instantiate(int pconid, uint32_t hints,

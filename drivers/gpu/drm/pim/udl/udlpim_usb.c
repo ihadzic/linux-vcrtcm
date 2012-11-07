@@ -125,13 +125,8 @@ static void udlpim_destroy_minor(struct udlpim_minor *minor)
 		udlpim_free_urb_list(minor);
 
 	UDLPIM_DEBUG("freeing edid: %p\n", minor->edid);
-	if (minor->edid)
-		vcrtcm_kfree(minor->edid, &minor->kmalloc_track);
-
-	if (minor->last_vcrtcm_mode_list)
-		vcrtcm_kfree(minor->last_vcrtcm_mode_list,
-			&minor->kmalloc_track);
-
+	vcrtcm_kfree(minor->edid);
+	vcrtcm_kfree(minor->last_vcrtcm_mode_list);
 	udlpim_unmap_scratch_memory(minor);
 	udlpim_free_scratch_memory(minor);
 
@@ -288,7 +283,7 @@ static void udlpim_free_urb_list(struct udlpim_minor *minor)
 		usb_free_coherent(urb->dev, minor->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		vcrtcm_kfree(node, &minor->kmalloc_track);
+		vcrtcm_kfree(node);
 	}
 
 }
@@ -527,20 +522,15 @@ int udlpim_build_modelist(struct udlpim_minor *minor,
 		i++;
 	}
 
-	/* Destroy the temporary fbdev modelist. */
 	fb_destroy_modelist(&modelist);
-
-	/* Free the local EDID buffer */
-	vcrtcm_kfree(edid_copy, &minor->kmalloc_track);
-
+	vcrtcm_kfree(edid_copy);
 	*modes = udlpim_video_modes;
 	*mode_count = i;
 	return 0;
 
 error:
 	fb_destroy_modelist(&modelist);
-	if (edid_copy)
-		vcrtcm_kfree(edid_copy, &minor->kmalloc_track);
+	vcrtcm_kfree(edid_copy);
 	*modes = NULL;
 	*mode_count = 0;
 	return -ENOMEM;
@@ -549,9 +539,7 @@ error:
 int udlpim_free_modelist(struct udlpim_minor *minor,
 		struct udlpim_video_mode *modes)
 {
-	if (modes)
-		vcrtcm_kfree(modes, &minor->kmalloc_track);
-
+	vcrtcm_kfree(modes);
 	return 0;
 }
 
@@ -608,7 +596,7 @@ void udlpim_query_edid_core(struct udlpim_minor *minor)
 	}
 
 	if (!new_edid_valid) {
-		vcrtcm_kfree(new_edid, &minor->kmalloc_track);
+		vcrtcm_kfree(new_edid);
 		new_edid = NULL;
 	}
 
@@ -626,7 +614,7 @@ void udlpim_query_edid_core(struct udlpim_minor *minor)
 	}
 
 	if (old_edid)
-		vcrtcm_kfree(old_edid, &minor->kmalloc_track);
+		vcrtcm_kfree(old_edid);
 }
 
 /******************************************************************************
@@ -1121,8 +1109,8 @@ static int udlpim_blank_hw_fb(struct udlpim_minor *minor, unsigned color)
 		udlpim_urb_completion(urb);
 	}
 
-	vcrtcm_kfree(hline_16, &minor->kmalloc_track);
-	vcrtcm_kfree(hline_8, &minor->kmalloc_track);
+	vcrtcm_kfree(hline_16);
+	vcrtcm_kfree(hline_8);
 
 	return 0;
 }
@@ -1213,7 +1201,7 @@ unrecognized:
 	VCRTCM_ERROR("Unrecognized vendor firmware descriptor\n");
 
 success:
-	vcrtcm_kfree(buf, &minor->kmalloc_track);
+	vcrtcm_kfree(buf);
 	return true;
 }
 
@@ -1243,7 +1231,7 @@ static int udlpim_get_edid(struct udlpim_minor *minor,
 		edid[i] = rbuf[1];
 	}
 
-	vcrtcm_kfree(rbuf, &minor->kmalloc_track);
+	vcrtcm_kfree(rbuf);
 
 	return i;
 }
@@ -1348,25 +1336,19 @@ static int udlpim_alloc_scratch_memory(struct udlpim_minor *minor,
 	/* allocator itself. */
 
 hline_8_err:
-	if (hline_8_pages)
-		vcrtcm_kfree(hline_8_pages, &minor->kmalloc_track);
-
+	vcrtcm_kfree(hline_8_pages);
 	vcrtcm_free_multiple_pages(hline_16_pages, hline_16_num_pages,
 				&minor->page_track);
 	VCRTCM_ERROR("Error during hline_8 scratch memory allocation\n");
 hline_16_err:
-	if (hline_16_pages)
-		vcrtcm_kfree(hline_16_pages, &minor->kmalloc_track);
-
+	vcrtcm_kfree(hline_16_pages);
 	vcrtcm_free_multiple_pages(bb_pages, bb_num_pages,
 				&minor->page_track);
 
 	VCRTCM_ERROR("Error during hline_16 scratch memory allocation\n");
 
 bb_err:
-	if (bb_pages)
-		vcrtcm_kfree(bb_pages, &minor->kmalloc_track);
-
+	vcrtcm_kfree(bb_pages);
 	VCRTCM_ERROR("Error during backing buffer scratch memory allocation\n");
 	return -ENOMEM;
 
@@ -1404,26 +1386,23 @@ static void udlpim_free_scratch_memory(struct udlpim_minor *minor)
 		vcrtcm_free_multiple_pages(scratch_memory->backing_buffer_pages,
 				scratch_memory->backing_buffer_num_pages,
 				&minor->page_track);
-		vcrtcm_kfree(scratch_memory->backing_buffer_pages,
-				&minor->kmalloc_track);
+		vcrtcm_kfree(scratch_memory->backing_buffer_pages);
 	}
 
 	if (scratch_memory->hline_16_pages) {
 		vcrtcm_free_multiple_pages(scratch_memory->hline_16_pages,
 				scratch_memory->hline_16_num_pages,
 				&minor->page_track);
-		vcrtcm_kfree(scratch_memory->hline_16_pages,
-				&minor->kmalloc_track);
+		vcrtcm_kfree(scratch_memory->hline_16_pages);
 	}
 	if (scratch_memory->hline_8_pages) {
 		vcrtcm_free_multiple_pages(scratch_memory->hline_8_pages,
 				scratch_memory->hline_8_num_pages,
 				&minor->page_track);
-		vcrtcm_kfree(scratch_memory->hline_8_pages,
-				&minor->kmalloc_track);
+		vcrtcm_kfree(scratch_memory->hline_8_pages);
 	}
 
-	vcrtcm_kfree(scratch_memory, &minor->kmalloc_track);
+	vcrtcm_kfree(scratch_memory);
 
 	return;
 }
@@ -1813,7 +1792,7 @@ static int udlpim_alloc_urb_list(struct udlpim_minor *minor,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			vcrtcm_kfree(unode, &minor->kmalloc_track);
+			vcrtcm_kfree(unode);
 			break;
 		}
 		unode->urb = urb;
@@ -1821,7 +1800,7 @@ static int udlpim_alloc_urb_list(struct udlpim_minor *minor,
 		buf = usb_alloc_coherent(minor->udev, MAX_TRANSFER, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			vcrtcm_kfree(unode, &minor->kmalloc_track);
+			vcrtcm_kfree(unode);
 			usb_free_urb(urb);
 			break;
 		}
