@@ -581,7 +581,7 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	if (!radeon_crtc->vcrtcm_pcon_info) {
 		struct timeval now;
 		int crtc_id = radeon_crtc->crtc_id;
-		DRM_DEBUG("no hal on crtc %d, pflip faked out\n", crtc_id);
+		DRM_DEBUG("no PCON on CRTC %d, pflip faked out\n", crtc_id);
 		crtc->fb = fb;
 		event->event.sequence =
 			drm_vblank_count_and_time(dev, crtc_id, &now);
