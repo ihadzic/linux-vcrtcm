@@ -219,30 +219,3 @@ void vcrtcm_kfree(void *ptr)
 		kfree(ptr);
 }
 EXPORT_SYMBOL(vcrtcm_kfree);
-
-void *vcrtcm_vmalloc(size_t size, atomic_t *vmalloc_track)
-{
-	void *ptr = vmalloc(size);
-	if (ptr)
-		atomic_inc(vmalloc_track);
-	return ptr;
-}
-EXPORT_SYMBOL(vcrtcm_vmalloc);
-
-void *vcrtcm_vzalloc(size_t size, atomic_t *vmalloc_track)
-{
-	void *ptr = vzalloc(size);
-	if (ptr)
-		atomic_inc(vmalloc_track);
-	return ptr;
-}
-EXPORT_SYMBOL(vcrtcm_vzalloc);
-
-void vcrtcm_vfree(void *ptr, atomic_t *vmalloc_track)
-{
-	if (ptr) {
-		vfree(ptr);
-		atomic_dec(vmalloc_track);
-	}
-}
-EXPORT_SYMBOL(vcrtcm_vfree);
