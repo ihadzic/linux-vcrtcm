@@ -35,7 +35,7 @@ int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 	if (!gen)
 		return -EINVAL;
 
-	ptr = kmalloc(sizeof(VCRTCM_ID_GEN_MASK_TYPE) * num_chunks, GFP_KERNEL);
+	ptr = vcrtcm_kmalloc_vcrtcm(sizeof(VCRTCM_ID_GEN_MASK_TYPE) * num_chunks, GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -56,7 +56,7 @@ void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen)
 	if (!gen)
 		return;
 
-	kfree(gen->used_ids);
+	vcrtcm_kfree(gen->used_ids);
 
 	gen->num_ids = 0;
 	gen->used_count = 0;
