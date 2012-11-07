@@ -617,13 +617,9 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (radeon_crtc->unpin_work) {
-		drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(work);
-		radeon_fence_unref(&work->fence);
-
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
-		return -EBUSY;
+		r = -EBUSY;
+		goto unlock_free;
 	}
 	radeon_crtc->unpin_work = work;
 	radeon_crtc->deferred_flip_completion = 0;
@@ -679,7 +675,9 @@ pflip_cleanup1:
 pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
+unlock_free:
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	radeon_fence_unref(&work->fence);
 	kfree(work);
 
