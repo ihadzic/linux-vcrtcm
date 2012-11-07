@@ -126,17 +126,13 @@ static int udlpim_realloc_pb(struct udlpim_minor *minor,
 		pb_mapped_ram1 = NULL;
 	}
 	pbd0 = vcrtcm_p_realloc_pb(pcon->pconid, pbd0,
-				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
-				   &minor->kmalloc_track,
-				   &minor->page_track);
+				   num_pages, GFP_KERNEL | __GFP_HIGHMEM);
 	if (IS_ERR(pbd0)) {
 		r = PTR_ERR(pbd0);
 		goto out_err0;
 	}
 	pbd1 = vcrtcm_p_realloc_pb(pcon->pconid, pbd1,
-				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
-				   &minor->kmalloc_track,
-				   &minor->page_track);
+				   num_pages, GFP_KERNEL | __GFP_HIGHMEM);
 	if (IS_ERR(pbd1)) {
 		r = PTR_ERR(pbd1);
 		goto out_err1;
@@ -545,7 +541,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 	/* Build the new vcrtcm_mode list. */
 	vcrtcm_mode_list =
 		vcrtcm_kmalloc(sizeof(struct vcrtcm_mode) * udlpim_mode_count,
-			GFP_KERNEL, &minor->kmalloc_track);
+			GFP_KERNEL, pconid);
 
 	/* Copy the udlpim_video_mode list to the vcrtcm_mode list. */
 	for (i = 0; i < udlpim_mode_count; i++) {
@@ -857,7 +853,7 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 	struct udlpim_pcon *pcon;
 
 	pcon = vcrtcm_kzalloc(sizeof(struct udlpim_pcon),
-			GFP_KERNEL, &minor->kmalloc_track);
+			GFP_KERNEL, pconid);
 	if (pcon == NULL) {
 		VCRTCM_ERROR("create_pcon failed, no memory\n");
 		return NULL;
