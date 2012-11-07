@@ -428,8 +428,8 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 		r = -ENODEV;
 		goto out_err0;
 	}
-	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
-			    GFP_KERNEL, kmalloc_track);
+	pbd = vcrtcm_kzalloc_pcon(sizeof(struct vcrtcm_push_buffer_descriptor),
+			    GFP_KERNEL, pcon);
 	pbd->pconid = pconid;
 	pbd->virgin = 1;
 	if (!pbd) {
@@ -437,8 +437,8 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 		r = -ENOMEM;
 		goto out_err0;
 	}
-	pbd->pages = vcrtcm_kzalloc(npages * sizeof(struct page *), GFP_KERNEL,
-				   kmalloc_track);
+	pbd->pages = vcrtcm_kzalloc_pcon(npages * sizeof(struct page *), GFP_KERNEL,
+				   pcon);
 	if (!pbd->pages) {
 		VCRTCM_ERROR("pages pointer alloc failed\n");
 		r = -ENOMEM;

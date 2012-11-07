@@ -27,6 +27,7 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_module.h"
+#include "vcrtcm_utils_priv.h"
 
 struct pconid_table_entry {
 	struct vcrtcm_pcon *pcon;
@@ -44,8 +45,8 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 		struct pconid_table_entry *entry = &pconid_table[k];
 		if (!entry->pcon) {
 			struct vcrtcm_pcon *pcon;
-			pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon),
-				GFP_KERNEL, &vcrtcm_kmalloc_track);
+			pcon = vcrtcm_kzalloc_pim(sizeof(struct vcrtcm_pcon),
+				GFP_KERNEL, pim);
 			if (!pcon) {
 				VCRTCM_INFO("allocate of pcon failed\n");
 				mutex_unlock(&pconid_table_mutex);

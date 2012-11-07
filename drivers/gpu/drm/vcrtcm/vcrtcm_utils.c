@@ -194,6 +194,18 @@ void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
 }
 EXPORT_SYMBOL(vcrtcm_kmalloc);
 
+void *vcrtcm_kzalloc_pcon(size_t size, gfp_t gfp_mask, struct vcrtcm_pcon *pcon)
+{
+	void *ptr = kzalloc(size, gfp_mask);
+	return ptr;
+}
+
+void *vcrtcm_kzalloc_pim(size_t size, gfp_t gfp_mask, struct vcrtcm_pim *pim)
+{
+	void *ptr = kzalloc(size, gfp_mask);
+	return ptr;
+}
+
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
 {
 	void *ptr = kzalloc(size, gfp_mask);
