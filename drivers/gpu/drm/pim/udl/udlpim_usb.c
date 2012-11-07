@@ -1337,21 +1337,16 @@ static int udlpim_alloc_scratch_memory(struct udlpim_minor *minor,
 
 hline_8_err:
 	vcrtcm_kfree(hline_8_pages);
-	vcrtcm_free_multiple_pages(hline_16_pages, hline_16_num_pages,
-				&minor->page_track);
+	vcrtcm_free_multiple_pages(hline_16_pages, hline_16_num_pages);
 	VCRTCM_ERROR("Error during hline_8 scratch memory allocation\n");
 hline_16_err:
 	vcrtcm_kfree(hline_16_pages);
-	vcrtcm_free_multiple_pages(bb_pages, bb_num_pages,
-				&minor->page_track);
-
+	vcrtcm_free_multiple_pages(bb_pages, bb_num_pages);
 	VCRTCM_ERROR("Error during hline_16 scratch memory allocation\n");
-
 bb_err:
 	vcrtcm_kfree(bb_pages);
 	VCRTCM_ERROR("Error during backing buffer scratch memory allocation\n");
 	return -ENOMEM;
-
 success:
 
 	scratch_memory =
@@ -1384,21 +1379,18 @@ static void udlpim_free_scratch_memory(struct udlpim_minor *minor)
 
 	if (scratch_memory->backing_buffer_pages) {
 		vcrtcm_free_multiple_pages(scratch_memory->backing_buffer_pages,
-				scratch_memory->backing_buffer_num_pages,
-				&minor->page_track);
+				scratch_memory->backing_buffer_num_pages);
 		vcrtcm_kfree(scratch_memory->backing_buffer_pages);
 	}
 
 	if (scratch_memory->hline_16_pages) {
 		vcrtcm_free_multiple_pages(scratch_memory->hline_16_pages,
-				scratch_memory->hline_16_num_pages,
-				&minor->page_track);
+				scratch_memory->hline_16_num_pages);
 		vcrtcm_kfree(scratch_memory->hline_16_pages);
 	}
 	if (scratch_memory->hline_8_pages) {
 		vcrtcm_free_multiple_pages(scratch_memory->hline_8_pages,
-				scratch_memory->hline_8_num_pages,
-				&minor->page_track);
+				scratch_memory->hline_8_num_pages);
 		vcrtcm_kfree(scratch_memory->hline_8_pages);
 	}
 
