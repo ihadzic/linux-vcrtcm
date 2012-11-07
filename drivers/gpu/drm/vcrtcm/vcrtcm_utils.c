@@ -185,6 +185,12 @@ void vcrtcm_free_page(struct page *page, atomic_t *page_track)
 }
 EXPORT_SYMBOL(vcrtcm_free_page);
 
+void *vcrtcm_kmalloc_vcrtcm(size_t size, gfp_t gfp_mask)
+{
+	void *ptr = kmalloc(size, gfp_mask);
+	return ptr;
+}
+
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
 {
 	void *ptr = kmalloc(size, gfp_mask);

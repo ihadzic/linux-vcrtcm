@@ -26,6 +26,7 @@
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_module.h"
+#include "vcrtcm_utils_priv.h"
 
 static int next_pimid;
 static struct list_head pim_list;
@@ -45,8 +46,8 @@ struct vcrtcm_pim *vcrtcm_create_pim(
 			return ERR_PTR(-EINVAL);
 		}
 	}
-	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc(
-		sizeof(struct vcrtcm_pim), GFP_KERNEL, &vcrtcm_kmalloc_track);
+	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc_vcrtcm(
+		sizeof(struct vcrtcm_pim), GFP_KERNEL);
 	if (!pim) {
 		mutex_unlock(&pim_list_mutex);
 		return ERR_PTR(-ENOMEM);

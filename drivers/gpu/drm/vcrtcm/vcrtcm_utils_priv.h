@@ -30,6 +30,7 @@ struct vcrtcm_pcon;
 
 void *vcrtcm_kzalloc_pim(size_t size, gfp_t gfp_mask, struct vcrtcm_pim *pim);
 void *vcrtcm_kzalloc_pcon(size_t size, gfp_t gfp_mask, struct vcrtcm_pcon *pcon);
+void *vcrtcm_kmalloc_vcrtcm(size_t size, gfp_t gfp_mask);
 
 #endif
 
