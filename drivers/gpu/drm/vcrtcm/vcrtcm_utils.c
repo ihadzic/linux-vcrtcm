@@ -138,13 +138,13 @@ EXPORT_SYMBOL(vcrtcm_id_generator_put);
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				struct page **page_array,
 				unsigned int num_pages,
-				atomic_t *page_track)
+				int pconid)
 {
 	struct page *current_page;
 	int i;
 
 	for (i = 0; i < num_pages; i++) {
-		current_page = vcrtcm_alloc_page(gfp_mask, page_track);
+		current_page = vcrtcm_alloc_page(gfp_mask, pconid);
 		if (current_page) {
 			page_array[i] = current_page;
 		} else {
@@ -166,11 +166,9 @@ void vcrtcm_free_multiple_pages(struct page **page_array,
 }
 EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 
-struct page *vcrtcm_alloc_page(gfp_t gfp_mask, atomic_t *page_track)
+struct page *vcrtcm_alloc_page(gfp_t gfp_mask, int pconid)
 {
 	struct page *page = alloc_page(gfp_mask);
-	if (page)
-		atomic_inc(page_track);
 	return page;
 }
 EXPORT_SYMBOL(vcrtcm_alloc_page);
@@ -189,11 +187,9 @@ void *vcrtcm_kmalloc_vcrtcm(size_t size, gfp_t gfp_mask)
 	return ptr;
 }
 
-void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
+void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, int pconid)
 {
 	void *ptr = kmalloc(size, gfp_mask);
-	if (ptr)
-		atomic_inc(kmalloc_track);
 	return ptr;
 }
 EXPORT_SYMBOL(vcrtcm_kmalloc);
@@ -210,11 +206,9 @@ void *vcrtcm_kzalloc_pim(size_t size, gfp_t gfp_mask, struct vcrtcm_pim *pim)
 	return ptr;
 }
 
-void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
+void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, int pconid)
 {
 	void *ptr = kzalloc(size, gfp_mask);
-	if (ptr)
-		atomic_inc(kmalloc_track);
 	return ptr;
 }
 EXPORT_SYMBOL(vcrtcm_kzalloc);
