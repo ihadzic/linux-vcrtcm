@@ -42,9 +42,7 @@ void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
 			BUG_ON(!pbd->gpu_private);
 			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_free_pb(pcon->pconid, pbd,
-					 &minor->kmalloc_track,
-					 &minor->page_track);
+			vcrtcm_p_free_pb(pcon->pconid, pbd);
 		}
 	}
 }
@@ -89,9 +87,7 @@ static int v4l2pim_alloc_pb(struct v4l2pim_pcon *pcon,
 		return r;
 
 out_err1:
-	vcrtcm_p_free_pb(pcon->pconid, pbd,
-			 &minor->kmalloc_track,
-			 &minor->page_track);
+	vcrtcm_p_free_pb(pcon->pconid, pbd);
 out_err0:
 	if (i == 1) {
 		/*
@@ -108,9 +104,7 @@ out_err0:
 			pcon->pbd_cursor[0] = NULL;
 			pcon->pb_cursor[0] = NULL;
 		}
-		vcrtcm_p_free_pb(pcon->pconid, old_pbd,
-				 &minor->kmalloc_track,
-				 &minor->page_track);
+		vcrtcm_p_free_pb(pcon->pconid, old_pbd);
 	}
 	return r;
 }
