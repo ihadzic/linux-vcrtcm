@@ -146,11 +146,6 @@ struct udlpim_minor {
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
-
-	/* debug stuff */
-	atomic_t page_track;
-	atomic_t kmalloc_track;
-	atomic_t vmalloc_track;
 };
 
 struct udlpim_pcon {

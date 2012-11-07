@@ -93,9 +93,6 @@ static struct udlpim_minor *udlpim_create_minor(void)
 	kref_init(&minor->kref); /* matching kref_put in udb .disconnect fn */
 	/*kref_get(&minor->kref); */ /* matching kref_put in vcrtcm detach */
 
-	atomic_set(&minor->kmalloc_track, 0);
-	atomic_set(&minor->vmalloc_track, 0);
-	atomic_set(&minor->page_track, 0);
 	minor->sku_pixel_limit = 2048 * 1152;  /* default to maximum */
 	mutex_init(&minor->buffer_mutex);
 	spin_lock_init(&minor->lock);
@@ -129,14 +126,6 @@ static void udlpim_destroy_minor(struct udlpim_minor *minor)
 	vcrtcm_kfree(minor->last_vcrtcm_mode_list);
 	udlpim_unmap_scratch_memory(minor);
 	udlpim_free_scratch_memory(minor);
-
-	UDLPIM_DEBUG("page_track : %d\n",
-		atomic_read(&minor->page_track));
-	UDLPIM_DEBUG("kmalloc_track: %d\n",
-		atomic_read(&minor->kmalloc_track));
-	UDLPIM_DEBUG("vmalloc_track: %d\n",
-		atomic_read(&minor->vmalloc_track));
-
 	list_del(&minor->list);
 	kfree(minor);
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, minor->minor);
