@@ -38,8 +38,6 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
 
-atomic_t vcrtcm_kmalloc_track = ATOMIC_INIT(0);
-
 static const struct file_operations vcrtcm_fops;
 static dev_t vcrtcm_dev;
 static struct cdev *vcrtcm_cdev;
@@ -115,9 +113,6 @@ static void __exit vcrtcm_exit(void)
 	}
 	if (vcrtcm_class)
 		class_destroy(vcrtcm_class);
-
-	VCRTCM_INFO("all virtual crtcs gone");
-	VCRTCM_INFO("kmalloc count: %i\n", atomic_read(&vcrtcm_kmalloc_track));
 }
 
 static const struct file_operations vcrtcm_fops = {

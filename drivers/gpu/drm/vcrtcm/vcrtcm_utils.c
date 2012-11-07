@@ -24,7 +24,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <vcrtcm/vcrtcm_utils.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_utils_priv.h"
+#include "vcrtcm_pcon_table.h"
+#include "vcrtcm_pim_table.h"
+
+static atomic_t vcrtcm_alloc_cnt = ATOMIC_INIT(0);
 
 int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 {
@@ -138,13 +143,13 @@ EXPORT_SYMBOL(vcrtcm_id_generator_put);
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				struct page **page_array,
 				unsigned int num_pages,
-				int pconid)
+				uint32_t owner)
 {
 	struct page *current_page;
 	int i;
 
 	for (i = 0; i < num_pages; i++) {
-		current_page = vcrtcm_alloc_page(gfp_mask, pconid);
+		current_page = vcrtcm_alloc_page(gfp_mask, owner);
 		if (current_page) {
 			page_array[i] = current_page;
 		} else {
@@ -166,9 +171,26 @@ void vcrtcm_free_multiple_pages(struct page **page_array,
 }
 EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 
-struct page *vcrtcm_alloc_page(gfp_t gfp_mask, int pconid)
+static void incr_cnt(uint32_t owner)
+{
+	if (owner & VCRTCM_OWNER_PIM) {
+		int pimid = owner & ~VCRTCM_OWNER_PIM;
+		struct vcrtcm_pim *pim = vcrtcm_find_pim(pimid);
+		if (pim)
+			atomic_inc(&pim->alloc_cnt);
+	} else {
+		int pconid = owner & ~VCRTCM_OWNER_PCON;
+		struct vcrtcm_pcon *pcon = vcrtcm_get_pcon(pconid);
+		if (pcon)
+			atomic_inc(&pcon->alloc_cnt);
+	}
+}
+
+struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner)
 {
 	struct page *page = alloc_page(gfp_mask);
+	if (page)
+		incr_cnt(owner);
 	return page;
 }
 EXPORT_SYMBOL(vcrtcm_alloc_page);
@@ -184,12 +206,16 @@ EXPORT_SYMBOL(vcrtcm_free_page);
 void *vcrtcm_kmalloc_vcrtcm(size_t size, gfp_t gfp_mask)
 {
 	void *ptr = kmalloc(size, gfp_mask);
+	if (ptr)
+		atomic_inc(&vcrtcm_alloc_cnt);
 	return ptr;
 }
 
-void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, int pconid)
+void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
 	void *ptr = kmalloc(size, gfp_mask);
+	if (ptr)
+		incr_cnt(owner);
 	return ptr;
 }
 EXPORT_SYMBOL(vcrtcm_kmalloc);
@@ -197,18 +223,24 @@ EXPORT_SYMBOL(vcrtcm_kmalloc);
 void *vcrtcm_kzalloc_pcon(size_t size, gfp_t gfp_mask, struct vcrtcm_pcon *pcon)
 {
 	void *ptr = kzalloc(size, gfp_mask);
+	if (ptr)
+		atomic_inc(&pcon->alloc_cnt);
 	return ptr;
 }
 
 void *vcrtcm_kzalloc_pim(size_t size, gfp_t gfp_mask, struct vcrtcm_pim *pim)
 {
 	void *ptr = kzalloc(size, gfp_mask);
+	if (ptr)
+		atomic_inc(&pim->alloc_cnt);
 	return ptr;
 }
 
-void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, int pconid)
+void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
 	void *ptr = kzalloc(size, gfp_mask);
+	if (ptr)
+		incr_cnt(owner);
 	return ptr;
 }
 EXPORT_SYMBOL(vcrtcm_kzalloc);

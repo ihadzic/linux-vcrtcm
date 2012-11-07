@@ -22,6 +22,6 @@
 #define __VCRTCM_MODULE_H__
 
 extern int vcrtcm_debug;
-extern atomic_t vcrtcm_kmalloc_track;
+extern atomic_t vcrtcm_alloc_cnt;
 
 #endif

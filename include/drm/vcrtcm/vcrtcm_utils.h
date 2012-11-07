@@ -68,15 +68,20 @@ int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids);
 void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen);
 int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen, int behavior);
 void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id);
-int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
-				struct page **page_array,
-				unsigned int num_pages, int pconid);
-void vcrtcm_free_multiple_pages(struct page **page_array,
-				unsigned int num_pages);
-struct page *vcrtcm_alloc_page(gfp_t gfp_mask, int pconid);
-void vcrtcm_free_page(struct page *page);
-void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, int pconid);
-void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, int pconid);
+
+#define VCRTCM_OWNER_PCON 0x0
+#define VCRTCM_OWNER_PIM 0x80000000
+
+void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
+void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
 void vcrtcm_kfree(void *ptr);
+struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner);
+void vcrtcm_free_page(struct page *page);
+int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
+	struct page **page_array,
+	unsigned int num_pages,
+	uint32_t owner);
+void vcrtcm_free_multiple_pages(struct page **page_array,
+	unsigned int num_pages);
 
 #endif

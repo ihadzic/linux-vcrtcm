@@ -93,13 +93,14 @@ void vcrtcm_p_unregister_prime(int pconid,
 int vcrtcm_p_push(int pconid, struct vcrtcm_push_buffer_descriptor *fpbd,
 	struct vcrtcm_push_buffer_descriptor *cpbd);
 void vcrtcm_p_hotplug(int pconid);
+struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
+	gfp_t gfp_mask);
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd, int npages,
 	gfp_t gfp_mask);
-struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
-	gfp_t gfp_mask);
 void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_disable_callbacks(int pconid);
+
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
 	int *pimid);
 void vcrtcm_pim_unregister(int pimid);

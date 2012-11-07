@@ -427,7 +427,7 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 		r = -ENOMEM;
 		goto out_err1;
 	}
-	r = vcrtcm_alloc_multiple_pages(gfp_mask, pbd->pages, npages, pconid);
+	r = vcrtcm_alloc_multiple_pages(gfp_mask, pbd->pages, npages, VCRTCM_OWNER_PCON | pconid);
 	if (r) {
 		VCRTCM_ERROR("push buffer pages alloc failed\n");
 		goto out_err2;
