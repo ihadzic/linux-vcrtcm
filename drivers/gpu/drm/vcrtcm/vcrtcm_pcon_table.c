@@ -35,7 +35,7 @@ struct pconid_table_entry {
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static struct mutex pconid_table_mutex;
 
-struct vcrtcm_pcon *vcrtcm_alloc_pcon()
+struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 {
 	int k;
 

@@ -59,7 +59,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
 	}
-	pcon = vcrtcm_alloc_pcon();
+	pcon = vcrtcm_alloc_pcon(pim);
 	if (!pcon) {
 		VCRTCM_ERROR("no pconids available");
 		return -ENODEV;
