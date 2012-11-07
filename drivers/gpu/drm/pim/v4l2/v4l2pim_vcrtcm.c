@@ -757,7 +757,7 @@ void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->minor->pcon = NULL;
-	vcrtcm_kfree(pcon, &pcon->minor->kmalloc_track);
+	vcrtcm_kfree(pcon);
 }
 
 int v4l2pim_instantiate(int pconid, uint32_t hints,

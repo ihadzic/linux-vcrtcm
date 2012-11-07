@@ -855,8 +855,7 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 sb_alloc_map_err:
 	vcrtcm_free_multiple_pages(pages, num_pages, &minor->page_track);
 sb_alloc_mpages_err:
-	if (pages)
-		vcrtcm_kfree(pages, &minor->kmalloc_track);
+	vcrtcm_kfree(pages);
 sb_alloc_err:
 
 	return -ENOMEM;
@@ -874,8 +873,7 @@ void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor)
 	vcrtcm_free_multiple_pages(minor->shadowbuf_pages,
 				minor->shadowbuf_num_pages,
 				&minor->page_track);
-	vcrtcm_kfree(minor->shadowbuf_pages,
-			&minor->kmalloc_track);
+	vcrtcm_kfree(minor->shadowbuf_pages);
 
 	minor->shadowbuf = NULL;
 	minor->shadowbufsize = 0;
