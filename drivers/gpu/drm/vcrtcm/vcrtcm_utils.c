@@ -215,12 +215,10 @@ void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track)
 }
 EXPORT_SYMBOL(vcrtcm_kzalloc);
 
-void vcrtcm_kfree(void *ptr, atomic_t *kmalloc_track)
+void vcrtcm_kfree(void *ptr)
 {
-	if (ptr) {
+	if (ptr)
 		kfree(ptr);
-		atomic_dec(kmalloc_track);
-	}
 }
 EXPORT_SYMBOL(vcrtcm_kfree);
 

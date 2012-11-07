@@ -85,7 +85,7 @@ static void vcrtcm_dma_buf_release(struct dma_buf *dma_buf)
 	struct vcrtcm_push_buffer_descriptor *pbd = dma_buf->priv;
 	struct drm_gem_object *obj = pbd->gpu_private;
 
-	kfree(pbd);
+	vcrtcm_kfree(pbd);
 	if (obj->export_dma_buf == dma_buf) {
 		VCRTCM_DEBUG("unreference obj %p\n", obj);
 		obj->export_dma_buf = NULL;
@@ -386,21 +386,7 @@ void vcrtcm_p_free_pb(int pconid,
 		vcrtcm_p_unregister_prime(pconid, pbd);
 		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
 					   page_track);
-		vcrtcm_kfree(pbd->pages, kmalloc_track);
-		/*
-		 * FIXME (ugly hack): kfree(pbd) happens in
-		 * vcrtcm_dma_buf_release() function as a consequence
-		 * of vcrtcm_p_unregister_prime() call above (asynchronous
-		 * callback on thread level that gets called when DMABUF
-		 * subsystem drops the reference to the file descriptor).
-		 * However, we can't call vcrtcm_kfree() there because
-		 * at that point we no longer know from which PCON
-		 * the buffer belonged to. So we decrement the track
-		 * counter here and do the actual free in the callback.
-		 * It's ugly, but pragmatic. Revisit this later and figure out
-		 * a more elegant way to handle this.
-		 */
-		atomic_dec(kmalloc_track);
+		vcrtcm_kfree(pbd->pages);
 	}
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb);
@@ -460,9 +446,9 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 out_err3:
 	vcrtcm_free_multiple_pages(pbd->pages, npages, page_track);
 out_err2:
-	vcrtcm_kfree(pbd->pages, kmalloc_track);
+	vcrtcm_kfree(pbd->pages);
 out_err1:
-	vcrtcm_kfree(pbd, kmalloc_track);
+	vcrtcm_kfree(pbd);
 out_err0:
 	return ERR_PTR(r);
 }

@@ -82,7 +82,7 @@ void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 {
 	mutex_lock(&pim_list_mutex);
 	list_del(&pim->pim_list);
-	vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
+	vcrtcm_kfree(pim);
 	mutex_unlock(&pim_list_mutex);
 }
 
@@ -99,7 +99,7 @@ void vcrtcm_free_pims()
 	mutex_lock(&pim_list_mutex);
 	list_for_each_entry_safe(pim, pim_tmp, &pim_list, pim_list) {
 		list_del(&pim->pim_list);
-		vcrtcm_kfree(pim, &vcrtcm_kmalloc_track);
+		vcrtcm_kfree(pim);
 	}
 	mutex_unlock(&pim_list_mutex);
 }

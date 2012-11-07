@@ -75,7 +75,7 @@ void vcrtcm_dealloc_pcon(int pconid)
 	mutex_lock(&pconid_table_mutex);
 	entry = &pconid_table[pconid];
 	if (entry->pcon != NULL)
-		vcrtcm_kfree(entry->pcon, &vcrtcm_kmalloc_track);
+		vcrtcm_kfree(entry->pcon);
 	entry->pcon = NULL;
 	mutex_unlock(&pconid_table_mutex);
 }
