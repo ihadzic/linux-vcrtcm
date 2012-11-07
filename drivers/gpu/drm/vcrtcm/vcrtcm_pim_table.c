@@ -32,8 +32,8 @@ static int next_pimid;
 static struct list_head pim_list;
 static struct mutex pim_list_mutex;
 
-struct vcrtcm_pim *vcrtcm_create_pim(
-	char *pim_name, struct vcrtcm_pim_funcs *funcs)
+struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
+	struct vcrtcm_pim_funcs *funcs)
 {
 	struct vcrtcm_pim *pim;
 
@@ -55,6 +55,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(
 	strncpy(pim->name, pim_name, PIM_NAME_MAXLEN);
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
+	atomic_set(&pim->alloc_cnt, 0);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
 	pim->id = next_pimid;
 	pim->callbacks_enabled = 1;
@@ -81,7 +82,12 @@ struct vcrtcm_pim *vcrtcm_find_pim(int pimid)
 
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 {
+	int cnt;
+
 	mutex_lock(&pim_list_mutex);
+	cnt = atomic_read(&pim->alloc_cnt);
+	if (cnt != 0)
+		VCRTCM_ERROR("ERROR: pim %s is being destroyed, but it has not freed %d of its allocations\n", pim->name, cnt);
 	list_del(&pim->pim_list);
 	vcrtcm_kfree(pim);
 	mutex_unlock(&pim_list_mutex);
