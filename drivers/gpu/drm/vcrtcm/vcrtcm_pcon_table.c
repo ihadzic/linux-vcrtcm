@@ -28,6 +28,7 @@
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_utils_priv.h"
+#include "vcrtcm_pim_table.h"
 
 struct pconid_table_entry {
 	struct vcrtcm_pcon *pcon;
@@ -52,6 +53,7 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 				mutex_unlock(&pconid_table_mutex);
 				return NULL;
 			}
+			atomic_set(&pcon->alloc_cnt, 0);
 			pcon->pconid = k;
 			pcon->minor = -1;
 			pcon->pcon_callbacks_enabled = 1;
@@ -69,14 +71,21 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 void vcrtcm_dealloc_pcon(int pconid)
 {
 	struct pconid_table_entry *entry;
+	struct vcrtcm_pcon *pcon;
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
 		return;
 	mutex_lock(&pconid_table_mutex);
 	entry = &pconid_table[pconid];
-	if (entry->pcon != NULL)
-		vcrtcm_kfree(entry->pcon);
-	entry->pcon = NULL;
+	pcon = entry->pcon;
+	if (pcon != NULL) {
+		int cnt;
+
+		cnt = atomic_read(&pcon->alloc_cnt);
+		VCRTCM_ERROR("ERROR: pcon %d (pim %s) is being destroyed, but it has not freed %d of its allocations\n", pconid, pcon->pim->name, cnt);
+		vcrtcm_kfree(pcon);
+		entry->pcon = NULL;
+	}
 	mutex_unlock(&pconid_table_mutex);
 }
 
