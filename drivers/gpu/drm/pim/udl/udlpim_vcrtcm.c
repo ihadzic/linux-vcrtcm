@@ -54,9 +54,7 @@ static void udlpim_free_pb(struct udlpim_pcon *pcon, int flag)
 			BUG_ON(!pbd->gpu_private);
 			BUG_ON(!pb_mapped_ram);
 			vm_unmap_ram(pb_mapped_ram, pbd->num_pages);
-			vcrtcm_p_free_pb(pcon->pconid, pbd,
-					 &pcon->minor->kmalloc_track,
-					 &pcon->minor->page_track);
+			vcrtcm_p_free_pb(pcon->pconid, pbd);
 		}
 	}
 }
@@ -182,13 +180,9 @@ out_err3:
 	if (pbd0)
 		vm_unmap_ram(pb_mapped_ram0, pbd0->num_pages);
 out_err2:
-	vcrtcm_p_free_pb(pcon->pconid, pbd1,
-			 &minor->kmalloc_track,
-			 &minor->page_track);
+	vcrtcm_p_free_pb(pcon->pconid, pbd1);
 out_err1:
-	vcrtcm_p_free_pb(pcon->pconid, pbd0,
-			 &minor->kmalloc_track,
-			 &minor->page_track);
+	vcrtcm_p_free_pb(pcon->pconid, pbd0);
 out_err0:
 	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
 		pcon->pbd_fb[0] = NULL;
