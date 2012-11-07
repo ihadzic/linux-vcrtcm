@@ -422,7 +422,7 @@ int udlpim_build_modelist(struct udlpim_minor *minor,
 	UDLPIM_DEBUG("In build_modelist\n");
 
 	/* Allocate a buffer for a local copy of the EDID */
-	edid_copy = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL, -1);
+	edid_copy = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 	if (!edid_copy)
 		goto error;
 
@@ -478,7 +478,7 @@ int udlpim_build_modelist(struct udlpim_minor *minor,
 
 	udlpim_video_modes =
 		vcrtcm_kmalloc(sizeof(struct udlpim_video_mode) * num_modes,
-			GFP_KERNEL, -1);
+			GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 	UDLPIM_DEBUG("Size of modelist %d\n", num_modes);
 
 	if (!udlpim_video_modes) {
@@ -547,7 +547,7 @@ void udlpim_query_edid_core(struct udlpim_minor *minor)
 
 	pcon = minor->pcon;
 
-	new_edid = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL, -1);
+	new_edid = vcrtcm_kmalloc(EDID_LENGTH, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (!new_edid) {
 		VCRTCM_ERROR("Could not allocate memory for EDID query.\n");
@@ -1038,8 +1038,8 @@ static int udlpim_blank_hw_fb(struct udlpim_minor *minor, unsigned color)
 	cmd = (u8 *) urb->transfer_buffer;
 	cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
 
-	hline_16 = vcrtcm_kmalloc(sizeof(uint16_t) * xres, GFP_KERNEL, -1);
-	hline_8 = vcrtcm_kmalloc(sizeof(uint8_t) * xres, GFP_KERNEL, -1);
+	hline_16 = vcrtcm_kmalloc(sizeof(uint16_t) * xres, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
+	hline_8 = vcrtcm_kmalloc(sizeof(uint8_t) * xres, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	udlpim_split_pixel_argb32(&blank_color32, &blank_color16, &blank_color8);
 
@@ -1129,7 +1129,7 @@ static int udlpim_parse_vendor_descriptor(struct udlpim_minor *minor,
 
 	u8 total_len = 0;
 
-	buf = vcrtcm_kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL, -1);
+	buf = vcrtcm_kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 	if (!buf)
 		return false;
 	desc = buf;
@@ -1198,7 +1198,7 @@ static int udlpim_get_edid(struct udlpim_minor *minor,
 	int ret;
 	char *rbuf;
 
-	rbuf = vcrtcm_kmalloc(2, GFP_KERNEL, -1);
+	rbuf = vcrtcm_kmalloc(2, GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 	if (!rbuf)
 		return 0;
 
@@ -1260,13 +1260,13 @@ static int udlpim_alloc_scratch_memory(struct udlpim_minor *minor,
 		bb_num_pages++;
 
 	bb_pages = vcrtcm_kmalloc(sizeof(struct page *) * bb_num_pages,
-				GFP_KERNEL, -1);
+				GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (!bb_pages)
 		goto bb_err;
 
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, bb_pages,
-			bb_num_pages, -1);
+			bb_num_pages, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (result > 0)
 		goto bb_err;
@@ -1280,13 +1280,13 @@ static int udlpim_alloc_scratch_memory(struct udlpim_minor *minor,
 
 	hline_16_pages =
 		vcrtcm_kmalloc(sizeof(struct page *) * hline_16_num_pages,
-			GFP_KERNEL, -1);
+			GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (!hline_16_pages)
 		goto hline_16_err;
 
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, hline_16_pages,
-			hline_16_num_pages, -1);
+			hline_16_num_pages, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (result > 0)
 		goto hline_16_err;
@@ -1299,13 +1299,13 @@ static int udlpim_alloc_scratch_memory(struct udlpim_minor *minor,
 
 	hline_8_pages =
 		vcrtcm_kmalloc(sizeof(struct page *) * hline_8_num_pages,
-				GFP_KERNEL, -1);
+				GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (!hline_8_pages)
 		goto hline_8_err;
 
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, hline_8_pages,
-			hline_8_num_pages, -1);
+			hline_8_num_pages, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	if (result > 0)
 		goto hline_8_err;
@@ -1335,7 +1335,7 @@ success:
 
 	scratch_memory =
 		vcrtcm_kzalloc(sizeof(struct udlpim_scratch_memory_descriptor),
-			GFP_KERNEL, -1);
+			GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	scratch_memory->backing_buffer_pages = bb_pages;
 	scratch_memory->backing_buffer_num_pages = bb_num_pages;
@@ -1757,7 +1757,7 @@ static int udlpim_alloc_urb_list(struct udlpim_minor *minor,
 	INIT_LIST_HEAD(&minor->urbs.list);
 
 	while (i < count) {
-		unode = vcrtcm_kzalloc(sizeof(struct urb_node), GFP_KERNEL, -1);
+		unode = vcrtcm_kzalloc(sizeof(struct urb_node), GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 		if (!unode)
 			break;
 		unode->dev = minor;
