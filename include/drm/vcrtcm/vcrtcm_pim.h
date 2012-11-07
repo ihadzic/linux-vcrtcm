@@ -98,8 +98,7 @@ struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	gfp_t gfp_mask, atomic_t *kmalloc_track, atomic_t *page_track);
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
 	gfp_t gfp_mask, atomic_t *kmalloc_track, atomic_t *page_track);
-void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd,
-	atomic_t *kmalloc_track, atomic_t *page_track);
+void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_disable_callbacks(int pconid);
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
 	int *pimid);

@@ -370,8 +370,7 @@ EXPORT_SYMBOL(vcrtcm_p_hotplug);
  * of vcrtcm_p_alloc_pb
  */
 void vcrtcm_p_free_pb(int pconid,
-		      struct vcrtcm_push_buffer_descriptor *pbd,
-		      atomic_t *kmalloc_track, atomic_t *page_track)
+		      struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_pcon *pcon;
 
@@ -478,7 +477,7 @@ vcrtcm_p_realloc_pb(int pconid,
 	}
 	else if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
-		vcrtcm_p_free_pb(pconid, pbd, kmalloc_track, page_track);
+		vcrtcm_p_free_pb(pconid, pbd);
 		npbd = NULL;
 	} else if (!pbd) {
 		/* no old buffer present */
@@ -489,7 +488,7 @@ vcrtcm_p_realloc_pb(int pconid,
 		npbd = pbd;
 	} else {
 		VCRTCM_DEBUG("reallocating push buffer\n");
-		vcrtcm_p_free_pb(pconid, pbd, kmalloc_track, page_track);
+		vcrtcm_p_free_pb(pconid, pbd);
 		npbd = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask,
 					 kmalloc_track, page_track);
 	}
