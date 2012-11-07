@@ -171,20 +171,28 @@ void vcrtcm_free_multiple_pages(struct page **page_array,
 }
 EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 
-static void incr_cnt(uint32_t owner)
+static void incdec(atomic_t *cnt, int incr)
+{
+	if (incr)
+		atomic_inc(cnt);
+	else
+		atomic_dec(cnt);
+}
+
+static void adjcnt(uint32_t owner, int incr)
 {
 	if (owner & VCRTCM_OWNER_VCRTCM)
-		atomic_inc(&vcrtcm_alloc_cnt);
+		incdec(&vcrtcm_alloc_cnt, incr);
 	else if (owner & VCRTCM_OWNER_PIM) {
 		int pimid = owner & ~VCRTCM_OWNER_PIM;
 		struct vcrtcm_pim *pim = vcrtcm_find_pim(pimid);
 		if (pim)
-			atomic_inc(&pim->alloc_cnt);
+			incdec(&pim->alloc_cnt, incr);
 	} else {
 		int pconid = owner & ~VCRTCM_OWNER_PCON;
 		struct vcrtcm_pcon *pcon = vcrtcm_get_pcon(pconid);
 		if (pcon)
-			atomic_inc(&pcon->alloc_cnt);
+			incdec(&pcon->alloc_cnt, incr);
 	}
 }
 
@@ -192,7 +200,7 @@ struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner)
 {
 	struct page *page = alloc_page(gfp_mask);
 	if (page)
-		incr_cnt(owner);
+		adjcnt(owner, 1);
 	return page;
 }
 EXPORT_SYMBOL(vcrtcm_alloc_page);
@@ -207,25 +215,35 @@ EXPORT_SYMBOL(vcrtcm_free_page);
 
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
-	void *ptr = kmalloc(size, gfp_mask);
-	if (ptr)
-		incr_cnt(owner);
-	return ptr;
+	void *ptr = kmalloc(size + sizeof(uint64_t), gfp_mask);
+	if (!ptr)
+		return NULL;
+	adjcnt(owner, 1);
+	*(uint32_t *)ptr = owner;
+	return ptr + sizeof(uint64_t);
 }
 EXPORT_SYMBOL(vcrtcm_kmalloc);
 
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
-	void *ptr = kzalloc(size, gfp_mask);
-	if (ptr)
-		incr_cnt(owner);
-	return ptr;
+	void *ptr = kzalloc(size + sizeof(uint64_t), gfp_mask);
+	if (!ptr)
+		return NULL;
+	adjcnt(owner, 1);
+	*(uint32_t *)ptr = owner;
+	return ptr + sizeof(uint64_t);
 }
 EXPORT_SYMBOL(vcrtcm_kzalloc);
 
 void vcrtcm_kfree(void *ptr)
 {
-	if (ptr)
+	if (ptr) {
+		uint32_t owner;
+
+		ptr -= sizeof(uint64_t);
+		owner = *(uint32_t *)ptr;
+		adjcnt(owner, 0);
 		kfree(ptr);
+	}
 }
 EXPORT_SYMBOL(vcrtcm_kfree);
