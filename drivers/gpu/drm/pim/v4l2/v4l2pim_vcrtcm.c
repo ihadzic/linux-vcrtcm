@@ -54,13 +54,10 @@ static int v4l2pim_alloc_pb(struct v4l2pim_pcon *pcon,
 	int r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd, *old_pbd = NULL;
 	void *pb, *old_pb = NULL;
-	struct v4l2pim_minor *minor = pcon->minor;
 
 	for (i = 0; i < 2; i++) {
 		pbd = vcrtcm_p_alloc_pb(pcon->pconid, num_pages,
-					GFP_KERNEL | __GFP_HIGHMEM,
-					&minor->kmalloc_track,
-					&minor->page_track);
+					GFP_KERNEL | __GFP_HIGHMEM);
 		if (IS_ERR(pbd)) {
 			r = PTR_ERR(pbd);
 			goto out_err0;
@@ -734,7 +731,7 @@ struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor
 	struct v4l2pim_pcon *pcon;
 
 	pcon = vcrtcm_kzalloc(sizeof(struct v4l2pim_pcon),
-			GFP_KERNEL, &minor->kmalloc_track);
+			GFP_KERNEL, pconid);
 	if (pcon == NULL)
 		return NULL;
 	pcon->pconid = pconid;

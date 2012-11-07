@@ -833,11 +833,11 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 		num_pages++;
 
 	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages,
-		GFP_KERNEL, &minor->kmalloc_track);
+		GFP_KERNEL, -1);
 	if (!pages)
 		goto sb_alloc_err;
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages,
-		num_pages, &minor->page_track);
+		num_pages, -1);
 	if (result != 0)
 		goto sb_alloc_mpages_err;
 	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
