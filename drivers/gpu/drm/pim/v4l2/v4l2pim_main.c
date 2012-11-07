@@ -53,7 +53,7 @@ int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
 int v4l2pim_debug; /* Enable the printing of debugging information */
-static int pimid;
+int v4l2pim_pimid;
 
 /* ID generator for allocating minor numbers */
 static struct vcrtcm_id_generator v4l2pim_minor_id_generator;
@@ -833,11 +833,11 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 		num_pages++;
 
 	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages,
-		GFP_KERNEL, -1);
+		GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	if (!pages)
 		goto sb_alloc_err;
 	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages,
-		num_pages, -1);
+		num_pages, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	if (result != 0)
 		goto sb_alloc_mpages_err;
 	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
@@ -1074,7 +1074,7 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
 
 	VCRTCM_INFO("Registering with pimmgr\n");
-	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &pimid);
+	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 
 	VCRTCM_INFO("v4l2 PCON Loaded\n");
 
@@ -1086,14 +1086,14 @@ static void __exit v4l2pim_exit(void)
 	struct v4l2pim_minor *minor, *tmp;
 
 	VCRTCM_INFO("shutting down v4l2pim\n");
-	vcrtcm_pim_disable_callbacks(pimid);
+	vcrtcm_pim_disable_callbacks(v4l2pim_pimid);
 	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
 		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
 		v4l2pim_destroy_minor(minor);
 	}
-	vcrtcm_pim_unregister(pimid);
+	vcrtcm_pim_unregister(v4l2pim_pimid);
 	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
 	VCRTCM_INFO("exiting v4l2pim\n");
 }

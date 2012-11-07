@@ -52,7 +52,7 @@
 #define V4L2PIM_DEBUG(fmt, args...) VCRTCM_DBG(1, v4l2pim_debug, fmt, ## args)
 
 extern int v4l2pim_debug;
-
+extern int v4l2pim_pimid;
 extern struct list_head v4l2pim_minor_list;
 extern int v4l2pim_major;
 extern int v4l2pim_num_minors;
