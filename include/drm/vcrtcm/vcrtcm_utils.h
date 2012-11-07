@@ -73,10 +73,9 @@ int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				unsigned int num_pages,
 				atomic_t *page_track);
 void vcrtcm_free_multiple_pages(struct page **page_array,
-				unsigned int num_pages,
-				atomic_t *page_track);
+				unsigned int num_pages);
 struct page *vcrtcm_alloc_page(gfp_t gfp_mask, atomic_t *page_track);
-void vcrtcm_free_page(struct page *page, atomic_t *page_track);
+void vcrtcm_free_page(struct page *page);
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track);
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, atomic_t *kmalloc_track);
 void vcrtcm_kfree(void *ptr);
