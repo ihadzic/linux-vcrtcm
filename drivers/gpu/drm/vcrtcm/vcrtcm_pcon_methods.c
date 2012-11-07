@@ -244,7 +244,9 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 
 /*
  * The PCON can use this function wait for the GPU to finish rendering
- * to the frame.  PCONs typically call this to prevent frame tearing.
+ * to the frame.  Push-mode pims must call this function before freeing
+ * the frame's buffers, which typically occurs as part of the pcon-
+ * destruction procedure.
  */
 void vcrtcm_p_wait_fb(int pconid)
 {
