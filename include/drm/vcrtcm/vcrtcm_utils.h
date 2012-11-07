@@ -69,8 +69,9 @@ void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen);
 int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen, int behavior);
 void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id);
 
+#define VCRTCM_OWNER_VCRTCM 0x80000000
+#define VCRTCM_OWNER_PIM 0x40000000
 #define VCRTCM_OWNER_PCON 0x0
-#define VCRTCM_OWNER_PIM 0x80000000
 
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner);

@@ -46,8 +46,8 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 		struct pconid_table_entry *entry = &pconid_table[k];
 		if (!entry->pcon) {
 			struct vcrtcm_pcon *pcon;
-			pcon = vcrtcm_kzalloc_pim(sizeof(struct vcrtcm_pcon),
-				GFP_KERNEL, pim);
+			pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon),
+				GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 			if (!pcon) {
 				VCRTCM_INFO("allocate of pcon failed\n");
 				mutex_unlock(&pconid_table_mutex);

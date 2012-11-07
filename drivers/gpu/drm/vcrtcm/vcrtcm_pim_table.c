@@ -46,8 +46,8 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 			return ERR_PTR(-EINVAL);
 		}
 	}
-	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc_vcrtcm(
-		sizeof(struct vcrtcm_pim), GFP_KERNEL);
+	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc(
+		sizeof(struct vcrtcm_pim), GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 	if (!pim) {
 		mutex_unlock(&pim_list_mutex);
 		return ERR_PTR(-ENOMEM);
