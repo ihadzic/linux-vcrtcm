@@ -962,10 +962,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 
 	mutex_init(&minor->mlock);
 	spin_lock_init(&minor->slock);
-
-	atomic_set(&minor->kmalloc_track, 0);
-	atomic_set(&minor->page_track, 0);
-	atomic_set(&minor->vmalloc_track, 0);
 	atomic_set(&minor->users, 0);
 	minor->shadowbuf = NULL;
 	minor->shadowbufsize = 0;

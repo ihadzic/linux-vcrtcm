@@ -101,11 +101,6 @@ struct v4l2pim_minor {
 	unsigned long generating;
 	struct task_struct *kthread;
 	struct v4l2pim_fmt *fmt;
-
-	/* debug stuff */
-	atomic_t page_track;
-	atomic_t kmalloc_track;
-	atomic_t vmalloc_track;
 };
 
 struct v4l2pim_pcon {
