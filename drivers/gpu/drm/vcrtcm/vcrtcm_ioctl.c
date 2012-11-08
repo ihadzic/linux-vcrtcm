@@ -152,9 +152,12 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
-	vcrtcm_destroy_pcon(pcon);
+	/* NB: must tell pim to destroy pcon before destroying it myself,
+	 * to give the pcon a chance to returns its allocated buffers
+	 */
 	if (funcs.destroy)
 		funcs.destroy(pconid, cookie);
+	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
 
