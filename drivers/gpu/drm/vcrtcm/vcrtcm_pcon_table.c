@@ -85,10 +85,11 @@ void vcrtcm_dealloc_pcon(int pconid)
 
 		cnt = atomic_read(&pcon->alloc_cnt);
 		page_cnt = atomic_read(&pcon->page_alloc_cnt);
-		VCRTCM_ERROR("ERROR: pcon %d (pim %s) is being destroyed, "
-			"but it has not freed %d of its allocations, "
-			"%d of which were page allocations\n",
-			pconid, pcon->pim->name, cnt, page_cnt);
+		if (cnt != 0)
+			VCRTCM_ERROR("ERROR: pcon %d (pim %s) is being destroyed, "
+				"but it has not freed %d of its allocations, "
+				"%d of which were page allocations\n",
+				pconid, pcon->pim->name, cnt, page_cnt);
 		vcrtcm_kfree(pcon);
 		entry->pcon = NULL;
 	}
