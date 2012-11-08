@@ -24,6 +24,7 @@
 #include <linux/prefetch.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include <edid.h>
 
 #include "udlpim.h"
