@@ -66,7 +66,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	return pim;
 }
 
-struct vcrtcm_pim *vcrtcm_find_pim(int pimid)
+struct vcrtcm_pim *vcrtcm_get_pim(int pimid)
 {
 	struct vcrtcm_pim *pim;
 

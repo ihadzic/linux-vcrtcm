@@ -34,7 +34,7 @@ struct vcrtcm_pim {
 	atomic_t alloc_cnt;
 };
 
-struct vcrtcm_pim *vcrtcm_find_pim(int pimid);
+struct vcrtcm_pim *vcrtcm_get_pim(int pimid);
 struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	struct vcrtcm_pim_funcs *funcs);
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim);

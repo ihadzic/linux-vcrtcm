@@ -74,7 +74,7 @@ static void adjcnt(uint32_t owner, int incr)
 		incdec(&vcrtcm_alloc_cnt, incr);
 	} else if (owner & VCRTCM_OWNER_PIM) {
 		int pimid = owner & ~VCRTCM_OWNER_PIM;
-		struct vcrtcm_pim *pim = vcrtcm_find_pim(pimid);
+		struct vcrtcm_pim *pim = vcrtcm_get_pim(pimid);
 		if (pim)
 			incdec(&pim->alloc_cnt, incr);
 	} else {

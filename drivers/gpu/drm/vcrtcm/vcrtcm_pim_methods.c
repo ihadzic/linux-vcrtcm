@@ -49,7 +49,7 @@ void vcrtcm_pim_unregister(int pimid)
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon, *tmp;
 
-	pim = vcrtcm_find_pim(pimid);
+	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
 		return;
 	VCRTCM_INFO("unregistering %s\n", pim->name);
@@ -66,7 +66,7 @@ void vcrtcm_pim_disable_callbacks(int pimid)
 {
 	struct vcrtcm_pim *pim;
 
-	pim = vcrtcm_find_pim(pimid);
+	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
 		return;
 	VCRTCM_INFO("disabling callbacks for pim %s\n", pim->name);
