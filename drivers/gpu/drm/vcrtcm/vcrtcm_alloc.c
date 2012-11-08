@@ -42,7 +42,7 @@ int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 		if (current_page) {
 			page_array[i] = current_page;
 		} else {
-			vcrtcm_free_multiple_pages(page_array, i);
+			vcrtcm_free_multiple_pages(page_array, i, owner);
 			return -ENOMEM;
 		}
 	}
@@ -51,12 +51,12 @@ int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 EXPORT_SYMBOL(vcrtcm_alloc_multiple_pages);
 
 void vcrtcm_free_multiple_pages(struct page **page_array,
-				unsigned int num_pages)
+				unsigned int num_pages, uint32_t owner)
 {
 	int i;
 
 	for (i = 0; i < num_pages; i++)
-		vcrtcm_free_page(page_array[i]);
+		vcrtcm_free_page(page_array[i], owner);
 }
 EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 
@@ -94,10 +94,12 @@ struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner)
 }
 EXPORT_SYMBOL(vcrtcm_alloc_page);
 
-void vcrtcm_free_page(struct page *page)
+void vcrtcm_free_page(struct page *page, uint32_t owner)
 {
-	if (page)
+	if (page) {
+		adjcnt(owner, 0);
 		__free_page(page);
+	}
 }
 EXPORT_SYMBOL(vcrtcm_free_page);
 

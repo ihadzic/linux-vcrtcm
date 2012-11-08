@@ -30,12 +30,12 @@ void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
 void vcrtcm_kfree(void *ptr);
 struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner);
-void vcrtcm_free_page(struct page *page);
+void vcrtcm_free_page(struct page *page, uint32_t owner);
 int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 	struct page **page_array,
 	unsigned int num_pages,
 	uint32_t owner);
 void vcrtcm_free_multiple_pages(struct page **page_array,
-	unsigned int num_pages);
+	unsigned int num_pages, uint32_t owner);
 
 #endif

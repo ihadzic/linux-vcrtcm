@@ -384,7 +384,7 @@ void vcrtcm_p_free_pb(int pconid,
 		BUG_ON(!pbd->gpu_private);
 		BUG_ON(!pbd->num_pages);
 		vcrtcm_p_unregister_prime(pconid, pbd);
-		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages);
+		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages, VCRTCM_OWNER_PCON | pconid);
 		vcrtcm_kfree(pbd->pages);
 	}
 }
@@ -441,7 +441,7 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 	}
 	return pbd;
 out_err3:
-	vcrtcm_free_multiple_pages(pbd->pages, npages);
+	vcrtcm_free_multiple_pages(pbd->pages, npages, VCRTCM_OWNER_PCON | pconid);
 out_err2:
 	vcrtcm_kfree(pbd->pages);
 out_err1:
