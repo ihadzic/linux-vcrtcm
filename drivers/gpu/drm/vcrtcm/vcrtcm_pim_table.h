@@ -32,6 +32,7 @@ struct vcrtcm_pim {
 	struct list_head pim_list;
 	int callbacks_enabled;
 	atomic_t alloc_cnt;
+	atomic_t page_alloc_cnt;
 };
 
 struct vcrtcm_pim *vcrtcm_get_pim(int pimid);

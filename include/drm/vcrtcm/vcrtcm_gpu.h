@@ -80,6 +80,7 @@ struct vcrtcm_pcon {
 	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
 	atomic_t alloc_cnt;
+	atomic_t page_alloc_cnt;
 };
 
 /* setup/config functions */

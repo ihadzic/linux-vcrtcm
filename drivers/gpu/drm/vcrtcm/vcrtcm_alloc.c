@@ -28,6 +28,7 @@
 #include "vcrtcm_pim_table.h"
 
 static atomic_t vcrtcm_alloc_cnt = ATOMIC_INIT(0);
+static atomic_t vcrtcm_page_alloc_cnt = ATOMIC_INIT(0);
 
 static void incdec(atomic_t *cnt, int incr)
 {
@@ -37,20 +38,28 @@ static void incdec(atomic_t *cnt, int incr)
 		atomic_dec(cnt);
 }
 
-static void adjcnt(uint32_t owner, int incr)
+static void adjcnts(uint32_t owner, int incr, int ispage)
 {
 	if (owner & VCRTCM_OWNER_VCRTCM) {
 		incdec(&vcrtcm_alloc_cnt, incr);
+		if (ispage)
+			incdec(&vcrtcm_page_alloc_cnt, incr);
 	} else if (owner & VCRTCM_OWNER_PIM) {
 		int pimid = owner & ~VCRTCM_OWNER_PIM;
 		struct vcrtcm_pim *pim = vcrtcm_get_pim(pimid);
-		if (pim)
+		if (pim) {
 			incdec(&pim->alloc_cnt, incr);
+			if (ispage)
+				incdec(&pim->page_alloc_cnt, incr);
+		}
 	} else {
 		int pconid = owner & ~VCRTCM_OWNER_PCON;
 		struct vcrtcm_pcon *pcon = vcrtcm_get_pcon(pconid);
-		if (pcon)
+		if (pcon) {
 			incdec(&pcon->alloc_cnt, incr);
+			if (ispage)
+				incdec(&pcon->page_alloc_cnt, incr);
+		}
 	}
 }
 
@@ -58,7 +67,7 @@ struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner)
 {
 	struct page *page = alloc_page(gfp_mask);
 	if (page)
-		adjcnt(owner, 1);
+		adjcnts(owner, 1, 1);
 	return page;
 }
 EXPORT_SYMBOL(vcrtcm_alloc_page);
@@ -66,7 +75,7 @@ EXPORT_SYMBOL(vcrtcm_alloc_page);
 void vcrtcm_free_page(struct page *page, uint32_t owner)
 {
 	if (page) {
-		adjcnt(owner, 0);
+		adjcnts(owner, 0, 1);
 		__free_page(page);
 	}
 }
@@ -108,7 +117,7 @@ void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 	void *ptr = kmalloc(size + sizeof(uint64_t), gfp_mask);
 	if (!ptr)
 		return NULL;
-	adjcnt(owner, 1);
+	adjcnts(owner, 1, 0);
 	*(uint32_t *)ptr = owner;
 	return ptr + sizeof(uint64_t);
 }
@@ -119,7 +128,7 @@ void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 	void *ptr = kzalloc(size + sizeof(uint64_t), gfp_mask);
 	if (!ptr)
 		return NULL;
-	adjcnt(owner, 1);
+	adjcnts(owner, 1, 0);
 	*(uint32_t *)ptr = owner;
 	return ptr + sizeof(uint64_t);
 }
@@ -132,7 +141,7 @@ void vcrtcm_kfree(void *ptr)
 
 		ptr -= sizeof(uint64_t);
 		owner = *(uint32_t *)ptr;
-		adjcnt(owner, 0);
+		adjcnts(owner, 0, 0);
 		kfree(ptr);
 	}
 }

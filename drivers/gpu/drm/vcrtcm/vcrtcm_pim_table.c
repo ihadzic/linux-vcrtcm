@@ -84,11 +84,16 @@ struct vcrtcm_pim *vcrtcm_get_pim(int pimid)
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 {
 	int cnt;
+	int page_cnt;
 
 	mutex_lock(&pim_list_mutex);
 	cnt = atomic_read(&pim->alloc_cnt);
+	page_cnt = atomic_read(&pim->page_alloc_cnt);
 	if (cnt != 0)
-		VCRTCM_ERROR("ERROR: pim %s is being destroyed, but it has not freed %d of its allocations\n", pim->name, cnt);
+		VCRTCM_ERROR("ERROR: pim %s is being destroyed, "
+			"but it has not freed %d of its allocations, "
+			"%d of which were page allocations\n",
+			pim->name, cnt, page_cnt);
 	list_del(&pim->pim_list);
 	vcrtcm_kfree(pim);
 	mutex_unlock(&pim_list_mutex);
