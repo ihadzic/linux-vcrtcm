@@ -37,6 +37,7 @@
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_alloc_priv.h"
 
 static const struct file_operations vcrtcm_fops;
 static dev_t vcrtcm_dev;

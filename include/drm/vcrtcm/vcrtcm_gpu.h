@@ -79,8 +79,10 @@ struct vcrtcm_pcon {
 	int vblank_time_valid;
 	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
-	atomic_t alloc_cnt;
-	atomic_t page_alloc_cnt;
+	int alloc_cnt;
+	int page_alloc_cnt;
+	int log_alloc_cnts;
+	int log_alloc_bugs;
 };
 
 /* setup/config functions */

@@ -31,8 +31,10 @@ struct vcrtcm_pim {
 	struct kobject kobj;
 	struct list_head pim_list;
 	int callbacks_enabled;
-	atomic_t alloc_cnt;
-	atomic_t page_alloc_cnt;
+	int alloc_cnt;
+	int page_alloc_cnt;
+	int log_alloc_cnts;
+	int log_alloc_bugs;
 };
 
 struct vcrtcm_pim *vcrtcm_get_pim(int pimid);

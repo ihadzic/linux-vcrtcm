@@ -100,10 +100,12 @@ struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	gfp_t gfp_mask);
 void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_disable_callbacks(int pconid);
+void vcrtcm_p_log_alloc_cnts(int pconid, int on);
 
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
 	int *pimid);
 void vcrtcm_pim_unregister(int pimid);
 void vcrtcm_pim_disable_callbacks(int pimid);
+void vcrtcm_pim_log_alloc_cnts(int pimid, int on);
 
 #endif

@@ -74,3 +74,14 @@ void vcrtcm_pim_disable_callbacks(int pimid)
 }
 EXPORT_SYMBOL(vcrtcm_pim_disable_callbacks);
 
+void vcrtcm_pim_log_alloc_cnts(int pimid, int on)
+{
+	struct vcrtcm_pim *pim;
+
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim)
+		return;
+	pim->log_alloc_cnts = on;
+}
+EXPORT_SYMBOL(vcrtcm_pim_log_alloc_cnts);
+

@@ -47,7 +47,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 			return ERR_PTR(-EINVAL);
 		}
 	}
-	pim = (struct vcrtcm_pim *)vcrtcm_kmalloc(
+	pim = (struct vcrtcm_pim *)vcrtcm_kzalloc(
 		sizeof(struct vcrtcm_pim), GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 	if (!pim) {
 		mutex_unlock(&pim_list_mutex);
@@ -56,10 +56,10 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	strncpy(pim->name, pim_name, PIM_NAME_MAXLEN);
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
-	atomic_set(&pim->alloc_cnt, 0);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
 	pim->id = next_pimid;
 	pim->callbacks_enabled = 1;
+	pim->log_alloc_bugs = 1;
 	next_pimid++;
 	list_add_tail(&pim->pim_list, &pim_list);
 	mutex_unlock(&pim_list_mutex);
@@ -87,8 +87,8 @@ void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 	int page_cnt;
 
 	mutex_lock(&pim_list_mutex);
-	cnt = atomic_read(&pim->alloc_cnt);
-	page_cnt = atomic_read(&pim->page_alloc_cnt);
+	cnt = pim->alloc_cnt;
+	page_cnt = pim->page_alloc_cnt;
 	if (cnt != 0)
 		VCRTCM_ERROR("ERROR: pim %s is being destroyed, "
 			"but it has not freed %d of its allocations, "

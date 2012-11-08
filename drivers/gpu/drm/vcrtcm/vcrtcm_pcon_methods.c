@@ -567,3 +567,16 @@ void vcrtcm_p_disable_callbacks(int pconid)
 	pcon->pcon_callbacks_enabled = 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);
+
+void vcrtcm_p_log_alloc_cnts(int pconid, int on)
+{
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d in vcrtcm_p_log_alloc_cnts\n", pconid);
+		return;
+	}
+	pcon->log_alloc_cnts = on;
+}
+EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);

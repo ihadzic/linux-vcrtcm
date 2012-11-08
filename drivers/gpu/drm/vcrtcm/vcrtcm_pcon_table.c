@@ -54,9 +54,9 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 				mutex_unlock(&pconid_table_mutex);
 				return NULL;
 			}
-			atomic_set(&pcon->alloc_cnt, 0);
 			pcon->pconid = k;
 			pcon->minor = -1;
+			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
 			spin_lock_init(&pcon->lock);
 			mutex_init(&pcon->mutex);
@@ -83,8 +83,8 @@ void vcrtcm_dealloc_pcon(int pconid)
 		int cnt;
 		int page_cnt;
 
-		cnt = atomic_read(&pcon->alloc_cnt);
-		page_cnt = atomic_read(&pcon->page_alloc_cnt);
+		cnt = pcon->alloc_cnt;
+		page_cnt = pcon->page_alloc_cnt;
 		if (cnt != 0)
 			VCRTCM_ERROR("ERROR: pcon %d (pim %s) is being destroyed, "
 				"but it has not freed %d of its allocations, "
