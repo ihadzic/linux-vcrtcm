@@ -27,7 +27,6 @@
 #define __VCRTCM_UTILS_H__
 
 #include <linux/module.h>
-#include <vcrtcm/vcrtcm_alloc.h>
 
 #ifdef MODULE
 #define VCRTCM_NAME (THIS_MODULE->name)
