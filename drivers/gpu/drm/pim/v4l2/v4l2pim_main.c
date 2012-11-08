@@ -37,7 +37,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
-
+#include <vcrtcm/vcrtcm_alloc.h>
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
 
