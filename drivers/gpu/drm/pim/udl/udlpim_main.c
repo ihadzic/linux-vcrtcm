@@ -43,7 +43,7 @@ struct list_head udlpim_minor_list;
 int udlpim_major = -1;
 int udlpim_num_minors = -1;
 int udlpim_fake_vblank_slack = 1;
-int udlpim_pimid;
+int udlpim_pimid = -1;
 
 /* Use to generate minor numbers */
 struct vcrtcm_id_generator udlpim_minor_id_generator;
