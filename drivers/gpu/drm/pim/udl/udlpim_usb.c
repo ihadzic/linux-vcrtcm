@@ -84,7 +84,7 @@ static struct udlpim_minor *udlpim_create_minor(void)
 						VCRTCM_ID_REUSE);
 	if (minornum < 0)
 		return NULL;
-	minor = kzalloc(sizeof(struct udlpim_minor), GFP_KERNEL);
+	minor = vcrtcm_kzalloc(sizeof(struct udlpim_minor), GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 	if (!minor) {
 		vcrtcm_id_generator_put(&udlpim_minor_id_generator, minornum);
 		return NULL;
@@ -128,7 +128,7 @@ static void udlpim_destroy_minor(struct udlpim_minor *minor)
 	udlpim_unmap_scratch_memory(minor);
 	udlpim_free_scratch_memory(minor);
 	list_del(&minor->list);
-	kfree(minor);
+	vcrtcm_kfree(minor);
 	vcrtcm_id_generator_put(&udlpim_minor_id_generator, minor->minor);
 	udlpim_num_minors--;
 	VCRTCM_INFO("finished destroying minor %d\n", minornum);
