@@ -53,7 +53,7 @@ int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
 int v4l2pim_debug; /* Enable the printing of debugging information */
-int v4l2pim_pimid;
+int v4l2pim_pimid = -1;
 
 /* ID generator for allocating minor numbers */
 static struct vcrtcm_id_generator v4l2pim_minor_id_generator;
