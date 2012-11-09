@@ -60,6 +60,7 @@ static int __init udlpim_init(void)
 
 	VCRTCM_INFO("DisplayLink USB PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("Push mode enabled");
+	vcrtcm_pim_register("udl", &udlpim_pim_funcs, &udlpim_pimid);
 	INIT_LIST_HEAD(&udlpim_minor_list);
 	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
 					UDLPIM_MAX_DEVICES);
@@ -77,7 +78,7 @@ static int __init udlpim_init(void)
 		VCRTCM_ERROR("usb_register failed, error %d", r);
 		return r;
 	}
-	vcrtcm_pim_register("udl", &udlpim_pim_funcs, &udlpim_pimid);
+	vcrtcm_pim_enable_callbacks(udlpim_pimid);
 	return 0;
 }
 
