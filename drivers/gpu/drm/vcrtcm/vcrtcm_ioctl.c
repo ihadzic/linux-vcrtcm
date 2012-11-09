@@ -38,7 +38,11 @@ long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 		VCRTCM_INFO("invalid pimid\n");
 		return -EINVAL;
 	}
-	if (pim->funcs.test && pim->callbacks_enabled) {
+	if (!pim->callbacks_enabled) {
+		VCRTCM_ERROR("pim %s has callbacks disabled\n", pim->name);
+		return -ECANCELED;
+	}
+	if (pim->funcs.test) {
 		r = pim->funcs.test(testarg);
 		VCRTCM_INFO("pimtest returned %d\n", r);
 		return r;
@@ -53,11 +57,20 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	struct vcrtcm_pcon *pcon;
 	int r;
 
-	VCRTCM_INFO("in instantiate pcon: %d, %d\n", pimid, hints);
+	VCRTCM_INFO("in instantiate pcon: pimid %d, hints %d\n", pimid, hints);
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
-		VCRTCM_INFO("invalid pimid\n");
+		VCRTCM_INFO("invalid pimid %d\n", pimid);
 		return -EINVAL;
+	}
+	VCRTCM_INFO("pim is %s\n", pim->name);
+	if (!pim->callbacks_enabled) {
+		VCRTCM_ERROR("pim %s has callbacks disabled\n", pim->name);
+		return -ECANCELED;
+	}
+	if (!pim->funcs.instantiate) {
+		VCRTCM_ERROR("pim %s has no instantiate callback\n", pim->name);
+		return -ENOSYS;
 	}
 	pcon = vcrtcm_alloc_pcon(pim);
 	if (!pcon) {
@@ -65,19 +78,17 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		return -ENODEV;
 	}
 	pcon->pim = pim;
-	if (pim->funcs.instantiate && pim->callbacks_enabled) {
-		r = pim->funcs.instantiate(pcon->pconid, hints,
-						&pcon->pcon_cookie,
-						&pcon->pcon_funcs,
-						&pcon->xfer_mode,
-						&pcon->minor,
-						pcon->description);
-		if (r) {
-			VCRTCM_INFO("no pcons of type %s available...\n",
-				    pim->name);
-			vcrtcm_dealloc_pcon(pcon->pconid);
-			return r;
-		}
+	r = pim->funcs.instantiate(pcon->pconid, hints,
+					&pcon->pcon_cookie,
+					&pcon->pcon_funcs,
+					&pcon->xfer_mode,
+					&pcon->minor,
+					pcon->description);
+	if (r) {
+		VCRTCM_INFO("no pcons of type %s available...\n",
+				pim->name);
+		vcrtcm_dealloc_pcon(pcon->pconid);
+		return r;
 	}
 	VCRTCM_INFO("new pcon created, id %i\n", pcon->pconid);
 	vcrtcm_sysfs_add_pcon(pcon);
@@ -144,6 +155,10 @@ long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
+	if (!pcon->pim->callbacks_enabled) {
+		VCRTCM_ERROR("pim %s has callbacks disabled\n", pcon->pim->name);
+		return -ECANCELED;
+	}
 	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
 	if (r) {
 		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);
@@ -166,7 +181,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct vcrtcm_ioctl_args ioctl_args;
 	long result = 0;
 
-	VCRTCM_INFO("IOCTL entered\n");
+	VCRTCM_INFO("ioctl entered: cmd = %u, arg = %lu\n", cmd, arg);
 
 	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
