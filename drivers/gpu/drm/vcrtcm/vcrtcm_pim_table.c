@@ -43,6 +43,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	mutex_lock(&pim_list_mutex);
 	list_for_each_entry(pim, &pim_list, pim_list) {
 		if (strcmp(pim->name, pim_name) == 0) {
+			VCRTCM_ERROR("pim %s already exists; unregister it or use a different name\n", pim_name);
 			mutex_unlock(&pim_list_mutex);
 			return ERR_PTR(-EINVAL);
 		}
@@ -50,6 +51,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	pim = (struct vcrtcm_pim *)vcrtcm_kzalloc(
 		sizeof(struct vcrtcm_pim), GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 	if (!pim) {
+		VCRTCM_ERROR("cannot allocate memory for pim %s\n", pim_name);
 		mutex_unlock(&pim_list_mutex);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -77,6 +79,7 @@ struct vcrtcm_pim *vcrtcm_get_pim(int pimid)
 		}
 	}
 	mutex_unlock(&pim_list_mutex);
+	VCRTCM_ERROR("pim %s is not registered\n", pim->name);
 	return NULL;
 }
 
