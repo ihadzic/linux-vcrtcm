@@ -67,6 +67,7 @@ static int __init udlpim_init(void)
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_DEVICES, "udlpim");
 	if (r) {
+		vcrtcm_pim_unregister(udlpim_pimid);
 		VCRTCM_WARNING("cannot get major device number\n");
 		return r;
 	}
@@ -75,6 +76,8 @@ static int __init udlpim_init(void)
 	udlpim_num_minors = 0;
 	r = usb_register(&udlpim_driver);
 	if (r) {
+		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
+		vcrtcm_pim_unregister(udlpim_pimid);
 		VCRTCM_ERROR("usb_register failed, error %d", r);
 		return r;
 	}
