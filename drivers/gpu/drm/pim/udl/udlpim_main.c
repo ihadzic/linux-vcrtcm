@@ -95,8 +95,13 @@ static void __exit udlpim_exit(void)
 			udlpim_destroy_pcon(minor->pcon);
 		}
 	}
-	vcrtcm_pim_unregister(udlpim_pimid);
+	/* must deregister usb before unregistering pim, because
+	* deregistering usb causes the minors to be destroyed,
+	* and when the minors are destroyed they return their
+	* allocations to vcrtcm
+	*/
 	usb_deregister(&udlpim_driver);
+	vcrtcm_pim_unregister(udlpim_pimid);
 	vcrtcm_id_generator_destroy(&udlpim_minor_id_generator);
 	VCRTCM_INFO("exiting udlpim\n");
 }
