@@ -62,6 +62,18 @@ void vcrtcm_pim_unregister(int pimid)
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
+void vcrtcm_pim_enable_callbacks(int pimid)
+{
+	struct vcrtcm_pim *pim;
+
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim)
+		return;
+	VCRTCM_INFO("enabling callbacks for pim %s\n", pim->name);
+	pim->callbacks_enabled = 1;
+}
+EXPORT_SYMBOL(vcrtcm_pim_enable_callbacks);
+
 void vcrtcm_pim_disable_callbacks(int pimid)
 {
 	struct vcrtcm_pim *pim;

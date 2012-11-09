@@ -105,6 +105,7 @@ void vcrtcm_p_log_alloc_cnts(int pconid, int on);
 int vcrtcm_pim_register(char *pim_name, struct vcrtcm_pim_funcs *funcs,
 	int *pimid);
 void vcrtcm_pim_unregister(int pimid);
+void vcrtcm_pim_enable_callbacks(int pimid);
 void vcrtcm_pim_disable_callbacks(int pimid);
 void vcrtcm_pim_log_alloc_cnts(int pimid, int on);
 
