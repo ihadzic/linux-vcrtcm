@@ -1053,11 +1053,10 @@ static int __init v4l2pim_init(void)
 	int r;
 
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-
+	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 	INIT_LIST_HEAD(&v4l2pim_minor_list);
 	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
 					V4L2PIM_MAX_MINORS);
-
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, "v4l2pim");
 	if (r) {
@@ -1066,18 +1065,12 @@ static int __init v4l2pim_init(void)
 	}
 	v4l2pim_major = MAJOR(dev);
 	VCRTCM_INFO("Using major device number %d\n", v4l2pim_major);
-
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
 		VCRTCM_WARNING("vid_limit (%d) too high, V4L2PIM_VID_LIMIT_MAX = %d\n", vid_limit, V4L2PIM_VID_LIMIT_MAX);
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
 	}
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
-
-	VCRTCM_INFO("Registering with pimmgr\n");
-	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
-
-	VCRTCM_INFO("v4l2 PCON Loaded\n");
-
+	vcrtcm_pim_enable_callbacks(v4l2pim_pimid);
 	return 0;
 }
 
