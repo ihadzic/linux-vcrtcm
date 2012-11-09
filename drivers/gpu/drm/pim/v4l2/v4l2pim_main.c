@@ -1060,6 +1060,7 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("Allocating/registering dynamic major number");
 	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, "v4l2pim");
 	if (r) {
+		vcrtcm_pim_unregister(v4l2pim_pimid);
 		VCRTCM_ERROR("cannot get major device number\n");
 		return r;
 	}
