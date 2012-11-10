@@ -26,12 +26,13 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 
-#define UDLPIM_MAX_DEVICES 64 /* This is currently a hard limitation. */
+#define UDLPIM_MAX_MINORS 64 /* This is currently a hard limitation. */
 #define UDLPIM_FPS_HARD_LIMIT 100
 #define UDLPIM_DEFAULT_PIXEL_DEPTH 32
 #define UDLPIM_XFER_MAX_TRY 20
 #define UDLPIM_XFER_TIMEOUT (300*HZ/1000) /*5*HZ/1000*/
 #define UDLPIM_XMIT_HARD_DEADLINE (HZ/10)
+#define UDLPIM_PIM_NAME "udl"
 
 #define UDLPIM_IN_DO_XMIT 0x1
 

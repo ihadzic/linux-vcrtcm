@@ -60,23 +60,21 @@ static int __init udlpim_init(void)
 
 	VCRTCM_INFO("DisplayLink USB PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("Push mode enabled");
-	vcrtcm_pim_register("udl", &udlpim_pim_funcs, &udlpim_pimid);
-	INIT_LIST_HEAD(&udlpim_minor_list);
-	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
-					UDLPIM_MAX_DEVICES);
-	VCRTCM_INFO("Allocating/registering dynamic major number");
-	r = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_DEVICES, "udlpim");
+	r = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_MINORS, UDLPIM_PIM_NAME);
 	if (r) {
-		vcrtcm_pim_unregister(udlpim_pimid);
 		VCRTCM_WARNING("cannot get major device number\n");
 		return r;
 	}
 	udlpim_major = MAJOR(dev);
-	VCRTCM_INFO("Using major device number %d\n", udlpim_major);
+	VCRTCM_INFO("using major %d\n", udlpim_major);
+	vcrtcm_pim_register(UDLPIM_PIM_NAME, &udlpim_pim_funcs, &udlpim_pimid);
+	INIT_LIST_HEAD(&udlpim_minor_list);
+	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
+					UDLPIM_MAX_MINORS);
 	udlpim_num_minors = 0;
 	r = usb_register(&udlpim_driver);
 	if (r) {
-		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
+		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_MINORS);
 		vcrtcm_pim_unregister(udlpim_pimid);
 		VCRTCM_ERROR("usb_register failed, error %d", r);
 		return r;
@@ -92,7 +90,7 @@ static void __exit udlpim_exit(void)
 
 	VCRTCM_INFO("shutting down udlpim\n");
 	vcrtcm_pim_disable_callbacks(udlpim_pimid);
-	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_DEVICES);
+	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_MINORS);
 	list_for_each_entry_safe(minor, tmp, &udlpim_minor_list, list) {
 		if (minor->pcon) {
 			udlpim_detach_pcon(minor->pcon);

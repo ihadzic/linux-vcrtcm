@@ -76,7 +76,7 @@ static struct udlpim_minor *udlpim_create_minor(void)
 	struct udlpim_minor *minor;
 	int minornum;
 
-	if (udlpim_num_minors == UDLPIM_MAX_DEVICES) {
+	if (udlpim_num_minors == UDLPIM_MAX_MINORS) {
 		VCRTCM_ERROR("Maximum number of minors already assigned.\n");
 		return NULL;
 	}
