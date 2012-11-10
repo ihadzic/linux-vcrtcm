@@ -1081,7 +1081,7 @@ static void __exit v4l2pim_exit(void)
 
 	VCRTCM_INFO("shutting down v4l2pim\n");
 	vcrtcm_pim_disable_callbacks(v4l2pim_pimid);
-	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), v4l2pim_num_minors);
+	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), V4L2PIM_MAX_MINORS);
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
 		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
