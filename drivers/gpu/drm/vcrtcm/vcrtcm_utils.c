@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_utils_priv.h"
@@ -135,3 +136,33 @@ void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id)
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_id_generator_put);
+
+int vcrtcm_alloc_major(int *major, int num_minors, const char *name)
+{
+	dev_t dev;
+	int r;
+
+	if (*major >= 0) {
+		dev = MKDEV(*major, 0);
+		r = register_chrdev_region(dev, num_minors, name);
+		if (r)
+			VCRTCM_ERROR("can't allocate static major %d for %s\n",
+				*major, name);
+		else
+			VCRTCM_INFO("allocated static major %d for %s\n",
+				*major, name);
+	} else {
+		r = alloc_chrdev_region(&dev, 0, num_minors, name);
+		if (r)
+			VCRTCM_ERROR("can't allocate dynamic major for %s\n",
+				name);
+		else {
+			*major = MAJOR(dev);
+			VCRTCM_INFO("allocated dynamic major %d for %s\n",
+				*major, name);
+		}
+	}
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_alloc_major);
+
