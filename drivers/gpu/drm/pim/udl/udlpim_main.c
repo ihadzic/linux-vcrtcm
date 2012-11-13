@@ -56,17 +56,12 @@ static struct vcrtcm_pim_funcs udlpim_pim_funcs = {
 static int __init udlpim_init(void)
 {
 	int r;
-	dev_t dev;
 
 	VCRTCM_INFO("DisplayLink USB PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("Push mode enabled");
-	r = alloc_chrdev_region(&dev, 0, UDLPIM_MAX_MINORS, UDLPIM_PIM_NAME);
-	if (r) {
-		VCRTCM_WARNING("cannot get major device number\n");
+	r = vcrtcm_alloc_major(&udlpim_major, UDLPIM_MAX_MINORS, UDLPIM_PIM_NAME);
+	if (r)
 		return r;
-	}
-	udlpim_major = MAJOR(dev);
-	VCRTCM_INFO("using major %d\n", udlpim_major);
 	vcrtcm_pim_register(UDLPIM_PIM_NAME, &udlpim_pim_funcs, &udlpim_pimid);
 	INIT_LIST_HEAD(&udlpim_minor_list);
 	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
@@ -117,6 +112,9 @@ MODULE_PARM_DESC(udlpim_true32bpp,
 
 module_param_named(debug, udlpim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(debug, "Enable debugging information.");
+
+module_param_named(major, udlpim_major, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(major, "Major device number (default=dynamic)");
 
 module_param_named(enable_default_modes, udlpim_enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(enable_default_modes,
