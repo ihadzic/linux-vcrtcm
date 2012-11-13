@@ -1049,17 +1049,12 @@ static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 
 static int __init v4l2pim_init(void)
 {
-	dev_t dev;
 	int r;
 
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	r = alloc_chrdev_region(&dev, 0, V4L2PIM_MAX_MINORS, V4L2PIM_PIM_NAME);
-	if (r) {
-		VCRTCM_WARNING("can't get major device number\n");
+	r = vcrtcm_alloc_major(&v4l2pim_major, V4L2PIM_MAX_MINORS, V4L2PIM_PIM_NAME);
+	if (r)
 		return r;
-	}
-	v4l2pim_major = MAJOR(dev);
-	VCRTCM_INFO("using major %d\n", v4l2pim_major);
 	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 	INIT_LIST_HEAD(&v4l2pim_minor_list);
 	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
@@ -1093,8 +1088,10 @@ static void __exit v4l2pim_exit(void)
 module_init(v4l2pim_init);
 module_exit(v4l2pim_exit);
 
-MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information.");
+MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information");
 module_param_named(debug, v4l2pim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(v4l2pim_major, "Major device number (default=dynamic)");
+module_param_named(major, v4l2pim_major, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
