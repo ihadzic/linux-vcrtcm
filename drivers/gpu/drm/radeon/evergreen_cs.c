@@ -1192,8 +1192,11 @@ static int evergreen_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	radeon_crtc = to_radeon_crtc(crtc);
 	crtc_id = radeon_crtc->crtc_id;
 
-	if (!crtc->enabled) {
-		/* if the CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
+	if (!crtc->enabled || crtc_id >= p->rdev->num_crtc) {
+		/*
+		 * if the CRTC isn't enabled or CRTC is virtual
+		 * - we need to nop out the WAIT_REG_MEM
+		 */
 		ib[h_idx + 2] = PACKET2(0);
 		ib[h_idx + 3] = PACKET2(0);
 		ib[h_idx + 4] = PACKET2(0);
