@@ -223,6 +223,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_cursor)
 {
 	struct radeon_device *rdev = scrtc->dev->dev_private;
+	int ridx = radeon_copy_ring_index(rdev);
 	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
 	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
 	struct drm_gem_object *scbo = srcrtc->cursor_bo;
@@ -258,7 +259,9 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			DRM_DEBUG("pushing cursor: %d pages "
 				  "from %llx to %llx\n",
 				  num_pages, saddr, daddr);
-			if (!fence_c)
+			if (!rdev->ring[ridx].ready)
+				DRM_ERROR("copy ring not ready (cursor)\n");
+			else if (!fence_c)
 				radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
 			else if (radeon_fence_signaled(fence_c)) {
 				radeon_fence_unref(&fence_c);
@@ -291,7 +294,9 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 
 	DRM_DEBUG("pushing framebuffer: %d pages from %llx to %llx\n",
 		  num_pages, saddr, daddr);
-	if (!fence_fb)
+	if (!rdev->ring[ridx].ready)
+		DRM_ERROR("copy ring not ready (framebuffer)\n");
+	else if (!fence_fb)
 		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
 	else if (radeon_fence_signaled(fence_fb)) {
 		radeon_fence_unref(&fence_fb);
