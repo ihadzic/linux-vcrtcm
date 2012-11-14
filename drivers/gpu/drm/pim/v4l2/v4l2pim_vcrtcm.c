@@ -23,21 +23,21 @@
 #include "v4l2pim.h"
 #include "v4l2pim_vcrtcm.h"
 
-void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
+static void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
 {
-	struct v4l2pim_minor *minor;
 	struct vcrtcm_push_buffer_descriptor *pbd;
 	void *pb_mapped_ram;
 	int i;
 
-	minor = pcon->minor;
 	for (i = 0; i < 2; i++) {
 		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			pbd = pcon->pbd_fb[i];
 			pb_mapped_ram = pcon->pb_fb[i];
+			pcon->pbd_fb[i] = NULL;
 		} else {
 			pbd = pcon->pbd_cursor[i];
 			pb_mapped_ram = pcon->pb_cursor[i];
+			pcon->pbd_cursor[i] = NULL;
 		}
 		if (pbd) {
 			BUG_ON(!pbd->gpu_private);
@@ -136,6 +136,8 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 	}
 	if (pcon->attached)
 		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
+	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
+	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
 	return 0;
 }
@@ -746,8 +748,6 @@ void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 	VCRTCM_INFO("waiting for push completion on pcon %d\n", pcon->pconid);
 	vcrtcm_p_wait_fb(pcon->pconid);
 	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
-	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
-	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
 }
