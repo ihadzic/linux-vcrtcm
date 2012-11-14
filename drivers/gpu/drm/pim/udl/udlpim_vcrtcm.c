@@ -77,8 +77,6 @@ void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 {
 	if (pcon->attached)
 		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
-	cancel_delayed_work_sync(&pcon->minor->fake_vblank_work);
-	cancel_delayed_work_sync(&pcon->minor->query_edid_work);
 	pcon->attached = 0;
 }
 
@@ -361,9 +359,7 @@ int udlpim_set_fps(int pconid, void *cookie, int fps)
 	}
 
 	/* Schedule initial fake vblank */
-	/*schedule_delayed_work(&minor->fake_vblank_work, 0);*/
 	queue_delayed_work(minor->workqueue, &minor->fake_vblank_work, 0);
-
 	return 0;
 }
 
@@ -684,8 +680,7 @@ void udlpim_fake_vblank(struct work_struct *work)
 		if (next_vblank_delay <= udlpim_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
 		if (!queue_delayed_work(minor->workqueue,
-					&minor->fake_vblank_work,
-					next_vblank_delay))
+			&minor->fake_vblank_work, next_vblank_delay))
 			VCRTCM_WARNING("dup fake vblank, minor %d\n",
 				minor->minor);
 	} else
@@ -882,10 +877,11 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 	char *description)
 {
 	struct udlpim_minor *minor;
-	struct usb_device *usbdev;
 
 	list_for_each_entry(minor, &udlpim_minor_list, list) {
 		if (!minor->pcon) {
+			struct usb_device *usbdev;
+
 			minor->pcon = udlpim_create_pcon(pconid, minor);
 			if (!minor->pcon)
 				return -ENOMEM;
@@ -898,14 +894,6 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
 			*cookie = minor->pcon;
-
-			/* Do an initial query of the EDID */
-			udlpim_query_edid_core(minor);
-
-			/* Start the EDID query thread */
-			queue_delayed_work(minor->workqueue,
-						&minor->query_edid_work, 0);
-
 			VCRTCM_INFO("udlpim %d now serves pcon %d\n",
 				minor->minor, pconid);
 			return 0;

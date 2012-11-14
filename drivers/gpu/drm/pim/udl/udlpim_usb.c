@@ -117,6 +117,7 @@ static void udlpim_destroy_minor(struct udlpim_minor *minor)
 
 	VCRTCM_INFO("destroying minor %d\n", minornum);
 	cancel_delayed_work_sync(&minor->fake_vblank_work);
+	cancel_delayed_work_sync(&minor->query_edid_work);
 
 	/* this function will wait for all in-flight urbs to complete */
 	if (minor->urbs.count > 0)
@@ -194,6 +195,10 @@ static int udlpim_usb_probe(struct usb_interface *interface,
 	VCRTCM_INFO("DisplayLink USB device attached.\n");
 	VCRTCM_INFO("successfully registered minor %d\n", minor->minor);
 	list_add_tail(&minor->list, &udlpim_minor_list);
+
+	/* Do an initial query of the EDID */
+	udlpim_query_edid_core(minor);
+	queue_delayed_work(minor->workqueue, &minor->query_edid_work, 0);
 	return 0;
 
 error:
@@ -1536,8 +1541,8 @@ static void udlpim_query_edid(struct work_struct *work)
 
 	udlpim_query_edid_core(minor);
 
-	queue_delayed_work(minor->workqueue,
-			&minor->query_edid_work, UDLPIM_EDID_QUERY_TIME);
+	queue_delayed_work(minor->workqueue, &minor->query_edid_work,
+		UDLPIM_EDID_QUERY_TIME);
 }
 
 /* The following are all low-level DisplayLink manipulation functions */
@@ -1738,9 +1743,11 @@ static void udlpim_urb_completion(struct urb *urb)
 	 * When using fb_defio, we deadlock if up() is called
 	 * while another is waiting. So queue to another process.
 	 */
-	/*if (fb_defio)
-		schedule_delayed_work(&unode->release_urb_work, 0);
-	else*/
+	/*
+	* if (fb_defio)
+	*	schedule_delayed_work(&unode->release_urb_work, 0);
+	* else
+	*/
 	up(&minor->urbs.limit_sem);
 }
 
