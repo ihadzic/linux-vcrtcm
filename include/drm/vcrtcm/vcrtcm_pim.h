@@ -88,7 +88,7 @@ void vcrtcm_p_emulate_vblank(int pconid);
 void vcrtcm_p_wait_fb(int pconid);
 int vcrtcm_p_register_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
-void vcrtcm_p_unregister_prime(int pconid,
+int vcrtcm_p_unregister_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
 int vcrtcm_p_push(int pconid, struct vcrtcm_push_buffer_descriptor *fpbd,
 	struct vcrtcm_push_buffer_descriptor *cpbd);
@@ -98,7 +98,7 @@ struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd, int npages,
 	gfp_t gfp_mask);
-void vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
+int vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_disable_callbacks(int pconid);
 void vcrtcm_p_log_alloc_cnts(int pconid, int on);
 

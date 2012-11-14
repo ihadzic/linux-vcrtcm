@@ -121,6 +121,12 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 	}
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 	spin_unlock_irqrestore(&pcon->lock, flags);
+
+	/* TBD: the pcon detach routine must be called before
+	* the gpu detach routine, to give the pcon detach
+	* routine a chance to return the pcon's push buffers
+	* before the pcon is detached from the crtc.
+	*/
 	if (pcon->pcon_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {

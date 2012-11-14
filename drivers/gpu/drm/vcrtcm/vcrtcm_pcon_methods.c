@@ -172,7 +172,22 @@ int vcrtcm_p_register_prime(int pconid,
 		goto out_err0;
 	}
 	crtc = pcon->drm_crtc;
+	if (!crtc) {
+		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
+		r = -ENODEV;
+		goto out_err0;
+	}
 	dev = crtc->dev;
+	if (!dev) {
+		VCRTCM_ERROR("no dev for pcon %d\n", pconid);
+		r = -ENODEV;
+		goto out_err0;
+	}
+	if (!dev->driver) {
+		VCRTCM_ERROR("no driver for pcon %d\n", pconid);
+		r = -ENODEV;
+		goto out_err0;
+	}
 	dma_buf = dma_buf_export(pbd, &vcrtcm_dma_buf_ops,
 				 size, VCRTCM_DMA_BUF_PERMS);
 	if (IS_ERR(dma_buf)) {
@@ -205,7 +220,7 @@ EXPORT_SYMBOL(vcrtcm_p_register_prime);
  * of different size). Also called by vcrtcm_p_free_pb, which is called
  * by PCONs whose backing store is in main memory.
  */
-void vcrtcm_p_unregister_prime(int pconid,
+int vcrtcm_p_unregister_prime(int pconid,
 			       struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_pcon *pcon;
@@ -216,12 +231,32 @@ void vcrtcm_p_unregister_prime(int pconid,
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
-	crtc = pcon->drm_crtc;
-	dev = crtc->dev;
-	VCRTCM_DEBUG("pcon %i freeing GEM object name=%d, size=%d\n",
+	if (!obj) {
+		VCRTCM_ERROR("no obj for pcon %d in vcrtcm_p_unregister_prime\n",
+			pconid);
+		return -ENODEV;
+	}
+	VCRTCM_INFO("pcon %i freeing GEM object name=%d, size=%d\n",
 		     pconid, obj->name, obj->size);
+	crtc = pcon->drm_crtc;
+	if (!crtc) {
+		VCRTCM_ERROR("no crtc for pcon %d in vcrtcm_p_unregister_prime\n",
+			pconid);
+		return -ENODEV;
+	}
+	dev = crtc->dev;
+	if (!dev) {
+		VCRTCM_ERROR("no dev for pcon %d in vcrtcm_p_unregister_prime\n",
+			pconid);
+		return -ENODEV;
+	}
+	if (!dev->driver) {
+		VCRTCM_ERROR("no driver for pcon %d in vcrtcm_p_unregister_prime\n",
+			pconid);
+		return -ENODEV;
+	}
 	/*
 	 * This call is magic: It will free the GEM object, which will
 	 * result in a call to drm_prime_gem_destroy (assuming that there
@@ -232,6 +267,7 @@ void vcrtcm_p_unregister_prime(int pconid,
 	 * is always only one attachment.
 	 */
 	dev->driver->gem_free_object(obj);
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
@@ -371,7 +407,7 @@ EXPORT_SYMBOL(vcrtcm_p_hotplug);
  * memory to allocate push buffers. This function does the opposite
  * of vcrtcm_p_alloc_pb
  */
-void vcrtcm_p_free_pb(int pconid,
+int vcrtcm_p_free_pb(int pconid,
 		      struct vcrtcm_push_buffer_descriptor *pbd)
 {
 	struct vcrtcm_pcon *pcon;
@@ -379,12 +415,20 @@ void vcrtcm_p_free_pb(int pconid,
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	if (pbd) {
+		int r;
+
 		BUG_ON(!pbd->gpu_private);
 		BUG_ON(!pbd->num_pages);
-		vcrtcm_p_unregister_prime(pconid, pbd);
+		r = vcrtcm_p_unregister_prime(pconid, pbd);
+		if (r) {
+			VCRTCM_ERROR("vcrtcm_p_free_pb failed on pcon %d "
+				"because vcrtcm_p_unregister_prime failed\n",
+				pconid);
+			return r;
+		}
 		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages, VCRTCM_OWNER_PCON | pconid);
 		vcrtcm_kfree(pbd->pages);
 		/*
@@ -402,6 +446,7 @@ void vcrtcm_p_free_pb(int pconid,
 		*/
 		vcrtcm_kfree_decronly(pbd);
 	}
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb);
 
