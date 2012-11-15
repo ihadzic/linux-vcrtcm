@@ -83,6 +83,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 					&pcon->pcon_funcs,
 					&pcon->xfer_mode,
 					&pcon->minor,
+					&pcon->vblank_slack_jiffies,
 					pcon->description);
 	if (r) {
 		VCRTCM_INFO("no pcons of type %s available...\n",
@@ -107,6 +108,8 @@ long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	unsigned long flags;
 
 	mutex_lock(&pcon->mutex);
+	cancel_delayed_work_sync(&pcon->vblank_work);
+	pcon->vblank_period_jiffies = 0;
 	spin_lock_irqsave(&pcon->lock, flags);
 	if (!(pcon->status & VCRTCM_STATUS_PCON_IN_USE)) {
 		spin_unlock_irqrestore(&pcon->lock, flags);

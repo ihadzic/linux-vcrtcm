@@ -333,6 +333,23 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 	int r;
 
 	mutex_lock(&pcon->mutex);
+	if (fps <= 0) {
+		cancel_delayed_work_sync(&pcon->vblank_work);
+		pcon->fps = 0;
+		pcon->vblank_period_jiffies = 0;
+		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
+			pcon->pconid);
+	} else {
+		unsigned long now;
+		int old_fps = pcon->fps;
+		pcon->fps = fps;
+		pcon->vblank_period_jiffies = HZ/fps;
+		now = jiffies;
+		pcon->last_vblank_jiffies = now;
+		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
+		if (old_fps == 0)
+				schedule_delayed_work(&pcon->vblank_work, 0);
+	}
 	if (pcon->pcon_funcs.set_fps &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -350,26 +367,12 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fps);
 
-/* reads the frame rate */
 int vcrtcm_g_get_fps(struct vcrtcm_pcon *pcon, int *fps)
 {
-	int r;
-
 	mutex_lock(&pcon->mutex);
-	if (pcon->pcon_funcs.get_fps &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
-		VCRTCM_DEBUG("calling get_fps backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_fps(pcon->pconid,
-			pcon->pcon_cookie, fps);
-	} else {
-		VCRTCM_WARNING("missing get_fps backend, pcon %i\n",
-			       pcon->pconid);
-		r = 0;
-	}
+	*fps = pcon->fps;
 	mutex_unlock(&pcon->mutex);
-	return r;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fps);
 

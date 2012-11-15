@@ -274,6 +274,7 @@ EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
 	mutex_lock(&pcon->mutex);
+	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
 	mutex_unlock(&pcon->mutex);
@@ -338,6 +339,7 @@ void vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
 		pcon->gpu_funcs.vblank(pcon->drm_crtc);
 	}
+	pcon->last_vblank_jiffies = jiffies;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
@@ -562,6 +564,8 @@ void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 	unsigned long flags;
 
 	mutex_lock(&pcon->mutex);
+	cancel_delayed_work_sync(&pcon->vblank_work);
+	pcon->vblank_period_jiffies = 0;
 	spin_lock_irqsave(&pcon->lock, flags);
 	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;

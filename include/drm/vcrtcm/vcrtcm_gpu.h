@@ -83,6 +83,12 @@ struct vcrtcm_pcon {
 	int page_alloc_cnt;
 	int log_alloc_cnts;
 	int log_alloc_bugs;
+	struct delayed_work vblank_work;
+	int fps;
+	unsigned long vblank_period_jiffies;
+	unsigned long last_vblank_jiffies;
+	unsigned long next_vblank_jiffies;
+	int vblank_slack_jiffies;
 };
 
 /* setup/config functions */

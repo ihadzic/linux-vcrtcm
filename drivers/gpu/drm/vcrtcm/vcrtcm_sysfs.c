@@ -195,21 +195,7 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 
 		return scnprintf(buf, PAGE_SIZE, "unknown\n");
 	} else if (attr == &pcon_fps_attr) {
-		struct vcrtcm_pcon_properties props;
-		int result = 0;
-
-		if (!pcon->pcon_funcs.get_properties ||
-			!pcon->pcon_callbacks_enabled ||
-			!pcon->pim->callbacks_enabled)
-			return 0;
-		result = pcon->pcon_funcs.get_properties(pcon->pconid,
-			pcon->pcon_cookie, &props);
-		if (!result)
-			return 0;
-
-		if (props.fps < 0)
-			return 0;
-		return scnprintf(buf, PAGE_SIZE, "%d\n", props.fps);
+		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->fps);
 	} else if (attr == &pcon_attached_attr) {
 		struct vcrtcm_pcon_properties props;
 		int result = 0;

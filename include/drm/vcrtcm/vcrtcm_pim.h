@@ -71,7 +71,7 @@ struct vcrtcm_pim_funcs {
 	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
 		struct vcrtcm_pcon_funcs *funcs,
 		enum vcrtcm_xfer_mode *xfer_mode, int *minor,
-		char *description);
+		int *vblank_slack, char *description);
 
 	/* Deallocate the given PCON instance and free resources used.
 	 * The PIM can assume that the given PCON has been detached

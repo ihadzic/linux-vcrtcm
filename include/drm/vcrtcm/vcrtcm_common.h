@@ -108,6 +108,7 @@ struct vcrtcm_pcon_funcs {
 	void (*disable)(int pconid, void *cookie);
 	int (*get_properties)(int pconid, void *cookie,
 		struct vcrtcm_pcon_properties *props);
+	int (*vblank)(int pconid, void *cookie);
 };
 
 #endif
