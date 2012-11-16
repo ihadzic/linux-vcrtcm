@@ -874,7 +874,7 @@ void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 int udlpim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
-	char *description)
+	int *vblank_slack, char *description)
 {
 	struct udlpim_minor *minor;
 
@@ -894,6 +894,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*funcs = udlpim_vcrtcm_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
 			*cookie = minor->pcon;
+			*vblank_slack = udlpim_fake_vblank_slack;
 			VCRTCM_INFO("udlpim %d now serves pcon %d\n",
 				minor->minor, pconid);
 			return 0;
