@@ -348,27 +348,6 @@ int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 	return 0;
 }
 
-int v4l2pim_get_fps(int pconid, void *cookie, int *fps)
-{
-	struct v4l2pim_pcon *pcon = cookie;
-	struct v4l2pim_minor *minor;
-
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -ENODEV;
-	}
-	minor = pcon->minor;
-	V4L2PIM_DEBUG("\n");
-	if (pcon->fb_xmit_period_jiffies <= 0) {
-		*fps = 0;
-		VCRTCM_INFO("Zero or negative frame rate, transmission disabled\n");
-		return 0;
-	} else {
-		*fps = HZ / pcon->fb_xmit_period_jiffies;
-		return 0;
-	}
-}
-
 int v4l2pim_set_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
@@ -716,12 +695,10 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 	.detach = v4l2pim_detach,
 	.set_fb = v4l2pim_set_fb,
 	.get_fb = v4l2pim_get_fb,
-	.get_properties = v4l2pim_get_properties,
 	.dirty_fb = v4l2pim_dirty_fb,
 	.wait_fb = v4l2pim_wait_fb,
 	.get_fb_status = v4l2pim_get_fb_status,
 	.set_fps = v4l2pim_set_fps,
-	.get_fps = v4l2pim_get_fps,
 	.set_cursor = v4l2pim_set_cursor,
 	.get_cursor = v4l2pim_get_cursor,
 	.set_dpms = v4l2pim_set_dpms,
@@ -792,20 +769,4 @@ void v4l2pim_destroy(int pconid, void *cookie)
 	minor = pcon->minor;
 	v4l2pim_destroy_pcon(pcon);
 	v4l2pim_destroy_minor(minor);
-}
-
-int v4l2pim_get_properties(int pconid, void *cookie,
-				  struct vcrtcm_pcon_properties *props)
-{
-	struct v4l2pim_pcon *pcon = cookie;
-	struct v4l2pim_minor *minor;
-
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -ENODEV;
-	}
-	minor = pcon->minor;
-	props->fps = pcon->fps;
-	props->attached = pcon->attached;
-	return 0;
 }
