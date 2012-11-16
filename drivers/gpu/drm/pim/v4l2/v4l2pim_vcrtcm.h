@@ -36,7 +36,8 @@ int v4l2pim_get_properties(int pconid, void *cookie,
 	struct vcrtcm_pcon_properties *props);
 int v4l2pim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
-	enum vcrtcm_xfer_mode *xfer_mode, int *minor, char *description);
+	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
+	int *vblank_slack, char *description);
 void v4l2pim_destroy(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */

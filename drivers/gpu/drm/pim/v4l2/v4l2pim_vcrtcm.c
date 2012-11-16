@@ -754,7 +754,8 @@ void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 
 int v4l2pim_instantiate(int pconid, uint32_t hints,
 	void **cookie, struct vcrtcm_pcon_funcs *funcs,
-	enum vcrtcm_xfer_mode *xfer_mode, int *minornum, char *description)
+	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
+	int *vblank_slack, char *description)
 {
 	struct v4l2pim_minor *minor;
 
@@ -772,6 +773,7 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	*funcs = v4l2pim_vcrtcm_pcon_funcs;
 	*xfer_mode = VCRTCM_PUSH_PULL;
 	*cookie = minor->pcon;
+	*vblank_slack = v4l2pim_fake_vblank_slack;
 	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
 			minor->minor, pconid);
 	return 0;
