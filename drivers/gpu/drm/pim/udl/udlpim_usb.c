@@ -102,7 +102,6 @@ static struct udlpim_minor *udlpim_create_minor(void)
 	minor->workqueue =
 			alloc_workqueue("udlpim_workers", WQ_MEM_RECLAIM, 5);
 	minor->enabled_queue = 1;
-	INIT_DELAYED_WORK(&minor->fake_vblank_work, udlpim_fake_vblank);
 	INIT_DELAYED_WORK(&minor->query_edid_work, udlpim_query_edid);
 	memcpy(&minor->default_video_mode,
 			&fallback_mode, sizeof(struct udlpim_video_mode));
@@ -116,7 +115,6 @@ static void udlpim_destroy_minor(struct udlpim_minor *minor)
 	int minornum = minor->minor;
 
 	VCRTCM_INFO("destroying minor %d\n", minornum);
-	cancel_delayed_work_sync(&minor->fake_vblank_work);
 	cancel_delayed_work_sync(&minor->query_edid_work);
 
 	/* this function will wait for all in-flight urbs to complete */
@@ -227,8 +225,6 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	atomic_set(&minor->usb_active, 0);
 
 	usb_set_intfdata(interface, NULL);
-
-	cancel_delayed_work_sync(&minor->fake_vblank_work);
 
 	if (minor->pcon) {
 		int pconid = minor->pcon->pconid;

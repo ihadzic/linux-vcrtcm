@@ -293,7 +293,7 @@ int udlpim_dirty_fb(int pconid, void *cookie,
 	/* just mark the "force" flag, udlpim_do_xmit_fb_pull
 	 * does the rest (when called).
 	 */
-	pcon->fb_force_xmit = 1;
+	pcon->fb_dirty = 1;
 	return 0;
 }
 
@@ -329,39 +329,15 @@ int udlpim_get_fb_status(int pconid, void *cookie,
 int udlpim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct udlpim_pcon *pcon = cookie;
-	struct udlpim_minor *minor;
-	unsigned long jiffies_snapshot;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -EINVAL;
 	}
-	minor = pcon->minor;
-	UDLPIM_DEBUG("fps %d\n", fps);
-
-	if (fps > UDLPIM_FPS_HARD_LIMIT) {
-		VCRTCM_ERROR("Frame rate above the hard limit\n");
-		return -EINVAL;
+	if (fps > 0) {
+		pcon->last_xmit_jiffies = jiffies;
+		pcon->fb_dirty = 1;
 	}
-
-	if (fps <= 0) {
-		pcon->fb_xmit_period_jiffies = 0;
-		VCRTCM_INFO("Transmission disabled, (negative or zero fps).\n");
-	} else {
-		pcon->fps = fps;
-		pcon->fb_xmit_period_jiffies = HZ / fps;
-		jiffies_snapshot = jiffies;
-		pcon->last_xmit_jiffies = jiffies_snapshot;
-		pcon->fb_force_xmit = 1;
-		pcon->next_vblank_jiffies =
-			jiffies_snapshot + pcon->fb_xmit_period_jiffies;
-
-		VCRTCM_INFO("Frame transmission period set to %d jiffies\n",
-			HZ / fps);
-	}
-
-	/* Schedule initial fake vblank */
-	queue_delayed_work(minor->workqueue, &minor->fake_vblank_work, 0);
 	return 0;
 }
 
@@ -598,78 +574,9 @@ void udlpim_disable(int pconid, void *cookie)
 	mutex_unlock(&minor->buffer_mutex);
 }
 
-void udlpim_fake_vblank(struct work_struct *work)
+int udlpim_vblank(int pconid, void *cookie)
 {
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
-	struct udlpim_minor *minor =
-		container_of(delayed_work, struct udlpim_minor, fake_vblank_work);
-	struct udlpim_pcon *pcon;
-	/*static long last_snapshot = 0;*/
-
-	unsigned long jiffies_snapshot = 0;
-	unsigned long next_vblank_jiffies = 0;
-	int next_vblank_jiffies_valid = 0;
-	int next_vblank_delay;
-	int udlpim_fake_vblank_slack_sane = 0;
-
-	UDLPIM_DEBUG("minor=%d\n", minor->minor);
-	udlpim_fake_vblank_slack_sane =
-			(udlpim_fake_vblank_slack_sane <= 0) ? 0 : udlpim_fake_vblank_slack;
-
-	if (!minor) {
-		VCRTCM_ERROR("Cannot find minor\n");
-		return;
-	}
-
-	pcon = minor->pcon;
-
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return;
-	}
-
-	jiffies_snapshot = jiffies;
-
-	if (pcon->attached && pcon->fb_xmit_period_jiffies > 0) {
-		if (time_after_eq(jiffies_snapshot + udlpim_fake_vblank_slack_sane,
-				pcon->next_vblank_jiffies)) {
-			pcon->next_vblank_jiffies +=
-					pcon->fb_xmit_period_jiffies;
-
-			mutex_lock(&minor->buffer_mutex);
-			udlpim_do_xmit_fb_push(pcon);
-			mutex_unlock(&minor->buffer_mutex);
-		}
-
-		if (!next_vblank_jiffies_valid) {
-			next_vblank_jiffies = pcon->next_vblank_jiffies;
-			next_vblank_jiffies_valid = 1;
-		} else {
-			if (time_after_eq(next_vblank_jiffies,
-					pcon->next_vblank_jiffies)) {
-				next_vblank_jiffies = pcon->next_vblank_jiffies;
-			}
-		}
-	}
-
-	if (next_vblank_jiffies_valid) {
-		next_vblank_delay =
-			(int)next_vblank_jiffies - (int)jiffies_snapshot;
-		if (next_vblank_delay <= udlpim_fake_vblank_slack_sane)
-			next_vblank_delay = 0;
-		if (!queue_delayed_work(minor->workqueue,
-			&minor->fake_vblank_work, next_vblank_delay))
-			VCRTCM_WARNING("dup fake vblank, minor %d\n",
-				minor->minor);
-	} else
-		UDLPIM_DEBUG("Next fake vblank not scheduled\n");
-
-	return;
-}
-
-int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
-{
+	struct udlpim_pcon *pcon = cookie;
 	struct udlpim_minor *minor;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
@@ -677,6 +584,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 	unsigned long flags;
 
 	minor = pcon->minor;
+	mutex_lock(&minor->buffer_mutex);
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
 	spin_lock_irqsave(&minor->lock, flags);
@@ -695,7 +603,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 
 	jiffies_snapshot = jiffies;
 
-	if ((pcon->fb_force_xmit ||
+	if ((pcon->fb_dirty ||
 	     time_after(jiffies_snapshot, pcon->last_xmit_jiffies +
 			UDLPIM_XMIT_HARD_DEADLINE)) &&
 			have_push_buffer &&
@@ -709,8 +617,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 		 */
 
 		UDLPIM_DEBUG("transmission happening...\n");
-		pcon->fb_force_xmit = 0;
-		pcon->last_xmit_jiffies = jiffies;
+		pcon->fb_dirty = 0;
 		pcon->fb_xmit_counter++;
 
 		UDLPIM_DEBUG("[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
@@ -753,6 +660,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 			 * look at it until push is complete.
 			 */
 
+			pcon->last_xmit_jiffies = jiffies;
 			pcon->pb_needs_xmit[push_buffer_index] = 1;
 			push_buffer_index = (push_buffer_index + 1) & 0x1;
 			pcon->push_buffer_index = push_buffer_index;
@@ -782,6 +690,7 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 		pcon->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
+	mutex_unlock(&minor->buffer_mutex);
 	return r;
 }
 
@@ -801,7 +710,8 @@ struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.connected = udlpim_connected,
 	.get_modes = udlpim_get_modes,
 	.check_mode = udlpim_check_mode,
-	.disable = udlpim_disable
+	.disable = udlpim_disable,
+	.vblank = udlpim_vblank,
 };
 
 struct udlpim_pcon *udlpim_create_pcon(int pconid,

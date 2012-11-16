@@ -111,7 +111,6 @@ struct udlpim_minor {
 	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
 	struct workqueue_struct *workqueue;
-	struct delayed_work fake_vblank_work;
 	struct delayed_work query_edid_work;
 
 	/* displaylink specific stuff */
@@ -154,17 +153,14 @@ struct udlpim_pcon {
 	struct list_head list;
 	int pconid;
 	int attached;
-	int fps;
 	int fb_xmit_counter;
-	int fb_force_xmit;
+	int fb_dirty;
 	int fb_xmit_allowed;
-	unsigned long fb_xmit_period_jiffies;
-	unsigned long last_xmit_jiffies;
-	unsigned long next_vblank_jiffies;
 	struct vcrtcm_fb vcrtcm_fb;
 	struct vcrtcm_cursor vcrtcm_cursor;
 	struct vcrtcm_push_buffer_descriptor *pbd_fb[2];
 	struct vcrtcm_push_buffer_descriptor *pbd_cursor[2];
+	unsigned long last_xmit_jiffies;
 	void *pb_fb[2];
 	void *pb_cursor[2];
 	int pb_needs_xmit[2];
