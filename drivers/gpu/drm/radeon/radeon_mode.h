@@ -340,7 +340,7 @@ struct radeon_crtc {
 	struct radeon_fence *last_push_fence_c;
 	struct radeon_fence *last_push_fence_fb;
 	struct drm_framebuffer *vcrtcm_push_fb;
-	struct vcrtcm_pcon_info *vcrtcm_pcon_info;
+	struct vcrtcm_pcon *vcrtcm_pcon;
 };
 
 struct radeon_encoder_primary_dac {

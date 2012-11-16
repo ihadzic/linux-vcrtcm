@@ -38,10 +38,10 @@ int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 	unsigned int tmp;
 	u32 ioaddr;
 
-	if (radeon_crtc->vcrtcm_pcon_info) {
+	if (radeon_crtc->vcrtcm_pcon) {
 		tmp = fb_location - rdev->mc.vram_start;
 		ioaddr = rdev->mc.aper_base + tmp;
-		return vcrtcm_g_page_flip(radeon_crtc->vcrtcm_pcon_info, ioaddr);
+		return vcrtcm_g_page_flip(radeon_crtc->vcrtcm_pcon, ioaddr);
 	}
 	return 0;
 }
@@ -58,9 +58,9 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 	struct vcrtcm_fb vcrtcm_fb;
 	unsigned int tmp;
 
-	if (radeon_crtc->vcrtcm_pcon_info) {
+	if (radeon_crtc->vcrtcm_pcon) {
 		enum vcrtcm_xfer_mode xfer_mode =
-			radeon_crtc->vcrtcm_pcon_info->xfer_mode;
+			radeon_crtc->vcrtcm_pcon->xfer_mode;
 		DRM_INFO("crtc %d PCON attached, calling vcrtcm_g_set_fb\n",
 			 radeon_crtc->crtc_id);
 		radeon_crtc->vcrtcm_push_fb = fb;
@@ -90,7 +90,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			vcrtcm_fb.viewport_y = 0;
 		vcrtcm_fb.hdisplay = crtc->mode.hdisplay;
 		vcrtcm_fb.vdisplay = crtc->mode.vdisplay;
-		return vcrtcm_g_set_fb(radeon_crtc->vcrtcm_pcon_info, &vcrtcm_fb);
+		return vcrtcm_g_set_fb(radeon_crtc->vcrtcm_pcon, &vcrtcm_fb);
 	}
 	return 0;
 }
@@ -110,9 +110,9 @@ int radeon_vcrtcm_wait(struct radeon_device *rdev)
 
 	/* first wait for all real CRTCs */
 	for (i = 0; i < rdev->num_crtc; i++) {
-		if (rdev->mode_info.crtcs[i]->vcrtcm_pcon_info) {
+		if (rdev->mode_info.crtcs[i]->vcrtcm_pcon) {
 			r = vcrtcm_g_wait_fb(rdev->mode_info.crtcs[i]->
-					   vcrtcm_pcon_info);
+					   vcrtcm_pcon);
 			if (r)
 				return r;
 		}
@@ -120,9 +120,9 @@ int radeon_vcrtcm_wait(struct radeon_device *rdev)
 
 	/* now do the same kind of wait for all virtual CRTCs */
 	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->vcrtcm_pcon_info) {
+		if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
 			r = vcrtcm_g_wait_fb(virtual_crtc->radeon_crtc->
-					   vcrtcm_pcon_info);
+					   vcrtcm_pcon);
 			if (r)
 				return r;
 		}
@@ -149,14 +149,14 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 	/* have the necessary information and make this smarter */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc = rdev->mode_info.crtcs[i];
-		if ((radeon_crtc->vcrtcm_pcon_info) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
+		if ((radeon_crtc->vcrtcm_pcon) && (radeon_crtc->enabled))
+			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
 	}
 
 	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 		radeon_crtc = virtual_crtc->radeon_crtc;
-		if ((radeon_crtc->vcrtcm_pcon_info) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
+		if ((radeon_crtc->vcrtcm_pcon) && (radeon_crtc->enabled))
+			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
 	}
 }
 
@@ -166,7 +166,7 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 
 	DRM_INFO("dereferencing PCON pointer from crtc_id %d\n",
 		 radeon_crtc->crtc_id);
-	radeon_crtc->vcrtcm_pcon_info = NULL;
+	radeon_crtc->vcrtcm_pcon = NULL;
 }
 
 void radeon_emulate_vblank_core(struct radeon_device *rdev,
@@ -312,8 +312,8 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	 * completes there should be no frame tearing.
 	 */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
-		if (srcrtc->vcrtcm_pcon_info)
-			vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon_info);
+		if (srcrtc->vcrtcm_pcon)
+			vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon);
 		radeon_emulate_vblank(scrtc);
 	}
 	return 0;
@@ -350,17 +350,17 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 	struct radeon_device *rdev =
 	    (struct radeon_device *)crtc->dev->dev_private;
 
-	if (radeon_crtc->vcrtcm_pcon_info)
+	if (radeon_crtc->vcrtcm_pcon)
 		return -EBUSY;
 
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
 		r = vcrtcm_g_attach(pconid, crtc,
 				  &physical_crtc_gpu_funcs,
-				  &radeon_crtc->vcrtcm_pcon_info);
+				  &radeon_crtc->vcrtcm_pcon);
 	else
 		r = vcrtcm_g_attach(pconid, crtc,
 				  &virtual_crtc_gpu_funcs,
-				  &radeon_crtc->vcrtcm_pcon_info);
+				  &radeon_crtc->vcrtcm_pcon);
 
 	if (r)
 		return r;
@@ -378,7 +378,7 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
 						    crtc->y, 1);
 		if (r) {
-			vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon_info);
+			vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
 			return r;
 		}
 		/* we also need to set the cursor */
@@ -408,7 +408,7 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 			rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
 			r = radeon_bo_reserve(rbo, false);
 			if (unlikely(r)) {
-				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon_info);
+				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
 				return r;
 			}
 			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
@@ -418,20 +418,20 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 				rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
 			DRM_INFO("radeon_vcrtcm_g_attach: cursor i/o address 0x%08x\n",
 				 vcrtcm_cursor.ioaddr);
-			r = vcrtcm_g_set_cursor(radeon_crtc->vcrtcm_pcon_info,
+			r = vcrtcm_g_set_cursor(radeon_crtc->vcrtcm_pcon,
 					      &vcrtcm_cursor);
 			if (r) {
-				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon_info);
+				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
 				return r;
 			}
 		}
 	}
 	/* and we need to update the DPMS state */
 	if (radeon_crtc->enabled)
-		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon_info,
+		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon,
 				VCRTCM_DPMS_STATE_ON);
 	else
-		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon_info,
+		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon,
 				VCRTCM_DPMS_STATE_OFF);
 
 	if (radeon_crtc->crtc_id >= rdev->num_crtc)
@@ -448,8 +448,8 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 	struct radeon_device *rdev = dev->dev_private;
 	int r = -EINVAL;
 
-	if (radeon_crtc->vcrtcm_pcon_info) {
-		r = vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon_info);
+	if (radeon_crtc->vcrtcm_pcon) {
+		r = vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
 		if (radeon_crtc->crtc_id >= rdev->num_crtc)
 			schedule_work(&rdev->hotplug_work);
 	}
@@ -458,8 +458,8 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 
 static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
 {
-	if (radeon_crtc->vcrtcm_pcon_info)
-		return vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon_info);
+	if (radeon_crtc->vcrtcm_pcon)
+		return vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
 	else
 		return -EINVAL;
 }
@@ -488,8 +488,8 @@ static struct radeon_crtc
 static inline int radeon_vcrtcm_g_set_fps(struct radeon_crtc *radeon_crtc,
 					int fps)
 {
-	if (radeon_crtc->vcrtcm_pcon_info)
-		return vcrtcm_g_set_fps(radeon_crtc->vcrtcm_pcon_info, fps);
+	if (radeon_crtc->vcrtcm_pcon)
+		return vcrtcm_g_set_fps(radeon_crtc->vcrtcm_pcon, fps);
 	else
 		return -EINVAL;
 }

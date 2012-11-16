@@ -637,15 +637,15 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 		DRM_DEBUG("crtc %d is virtual\n", crtc);
 		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				if (virtual_crtc->radeon_crtc->vcrtcm_pcon_info) {
+				if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
 					/* max_error is 1000 ns  because that is the granularity */
 					/* of gettimeofday when it snapshot in emulate_vblank */
 					*max_error = 1000;
-					r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
+					r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon,
 								   vblank_time);
 					if (r)
 						return r;
-					r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon_info,
+					r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon,
 								 &vblank_status);
 					if (r)
 						return r;
