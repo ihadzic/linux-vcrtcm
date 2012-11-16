@@ -365,29 +365,6 @@ int udlpim_set_fps(int pconid, void *cookie, int fps)
 	return 0;
 }
 
-int udlpim_get_fps(int pconid, void *cookie, int *fps)
-{
-	struct udlpim_pcon *pcon = cookie;
-	struct udlpim_minor *minor;
-
-	UDLPIM_DEBUG("\n");
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
-	}
-	minor = pcon->minor;
-
-	if (pcon->fb_xmit_period_jiffies <= 0) {
-		*fps = 0;
-		VCRTCM_INFO
-		("Zero or negative frame rate, transmission disabled\n");
-		return 0;
-	} else {
-		*fps = HZ / pcon->fb_xmit_period_jiffies;
-		return 0;
-	}
-}
-
 int udlpim_set_cursor(int pconid, void *cookie,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
@@ -808,33 +785,15 @@ int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon)
 	return r;
 }
 
-static int udlpim_get_properties(int pconid, void *cookie,
-				 struct vcrtcm_pcon_properties *props)
-{
-	struct udlpim_pcon *pcon = cookie;
-	struct udlpim_minor *minor;
-
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -EINVAL;
-	}
-	minor = pcon->minor;
-	props->fps = pcon->fps;
-	props->attached = pcon->attached;
-	return 0;
-}
-
 struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
 	.attach = udlpim_attach,
 	.detach = udlpim_detach,
 	.set_fb = udlpim_set_fb,
 	.get_fb = udlpim_get_fb,
-	.get_properties = udlpim_get_properties,
 	.dirty_fb = udlpim_dirty_fb,
 	.wait_fb = udlpim_wait_fb,
 	.get_fb_status = udlpim_get_fb_status,
 	.set_fps = udlpim_set_fps,
-	.get_fps = udlpim_get_fps,
 	.set_cursor = udlpim_set_cursor,
 	.get_cursor = udlpim_get_cursor,
 	.set_dpms = udlpim_set_dpms,

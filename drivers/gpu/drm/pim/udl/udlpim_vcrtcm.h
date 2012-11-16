@@ -27,7 +27,6 @@ int udlpim_detach(int pconid, void *cookie);
 int udlpim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int udlpim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int udlpim_set_fps(int pconid, void *cookie, int fps);
-int udlpim_get_fps(int pconid, void *cookie, int *fps);
 int udlpim_page_flip(int pconid, void *cookie, u32 ioaddr);
 int udlpim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 int udlpim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
