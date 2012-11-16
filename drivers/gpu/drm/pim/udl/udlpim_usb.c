@@ -196,9 +196,9 @@ error:
 	if (minor) {
 		VCRTCM_ERROR("Got to error in probe");
 		/* Ref for framebuffer */
-		kref_put(&minor->kref, udlpim_free_minor);
+		kref_put(&minor->kref, udlpim_destroy_minor);
 		/* vcrtcm reference */
-		/* kref_put(&minor->kref, udlpim_free_minor); */
+		/* kref_put(&minor->kref, udlpim_destroy_minor); */
 	}
 
 	return retval;
@@ -241,17 +241,18 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
 	until udlpim_vcrtcm_detach completes */
 
-	kref_put(&minor->kref, udlpim_free_minor); /* last ref from kref_init */
-	/* kref_put(&minor->kref, udlpim_free_minor);*/ /* Ref for framebuffer */
+	kref_put(&minor->kref, udlpim_destroy_minor); /* last ref from kref_init */
+	/* kref_put(&minor->kref, udlpim_destroy_minor);*/ /* Ref for framebuffer */
 }
 
 /* This function frees the information for an individual device */
-void udlpim_free_minor(struct kref *kref)
+void udlpim_destroy_minor(struct kref *kref)
 {
 	struct udlpim_minor *minor =
 		container_of(kref, struct udlpim_minor, kref);
+	int minornum = minor->minor;
 
-	VCRTCM_INFO("freeing minor %d\n", minor->minor);
+	VCRTCM_INFO("destroying minor %d\n", minornum);
 	cancel_delayed_work_sync(&minor->fake_vblank_work);
 
 	/* this function will wait for all in-flight urbs to complete */
@@ -278,6 +279,7 @@ void udlpim_free_minor(struct kref *kref)
 
 	list_del(&minor->list);
 	kfree(minor);
+	VCRTCM_INFO("finished destroying minor %d\n", minornum);
 }
 
 /******************************************************************************
@@ -1784,7 +1786,7 @@ static void udlpim_free_urb_list(struct udlpim_minor *minor)
 	int ret;
 	unsigned long flags;
 
-	pr_notice("Waiting for completes and freeing all render urbs\n");
+	VCRTCM_INFO("waiting for completes and freeing all render urbs\n");
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
@@ -1866,7 +1868,7 @@ static int udlpim_alloc_urb_list(struct udlpim_minor *minor,
 	minor->urbs.count = i;
 	minor->urbs.available = i;
 
-	pr_notice("allocated %d %d byte urbs\n", i, (int) size);
+	VCRTCM_INFO("allocated %d %d byte urbs\n", i, (int) size);
 
 	return i;
 }
