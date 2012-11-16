@@ -45,7 +45,6 @@
 
 struct vcrtcm_mode;
 struct drm_crtc;
-struct vcrtcm_pcon_properties;
 
 enum vcrtcm_xfer_mode {
 	VCRTCM_PEER_PULL,
@@ -93,7 +92,6 @@ struct vcrtcm_pcon_funcs {
 	int (*get_fb_status)(int pconid, void *cookie,
 		struct drm_crtc *drm_crtc, u32 *status);
 	int (*set_fps)(int pconid, void *cookie, int fps);
-	int (*get_fps)(int pconid, void *cookie, int *fps);
 	int (*set_cursor)(int pconid, void *cookie,
 		struct vcrtcm_cursor *cursor);
 	int (*get_cursor)(int pconid, void *cookie,
@@ -106,8 +104,6 @@ struct vcrtcm_pcon_funcs {
 	int (*check_mode)(int pconid, void *cookie, struct vcrtcm_mode *mode,
 		int *status);
 	void (*disable)(int pconid, void *cookie);
-	int (*get_properties)(int pconid, void *cookie,
-		struct vcrtcm_pcon_properties *props);
 	int (*vblank)(int pconid, void *cookie);
 };
 

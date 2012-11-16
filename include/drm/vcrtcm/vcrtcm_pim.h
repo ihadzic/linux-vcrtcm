@@ -37,13 +37,6 @@
 
 struct drm_crtc;
 
-/* describes properties of the attached PCON */
-/* that GPU needs to know about */
-struct vcrtcm_pcon_properties {
-	int fps;
-	int attached;
-};
-
 /* descriptor for push buffer; when push-method is used */
 /* the PCON must obtain the buffer from GPU because it */
 /* must be a proper buffer object (GEM or TTM or whatever */
