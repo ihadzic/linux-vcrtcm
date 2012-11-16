@@ -273,7 +273,7 @@ int v4l2pim_dirty_fb(int pconid, void *cookie,
 	/* just mark the "force" flag, v4l2pim_do_xmit_fb_pull
 	 * does the rest (when called).
 	 */
-	pcon->fb_force_xmit = 1;
+	pcon->fb_dirty = 1;
 	return 0;
 }
 
@@ -311,40 +311,16 @@ int v4l2pim_get_fb_status(int pconid, void *cookie,
 int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct v4l2pim_pcon *pcon = cookie;
-	struct v4l2pim_minor *minor;
-	unsigned long jiffies_snapshot;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
 		return -ENODEV;
 	}
-	minor = pcon->minor;
-	if (fps > V4L2PIM_FPS_HARD_LIMIT) {
-		VCRTCM_ERROR("Frame rate above the hard limit\n");
-		return -EINVAL;
+	if (fps > 0) {
+		pcon->last_xmit_jiffies = jiffies;
+		pcon->fb_dirty = 1;
 	}
-
-	if (fps <= 0) {
-		pcon->fb_xmit_period_jiffies = 0;
-		VCRTCM_INFO("Transmission disabled, (negative or zero fps).\n");
-	} else {
-		pcon->fps = fps;
-		pcon->fb_xmit_period_jiffies = HZ / fps;
-		jiffies_snapshot = jiffies;
-		pcon->last_xmit_jiffies = jiffies_snapshot;
-		pcon->fb_force_xmit = 1;
-		pcon->next_vblank_jiffies =
-			jiffies_snapshot + pcon->fb_xmit_period_jiffies;
-
-		VCRTCM_INFO("Frame transmission period set to %d jiffies\n",
-			HZ / fps);
-	}
-
-	/* Schedule initial fake vblank */
-	/*schedule_delayed_work(&minor->fake_vblank_work, 0);*/
-	queue_delayed_work(minor->workqueue,
-			   &minor->fake_vblank_work, 0);
-
+	pcon->fps = fps;
 	return 0;
 }
 
@@ -438,87 +414,19 @@ void v4l2pim_disable(int pconid, void *cookie)
 	mutex_unlock(&minor->buffer_mutex);
 }
 
-
-void v4l2pim_fake_vblank(struct work_struct *work)
+int v4l2pim_vblank(int pconid, void *cookie)
 {
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
-	struct v4l2pim_minor *minor =
-		container_of(delayed_work, struct v4l2pim_minor,
-			     fake_vblank_work);
-	struct v4l2pim_pcon *pcon;
-	/*static long last_snapshot = 0;*/
-
-	unsigned long jiffies_snapshot = 0;
-	unsigned long next_vblank_jiffies = 0;
-	int next_vblank_jiffies_valid = 0;
-	int next_vblank_delay;
-	int v4l2pim_fake_vblank_slack_sane = 0;
-
-	V4L2PIM_DEBUG("minor=%d\n", minor->minor);
-	v4l2pim_fake_vblank_slack_sane =
-			(v4l2pim_fake_vblank_slack_sane <= 0) ? 0 : v4l2pim_fake_vblank_slack;
-
-	if (!minor) {
-		VCRTCM_ERROR("Cannot find v4l2pim_minor\n");
-		return;
-	}
-
-	pcon = minor->pcon;
-
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return;
-	}
-
-	jiffies_snapshot = jiffies;
-
-	if (pcon->fb_xmit_period_jiffies > 0) {
-		if (time_after_eq(jiffies_snapshot + v4l2pim_fake_vblank_slack_sane,
-				pcon->next_vblank_jiffies)) {
-			pcon->next_vblank_jiffies +=
-					pcon->fb_xmit_period_jiffies;
-
-			mutex_lock(&minor->buffer_mutex);
-			v4l2pim_do_xmit_fb_push(pcon);
-			mutex_unlock(&minor->buffer_mutex);
-		}
-
-		if (!next_vblank_jiffies_valid) {
-			next_vblank_jiffies = pcon->next_vblank_jiffies;
-			next_vblank_jiffies_valid = 1;
-		} else {
-			if (time_after_eq(next_vblank_jiffies,
-					pcon->next_vblank_jiffies)) {
-				next_vblank_jiffies = pcon->next_vblank_jiffies;
-			}
-		}
-	}
-
-	if (next_vblank_jiffies_valid) {
-		next_vblank_delay =
-			(int)next_vblank_jiffies - (int)jiffies_snapshot;
-		if (next_vblank_delay <= v4l2pim_fake_vblank_slack_sane)
-			next_vblank_delay = 0;
-		if (!queue_delayed_work(minor->workqueue,
-					&minor->fake_vblank_work,
-					next_vblank_delay))
-			VCRTCM_WARNING("dup fake vblank, minor %d\n",
-				minor->minor);
-	} else
-		V4L2PIM_DEBUG("Next fake vblank not scheduled\n");
-
-	return;
-}
-
-int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
-{
-	struct v4l2pim_minor *minor = pcon->minor;
+	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_minor *minor;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
 	unsigned long flags;
 
+	if (!pcon)
+		return -EINVAL;
+	minor = pcon->minor;
+	mutex_lock(&minor->buffer_mutex);
 	V4L2PIM_DEBUG("in v4l2pim_do_xmit_fb_push, minor %d\n",
 		      minor->minor);
 
@@ -538,7 +446,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 
 	jiffies_snapshot = jiffies;
 
-	if ((pcon->fb_force_xmit ||
+	if ((pcon->fb_dirty ||
 	     time_after(jiffies_snapshot, pcon->last_xmit_jiffies +
 			V4L2PIM_XMIT_HARD_DEADLINE)) && have_push_buffer &&
 	    pcon->fb_xmit_allowed) {
@@ -548,8 +456,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 		 */
 
 		V4L2PIM_DEBUG("transmission happening...\n");
-		pcon->fb_force_xmit = 0;
-		pcon->last_xmit_jiffies = jiffies;
+		pcon->fb_dirty = 0;
 		pcon->fb_xmit_counter++;
 
 		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
@@ -592,6 +499,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 			 * look at it until push is complete.
 			 */
 
+			pcon->last_xmit_jiffies = jiffies;
 			pcon->pb_needs_xmit[push_buffer_index] = 1;
 			push_buffer_index = (push_buffer_index + 1) & 0x1;
 			pcon->push_buffer_index = push_buffer_index;
@@ -687,6 +595,7 @@ int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon)
 		pcon->pb_needs_xmit[push_buffer_index] = 0;
 	}
 
+	mutex_unlock(&minor->buffer_mutex);
 	return r;
 }
 
@@ -703,7 +612,8 @@ static struct vcrtcm_pcon_funcs v4l2pim_vcrtcm_pcon_funcs = {
 	.get_cursor = v4l2pim_get_cursor,
 	.set_dpms = v4l2pim_set_dpms,
 	.get_dpms = v4l2pim_get_dpms,
-	.disable = v4l2pim_disable
+	.disable = v4l2pim_disable,
+	.vblank = v4l2pim_vblank,
 };
 
 struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)

@@ -717,19 +717,17 @@ vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2_fract timeperframe;
-	int fps;
 
 	minor = video_drvdata(file);
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fps = HZ / pcon->fb_xmit_period_jiffies;
 
 	if (parm->type !=  V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	timeperframe.numerator = 1001;
-	timeperframe.denominator = fps * 1000;
+	timeperframe.denominator = pcon->fps * 1000;
 
 	parm->parm.capture.capability |=  V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.timeperframe = timeperframe;
@@ -787,7 +785,6 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	uint32_t i;
-	int fps;
 
 	minor = video_drvdata(file);
 	pcon = minor->pcon;
@@ -800,12 +797,11 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 			fival->height != pcon->vcrtcm_fb.hdisplay)
 		return -EINVAL;
 
-	fps = HZ / pcon->fb_xmit_period_jiffies;
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (fival->pixel_format == formats[i].fourcc) {
 			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 			fival->discrete.numerator = 1001;
-			fival->discrete.denominator = fps * 1000;
+			fival->discrete.denominator = pcon->fps * 1000;
 			return 0;
 		}
 	return -EINVAL;
@@ -939,7 +935,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	struct video_device *vfd;
 	unsigned long flags;
 	int ret;
-	int new_minor = -1;
+	int minornum = -1;
 
 	minor = NULL;
 	vfd = NULL;
@@ -947,16 +943,16 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	if (v4l2pim_num_minors == V4L2PIM_MAX_MINORS)
 		return NULL;
 
-	new_minor = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
+	minornum = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
 						VCRTCM_ID_REUSE);
-	if (new_minor < 0)
+	if (minornum < 0)
 		return NULL;
 
 	minor = vcrtcm_kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	if (!minor) {
 		VCRTCM_ERROR("failed alloc of v4l2pim_minor\n");
 		vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
-						new_minor);
+						minornum);
 		return NULL;
 	}
 
@@ -971,7 +967,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 
 	snprintf(minor->v4l2_dev.name,
 			sizeof(minor->v4l2_dev.name),
-			"v4l2pim-%03d", new_minor);
+			"v4l2pim-%03d", minornum);
 	ret = v4l2_device_register(NULL, &minor->v4l2_dev);
 	if (ret)
 		goto free_info;
@@ -988,7 +984,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	*vfd = v4l2pim_template;
 	vfd->lock = &minor->mlock;
 	vfd->v4l2_dev = &minor->v4l2_dev;
-	vfd->minor = new_minor;
+	vfd->minor = minornum;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		goto rel_dev;
@@ -998,19 +994,12 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 
 	mutex_init(&minor->buffer_mutex);
 	spin_lock_init(&minor->lock);
-
-	minor->minor = new_minor;
+	minor->minor = minornum;
 	INIT_LIST_HEAD(&minor->list);
-
 	init_waitqueue_head(&minor->xmit_sync_queue);
 	minor->enabled_queue = 1;
-
 	minor->workqueue = create_workqueue("v4l2pim_workers");
-
 	minor->pcon = NULL;
-
-	INIT_DELAYED_WORK(&minor->fake_vblank_work, v4l2pim_fake_vblank);
-
 	spin_lock_irqsave(&minor->lock, flags);
 	minor->status = 0;
 	spin_unlock_irqrestore(&minor->lock, flags);
@@ -1030,7 +1019,6 @@ void v4l2pim_destroy_minor(struct v4l2pim_minor *minor)
 {
 	video_unregister_device(minor->vfd);
 	v4l2_device_unregister(&minor->v4l2_dev);
-	cancel_delayed_work_sync(&minor->fake_vblank_work);
 	mutex_lock(&minor->sb_lock);
 	if (minor->shadowbuf)
 		v4l2pim_free_shadowbuf(minor);

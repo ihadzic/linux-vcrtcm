@@ -76,11 +76,7 @@ struct v4l2pim_minor {
 	unsigned long status;
 	atomic_t users;
 	wait_queue_head_t xmit_sync_queue;
-
 	struct workqueue_struct *workqueue;
-
-	struct delayed_work fake_vblank_work;
-
 	char *main_buffer;
 	char *cursor;
 
@@ -105,25 +101,21 @@ struct v4l2pim_minor {
 
 struct v4l2pim_pcon {
 	int pconid;
+	int fps;
 	int attached;
 	int fb_xmit_counter;
-	int fb_force_xmit;
+	int fb_dirty;
 	int fb_xmit_allowed;
-	int fps;
-	unsigned long fb_xmit_period_jiffies;
-	unsigned long last_xmit_jiffies;
-	unsigned long next_vblank_jiffies;
 	struct vcrtcm_fb vcrtcm_fb;
 	struct vcrtcm_cursor vcrtcm_cursor;
 	struct vcrtcm_push_buffer_descriptor *pbd_fb[2];
 	struct vcrtcm_push_buffer_descriptor *pbd_cursor[2];
+	unsigned long last_xmit_jiffies;
 	void *pb_fb[2];
 	void *pb_cursor[2];
 	int pb_needs_xmit[2];
 	int push_buffer_index;
-
 	int dpms_state;
-
 	struct v4l2pim_minor *minor;
 };
 

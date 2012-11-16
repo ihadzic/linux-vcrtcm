@@ -28,6 +28,7 @@ int v4l2pim_detach(int pconid, void *cookie);
 int v4l2pim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_set_fps(int pconid, void *cookie, int fps);
+int v4l2pim_get_fps(int pconid, void *cookie, int *fps);
 int v4l2pim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 int v4l2pim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 void v4l2pim_disable(int pconid, void *cookie);
@@ -44,12 +45,7 @@ int v4l2pim_get_fb_status(int pconid, void *cookie, struct drm_crtc *drm_crtc, u
 int v4l2pim_set_dpms(int pconid, void *cookie, int state);
 int v4l2pim_get_dpms(int pconid, void *cookie, int *state);
 
-/* Scheduled/delayed work functions */
-void v4l2pim_fake_vblank(struct work_struct *work);
 void copy_cursor_work(struct work_struct *work);
-int v4l2pim_do_xmit_fb_pull(struct v4l2pim_pcon *pcon);
-int v4l2pim_do_xmit_fb_push(struct v4l2pim_pcon *pcon);
-
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon);
 int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon);
 
