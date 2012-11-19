@@ -22,6 +22,7 @@
 #include <linux/dma-buf.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_utils_priv.h"

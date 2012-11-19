@@ -23,6 +23,7 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_module.h"
