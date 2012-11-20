@@ -121,11 +121,14 @@ static void doadjcnts(const char *fcn, int owner_type, int owner_id,
 
 static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 {
-	if (owner & VCRTCM_OWNER_VCRTCM) {
-		doadjcnts(fcn, VCRTCM_OWNER_VCRTCM, -1, NULL, &vcrtcm_alloc_cnt,
-			&vcrtcm_page_alloc_cnt, incr, ispage, 0, &log_alloc_bugs);
-		return 0;
-	} else if (owner & VCRTCM_OWNER_PIM) {
+	/*
+	 * NB: check the VCRTCM_OWNER_PIM bit before checking the
+	 * VCRTCM_OWNER_VCRTCM bit, because a common pim bug is for
+	 * the pim to specify an owner of (VCRTCM_OWNER_PIM | -1),
+	 * which has both of those bits set, and we want to treat
+	 * that value as VCRTCM_OWNER_PIM.
+	 */
+	if (owner & VCRTCM_OWNER_PIM) {
 		int pimid = owner & ~VCRTCM_OWNER_PIM;
 		struct vcrtcm_pim *pim = vcrtcm_get_pim(pimid);
 		if (pim) {
@@ -139,6 +142,11 @@ static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 		VCRTCM_ERROR("%s: pim %d does not exist, unable to %s\n",
 			     fcn, pimid, incr ? "increment" : "decrement");
 		return 1;
+	} else if (owner & VCRTCM_OWNER_VCRTCM) {
+		doadjcnts(fcn, VCRTCM_OWNER_VCRTCM, -1, NULL,
+			  &vcrtcm_alloc_cnt, &vcrtcm_page_alloc_cnt,
+			  incr, ispage, 0, &log_alloc_bugs);
+		return 0;
 	} else {
 		int pconid = owner & ~VCRTCM_OWNER_PCON;
 		struct vcrtcm_pcon *pcon = vcrtcm_get_pcon(pconid);
