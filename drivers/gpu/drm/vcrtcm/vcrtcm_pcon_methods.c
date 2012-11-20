@@ -28,6 +28,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_alloc_priv.h"
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped
@@ -86,7 +87,7 @@ static void vcrtcm_dma_buf_release(struct dma_buf *dma_buf)
 	struct vcrtcm_push_buffer_descriptor *pbd = dma_buf->priv;
 	struct drm_gem_object *obj = pbd->gpu_private;
 
-	vcrtcm_kfree(pbd);
+	vcrtcm_kfree_freeonly(pbd);
 	if (obj->export_dma_buf == dma_buf) {
 		VCRTCM_DEBUG("unreference obj %p\n", obj);
 		obj->export_dma_buf = NULL;
@@ -386,6 +387,20 @@ void vcrtcm_p_free_pb(int pconid,
 		vcrtcm_p_unregister_prime(pconid, pbd);
 		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages, VCRTCM_OWNER_PCON | pconid);
 		vcrtcm_kfree(pbd->pages);
+		/*
+		* FIXME (ugly hack): The pbd buffer cannot be freed yet
+		* because it is still in use by the DMABUF subsystem.
+		* The vcrtcm_p_unregister_prime() call above will cause
+		* DMABUF to drop the reference to the file descriptor,
+		* after which vcrtcm_dma_buf_release() will be called.
+		* However, we can't call vcrtcm_kfree() in
+		* vcrtcm_dma_buf_release() because at that point the
+		* PCON that owns the buffer will have already been
+		* destroyed.  So the workaround is to tell the alloc
+		* routines to decrement the alloc counters now and do
+		* the actual free in vcrtcm_dma_buf_release().
+		*/
+		vcrtcm_kfree_decronly(pbd);
 	}
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb);
