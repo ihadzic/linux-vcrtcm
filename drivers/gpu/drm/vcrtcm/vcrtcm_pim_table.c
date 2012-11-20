@@ -89,7 +89,7 @@ void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 	mutex_lock(&pim_list_mutex);
 	cnt = pim->alloc_cnt;
 	page_cnt = pim->page_alloc_cnt;
-	if (cnt != 0)
+	if (cnt != 0 || page_cnt != 0)
 		VCRTCM_ERROR("ERROR: pim %s is being destroyed, "
 			"but it has not freed %d of its allocations, "
 			"%d of which were page allocations\n",
