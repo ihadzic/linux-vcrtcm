@@ -234,27 +234,23 @@ int vcrtcm_p_unregister_prime(int pconid,
 		return -ENODEV;
 	}
 	if (!obj) {
-		VCRTCM_ERROR("no obj for pcon %d in vcrtcm_p_unregister_prime\n",
-			pconid);
+		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	VCRTCM_INFO("pcon %i freeing GEM object name=%d, size=%d\n",
 		     pconid, obj->name, obj->size);
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
-		VCRTCM_ERROR("no crtc for pcon %d in vcrtcm_p_unregister_prime\n",
-			pconid);
+		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	dev = crtc->dev;
 	if (!dev) {
-		VCRTCM_ERROR("no dev for pcon %d in vcrtcm_p_unregister_prime\n",
-			pconid);
+		VCRTCM_ERROR("no dev for pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	if (!dev->driver) {
-		VCRTCM_ERROR("no driver for pcon %d in vcrtcm_p_unregister_prime\n",
-			pconid);
+		VCRTCM_ERROR("no driver for pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	/*
@@ -426,8 +422,7 @@ int vcrtcm_p_free_pb(int pconid,
 		BUG_ON(!pbd->num_pages);
 		r = vcrtcm_p_unregister_prime(pconid, pbd);
 		if (r) {
-			VCRTCM_ERROR("vcrtcm_p_free_pb failed on pcon %d "
-				"because vcrtcm_p_unregister_prime failed\n",
+			VCRTCM_ERROR("unregister_prime failed for pcon %d\n",
 				pconid);
 			return r;
 		}
@@ -638,7 +633,7 @@ void vcrtcm_p_log_alloc_cnts(int pconid, int on)
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d in vcrtcm_p_log_alloc_cnts\n", pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
 	}
 	pcon->log_alloc_cnts = on;
