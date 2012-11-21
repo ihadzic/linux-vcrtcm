@@ -117,7 +117,7 @@ void vcrtcm_dealloc_pcon(int pconid)
 		cnt = pcon->alloc_cnt;
 		page_cnt = pcon->page_alloc_cnt;
 		if (cnt != 0 || page_cnt != 0)
-			VCRTCM_ERROR("ERROR: pcon %d (pim %s) is being destroyed, "
+			VCRTCM_ERROR("pcon %d (pim %s) is being destroyed, "
 				"but it has not freed %d of its allocations, "
 				"%d of which were page allocations\n",
 				pconid, pcon->pim->name, cnt, page_cnt);
