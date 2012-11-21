@@ -141,7 +141,7 @@ static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 		dump_stack();
 		VCRTCM_ERROR("%s: pim %d does not exist, unable to %s\n",
 			     fcn, pimid, incr ? "increment" : "decrement");
-		return 1;
+		return -ENODEV;
 	} else if (owner & VCRTCM_OWNER_VCRTCM) {
 		doadjcnts(fcn, VCRTCM_OWNER_VCRTCM, -1, NULL,
 			  &vcrtcm_alloc_cnt, &vcrtcm_page_alloc_cnt,
@@ -160,7 +160,7 @@ static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 		dump_stack();
 		VCRTCM_ERROR("%s: pcon %d does not exist, unable to %s\n",
 			     fcn, pconid, incr ? "increment" : "decrement");
-		return 1;
+		return -ENODEV;
 	}
 }
 
