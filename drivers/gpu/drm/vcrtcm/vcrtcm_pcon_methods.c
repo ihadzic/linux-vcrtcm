@@ -426,21 +426,22 @@ int vcrtcm_p_free_pb(int pconid,
 				pconid);
 			return r;
 		}
-		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages, VCRTCM_OWNER_PCON | pconid);
+		vcrtcm_free_multiple_pages(pbd->pages, pbd->num_pages,
+					   VCRTCM_OWNER_PCON | pconid);
 		vcrtcm_kfree(pbd->pages);
 		/*
-		* FIXME (ugly hack): The pbd buffer cannot be freed yet
-		* because it is still in use by the DMABUF subsystem.
-		* The vcrtcm_p_unregister_prime() call above will cause
-		* DMABUF to drop the reference to the file descriptor,
-		* after which vcrtcm_dma_buf_release() will be called.
-		* However, we can't call vcrtcm_kfree() in
-		* vcrtcm_dma_buf_release() because at that point the
-		* PCON that owns the buffer will have already been
-		* destroyed.  So the workaround is to tell the alloc
-		* routines to decrement the alloc counters now and do
-		* the actual free in vcrtcm_dma_buf_release().
-		*/
+		 * FIXME (ugly hack): The pbd buffer cannot be freed yet
+		 * because it is still in use by the DMABUF subsystem.
+		 * The vcrtcm_p_unregister_prime() call above will cause
+		 * DMABUF to drop the reference to the file descriptor,
+		 * after which vcrtcm_dma_buf_release() will be called.
+		 * However, we can't call vcrtcm_kfree() in
+		 * vcrtcm_dma_buf_release() because at that point the
+		 * PCON that owns the buffer will have already been
+		 * destroyed.  So the workaround is to tell the alloc
+		 * routines to decrement the alloc counters now and do
+		 * the actual free in vcrtcm_dma_buf_release().
+		 */
 		vcrtcm_kfree_decronly(pbd);
 	}
 	return 0;
@@ -485,7 +486,8 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 		r = -ENOMEM;
 		goto out_err1;
 	}
-	r = vcrtcm_alloc_multiple_pages(gfp_mask, pbd->pages, npages, VCRTCM_OWNER_PCON | pconid);
+	r = vcrtcm_alloc_multiple_pages(gfp_mask, pbd->pages, npages,
+					VCRTCM_OWNER_PCON | pconid);
 	if (r) {
 		VCRTCM_ERROR("push buffer pages alloc failed\n");
 		goto out_err2;
@@ -498,7 +500,8 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 	}
 	return pbd;
 out_err3:
-	vcrtcm_free_multiple_pages(pbd->pages, npages, VCRTCM_OWNER_PCON | pconid);
+	vcrtcm_free_multiple_pages(pbd->pages, npages,
+				   VCRTCM_OWNER_PCON | pconid);
 out_err2:
 	vcrtcm_kfree(pbd->pages);
 out_err1:
