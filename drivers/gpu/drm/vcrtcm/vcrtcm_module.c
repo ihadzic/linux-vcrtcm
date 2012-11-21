@@ -61,11 +61,6 @@ static int __init vcrtcm_init(void)
 	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
 							NULL, "pimmgr");
 	vcrtcm_sysfs_init(vcrtcm_device);
-	if (vcrtcm_init_pcon_table() < 0) {
-		cdev_del(vcrtcm_cdev);
-		return -ENOMEM;
-	}
-	vcrtcm_init_pim_table();
 	VCRTCM_INFO("driver loaded, major %d, minor %d\n",
 					MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
 	return 0;

@@ -30,8 +30,8 @@
 #include "vcrtcm_utils_priv.h"
 
 static int next_pimid;
-static struct list_head pim_list;
-static struct mutex pim_list_mutex;
+static LIST_HEAD(pim_list);
+static DEFINE_MUTEX(pim_list_mutex);
 
 struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	struct vcrtcm_pim_funcs *funcs)
@@ -99,12 +99,6 @@ void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 	list_del(&pim->pim_list);
 	vcrtcm_kfree(pim);
 	mutex_unlock(&pim_list_mutex);
-}
-
-void vcrtcm_init_pim_table()
-{
-	INIT_LIST_HEAD(&pim_list);
-	mutex_init(&pim_list_mutex);
 }
 
 void vcrtcm_free_pims()

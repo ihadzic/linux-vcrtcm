@@ -41,7 +41,6 @@ struct vcrtcm_pim *vcrtcm_get_pim(int pimid);
 struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	struct vcrtcm_pim_funcs *funcs);
 void vcrtcm_destroy_pim(struct vcrtcm_pim *pim);
-void vcrtcm_init_pim_table(void);
 void vcrtcm_free_pims(void);
 
 #endif

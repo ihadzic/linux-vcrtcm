@@ -36,7 +36,7 @@ struct pconid_table_entry {
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
-static struct mutex pconid_table_mutex;
+static DEFINE_MUTEX(pconid_table_mutex);
 
 static void
 vblank_work_fcn(struct work_struct *work)
@@ -141,10 +141,4 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 	if (!ret)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 	return ret;
-}
-
-int vcrtcm_init_pcon_table()
-{
-	mutex_init(&pconid_table_mutex);
-	return 0;
 }
