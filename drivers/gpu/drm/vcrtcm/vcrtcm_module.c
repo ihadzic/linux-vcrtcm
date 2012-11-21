@@ -59,10 +59,10 @@ static int __init vcrtcm_init(void)
 	vcrtcm_cdev->owner = THIS_MODULE;
 	cdev_add(vcrtcm_cdev, vcrtcm_dev, 1);
 	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
-							NULL, "pimmgr");
+				      NULL, "pimmgr");
 	vcrtcm_sysfs_init(vcrtcm_device);
 	VCRTCM_INFO("driver loaded, major %d, minor %d\n",
-					MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
+		    MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
 	return 0;
 }
 
@@ -90,8 +90,7 @@ static void __exit vcrtcm_exit(void)
 		pcon = vcrtcm_get_pcon(pconid);
 		if (pcon) {
 			mutex_lock(&pcon->mutex);
-			VCRTCM_INFO("removing pcon %u\n",
-					pcon->pconid);
+			VCRTCM_INFO("removing pcon %u\n", pcon->pconid);
 			if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 						pcon->drm_crtc);
