@@ -38,10 +38,10 @@
 	pr_info("[%s] " fmt, VCRTCM_NAME, ## args)
 
 #define VCRTCM_ERROR(fmt, args...)					\
-	pr_err("[%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
+	pr_err("[ERROR:%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
 
 #define VCRTCM_WARNING(fmt, args...)					\
-	pr_warn("[%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
+	pr_warn("[WARNING:%s:%s] " fmt, VCRTCM_NAME, __func__, ## args)
 
 #define VCRTCM_DBG(msg_level, current_level, fmt, args...)		\
 	do {								\
