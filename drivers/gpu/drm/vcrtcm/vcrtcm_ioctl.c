@@ -237,8 +237,8 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		return 0;
-	} else
-		VCRTCM_INFO("Bad IOCTL\n");
-
-	return 0;
+	} else {
+		VCRTCM_ERROR("bad IOCTL\n");
+		return -EINVAL;
+	}
 }
