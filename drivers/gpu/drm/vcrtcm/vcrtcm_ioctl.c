@@ -20,8 +20,9 @@
 #include <linux/module.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
-#include <vcrtcm/vcrtcm_utils.h>
+#include "vcrtcm_utils_priv.h"
 #include "vcrtcm_ioctl_priv.h"
+#include "vcrtcm_module.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
@@ -32,10 +33,10 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 	struct vcrtcm_pim *pim;
 	int r;
 
-	VCRTCM_INFO("in pimtest: %d, %d\n", pimid, testarg);
+	VCRTCM_DEBUG("pimid %d, testarg %d\n", pimid, testarg);
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
-		VCRTCM_INFO("invalid pimid\n");
+		VCRTCM_ERROR("invalid pimid\n");
 		return -EINVAL;
 	}
 	if (!pim->callbacks_enabled) {
@@ -44,7 +45,7 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 	}
 	if (pim->funcs.test) {
 		r = pim->funcs.test(testarg);
-		VCRTCM_INFO("pimtest returned %d\n", r);
+		VCRTCM_DEBUG("pimtest returned %d\n", r);
 		return r;
 	}
 	return 0;
@@ -58,10 +59,10 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	struct vcrtcm_pcon *pcon;
 	int r;
 
-	VCRTCM_INFO("in instantiate pcon: pimid %d, hints %d\n", pimid, hints);
+	VCRTCM_DEBUG("pimid %d, hints %d\n", pimid, hints);
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
-		VCRTCM_INFO("invalid pimid %d\n", pimid);
+		VCRTCM_ERROR("invalid pimid %d\n", pimid);
 		return -EINVAL;
 	}
 	VCRTCM_INFO("pim is %s\n", pim->name);
@@ -87,8 +88,8 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 					&pcon->vblank_slack_jiffies,
 					pcon->description);
 	if (r) {
-		VCRTCM_INFO("no pcons of type %s available...\n",
-				pim->name);
+		VCRTCM_ERROR("no pcons of type %s available...\n",
+			     pim->name);
 		vcrtcm_dealloc_pcon(pcon->pconid);
 		return r;
 	}
@@ -164,7 +165,8 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	}
 	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
 	if (r) {
-		VCRTCM_INFO("detach failed, not destroying pcon %i\n", pconid);
+		VCRTCM_ERROR("detach failed, not destroying pcon %i\n",
+			     pconid);
 		return r;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
@@ -184,7 +186,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct vcrtcm_ioctl_args ioctl_args;
 	long result = 0;
 
-	VCRTCM_INFO("ioctl entered: cmd = %u, arg = %lu\n", cmd, arg);
+	VCRTCM_DEBUG("cmd = %u, arg = %lu\n", cmd, arg);
 
 	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
