@@ -219,10 +219,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		result = vcrtcm_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
 
-		if (result)
-			return result;
-
-		return 0;
+		return result;
 	} else if (cmd == VCRTCM_IOC_PIMTEST) {
 		void *ptr = (void *)arg;
 
