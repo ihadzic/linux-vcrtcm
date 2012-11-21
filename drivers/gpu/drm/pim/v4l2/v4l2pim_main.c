@@ -942,6 +942,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 
 	if (v4l2pim_num_minors == V4L2PIM_MAX_MINORS)
 		return NULL;
+	v4l2pim_num_minors++;
 
 	minornum = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
 						VCRTCM_ID_REUSE);
@@ -1025,6 +1026,7 @@ void v4l2pim_destroy_minor(struct v4l2pim_minor *minor)
 	mutex_unlock(&minor->sb_lock);
 	vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
 					minor->minor);
+	BUG_ON(v4l2pim_num_minors == 0);
 	v4l2pim_num_minors--;
 	list_del(&minor->list);
 	vcrtcm_kfree(minor);
