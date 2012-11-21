@@ -27,7 +27,7 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon_methods.h"
 
-long vcrtcm_ioctl_pimtest(int pimid, int testarg)
+static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 {
 	struct vcrtcm_pim *pim;
 	int r;
@@ -51,7 +51,8 @@ long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 }
 
 /* TODO: Need better errors. */
-long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
+static long
+vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon;
@@ -102,8 +103,7 @@ long vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 /* NB: if you change the implementation of this function, you might
  * also need to change the implementation of vcrtcm_p_detach_pcon()
  */
-long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
-	int explicit)
+static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 {
 	unsigned long flags;
 
@@ -146,7 +146,7 @@ long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon,
 	return 0;
 }
 
-long vcrtcm_ioctl_destroy_pcon(int pconid)
+static long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
