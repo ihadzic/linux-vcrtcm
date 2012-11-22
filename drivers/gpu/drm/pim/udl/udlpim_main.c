@@ -24,7 +24,6 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
-#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/delay.h>
