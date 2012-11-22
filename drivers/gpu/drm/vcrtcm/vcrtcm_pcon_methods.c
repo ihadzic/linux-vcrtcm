@@ -237,7 +237,7 @@ int vcrtcm_p_unregister_prime(int pconid,
 		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	VCRTCM_INFO("pcon %i freeing GEM object name=%d, size=%d\n",
+	VCRTCM_DEBUG("pcon %i freeing GEM object name=%d, size=%d\n",
 		     pconid, obj->name, obj->size);
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
