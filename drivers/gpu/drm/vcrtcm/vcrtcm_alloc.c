@@ -41,7 +41,7 @@ static uint64_t ncalls_allocpage;
 static uint64_t ncalls_freepage;
 static uint64_t ncalls_allocmultiplepage;
 static uint64_t ncalls_freemultiplepage;
-static int log_alloc_bugs;
+static int log_alloc_bugs = 1;
 static int log_all_vcrtcm_counts;
 static int log_all_pim_counts;
 static int log_all_pcon_counts;
