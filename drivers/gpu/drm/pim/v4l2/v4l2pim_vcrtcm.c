@@ -649,6 +649,8 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	minor = v4l2pim_create_minor();
 	if (!minor)
 		return -ENODEV;
+	vcrtcm_p_log_alloc_cnts(pconid,
+				v4l2pim_log_pcon_alloc_counts);
 	minor->pcon = v4l2pim_create_pcon(pconid, minor);
 	if (!minor->pcon) {
 		v4l2pim_destroy_minor(minor);

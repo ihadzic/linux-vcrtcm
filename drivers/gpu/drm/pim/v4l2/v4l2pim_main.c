@@ -52,6 +52,8 @@ int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
 int v4l2pim_debug; /* Enable the printing of debugging information */
+int v4l2pim_log_pim_alloc_counts;
+int v4l2pim_log_pcon_alloc_counts;
 int v4l2pim_pimid = -1;
 
 /* ID generator for allocating minor numbers */
@@ -1045,6 +1047,7 @@ static int __init v4l2pim_init(void)
 	if (r)
 		return r;
 	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
+	vcrtcm_pim_log_alloc_cnts(v4l2pim_pimid, v4l2pim_log_pim_alloc_counts);
 	INIT_LIST_HEAD(&v4l2pim_minor_list);
 	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
 					V4L2PIM_MAX_MINORS);
@@ -1083,6 +1086,14 @@ MODULE_PARM_DESC(v4l2pim_major, "Major device number (default=dynamic)");
 module_param_named(major, v4l2pim_major, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(log_pim_alloc_cnts,
+		 "When set to 1, log all per-PIM alloc counts (default = 0)");
+module_param_named(log_pim_alloc_cnts, v4l2pim_log_pim_alloc_counts,
+		   int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(log_pcon_alloc_cnts,
+		 "When set to 1, log all per-PCON alloc counts (default = 0)");
+module_param_named(log_pcon_alloc_cnts, v4l2pim_log_pcon_alloc_counts,
+		   int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("v4l2 PCON");

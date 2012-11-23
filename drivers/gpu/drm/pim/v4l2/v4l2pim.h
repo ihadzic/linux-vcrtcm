@@ -57,6 +57,7 @@ extern struct list_head v4l2pim_minor_list;
 extern int v4l2pim_major;
 extern int v4l2pim_num_minors;
 extern int v4l2pim_fake_vblank_slack;
+extern int v4l2pim_log_pcon_alloc_counts;
 
 struct v4l2pim_fmt {
 	char  *name;
