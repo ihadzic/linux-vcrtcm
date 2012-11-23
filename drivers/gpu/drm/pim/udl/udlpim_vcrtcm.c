@@ -750,6 +750,8 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 		if (!minor->pcon) {
 			struct usb_device *usbdev;
 
+			vcrtcm_p_log_alloc_cnts(pconid,
+						udlpim_log_pcon_alloc_counts);
 			minor->pcon = udlpim_create_pcon(pconid, minor);
 			if (!minor->pcon)
 				return -ENOMEM;

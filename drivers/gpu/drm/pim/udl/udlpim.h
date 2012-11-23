@@ -51,6 +51,7 @@
 extern int udlpim_true32bpp;
 extern int udlpim_debug;
 extern int udlpim_enable_default_modes;
+extern int udlpim_log_pcon_alloc_counts;
 
 extern struct usb_driver udlpim_driver;
 extern struct list_head udlpim_minor_list;

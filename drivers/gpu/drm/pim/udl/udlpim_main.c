@@ -37,6 +37,8 @@
 int udlpim_true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
 int udlpim_debug; /* Enable the printing of debugging information */
 int udlpim_enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
+int udlpim_log_pim_alloc_counts;
+int udlpim_log_pcon_alloc_counts;
 
 struct list_head udlpim_minor_list;
 int udlpim_major = -1;
@@ -62,6 +64,7 @@ static int __init udlpim_init(void)
 	if (r)
 		return r;
 	vcrtcm_pim_register(UDLPIM_PIM_NAME, &udlpim_pim_funcs, &udlpim_pimid);
+	vcrtcm_pim_log_alloc_cnts(udlpim_pimid, udlpim_log_pim_alloc_counts);
 	INIT_LIST_HEAD(&udlpim_minor_list);
 	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
 					UDLPIM_MAX_MINORS);
@@ -118,6 +121,14 @@ MODULE_PARM_DESC(major, "Major device number (default=dynamic)");
 module_param_named(enable_default_modes, udlpim_enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(enable_default_modes,
 	"Support standard VESA modes if the monitor doesn't provide any.");
+module_param_named(log_pim_alloc_cnts, udlpim_log_pim_alloc_counts,
+		   int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(log_pim_alloc_cnts,
+		 "When set to 1, log all per-PIM alloc counts (default = 0)");
+module_param_named(log_pcon_alloc_cnts, udlpim_log_pcon_alloc_counts,
+		   int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(log_pcon_alloc_cnts,
+		 "When set to 1, log all per-PCON alloc counts (default = 0)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DisplayLink USB PCON");
