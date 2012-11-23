@@ -45,6 +45,9 @@ static struct cdev *vcrtcm_cdev;
 static struct device *vcrtcm_device;
 
 int vcrtcm_debug;
+int vcrtcm_log_all_vcrtcm_counts;
+int vcrtcm_log_all_pim_counts;
+int vcrtcm_log_all_pcon_counts;
 
 static int __init vcrtcm_init(void)
 {
@@ -123,3 +126,16 @@ MODULE_AUTHOR("Ilija Hadzic (ihadzic@alcatel-lucent.com)");
 
 module_param_named(debug, vcrtcm_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level, default=0");
+module_param_named(log_all_vcrtcm_counts, vcrtcm_log_all_vcrtcm_counts,
+		   int, 0644);
+MODULE_PARM_DESC(log_all_vcrtcm_counts,
+		 "Log all memory alloc counts for this module, default=0");
+module_param_named(log_all_pim_counts, vcrtcm_log_all_pim_counts,
+		   int, 0644);
+MODULE_PARM_DESC(log_all_pim_counts,
+		 "Log all memory alloc counts for all PIMs, default=0");
+module_param_named(log_all_pcon_counts, vcrtcm_log_all_pcon_counts,
+		   int, 0644);
+MODULE_PARM_DESC(log_all_pcon_counts,
+		 "Log all memory alloc counts for all PCONs, default=0");
+

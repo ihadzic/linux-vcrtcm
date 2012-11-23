@@ -29,6 +29,7 @@
 #include "vcrtcm_alloc_priv.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_module.h"
 
 #define VCRTCM_ALLOC_LOG_MAXLEN 64
 
@@ -42,9 +43,6 @@ static uint64_t ncalls_freepage;
 static uint64_t ncalls_allocmultiplepage;
 static uint64_t ncalls_freemultiplepage;
 static int log_alloc_bugs = 1;
-static int log_all_vcrtcm_counts;
-static int log_all_pim_counts;
-static int log_all_pcon_counts;
 static DEFINE_SPINLOCK(spinlock);
 
 static void show_ncalls(void)
@@ -77,16 +75,16 @@ static void doadjcnts(const char *fcn, int owner_type, int owner_id,
 	}
 	switch (owner_type) {
 	case VCRTCM_OWNER_VCRTCM:
-		log_this = log_all_vcrtcm_counts;
+		log_this = vcrtcm_log_all_vcrtcm_counts;
 		snprintf(owner_log_buf, VCRTCM_ALLOC_LOG_MAXLEN, "vcrtcm");
 		break;
 	case VCRTCM_OWNER_PIM:
-		log_this = log_all_pim_counts || log_this_owners_cnts;
+		log_this = vcrtcm_log_all_pim_counts || log_this_owners_cnts;
 		snprintf(owner_log_buf, VCRTCM_ALLOC_LOG_MAXLEN, "pim %s",
 			pim_name);
 		break;
 	case VCRTCM_OWNER_PCON:
-		log_this = log_all_pcon_counts || log_this_owners_cnts;
+		log_this = vcrtcm_log_all_pcon_counts || log_this_owners_cnts;
 		snprintf(owner_log_buf, VCRTCM_ALLOC_LOG_MAXLEN, "pcon %d",
 			owner_id);
 		break;

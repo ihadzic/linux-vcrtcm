@@ -22,5 +22,8 @@
 #define __VCRTCM_MODULE_H__
 
 extern int vcrtcm_debug;
+extern int vcrtcm_log_all_vcrtcm_counts;
+extern int vcrtcm_log_all_pim_counts;
+extern int vcrtcm_log_all_pcon_counts;
 
 #endif
