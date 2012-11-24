@@ -46,7 +46,7 @@
 #define V4L2PIM_VERSION \
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
-struct list_head v4l2pim_minor_list;
+LIST_HEAD(v4l2pim_minor_list);
 int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
@@ -1042,7 +1042,6 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 	vcrtcm_pim_log_alloc_cnts(v4l2pim_pimid, v4l2pim_log_pim_alloc_counts);
-	INIT_LIST_HEAD(&v4l2pim_minor_list);
 	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
 					V4L2PIM_MAX_MINORS);
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
