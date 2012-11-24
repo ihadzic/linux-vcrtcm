@@ -40,7 +40,7 @@ int udlpim_enable_default_modes; /* Use standard VESA modes if we can't get EDID
 int udlpim_log_pim_alloc_counts;
 int udlpim_log_pcon_alloc_counts;
 
-struct list_head udlpim_minor_list;
+LIST_HEAD(udlpim_minor_list);
 int udlpim_num_minors = -1;
 int udlpim_fake_vblank_slack = 1;
 int udlpim_pimid = -1;
@@ -61,7 +61,6 @@ static int __init udlpim_init(void)
 	VCRTCM_INFO("Push mode enabled");
 	vcrtcm_pim_register(UDLPIM_PIM_NAME, &udlpim_pim_funcs, &udlpim_pimid);
 	vcrtcm_pim_log_alloc_cnts(udlpim_pimid, udlpim_log_pim_alloc_counts);
-	INIT_LIST_HEAD(&udlpim_minor_list);
 	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
 					UDLPIM_MAX_MINORS);
 	udlpim_num_minors = 0;
