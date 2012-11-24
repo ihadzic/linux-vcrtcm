@@ -41,7 +41,6 @@ int udlpim_log_pim_alloc_counts;
 int udlpim_log_pcon_alloc_counts;
 
 struct list_head udlpim_minor_list;
-int udlpim_major = -1;
 int udlpim_num_minors = -1;
 int udlpim_fake_vblank_slack = 1;
 int udlpim_pimid = -1;
@@ -60,9 +59,6 @@ static int __init udlpim_init(void)
 
 	VCRTCM_INFO("DisplayLink USB PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("Push mode enabled");
-	r = vcrtcm_alloc_major(&udlpim_major, UDLPIM_MAX_MINORS, UDLPIM_PIM_NAME);
-	if (r)
-		return r;
 	vcrtcm_pim_register(UDLPIM_PIM_NAME, &udlpim_pim_funcs, &udlpim_pimid);
 	vcrtcm_pim_log_alloc_cnts(udlpim_pimid, udlpim_log_pim_alloc_counts);
 	INIT_LIST_HEAD(&udlpim_minor_list);
@@ -71,7 +67,6 @@ static int __init udlpim_init(void)
 	udlpim_num_minors = 0;
 	r = usb_register(&udlpim_driver);
 	if (r) {
-		unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_MINORS);
 		vcrtcm_pim_unregister(udlpim_pimid);
 		VCRTCM_ERROR("usb_register failed, error %d", r);
 		return r;
@@ -87,7 +82,6 @@ static void __exit udlpim_exit(void)
 
 	VCRTCM_INFO("shutting down udlpim\n");
 	vcrtcm_pim_disable_callbacks(udlpim_pimid);
-	unregister_chrdev_region(MKDEV(udlpim_major, 0), UDLPIM_MAX_MINORS);
 	list_for_each_entry_safe(minor, tmp, &udlpim_minor_list, list) {
 		if (minor->pcon) {
 			udlpim_detach_pcon(minor->pcon);
@@ -114,9 +108,6 @@ MODULE_PARM_DESC(udlpim_true32bpp,
 
 module_param_named(debug, udlpim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(debug, "Enable debugging information.");
-
-module_param_named(major, udlpim_major, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(major, "Major device number (default=dynamic)");
 
 module_param_named(enable_default_modes, udlpim_enable_default_modes, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(enable_default_modes,

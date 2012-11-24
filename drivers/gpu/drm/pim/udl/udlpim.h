@@ -55,7 +55,6 @@ extern int udlpim_log_pcon_alloc_counts;
 
 extern struct usb_driver udlpim_driver;
 extern struct list_head udlpim_minor_list;
-extern int udlpim_major;
 extern int udlpim_num_minors;
 extern int udlpim_fake_vblank_slack;
 extern struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs;
