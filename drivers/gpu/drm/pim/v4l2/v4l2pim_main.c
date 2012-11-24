@@ -47,7 +47,6 @@
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
 struct list_head v4l2pim_minor_list;
-int v4l2pim_major = -1;
 int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
@@ -1040,12 +1039,7 @@ static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 
 static int __init v4l2pim_init(void)
 {
-	int r;
-
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	r = vcrtcm_alloc_major(&v4l2pim_major, V4L2PIM_MAX_MINORS, V4L2PIM_PIM_NAME);
-	if (r)
-		return r;
 	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 	vcrtcm_pim_log_alloc_cnts(v4l2pim_pimid, v4l2pim_log_pim_alloc_counts);
 	INIT_LIST_HEAD(&v4l2pim_minor_list);
@@ -1066,7 +1060,6 @@ static void __exit v4l2pim_exit(void)
 
 	VCRTCM_INFO("shutting down v4l2pim\n");
 	vcrtcm_pim_disable_callbacks(v4l2pim_pimid);
-	unregister_chrdev_region(MKDEV(v4l2pim_major, 0), V4L2PIM_MAX_MINORS);
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
 		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
@@ -1082,8 +1075,6 @@ module_exit(v4l2pim_exit);
 
 MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information");
 module_param_named(debug, v4l2pim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(v4l2pim_major, "Major device number (default=dynamic)");
-module_param_named(major, v4l2pim_major, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(log_pim_alloc_cnts,
