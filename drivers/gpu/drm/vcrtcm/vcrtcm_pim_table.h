@@ -23,11 +23,20 @@
 
 #include <vcrtcm/vcrtcm_pim.h>
 
+struct vcrtcm_minor {
+	struct list_head minors_in_pim_list;
+	struct device *device;
+	int minor;
+};
+
 struct vcrtcm_pim {
 	char name[PIM_NAME_MAXLEN];
 	int id;
 	struct vcrtcm_pim_funcs funcs;
 	struct list_head pcons_in_pim_list;
+	int major;
+	int has_major;
+	struct list_head minors_in_pim_list;
 	struct kobject kobj;
 	struct list_head pim_list;
 	int callbacks_enabled;

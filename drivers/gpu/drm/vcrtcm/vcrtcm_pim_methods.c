@@ -24,6 +24,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_pim_methods.h"
 #include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pim_table.h"
@@ -97,3 +98,159 @@ void vcrtcm_pim_log_alloc_cnts(int pimid, int on)
 }
 EXPORT_SYMBOL(vcrtcm_pim_log_alloc_cnts);
 
+/*
+ * Helper function for vcrtcm_pim_add/del_minor. Looks up vcrtcm_minor
+ * structure within a pim that has a specified minor number
+ */
+static struct vcrtcm_minor *vcrtcm_get_minor(struct vcrtcm_pim *pim, int minor)
+{
+	struct vcrtcm_minor *vcrtcm_minor;
+
+	list_for_each_entry(vcrtcm_minor, &pim->minors_in_pim_list,
+			    minors_in_pim_list) {
+		if (vcrtcm_minor->minor == minor)
+			return vcrtcm_minor;
+	}
+	return NULL;
+}
+
+/*
+ * Records major device number for a PIM. Only PIMs that interact
+ * outside the VCRTCM context have major device numbers. Calling
+ * this function is a pre-requisite for using vcrtcm_pim_add_minor
+ * and vcrtcm_pim_del_minor
+ */
+int vcrtcm_pim_add_major(int pimid, int major)
+{
+	struct vcrtcm_pim *pim;
+
+	if (major < 0) {
+		VCRTCM_ERROR("invalid major");
+		return -EINVAL;
+	}
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim) {
+		VCRTCM_ERROR("pim %d not found\n", pimid);
+		return -ENOENT;
+	}
+	if (pim->has_major) {
+		VCRTCM_ERROR("pim %d already has major %d\n",
+			     pimid, pim->major);
+		return -EBUSY;
+	}
+	INIT_LIST_HEAD(&pim->minors_in_pim_list);
+	pim->major = major;
+	pim->has_major = 1;
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_pim_add_major);
+
+/* Opposite of vcrtcm_pim_add_major */
+int vcrtcm_pim_del_major(int pimid)
+{
+	struct vcrtcm_pim *pim;
+
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim) {
+		VCRTCM_ERROR("pim %d not found\n", pimid);
+		return -ENOENT;
+	}
+	if (!list_empty(&pim->minors_in_pim_list)) {
+		VCRTCM_ERROR("list of minors for pim %d not empty\n", pimid);
+		return -EBUSY;
+	}
+	pim->major = 0;
+	pim->has_major = 0;
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_pim_del_major);
+
+/*
+ * Creates a device structure for a specified pcon and minor,
+ * and adds it to vcrtcm class. This function is used by PIMs
+ * that interact with user space outside VCRTCM context, and
+ * thus need their own major/minor numbers and device files.
+ * Call into this function will generate udev event that will
+ * in turn create a device file. PIM is responsible for
+ * maintaining minor device numbers and relationship between
+ * PCON IDs and minor device numbers can be arbitrary
+ * (it's up to the PIM to establish a relationship that is
+ * meaningful for it). Prior to calling this function, PIM
+ * must register the major device number using vcrtcm_pim_add_major
+ * function.
+ */
+int vcrtcm_pim_add_minor(int pimid, int minor)
+{
+	struct vcrtcm_pim *pim;
+	struct device *device;
+	dev_t dev;
+	struct vcrtcm_minor *vcrtcm_minor;
+
+	if (minor < 0) {
+		VCRTCM_ERROR("invalid minor");
+		return -EINVAL;
+	}
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim) {
+		VCRTCM_ERROR("pim %d not found\n", pimid);
+		return -ENOENT;
+	}
+	if (!pim->has_major) {
+		VCRTCM_ERROR("pim %d has no major\n", pimid);
+		return -ENOENT;
+	}
+	vcrtcm_minor = vcrtcm_get_minor(pim, minor);
+	if (vcrtcm_minor) {
+		VCRTCM_ERROR("pim %d, minor %d, already added\n",
+			     pimid, minor);
+		return -EBUSY;
+	}
+	vcrtcm_minor = vcrtcm_kzalloc(sizeof(struct vcrtcm_minor), GFP_KERNEL,
+				      VCRTCM_OWNER_PIM | pim->id);
+	if (!vcrtcm_minor)
+		return -ENOMEM;
+	dev = MKDEV(pim->major, minor);
+	device = device_create(vcrtcm_class, NULL, dev, NULL,
+			       "%s%d", pim->name, minor);
+	if (!device) {
+		vcrtcm_kfree(vcrtcm_minor);
+		return -EFAULT;
+	}
+	vcrtcm_minor->minor = minor;
+	vcrtcm_minor->device = device;
+	list_add_tail(&vcrtcm_minor->minors_in_pim_list,
+		      &pim->minors_in_pim_list);
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_pim_add_minor);
+
+/* Opposite of vcrtcm_pim_add_minor.*/
+int vcrtcm_pim_del_minor(int pimid, int minor)
+{
+
+	struct vcrtcm_pim *pim;
+	struct vcrtcm_minor *vcrtcm_minor;
+	dev_t dev;
+
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim) {
+		VCRTCM_ERROR("pim %d not found\n", pimid);
+		return -ENOENT;
+	}
+	if (!pim->has_major) {
+		VCRTCM_ERROR("pim %d has no major\n", pimid);
+		return -ENOENT;
+	}
+	vcrtcm_minor = vcrtcm_get_minor(pim, minor);
+	if (!vcrtcm_minor) {
+		VCRTCM_ERROR("pim %d, minor %d, not found\n",
+			     pimid, minor);
+		return -EBUSY;
+	}
+	list_del(&vcrtcm_minor->minors_in_pim_list);
+	dev = MKDEV(pim->major, minor);
+	device_destroy(vcrtcm_class, dev);
+	vcrtcm_kfree(vcrtcm_minor);
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_pim_del_minor);
