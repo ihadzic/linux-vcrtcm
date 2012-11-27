@@ -53,14 +53,9 @@ struct vcrtcm_gpu_funcs {
 	void (*hotplug) (struct drm_crtc *crtc);
 };
 
-/* everything that vcrtcm knows about a PCON */
-/* The PCON registers this structure by calling vcrtcm_hw_add() */
-/* The GPU driver interacts with the PCON by calling the */
-/* vcrtcm_pcon_funcs provided in this structure */
 struct vcrtcm_pcon {
 	char description[PCON_DESC_MAXLEN];
 	struct vcrtcm_pim *pim;
-	struct mutex mutex;
 	struct vcrtcm_pcon_funcs pcon_funcs;
 	struct vcrtcm_gpu_funcs gpu_funcs;
 	int pcon_callbacks_enabled;
@@ -70,7 +65,7 @@ struct vcrtcm_pcon {
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
-	/* general lock for fields subject to concurrent access */
+	struct mutex mutex;
 	spinlock_t lock;
 	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
 	int status;
@@ -91,14 +86,11 @@ struct vcrtcm_pcon {
 	int vblank_slack_jiffies;
 };
 
-/* setup/config functions */
 int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
 		  struct vcrtcm_pcon **pcon);
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon);
-
-/* functions for use by GPU driver in operational state */
 int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
 int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
 int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr);
