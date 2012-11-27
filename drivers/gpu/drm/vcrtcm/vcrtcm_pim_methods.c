@@ -135,6 +135,18 @@ static int vcrtcm_alloc_major(int desired_major, int num_minors,
 }
 
 /*
+ * Helper function for vcrtcm_pim_del_major. Returns the major
+ * device number to the system by freeing the chrdev region
+ */
+static void vcrtcm_free_major(int major, int num_minors)
+{
+	if (major >= 0) {
+		dev_t dev = MKDEV(major, 0);
+		unregister_chrdev_region(dev, num_minors);
+	}
+}
+
+/*
  * Helper function for vcrtcm_pim_add/del_minor. Looks up vcrtcm_minor
  * structure within a pim that has a specified minor number
  */
