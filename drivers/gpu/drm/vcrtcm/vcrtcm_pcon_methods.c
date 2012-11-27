@@ -273,6 +273,7 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_dealloc_pcon(pcon->pconid);
+	vcrtcm_kfree(pcon);
 }
 
 /*

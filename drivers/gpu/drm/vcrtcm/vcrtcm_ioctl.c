@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_ioctl_priv.h"
 #include "vcrtcm_module.h"
@@ -91,6 +92,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_ERROR("no pcons of type %s available...\n",
 			     pim->name);
 		vcrtcm_dealloc_pcon(pcon->pconid);
+		vcrtcm_kfree(pcon);
 		return r;
 	}
 	VCRTCM_INFO("new pcon created, id %i\n", pcon->pconid);

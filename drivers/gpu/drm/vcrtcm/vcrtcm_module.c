@@ -21,9 +21,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <vcrtcm/vcrtcm_sysfs.h>
-#include <vcrtcm/vcrtcm_utils.h>
+#include <vcrtcm/vcrtcm_alloc.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
+#include <vcrtcm/vcrtcm_utils.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
@@ -105,8 +106,9 @@ static void __exit vcrtcm_exit(void)
 				if (pcon->gpu_funcs.detach)
 					pcon->gpu_funcs.detach(pcon->drm_crtc);
 			}
-			mutex_unlock(&pcon->mutex);
 			vcrtcm_dealloc_pcon(pcon->pconid);
+			mutex_unlock(&pcon->mutex);
+			vcrtcm_kfree(pcon);
 		}
 	}
 	if (vcrtcm_class)
