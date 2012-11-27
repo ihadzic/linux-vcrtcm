@@ -30,6 +30,7 @@
 #include "vcrtcm_module.h"
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_vblank.h"
 
 struct pconid_table_entry {
 	struct vcrtcm_pcon *pcon;
@@ -37,36 +38,6 @@ struct pconid_table_entry {
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static DEFINE_MUTEX(pconid_table_mutex);
-
-static void
-vblank_work_fcn(struct work_struct *work)
-{
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
-	struct vcrtcm_pcon *pcon =
-		container_of(delayed_work, struct vcrtcm_pcon, vblank_work);
-	int next_vblank_delay;
-	unsigned long now;
-
-	mutex_lock(&pcon->mutex);
-	if (pcon->vblank_period_jiffies == 0) {
-		mutex_unlock(&pcon->mutex);
-		return;
-	}
-	now = jiffies;
-	if (time_after_eq(now + pcon->vblank_slack_jiffies, pcon->next_vblank_jiffies)) {
-		pcon->next_vblank_jiffies += pcon->vblank_period_jiffies;
-		if (pcon->pcon_funcs.vblank &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled)
-			pcon->pcon_funcs.vblank(pcon->pconid, pcon->pcon_cookie);
-	}
-	next_vblank_delay = pcon->next_vblank_jiffies - (int)now;
-	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
-		next_vblank_delay = 0;
-	schedule_delayed_work(&pcon->vblank_work, next_vblank_delay);
-	mutex_unlock(&pcon->mutex);
-}
 
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 {
@@ -89,7 +60,8 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
 			spin_lock_init(&pcon->lock);
-			INIT_DELAYED_WORK(&pcon->vblank_work, vblank_work_fcn);
+			INIT_DELAYED_WORK(&pcon->vblank_work,
+				vcrtcm_vblank_work_fcn);
 			mutex_init(&pcon->mutex);
 			entry->pcon = pcon;
 			mutex_unlock(&pconid_table_mutex);
