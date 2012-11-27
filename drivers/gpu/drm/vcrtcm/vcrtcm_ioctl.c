@@ -146,6 +146,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
 	struct vcrtcm_pim_funcs funcs;
+	unsigned long flags;
 	int r;
 
 	pcon = vcrtcm_get_pcon(pconid);
@@ -167,7 +168,9 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		return r;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
+	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->being_destroyed = 1;
+	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
 	/* NB: must tell pim to destroy pcon before destroying it myself,

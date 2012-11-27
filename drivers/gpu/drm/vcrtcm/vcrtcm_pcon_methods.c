@@ -586,13 +586,17 @@ EXPORT_SYMBOL(vcrtcm_p_detach);
 
 void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 {
+	unsigned long flags;
+
 	do_vcrtcm_p_detach(pcon, 0);
 	if (explicit)
 		VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
 	else
 		VCRTCM_INFO("doing implicit destroy of pcon %i\n",
 			pcon->pconid);
+	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->being_destroyed = 1;
+	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	vcrtcm_destroy_pcon(pcon);
 	vcrtcm_kfree(pcon);
 }
@@ -614,13 +618,16 @@ EXPORT_SYMBOL(vcrtcm_p_destroy);
 int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
+	unsigned long flags;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
+	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);

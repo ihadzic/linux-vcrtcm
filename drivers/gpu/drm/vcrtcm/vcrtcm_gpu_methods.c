@@ -246,21 +246,28 @@ EXPORT_SYMBOL(vcrtcm_g_get_fb_l);
  * done right away, VCRTCM_PFLIP_DEFERRED if the flip could not be
  * done immediately (backend must chache it and execute when possible)
  * or an error code when if the flip can't be done at all
+ *
+ * NB: This function is callable in atomic context.
  */
 int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr)
 {
-	int r;
-	/*
-	 * this method is intended to be called from ISR, so no
-	 * semaphore grabbing allowed
-	 */
-	if (pcon->pcon_funcs.page_flip &&
+	int r = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
+	if (pcon->being_destroyed)
+		r = -ENODEV;
+	else if (pcon->pcon_funcs.page_flip &&
 		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled)
+		pcon->pim->callbacks_enabled) {
+		/*
+		* NB: the pcon's page_flip callback is required
+		* to be callable in interrupt context
+		*/
 		r = pcon->pcon_funcs.page_flip(pcon->pconid,
 			pcon->pcon_cookie, ioaddr);
-	else
-		r = 0;
+	}
+	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_page_flip);

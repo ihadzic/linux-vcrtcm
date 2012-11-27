@@ -59,7 +59,7 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			pcon->minor = -1;
 			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
-			spin_lock_init(&pcon->lock);
+			spin_lock_init(&pcon->page_flip_spinlock);
 			INIT_DELAYED_WORK(&pcon->vblank_work,
 				vcrtcm_vblank_work_fcn);
 			mutex_init(&pcon->mutex);

@@ -66,7 +66,7 @@ struct vcrtcm_pcon {
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
 	struct mutex mutex;
-	spinlock_t lock;
+	spinlock_t page_flip_spinlock;
 	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
 	int status;
 	int being_destroyed;
