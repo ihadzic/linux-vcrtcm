@@ -80,6 +80,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_ERROR("no pconids available");
 		return -ENODEV;
 	}
+	mutex_lock(&pcon->mutex);
 	pcon->pim = pim;
 	r = pim->funcs.instantiate(pcon->pconid, hints,
 					&pcon->pcon_cookie,
@@ -92,6 +93,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_ERROR("no pcons of type %s available...\n",
 			     pim->name);
 		vcrtcm_dealloc_pcon(pcon->pconid);
+		mutex_unlock(&pcon->mutex);
 		vcrtcm_kfree(pcon);
 		return r;
 	}
@@ -100,6 +102,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 	list_add_tail(&pcon->pcons_in_pim_list,
 		      &pim->pcons_in_pim_list);
 	*pconid = pcon->pconid;
+	mutex_unlock(&pcon->mutex);
 	return 0;
 }
 
@@ -108,11 +111,9 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
  */
 static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 {
-	mutex_lock(&pcon->mutex);
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
 	if (!(pcon->status & VCRTCM_STATUS_PCON_IN_USE)) {
-		mutex_unlock(&pcon->mutex);
 		return 0;
 	}
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
@@ -132,13 +133,11 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
 				pcon->pconid);
 			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-			mutex_unlock(&pcon->mutex);
 			return r;
 		}
 	}
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
-	mutex_unlock(&pcon->mutex);
 	return 0;
 }
 
@@ -154,12 +153,15 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
+	mutex_lock(&pcon->mutex);
 	if (!pcon->pim->callbacks_enabled) {
+		mutex_unlock(&pcon->mutex);
 		VCRTCM_ERROR("pim %s has callbacks disabled\n", pcon->pim->name);
 		return -ECANCELED;
 	}
 	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
 	if (r) {
+		mutex_unlock(&pcon->mutex);
 		VCRTCM_ERROR("detach failed, not destroying pcon %i\n",
 			     pconid);
 		return r;
@@ -173,6 +175,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (funcs.destroy)
 		funcs.destroy(pconid, cookie);
 	vcrtcm_destroy_pcon(pcon);
+	mutex_unlock(&pcon->mutex);
 	vcrtcm_kfree(pcon);
 	return 0;
 }
