@@ -106,19 +106,14 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
  */
 static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 {
-	unsigned long flags;
-
 	mutex_lock(&pcon->mutex);
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (!(pcon->status & VCRTCM_STATUS_PCON_IN_USE)) {
-		spin_unlock_irqrestore(&pcon->lock, flags);
 		mutex_unlock(&pcon->mutex);
 		return 0;
 	}
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	if (explicit)
 		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 	else
@@ -134,9 +129,7 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
 				pcon->pconid);
-			spin_lock_irqsave(&pcon->lock, flags);
 			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-			spin_unlock_irqrestore(&pcon->lock, flags);
 			mutex_unlock(&pcon->mutex);
 			return r;
 		}

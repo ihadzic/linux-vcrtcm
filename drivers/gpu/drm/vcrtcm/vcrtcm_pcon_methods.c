@@ -314,7 +314,6 @@ EXPORT_SYMBOL(vcrtcm_p_wait_fb);
  */
 void vcrtcm_p_emulate_vblank(int pconid)
 {
-	unsigned long flags;
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
@@ -322,15 +321,12 @@ void vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return;
 	}
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
-		spin_unlock_irqrestore(&pcon->lock, flags);
 		return;
 	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	if (pcon->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
 		pcon->gpu_funcs.vblank(pcon->drm_crtc);
@@ -559,15 +555,11 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
  */
 static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
-	unsigned long flags;
-
 	mutex_lock(&pcon->mutex);
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-		spin_unlock_irqrestore(&pcon->lock, flags);
 		if (explicit)
 			VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 		else
@@ -575,8 +567,7 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 				pcon->pconid);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
-	} else
-		spin_unlock_irqrestore(&pcon->lock, flags);
+	}
 	mutex_unlock(&pcon->mutex);
 }
 

@@ -40,7 +40,6 @@ int vcrtcm_g_attach(int pconid,
 {
 
 	struct vcrtcm_pcon *pcon;
-	unsigned long flags;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
@@ -48,16 +47,12 @@ int vcrtcm_g_attach(int pconid,
 		return -EINVAL;
 	}
 	mutex_lock(&pcon->mutex);
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
-		spin_unlock_irqrestore(&pcon->lock,
-					flags);
 		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
 			     pconid, drm_crtc);
 		mutex_unlock(&pcon->mutex);
 		return -EBUSY;
 	}
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	/*
 	 * if we got here, then we have found the PCON
 	 * and it's free for us to attach to
@@ -83,9 +78,7 @@ int vcrtcm_g_attach(int pconid,
 	*pcon_ret = pcon;
 
 	/* very last thing to do: change the status */
-	spin_lock_irqsave(&pcon->lock, flags);
 	pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	mutex_unlock(&pcon->mutex);
 	return 0;
 }
@@ -108,19 +101,13 @@ EXPORT_SYMBOL(vcrtcm_g_attach);
  */
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 {
-
-	unsigned long flags;
-
 	mutex_lock(&pcon->mutex);
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (!pcon->status) {
-		spin_unlock_irqrestore(&pcon->lock, flags);
 		VCRTCM_WARNING("pcon already detached\n");
 		mutex_unlock(&pcon->mutex);
 		return -EINVAL;
 	}
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 
 	/* TBD: the pcon detach routine must be called before
 	* the gpu detach routine, to give the pcon detach
@@ -135,9 +122,7 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 		r = pcon->pcon_funcs.detach(pcon->pconid,
 					    pcon->pcon_cookie);
 		if (r) {
-			spin_lock_irqsave(&pcon->lock, flags);
 			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-			spin_unlock_irqrestore(&pcon->lock, flags);
 			mutex_unlock(&pcon->mutex);
 			return r;
 		}
@@ -488,16 +473,13 @@ int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
 			   struct timeval *vblank_time)
 {
 	int r;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pcon->lock, flags);
 	if ((pcon->status & VCRTCM_STATUS_PCON_IN_USE) &&
 	    (pcon->vblank_time_valid)) {
 		*vblank_time = pcon->vblank_time;
 		r = 0;
 	} else
 		r = -EAGAIN;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
@@ -509,17 +491,12 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
  */
 void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&pcon->lock, flags);
 	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
-		spin_unlock_irqrestore(&pcon->lock, flags);
 		return;
 	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
-	spin_unlock_irqrestore(&pcon->lock, flags);
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
