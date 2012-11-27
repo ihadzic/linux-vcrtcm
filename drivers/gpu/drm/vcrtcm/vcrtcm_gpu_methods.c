@@ -175,7 +175,7 @@ EXPORT_SYMBOL(vcrtcm_g_set_fb);
  * of the emulated registers (implemented in the GTD driver) into
  * a structure pointed by fb argument
  */
-int vcrtcm_get_fb(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon,
 		  struct vcrtcm_fb *fb)
 {
 	int r;
@@ -196,7 +196,7 @@ int vcrtcm_get_fb(struct vcrtcm_pcon *pcon,
 	mutex_unlock(&pcon->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_fb);
+EXPORT_SYMBOL(vcrtcm_g_get_fb);
 
 /*
  * Emulates a page-flip call for a virtual CRTC
@@ -446,7 +446,7 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state)
 EXPORT_SYMBOL(vcrtcm_g_set_dpms);
 
 /* dpms manipulation functions */
-int vcrtcm_get_dpms(struct vcrtcm_pcon *pcon, int *state)
+int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state)
 {
 	int r;
 
@@ -466,7 +466,7 @@ int vcrtcm_get_dpms(struct vcrtcm_pcon *pcon, int *state)
 	mutex_unlock(&pcon->mutex);
 	return r;
 }
-EXPORT_SYMBOL(vcrtcm_get_dpms);
+EXPORT_SYMBOL(vcrtcm_g_get_dpms);
 
 /* retrieve the last (fake) vblank time if it exists */
 int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
