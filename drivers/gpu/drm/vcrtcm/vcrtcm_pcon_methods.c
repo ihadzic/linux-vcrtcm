@@ -281,7 +281,7 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
  * the frame's buffers, which typically occurs as part of the pcon-
  * destruction procedure.
  */
-void vcrtcm_p_wait_fb(int pconid)
+int vcrtcm_p_wait_fb(int pconid)
 {
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
 	struct vcrtcm_pcon *pcon;
@@ -289,7 +289,7 @@ void vcrtcm_p_wait_fb(int pconid)
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
@@ -300,7 +300,7 @@ void vcrtcm_p_wait_fb(int pconid)
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
 		    ((int)jiffies_snapshot_2 -
 		     (int)(jiffies_snapshot)) * 1000 / HZ);
-
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb);
 
@@ -310,18 +310,18 @@ EXPORT_SYMBOL(vcrtcm_p_wait_fb);
  * the PCON but is emulated by the virtual
  * CRTC implementation in the GPU-hardware-specific driver
  */
-void vcrtcm_p_emulate_vblank(int pconid)
+int vcrtcm_p_emulate_vblank(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
-		return;
+		return -EINVAL;
 	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
@@ -330,6 +330,7 @@ void vcrtcm_p_emulate_vblank(int pconid)
 		pcon->gpu_funcs.vblank(pcon->drm_crtc);
 	}
 	pcon->last_vblank_jiffies = jiffies;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
@@ -368,6 +369,7 @@ int vcrtcm_p_push(int pconid,
 			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_push);
 
@@ -375,7 +377,7 @@ EXPORT_SYMBOL(vcrtcm_p_push);
  * called by the PCON to signal hotplug event on a CRTC
  * attached to the specified PCON
  */
-void vcrtcm_p_hotplug(int pconid)
+int vcrtcm_p_hotplug(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	struct drm_crtc *crtc;
@@ -383,7 +385,7 @@ void vcrtcm_p_hotplug(int pconid)
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
@@ -391,6 +393,7 @@ void vcrtcm_p_hotplug(int pconid)
 		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
 
 	}
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug);
 
@@ -567,16 +570,17 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 	}
 }
 
-void vcrtcm_p_detach(int pconid)
+int vcrtcm_p_detach(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	do_vcrtcm_p_detach(pcon, 1);
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
 
@@ -592,42 +596,45 @@ void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 	vcrtcm_kfree(pcon);
 }
 
-void vcrtcm_p_destroy(int pconid)
+int vcrtcm_p_destroy(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	do_vcrtcm_p_destroy(pcon, 1);
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
-void vcrtcm_p_disable_callbacks(int pconid)
+int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	pcon->pcon_callbacks_enabled = 0;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);
 
-void vcrtcm_p_log_alloc_cnts(int pconid, int on)
+int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 {
 	struct vcrtcm_pcon *pcon;
 
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return;
+		return -ENODEV;
 	}
 	pcon->log_alloc_cnts = on;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
 

@@ -78,24 +78,24 @@ struct vcrtcm_pim_funcs {
 
 int vcrtcm_p_lock_mutex(int pconid);
 int vcrtcm_p_unlock_mutex(int pconid);
-void vcrtcm_p_destroy(int pconid);
-void vcrtcm_p_emulate_vblank(int pconid);
-void vcrtcm_p_wait_fb(int pconid);
+int vcrtcm_p_destroy(int pconid);
+int vcrtcm_p_emulate_vblank(int pconid);
+int vcrtcm_p_wait_fb(int pconid);
 int vcrtcm_p_register_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
 int vcrtcm_p_unregister_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
 int vcrtcm_p_push(int pconid, struct vcrtcm_push_buffer_descriptor *fpbd,
 	struct vcrtcm_push_buffer_descriptor *cpbd);
-void vcrtcm_p_hotplug(int pconid);
+int vcrtcm_p_hotplug(int pconid);
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
 	gfp_t gfp_mask);
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd, int npages,
 	gfp_t gfp_mask);
 int vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
-void vcrtcm_p_disable_callbacks(int pconid);
-void vcrtcm_p_log_alloc_cnts(int pconid, int on);
+int vcrtcm_p_disable_callbacks(int pconid);
+int vcrtcm_p_log_alloc_cnts(int pconid, int on);
 int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors);
 int vcrtcm_pim_del_major(int pimid);
 int vcrtcm_pim_get_major(int pimid);
