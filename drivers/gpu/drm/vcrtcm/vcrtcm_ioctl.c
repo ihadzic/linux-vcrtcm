@@ -173,6 +173,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (funcs.destroy)
 		funcs.destroy(pconid, cookie);
 	vcrtcm_destroy_pcon(pcon);
+	vcrtcm_kfree(pcon);
 	return 0;
 }
 

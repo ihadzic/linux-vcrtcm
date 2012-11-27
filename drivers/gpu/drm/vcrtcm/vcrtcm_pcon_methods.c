@@ -273,7 +273,6 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_dealloc_pcon(pcon->pconid);
-	vcrtcm_kfree(pcon);
 }
 
 /*
@@ -590,6 +589,7 @@ void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 		VCRTCM_INFO("doing implicit destroy of pcon %i\n",
 			pcon->pconid);
 	vcrtcm_destroy_pcon(pcon);
+	vcrtcm_kfree(pcon);
 }
 
 void vcrtcm_p_destroy(int pconid)
