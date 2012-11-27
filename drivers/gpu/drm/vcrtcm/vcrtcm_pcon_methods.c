@@ -269,11 +269,9 @@ EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
-	mutex_lock(&pcon->mutex);
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
-	mutex_unlock(&pcon->mutex);
 	vcrtcm_dealloc_pcon(pcon->pconid);
 }
 
@@ -555,7 +553,6 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
  */
 static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
-	mutex_lock(&pcon->mutex);
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
 	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
@@ -568,7 +565,6 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
 	}
-	mutex_unlock(&pcon->mutex);
 }
 
 void vcrtcm_p_detach(int pconid)
