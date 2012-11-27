@@ -98,6 +98,42 @@ void vcrtcm_pim_log_alloc_cnts(int pimid, int on)
 }
 EXPORT_SYMBOL(vcrtcm_pim_log_alloc_cnts);
 
+
+/*
+ * Helper function for vcrtcm_pim_add_major. It allocates and registers
+ * a major device number. If desired major device numer is specified
+ * it tries to use that one. Otherwise, it allocates dynamically
+ */
+static int vcrtcm_alloc_major(int desired_major, int num_minors,
+			      const char *name, int *pim_major)
+{
+	dev_t dev;
+	int r;
+
+	if (desired_major >= 0) {
+		dev = MKDEV(desired_major, 0);
+		r = register_chrdev_region(dev, num_minors, name);
+		if (r) {
+			VCRTCM_ERROR("can't allocate static major %d for %s\n",
+				     desired_major, name);
+			return r;
+		} else
+			VCRTCM_INFO("allocated static major %d for %s\n",
+				    MAJOR(dev), name);
+	} else {
+		r = alloc_chrdev_region(&dev, 0, num_minors, name);
+		if (r) {
+			VCRTCM_ERROR("can't allocate dynamic major for %s\n",
+				     name);
+			return r;
+		} else
+			VCRTCM_INFO("allocated dynamic major %d for %s\n",
+				    MAJOR(dev), name);
+	}
+	*pim_major = MAJOR(dev);
+	return r;
+}
+
 /*
  * Helper function for vcrtcm_pim_add/del_minor. Looks up vcrtcm_minor
  * structure within a pim that has a specified minor number

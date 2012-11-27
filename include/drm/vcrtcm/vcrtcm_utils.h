@@ -69,6 +69,4 @@ void vcrtcm_id_generator_destroy(struct vcrtcm_id_generator *gen);
 int vcrtcm_id_generator_get(struct vcrtcm_id_generator *gen, int behavior);
 void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id);
 
-int vcrtcm_alloc_major(int *major, int num_minors, const char *name);
-
 #endif
