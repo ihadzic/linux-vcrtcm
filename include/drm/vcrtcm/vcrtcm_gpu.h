@@ -107,13 +107,13 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state);
 int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state);
 int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
 			   struct timeval *vblank_time);
-void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status);
 int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 		     struct vcrtcm_mode **modes, int *count);
 int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 		      struct vcrtcm_mode *mode, int *status);
-void vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_lock_mutex(int pconid);
 int vcrtcm_g_unlock_mutex(int pconid);
 

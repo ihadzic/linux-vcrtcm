@@ -489,15 +489,15 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
  * is generated internally by the GPU without involving the PCON
  * (typically after a successful push)
  */
-void vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
 {
 	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		/* someone pulled the rug under our feet, bail out */
-		return;
+		return -EINVAL;
 	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
-	return;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
 
@@ -617,7 +617,7 @@ EXPORT_SYMBOL(vcrtcm_g_check_mode);
  * disable the specified PCON. Called when the CRTC associated with
  * the PCON is disabled from userland
  */
-void vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
 {
 	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.disable &&
@@ -634,7 +634,7 @@ void vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
 	}
 	mutex_unlock(&pcon->mutex);
 
-	return;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_disable);
 
