@@ -45,14 +45,14 @@ int vcrtcm_pim_register(char *pim_name,
 }
 EXPORT_SYMBOL(vcrtcm_pim_register);
 
-void vcrtcm_pim_unregister(int pimid)
+int vcrtcm_pim_unregister(int pimid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon, *tmp;
 
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
-		return;
+		return -EINVAL;
 	VCRTCM_INFO("unregistering %s\n", pim->name);
 	list_for_each_entry_safe(pcon, tmp,
 			&pim->pcons_in_pim_list, pcons_in_pim_list)
@@ -60,41 +60,45 @@ void vcrtcm_pim_unregister(int pimid)
 	vcrtcm_sysfs_del_pim(pim);
 	vcrtcm_destroy_pim(pim);
 	VCRTCM_INFO("finished unregistering pim\n");
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_unregister);
 
-void vcrtcm_pim_enable_callbacks(int pimid)
+int vcrtcm_pim_enable_callbacks(int pimid)
 {
 	struct vcrtcm_pim *pim;
 
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
-		return;
+		return -EINVAL;
 	VCRTCM_INFO("enabling callbacks for pim %s\n", pim->name);
 	pim->callbacks_enabled = 1;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_enable_callbacks);
 
-void vcrtcm_pim_disable_callbacks(int pimid)
+int vcrtcm_pim_disable_callbacks(int pimid)
 {
 	struct vcrtcm_pim *pim;
 
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
-		return;
+		return -EINVAL;
 	VCRTCM_INFO("disabling callbacks for pim %s\n", pim->name);
 	pim->callbacks_enabled = 0;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_disable_callbacks);
 
-void vcrtcm_pim_log_alloc_cnts(int pimid, int on)
+int vcrtcm_pim_log_alloc_cnts(int pimid, int on)
 {
 	struct vcrtcm_pim *pim;
 
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
-		return;
+		return -EINVAL;
 	pim->log_alloc_cnts = on;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_log_alloc_cnts);
 
