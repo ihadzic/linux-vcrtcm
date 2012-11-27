@@ -94,8 +94,9 @@ struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 int vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
 void vcrtcm_p_disable_callbacks(int pconid);
 void vcrtcm_p_log_alloc_cnts(int pconid, int on);
-int vcrtcm_pim_add_major(int pimid, int major);
+int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors);
 int vcrtcm_pim_del_major(int pimid);
+int vcrtcm_pim_get_major(int pimid);
 int vcrtcm_pim_add_minor(int pimid, int minor);
 int vcrtcm_pim_del_minor(int pimid, int minor);
 

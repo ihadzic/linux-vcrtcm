@@ -168,14 +168,11 @@ static struct vcrtcm_minor *vcrtcm_get_minor(struct vcrtcm_pim *pim, int minor)
  * this function is a pre-requisite for using vcrtcm_pim_add_minor
  * and vcrtcm_pim_del_minor
  */
-int vcrtcm_pim_add_major(int pimid, int major)
+int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 {
 	struct vcrtcm_pim *pim;
+	int major, r;
 
-	if (major < 0) {
-		VCRTCM_ERROR("invalid major");
-		return -EINVAL;
-	}
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
 		VCRTCM_ERROR("pim %d not found\n", pimid);
@@ -186,9 +183,13 @@ int vcrtcm_pim_add_major(int pimid, int major)
 			     pimid, pim->major);
 		return -EBUSY;
 	}
+	r = vcrtcm_alloc_major(desired_major, max_minors, pim->name, &major);
+	if (r)
+		return r;
 	INIT_LIST_HEAD(&pim->minors_in_pim_list);
 	pim->major = major;
 	pim->has_major = 1;
+	pim->max_minors = max_minors;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_add_major);
@@ -203,15 +204,33 @@ int vcrtcm_pim_del_major(int pimid)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
+	if (pim->has_major == 0) {
+		VCRTCM_ERROR("pin %d has no major\n", pimid);
+		return -ENOENT;
+	}
 	if (!list_empty(&pim->minors_in_pim_list)) {
 		VCRTCM_ERROR("list of minors for pim %d not empty\n", pimid);
 		return -EBUSY;
 	}
+	vcrtcm_free_major(pim->major, pim->max_minors);
 	pim->major = 0;
 	pim->has_major = 0;
+	pim->max_minors = 0;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_del_major);
+
+/* Returns major for a given PCON or -ENOENT on error */
+int vcrtcm_pim_get_major(int pimid)
+{
+	struct vcrtcm_pim *pim;
+
+	pim = vcrtcm_get_pim(pimid);
+	if (!pim || pim->has_major == 0)
+		return -ENOENT;
+	return pim->major;
+}
+EXPORT_SYMBOL(vcrtcm_pim_get_major);
 
 /*
  * Creates a device structure for a specified pcon and minor,

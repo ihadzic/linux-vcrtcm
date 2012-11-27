@@ -36,6 +36,7 @@ struct vcrtcm_pim {
 	struct list_head pcons_in_pim_list;
 	int major;
 	int has_major;
+	int max_minors;
 	struct list_head minors_in_pim_list;
 	struct kobject kobj;
 	struct list_head pim_list;
