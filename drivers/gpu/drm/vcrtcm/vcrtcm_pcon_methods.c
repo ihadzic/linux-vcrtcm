@@ -630,3 +630,31 @@ void vcrtcm_p_log_alloc_cnts(int pconid, int on)
 	pcon->log_alloc_cnts = on;
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
+
+int vcrtcm_p_lock_mutex(int pconid)
+{
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	mutex_lock(&pcon->mutex);
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_p_lock_mutex);
+
+int vcrtcm_p_unlock_mutex(int pconid)
+{
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	mutex_unlock(&pcon->mutex);
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_p_unlock_mutex);

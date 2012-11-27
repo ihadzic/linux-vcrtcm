@@ -76,6 +76,8 @@ struct vcrtcm_pim_funcs {
 	int (*test)(int arg);
 };
 
+int vcrtcm_p_lock_mutex(int pconid);
+int vcrtcm_p_unlock_mutex(int pconid);
 void vcrtcm_p_destroy(int pconid);
 void vcrtcm_p_emulate_vblank(int pconid);
 void vcrtcm_p_wait_fb(int pconid);

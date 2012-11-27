@@ -114,5 +114,7 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 		      struct vcrtcm_mode *mode, int *status);
 void vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_lock_mutex(int pconid);
+int vcrtcm_g_unlock_mutex(int pconid);
 
 #endif
