@@ -92,7 +92,6 @@ int vcrtcm_g_attach(int pconid,
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
 int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
-int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr);
 int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon, u32 *status);
@@ -115,6 +114,9 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 int vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_lock_mutex(int pconid);
 int vcrtcm_g_unlock_mutex(int pconid);
+
+/* this function is callable in atomic context */
+int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr);
 
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,

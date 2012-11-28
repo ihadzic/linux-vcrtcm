@@ -86,7 +86,6 @@ struct vcrtcm_pcon_funcs {
 	int (*detach)(int pconid, void *cookie);
 	int (*set_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
 	int (*get_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
-	int (*page_flip)(int pconid, void *cookie, u32 ioaddr);
 	int (*dirty_fb)(int pconid, void *cookie, struct drm_crtc *drm_crtc);
 	int (*wait_fb)(int pconid, void *cookie, struct drm_crtc *drm_crtc);
 	int (*get_fb_status)(int pconid, void *cookie,
@@ -105,6 +104,9 @@ struct vcrtcm_pcon_funcs {
 		int *status);
 	void (*disable)(int pconid, void *cookie);
 	int (*vblank)(int pconid, void *cookie);
+
+	/* this function must be implemented to be callable in atomic context */
+	int (*page_flip)(int pconid, void *cookie, u32 ioaddr);
 };
 
 #endif
