@@ -29,5 +29,6 @@ int vcrtcm_lock_mutex(int pconid);
 int vcrtcm_unlock_mutex(int pconid);
 void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon);
 void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon);
+void vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon);
 
 #endif

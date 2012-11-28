@@ -47,6 +47,7 @@ int vcrtcm_g_attach(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->drm_crtc) {
 		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
 			     pconid, drm_crtc);
@@ -110,6 +111,7 @@ EXPORT_SYMBOL(vcrtcm_g_attach_l);
  */
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 {
+	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->drm_crtc) {
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
@@ -164,6 +166,7 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -201,6 +204,7 @@ int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -249,6 +253,11 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr)
 	int r = 0;
 	unsigned long flags;
 
+	/*
+	* NB: because this function is callable in atomic context,
+	* the caller does not have to lock the mutex.
+	*/
+	/* vcrtcm_check_mutex(__func__, pcon); */
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	if (pcon->being_destroyed)
 		r = -ENODEV;
@@ -278,6 +287,7 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -316,6 +326,7 @@ int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.wait_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -349,6 +360,7 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_fb_status &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -370,6 +382,7 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (fps <= 0) {
 		cancel_delayed_work_sync(&pcon->vblank_work);
 		pcon->fps = 0;
@@ -416,6 +429,7 @@ EXPORT_SYMBOL(vcrtcm_g_set_fps_l);
 
 int vcrtcm_g_get_fps(struct vcrtcm_pcon *pcon, int *fps)
 {
+	vcrtcm_check_mutex(__func__, pcon);
 	*fps = pcon->fps;
 	return 0;
 }
@@ -447,6 +461,7 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -485,6 +500,7 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -518,6 +534,7 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -550,6 +567,7 @@ int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -581,6 +599,7 @@ EXPORT_SYMBOL(vcrtcm_g_get_dpms_l);
 int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
 			   struct timeval *vblank_time)
 {
+	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->vblank_time_valid)
 		return -EAGAIN;
 	*vblank_time = pcon->vblank_time;
@@ -595,6 +614,7 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
  */
 int vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
 {
+	vcrtcm_check_mutex(__func__, pcon);
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
 	return 0;
@@ -611,6 +631,7 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status)
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.connected &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -669,6 +690,7 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_modes &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -709,6 +731,7 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.check_mode &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -744,6 +767,7 @@ EXPORT_SYMBOL(vcrtcm_g_check_mode_l);
  */
 int vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
 {
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.disable &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {

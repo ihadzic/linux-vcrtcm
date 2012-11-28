@@ -145,6 +145,23 @@ static const struct dma_buf_ops vcrtcm_dma_buf_ops = {
 	.vunmap = vcrtcm_dma_buf_vunmap
 };
 
+void
+vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon)
+{
+	unsigned long flags;
+	int in_mutex;
+	pid_t mutex_owner;
+
+	spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
+	in_mutex = pcon->in_mutex;
+	mutex_owner = pcon->mutex_owner;
+	spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+	if (!in_mutex)
+		VCRTCM_ERROR("mutex violation: not in mutex: %s\n", func);
+	else if (mutex_owner != current->pid)
+		VCRTCM_ERROR("mutex violation: not owner: %s\n", func);
+}
+
 /*
  * called by PCON to register the push buffer with PRIME infrastructure.
  * PCON must allocate the backing store for the push buffer and VCRTCM
@@ -171,6 +188,7 @@ int vcrtcm_p_register_prime(int pconid,
 		r = -ENODEV;
 		goto out_err0;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
 		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
@@ -233,6 +251,7 @@ int vcrtcm_p_unregister_prime(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	if (!obj) {
 		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
 		return -ENODEV;
@@ -291,6 +310,7 @@ int vcrtcm_p_wait_fb(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
@@ -319,6 +339,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->drm_crtc)
 		return -EINVAL;
 	do_gettimeofday(&pcon->vblank_time);
@@ -352,6 +373,7 @@ int vcrtcm_p_push(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
@@ -385,6 +407,7 @@ int vcrtcm_p_hotplug(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
 		pcon->gpu_funcs.hotplug(crtc);
@@ -410,6 +433,7 @@ int vcrtcm_p_free_pb(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	if (pbd) {
 		int r;
 
@@ -465,6 +489,7 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 		r = -ENODEV;
 		goto out_err0;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
 			    GFP_KERNEL, VCRTCM_OWNER_PCON | pconid);
 	pbd->pconid = pconid;
@@ -526,9 +551,10 @@ vcrtcm_p_realloc_pb(int pconid,
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		npbd = NULL;
+		return NULL;
 	}
-	else if (npages == 0) {
+	vcrtcm_check_mutex(__func__, pcon);
+	if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
 		vcrtcm_p_free_pb(pconid, pbd);
 		npbd = NULL;
@@ -576,6 +602,7 @@ int vcrtcm_p_detach(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	do_vcrtcm_p_detach(pcon, 1);
 	return 0;
 }
@@ -607,6 +634,7 @@ int vcrtcm_p_destroy(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	do_vcrtcm_p_destroy(pcon, 1);
 	return 0;
 }
@@ -622,6 +650,7 @@ int vcrtcm_p_disable_callbacks(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
@@ -638,6 +667,7 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	vcrtcm_check_mutex(__func__, pcon);
 	pcon->log_alloc_cnts = on;
 	return 0;
 }
