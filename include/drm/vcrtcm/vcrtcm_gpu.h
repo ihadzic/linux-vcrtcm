@@ -66,6 +66,9 @@ struct vcrtcm_pcon {
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
 	struct mutex mutex;
+	int in_mutex;
+	pid_t mutex_owner;
+	spinlock_t mutex_owner_spinlock;
 	spinlock_t page_flip_spinlock;
 	int being_destroyed;
 	/* records the time when last (emulated) vblank occurred */

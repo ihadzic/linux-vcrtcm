@@ -23,6 +23,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_pcon_methods.h"
 
 void
 vcrtcm_vblank_work_fcn(struct work_struct *work)
@@ -34,9 +35,9 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	int next_vblank_delay;
 	unsigned long now;
 
-	mutex_lock(&pcon->mutex);
+	vcrtcm_lock_pcon(pcon);
 	if (pcon->vblank_period_jiffies == 0) {
-		mutex_unlock(&pcon->mutex);
+		vcrtcm_unlock_pcon(pcon);
 		return;
 	}
 	now = jiffies;
@@ -53,5 +54,5 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
 		next_vblank_delay = 0;
 	schedule_delayed_work(&pcon->vblank_work, next_vblank_delay);
-	mutex_unlock(&pcon->mutex);
+	vcrtcm_unlock_pcon(pcon);
 }

@@ -643,6 +643,28 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
 
+void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon)
+{
+	unsigned long flags;
+
+	mutex_lock(&pcon->mutex);
+	spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
+	pcon->in_mutex = 1;
+	pcon->mutex_owner = current->pid;
+	spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+}
+
+void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon)
+{
+	unsigned long flags;
+
+	BUG_ON(!pcon->in_mutex);
+	spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
+	pcon->in_mutex = 0;
+	spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+	mutex_unlock(&pcon->mutex);
+}
+
 int vcrtcm_lock_mutex(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
@@ -652,7 +674,7 @@ int vcrtcm_lock_mutex(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	mutex_lock(&pcon->mutex);
+	vcrtcm_lock_pcon(pcon);
 	return 0;
 }
 
@@ -665,7 +687,7 @@ int vcrtcm_unlock_mutex(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	mutex_unlock(&pcon->mutex);
+	vcrtcm_unlock_pcon(pcon);
 	return 0;
 }
 

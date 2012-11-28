@@ -39,6 +39,7 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_alloc_priv.h"
+#include "vcrtcm_pcon_methods.h"
 
 static const struct file_operations vcrtcm_fops;
 static dev_t vcrtcm_dev;
@@ -93,7 +94,7 @@ static void __exit vcrtcm_exit(void)
 
 		pcon = vcrtcm_get_pcon(pconid);
 		if (pcon) {
-			mutex_lock(&pcon->mutex);
+			vcrtcm_lock_pcon(pcon);
 			VCRTCM_INFO("removing pcon %u\n", pcon->pconid);
 			if (pcon->drm_crtc) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
@@ -107,7 +108,7 @@ static void __exit vcrtcm_exit(void)
 					pcon->gpu_funcs.detach(pcon->drm_crtc);
 			}
 			vcrtcm_dealloc_pcon(pcon->pconid);
-			mutex_unlock(&pcon->mutex);
+			vcrtcm_unlock_pcon(pcon);
 			vcrtcm_kfree(pcon);
 		}
 	}
