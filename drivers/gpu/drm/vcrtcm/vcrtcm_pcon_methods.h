@@ -25,5 +25,7 @@ struct vcrtcm_pcon;
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
 void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit);
+int vcrtcm_lock_mutex(int pconid);
+int vcrtcm_unlock_mutex(int pconid);
 
 #endif

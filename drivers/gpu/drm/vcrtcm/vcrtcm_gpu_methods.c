@@ -24,6 +24,7 @@
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_utils_priv.h"
+#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_module.h"
 
 /*
@@ -787,28 +788,12 @@ EXPORT_SYMBOL(vcrtcm_g_disable_l);
 
 int vcrtcm_g_lock_mutex(int pconid)
 {
-	struct vcrtcm_pcon *pcon;
-
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	mutex_lock(&pcon->mutex);
-	return 0;
+	return vcrtcm_lock_mutex(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_g_lock_mutex);
 
 int vcrtcm_g_unlock_mutex(int pconid)
 {
-	struct vcrtcm_pcon *pcon;
-
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	mutex_unlock(&pcon->mutex);
-	return 0;
+	return vcrtcm_unlock_mutex(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_g_unlock_mutex);
