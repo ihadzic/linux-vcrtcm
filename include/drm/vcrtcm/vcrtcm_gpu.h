@@ -69,6 +69,7 @@ struct vcrtcm_pcon {
 	spinlock_t lock;
 	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
 	int status;
+	int being_destroyed;
 	/* records the time when last (emulated) vblank occurred */
 	struct timeval vblank_time;
 	int vblank_time_valid;

@@ -592,6 +592,7 @@ void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 	else
 		VCRTCM_INFO("doing implicit destroy of pcon %i\n",
 			pcon->pconid);
+	pcon->being_destroyed = 1;
 	vcrtcm_destroy_pcon(pcon);
 	vcrtcm_kfree(pcon);
 }

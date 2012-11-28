@@ -167,6 +167,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		return r;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
+	pcon->being_destroyed = 1;
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
 	/* NB: must tell pim to destroy pcon before destroying it myself,
