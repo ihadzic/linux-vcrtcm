@@ -35,25 +35,25 @@
 
 static int vcrtcm_alloc_cnt;
 static int vcrtcm_page_alloc_cnt;
-static uint64_t ncalls_kmalloc;
-static uint64_t ncalls_kzalloc;
-static uint64_t ncalls_kfree;
-static uint64_t ncalls_allocpage;
-static uint64_t ncalls_freepage;
-static uint64_t ncalls_allocmultiplepage;
-static uint64_t ncalls_freemultiplepage;
+static atomic64_t ncalls_kmalloc = ATOMIC64_INIT(0);
+static atomic64_t ncalls_kzalloc = ATOMIC64_INIT(0);
+static atomic64_t ncalls_kfree = ATOMIC64_INIT(0);
+static atomic64_t ncalls_allocpage = ATOMIC64_INIT(0);
+static atomic64_t ncalls_freepage = ATOMIC64_INIT(0);
+static atomic64_t ncalls_allocmultiplepage = ATOMIC64_INIT(0);
+static atomic64_t ncalls_freemultiplepage = ATOMIC64_INIT(0);
 static int log_alloc_bugs = 1;
 static DEFINE_SPINLOCK(spinlock);
 
 static void show_ncalls(void)
 {
-	VCRTCM_INFO("ncalls_kmalloc = %llu\n", ncalls_kmalloc);
-	VCRTCM_INFO("ncalls_kzalloc = %llu\n", ncalls_kzalloc);
-	VCRTCM_INFO("ncalls_kfree = %llu\n", ncalls_kfree);
-	VCRTCM_INFO("ncalls_allocpage = %llu\n", ncalls_allocpage);
-	VCRTCM_INFO("ncalls_freepage = %llu\n", ncalls_freepage);
-	VCRTCM_INFO("ncalls_allocmultiplepage = %llu\n", ncalls_allocmultiplepage);
-	VCRTCM_INFO("ncalls_freemultiplepage = %llu\n", ncalls_freemultiplepage);
+	VCRTCM_INFO("ncalls_kmalloc = %llu\n", atomic64_read(&ncalls_kmalloc));
+	VCRTCM_INFO("ncalls_kzalloc = %llu\n", atomic64_read(&ncalls_kzalloc));
+	VCRTCM_INFO("ncalls_kfree = %llu\n", atomic64_read(&ncalls_kfree));
+	VCRTCM_INFO("ncalls_allocpage = %llu\n", atomic64_read(&ncalls_allocpage));
+	VCRTCM_INFO("ncalls_freepage = %llu\n", atomic64_read(&ncalls_freepage));
+	VCRTCM_INFO("ncalls_allocmultiplepage = %llu\n", atomic64_read(&ncalls_allocmultiplepage));
+	VCRTCM_INFO("ncalls_freemultiplepage = %llu\n", atomic64_read(&ncalls_freemultiplepage));
 }
 
 static void doadjcnts(const char *fcn, int owner_type, int owner_id,
@@ -63,7 +63,9 @@ static void doadjcnts(const char *fcn, int owner_type, int owner_id,
 	int gotbug = 0;
 	int log_this = 0;
 	char owner_log_buf[VCRTCM_ALLOC_LOG_MAXLEN];
+	unsigned long flags;
 
+	spin_lock_irqsave(&spinlock, flags);
 	if (incr) {
 		++*cnt;
 		if (ispage)
@@ -115,6 +117,7 @@ static void doadjcnts(const char *fcn, int owner_type, int owner_id,
 		show_ncalls();
 		dump_stack();
 	}
+	spin_unlock_irqrestore(&spinlock, flags);
 }
 
 static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
@@ -165,16 +168,13 @@ static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 struct page *vcrtcm_alloc_page(gfp_t gfp_mask, uint32_t owner)
 {
 	struct page *page;
-	unsigned long flags;
 	int r;
 
 	page = alloc_page(gfp_mask);
 	if (!page)
 		return NULL;
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_allocpage;
+	atomic64_inc(&ncalls_allocpage);
 	r = adjcnts(__func__, owner, 1, 1);
-	spin_unlock_irqrestore(&spinlock, flags);
 	if (r) {
 		__free_page(page);
 		return NULL;
@@ -185,14 +185,10 @@ EXPORT_SYMBOL(vcrtcm_alloc_page);
 
 void vcrtcm_free_page(struct page *page, uint32_t owner)
 {
-	unsigned long flags;
-
 	if (!page)
 		return;
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_freepage;
+	atomic64_inc(&ncalls_freepage);
 	adjcnts(__func__, owner, 0, 1);
-	spin_unlock_irqrestore(&spinlock, flags);
 	__free_page(page);
 }
 EXPORT_SYMBOL(vcrtcm_free_page);
@@ -203,12 +199,9 @@ int vcrtcm_alloc_multiple_pages(gfp_t gfp_mask,
 				uint32_t owner)
 {
 	struct page *current_page;
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_allocmultiplepage;
-	spin_unlock_irqrestore(&spinlock, flags);
+	atomic64_inc(&ncalls_allocmultiplepage);
 	for (i = 0; i < num_pages; i++) {
 		current_page = vcrtcm_alloc_page(gfp_mask, owner);
 		if (current_page) {
@@ -225,12 +218,9 @@ EXPORT_SYMBOL(vcrtcm_alloc_multiple_pages);
 void vcrtcm_free_multiple_pages(struct page **page_array,
 				unsigned int num_pages, uint32_t owner)
 {
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_freemultiplepage;
-	spin_unlock_irqrestore(&spinlock, flags);
+	atomic64_inc(&ncalls_freemultiplepage);
 	for (i = 0; i < num_pages; i++)
 		vcrtcm_free_page(page_array[i], owner);
 }
@@ -238,15 +228,12 @@ EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 
 static void *finish_alloc(const char *fcn, void *ptr, uint32_t owner)
 {
-	unsigned long flags;
 	int r;
 
 	if (!ptr)
 		return NULL;
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_kmalloc;
+	atomic64_inc(&ncalls_kmalloc);
 	r = adjcnts(fcn, owner, 1, 0);
-	spin_unlock_irqrestore(&spinlock, flags);
 	if (r) {
 		kfree(ptr);
 		return NULL;
@@ -275,17 +262,14 @@ EXPORT_SYMBOL(vcrtcm_kzalloc);
 
 void vcrtcm_kfree_decronly(void *ptr)
 {
-	unsigned long flags;
 	uint32_t owner;
 
 	if (!ptr)
 		return;
 	ptr -= sizeof(uint64_t);
 	owner = *(uint32_t *)ptr;
-	spin_lock_irqsave(&spinlock, flags);
-	++ncalls_kfree;
+	atomic64_inc(&ncalls_kfree);
 	adjcnts(__func__, owner, 0, 0);
-	spin_unlock_irqrestore(&spinlock, flags);
 }
 EXPORT_SYMBOL(vcrtcm_kfree_decronly);
 
