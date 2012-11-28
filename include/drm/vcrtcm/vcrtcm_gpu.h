@@ -67,8 +67,6 @@ struct vcrtcm_pcon {
 	struct list_head pcons_in_pim_list;
 	struct mutex mutex;
 	spinlock_t page_flip_spinlock;
-	/* see VCRTCM_STATUS_PCON constants above for possible status bits */
-	int status;
 	int being_destroyed;
 	/* records the time when last (emulated) vblank occurred */
 	struct timeval vblank_time;

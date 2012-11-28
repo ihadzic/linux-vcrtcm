@@ -319,10 +319,8 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
-		/* someone pulled the rug under our feet, bail out */
+	if (!pcon->drm_crtc)
 		return -EINVAL;
-	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
 	if (pcon->gpu_funcs.vblank) {
@@ -558,8 +556,7 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
-	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
-		pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
+	if (pcon->drm_crtc) {
 		if (explicit)
 			VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 		else

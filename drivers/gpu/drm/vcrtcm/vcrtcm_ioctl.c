@@ -113,10 +113,8 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 {
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
-	if (!(pcon->status & VCRTCM_STATUS_PCON_IN_USE)) {
+	if (!pcon->drm_crtc)
 		return 0;
-	}
-	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
 	if (explicit)
 		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 	else
@@ -132,7 +130,6 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
 				pcon->pconid);
-			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
 			return r;
 		}
 	}

@@ -95,7 +95,7 @@ static void __exit vcrtcm_exit(void)
 		if (pcon) {
 			mutex_lock(&pcon->mutex);
 			VCRTCM_INFO("removing pcon %u\n", pcon->pconid);
-			if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
+			if (pcon->drm_crtc) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 						pcon->drm_crtc);
 				if (pcon->pcon_funcs.detach &&

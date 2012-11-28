@@ -47,7 +47,7 @@ int vcrtcm_g_attach(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
+	if (pcon->drm_crtc) {
 		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
 			     pconid, drm_crtc);
 		return -EBUSY;
@@ -75,8 +75,6 @@ int vcrtcm_g_attach(int pconid,
 	/* point the GPU driver to PCON we've just attached */
 	*pcon_ret = pcon;
 
-	/* very last thing to do: change the status */
-	pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
@@ -112,12 +110,10 @@ EXPORT_SYMBOL(vcrtcm_g_attach_l);
  */
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 {
-	if (!pcon->status) {
+	if (!pcon->drm_crtc) {
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
-	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
-
 	/* TBD: the pcon detach routine must be called before
 	* the gpu detach routine, to give the pcon detach
 	* routine a chance to return the pcon's push buffers
@@ -130,10 +126,8 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 
 		r = pcon->pcon_funcs.detach(pcon->pconid,
 					    pcon->pcon_cookie);
-		if (r) {
-			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
+		if (r)
 			return r;
-		}
 	}
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
@@ -587,15 +581,10 @@ EXPORT_SYMBOL(vcrtcm_g_get_dpms_l);
 int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
 			   struct timeval *vblank_time)
 {
-	int r;
-
-	if ((pcon->status & VCRTCM_STATUS_PCON_IN_USE) &&
-	    (pcon->vblank_time_valid)) {
-		*vblank_time = pcon->vblank_time;
-		r = 0;
-	} else
-		r = -EAGAIN;
-	return r;
+	if (!pcon->vblank_time_valid)
+		return -EAGAIN;
+	*vblank_time = pcon->vblank_time;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
 
@@ -606,10 +595,6 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
  */
 int vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
 {
-	if (!pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
-		/* someone pulled the rug under our feet, bail out */
-		return -EINVAL;
-	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
 	return 0;
