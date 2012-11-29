@@ -188,9 +188,6 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	VCRTCM_DEBUG("cmd = %u, arg = %lu\n", cmd, arg);
 
-	if (!access_ok(VERIFY_READ, arg, sizeof(struct vcrtcm_ioctl_args)))
-		return -EFAULT;
-
 	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
 
