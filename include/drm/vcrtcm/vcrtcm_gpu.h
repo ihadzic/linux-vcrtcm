@@ -117,4 +117,21 @@ int vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_lock_mutex(int pconid);
 int vcrtcm_g_unlock_mutex(int pconid);
 
+#define vcrtcm_g_attach_l vcrtcm_g_attach
+#define vcrtcm_g_detach_l vcrtcm_g_detach
+#define vcrtcm_g_set_fb_l vcrtcm_g_set_fb
+#define vcrtcm_g_get_fb_l vcrtcm_g_get_fb
+#define vcrtcm_g_dirty_fb_l vcrtcm_g_dirty_fb
+#define vcrtcm_g_wait_fb_l vcrtcm_g_wait_fb
+#define vcrtcm_g_get_fps_l vcrtcm_g_get_fps
+#define vcrtcm_g_set_fps_l vcrtcm_g_set_fps
+#define vcrtcm_g_set_cursor_l vcrtcm_g_set_cursor
+#define vcrtcm_g_get_cursor_l vcrtcm_g_get_cursor
+#define vcrtcm_g_set_dpms_l vcrtcm_g_set_dpms
+#define vcrtcm_g_get_dpms_l vcrtcm_g_get_dpms
+#define vcrtcm_g_pcon_connected_l vcrtcm_g_pcon_connected
+#define vcrtcm_g_get_modes_l vcrtcm_g_get_modes
+#define vcrtcm_g_check_mode_l vcrtcm_g_check_mode
+#define vcrtcm_g_disable_l vcrtcm_g_disable
+
 #endif
