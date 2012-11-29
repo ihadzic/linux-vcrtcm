@@ -93,7 +93,7 @@ struct vcrtcm_pcon {
 
 int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
-		  struct vcrtcm_pcon **pcon);
+		  enum vcrtcm_xfer_mode *xfer_mode);
 int vcrtcm_g_detach(int pconid);
 int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb);
 int vcrtcm_g_get_fb(int pconid, struct vcrtcm_fb *fb);
@@ -126,7 +126,7 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr);
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
-		  struct vcrtcm_pcon **pcon);
+		  enum vcrtcm_xfer_mode *xfer_mode);
 int vcrtcm_g_detach_l(int pconid);
 int vcrtcm_g_set_fb_l(int pconid, struct vcrtcm_fb *fb);
 int vcrtcm_g_get_fb_l(int pconid, struct vcrtcm_fb *fb);

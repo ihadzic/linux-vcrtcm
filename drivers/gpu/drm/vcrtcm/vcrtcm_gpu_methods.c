@@ -37,7 +37,7 @@
 int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_funcs,
-		  struct vcrtcm_pcon **pcon_ret) /* TBD */
+		  enum vcrtcm_xfer_mode *xfer_mode)
 {
 
 	struct vcrtcm_pcon *pcon;
@@ -68,14 +68,10 @@ int vcrtcm_g_attach(int pconid,
 			return r;
 		}
 	}
-	/* nothing can fail now, populate the structure */
 	pcon->pconid = pconid;
 	pcon->drm_crtc = drm_crtc;
 	pcon->gpu_funcs = *gpu_funcs;
-
-	/* point the GPU driver to PCON we've just attached */
-	*pcon_ret = pcon;
-
+	*xfer_mode = pcon->xfer_mode;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
@@ -83,12 +79,12 @@ EXPORT_SYMBOL(vcrtcm_g_attach);
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_funcs,
-		  struct vcrtcm_pcon **pcon_ret) /* TBD */
+		  enum vcrtcm_xfer_mode *xfer_mode)
 {
 	int r;
 
 	vcrtcm_g_lock_mutex(pconid);
-	r = vcrtcm_g_attach(pconid, drm_crtc, gpu_funcs, pcon_ret);
+	r = vcrtcm_g_attach(pconid, drm_crtc, gpu_funcs, xfer_mode);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
