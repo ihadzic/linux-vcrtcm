@@ -164,7 +164,7 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 	}
 }
 
-static void radeon_detach_callback(struct drm_crtc *crtc)
+static void radeon_detach_callback(int pconid, struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
@@ -197,7 +197,7 @@ void radeon_emulate_vblank_core(struct radeon_device *rdev,
 	}
 }
 
-static void radeon_emulate_vblank(struct drm_crtc *crtc)
+static void radeon_emulate_vblank(int pconid, struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *ddev = radeon_crtc->base.dev;
@@ -206,7 +206,7 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	radeon_emulate_vblank_core(rdev, radeon_crtc);
 }
 
-static void radeon_wait_fb_callback(struct drm_crtc *crtc)
+static void radeon_wait_fb_callback(int pconid, struct drm_crtc *crtc)
 {
 	struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
 
@@ -226,7 +226,7 @@ static void radeon_wait_fb_callback(struct drm_crtc *crtc)
  * always calls callbacks with the pcon already locked, this function
  * must call the *nonlocking* variants of the vcrtcm api functions.
  */
-static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
+static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_fb,
 			      struct drm_gem_object *dbuf_cursor)
 {
@@ -322,12 +322,12 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		if (srcrtc->vcrtcm_pcon)
 			vcrtcm_g_set_vblank_time(srcrtc->vcrtcm_pcon);
-		radeon_emulate_vblank(scrtc);
+		radeon_emulate_vblank(pconid, scrtc);
 	}
 	return 0;
 }
 
-static void radeon_vcrtcm_hotplug(struct drm_crtc *crtc)
+static void radeon_vcrtcm_hotplug(int pconid, struct drm_crtc *crtc)
 {
 	struct radeon_device *rdev =
 		(struct radeon_device *)crtc->dev->dev_private;
