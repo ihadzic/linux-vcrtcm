@@ -46,11 +46,9 @@ int vcrtcm_g_attach(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
-	mutex_lock(&pcon->mutex);
 	if (pcon->status & VCRTCM_STATUS_PCON_IN_USE) {
 		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
 			     pconid, drm_crtc);
-		mutex_unlock(&pcon->mutex);
 		return -EBUSY;
 	}
 	/*
@@ -65,7 +63,6 @@ int vcrtcm_g_attach(int pconid,
 					    pcon->pcon_cookie);
 		if (r) {
 			VCRTCM_ERROR("back-end attach call failed\n");
-			mutex_unlock(&pcon->mutex);
 			return r;
 		}
 	}
@@ -79,10 +76,23 @@ int vcrtcm_g_attach(int pconid,
 
 	/* very last thing to do: change the status */
 	pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-	mutex_unlock(&pcon->mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_attach);
+
+int vcrtcm_g_attach_l(int pconid,
+		  struct drm_crtc *drm_crtc,
+		  struct vcrtcm_gpu_funcs *gpu_funcs,
+		  struct vcrtcm_pcon **pcon_ret) /* TBD */
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_attach(pconid, drm_crtc, gpu_funcs, pcon_ret);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_attach_l);
 
 /*
  * called by the GPU driver to detach its CRTC from the
@@ -101,10 +111,8 @@ EXPORT_SYMBOL(vcrtcm_g_attach);
  */
 int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 {
-	mutex_lock(&pcon->mutex);
 	if (!pcon->status) {
 		VCRTCM_WARNING("pcon already detached\n");
-		mutex_unlock(&pcon->mutex);
 		return -EINVAL;
 	}
 	pcon->status &= ~VCRTCM_STATUS_PCON_IN_USE;
@@ -123,7 +131,6 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 					    pcon->pcon_cookie);
 		if (r) {
 			pcon->status |= VCRTCM_STATUS_PCON_IN_USE;
-			mutex_unlock(&pcon->mutex);
 			return r;
 		}
 	}
@@ -131,11 +138,21 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
 	pcon->drm_crtc = NULL;
-	mutex_unlock(&pcon->mutex);
 	return 0;
 
 }
 EXPORT_SYMBOL(vcrtcm_g_detach);
+
+int vcrtcm_g_detach_l(struct vcrtcm_pcon *pcon)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_detach(pcon);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_detach_l);
 
 /*
  * Emulates write/setup access to registers that
@@ -152,7 +169,6 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -165,10 +181,20 @@ int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
 			       pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fb);
+
+int vcrtcm_g_set_fb_l(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_set_fb(pcon, fb);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_set_fb_l);
 
 /*
  * The opposite of vcrtcm_g_set_fb; GPU driver can read the content
@@ -180,7 +206,6 @@ int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.get_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -193,10 +218,21 @@ int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon,
 			       pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fb);
+
+int vcrtcm_g_get_fb_l(struct vcrtcm_pcon *pcon,
+		  struct vcrtcm_fb *fb)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_get_fb(pcon, fb);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_get_fb_l);
 
 /*
  * Emulates a page-flip call for a virtual CRTC
@@ -234,15 +270,12 @@ EXPORT_SYMBOL(vcrtcm_g_page_flip);
  * associated with a given CRTC has changed.  The PCON can
  * handle that change however it likes.  PCONs that do transmission
  * will typically simply record that the frame is dirty and then
- * transmit it at the next vblank.  NOTE: this function may block
+ * transmit it at the next vblank.
  */
 int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon)
 {
 	int r;
 
-	/* see the long comment in wait_fb implementation about
-	   blocking and mutexes */
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -255,10 +288,20 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon)
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
+
+int vcrtcm_g_dirty_fb_l(struct vcrtcm_pcon *pcon)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_dirty_fb(pcon);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_dirty_fb_l);
 
 /*
  * GPU driver can use this function to wait for the PCON
@@ -266,13 +309,11 @@ EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
  * "finish processing" however it likes.  PCONs that do
  * transmission will typically wait until the frame is
  * finished being inserted into the transmission pipeline.
- * NOTE: this function may block
  */
 int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.wait_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -285,10 +326,20 @@ int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon)
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_wait_fb);
+
+int vcrtcm_g_wait_fb_l(struct vcrtcm_pcon *pcon)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_wait_fb(pcon);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_wait_fb_l);
 
 /* retrieves the status of frame buffer */
 int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon,
@@ -317,7 +368,6 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (fps <= 0) {
 		cancel_delayed_work_sync(&pcon->vblank_work);
 		pcon->fps = 0;
@@ -347,19 +397,38 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 			       pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fps);
 
+int vcrtcm_g_set_fps_l(struct vcrtcm_pcon *pcon, int fps)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_set_fps(pcon, fps);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_set_fps_l);
+
 int vcrtcm_g_get_fps(struct vcrtcm_pcon *pcon, int *fps)
 {
-	mutex_lock(&pcon->mutex);
 	*fps = pcon->fps;
-	mutex_unlock(&pcon->mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fps);
+
+int vcrtcm_g_get_fps_l(struct vcrtcm_pcon *pcon, int *fps)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_get_fps(pcon, fps);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_get_fps_l);
 
 /*
  * Emulates write/setup access to registers that
@@ -376,7 +445,6 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -389,10 +457,21 @@ int vcrtcm_g_set_cursor(struct vcrtcm_pcon *pcon,
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_cursor);
+
+int vcrtcm_g_set_cursor_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_cursor *cursor)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_set_cursor(pcon, cursor);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_set_cursor_l);
 
 /*
  * The opposite of vcrtcm_g_set_cursor; GPU driver can read the content
@@ -404,7 +483,6 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -417,17 +495,27 @@ int vcrtcm_g_get_cursor(struct vcrtcm_pcon *pcon,
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_cursor);
+
+int vcrtcm_g_get_cursor_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_cursor *cursor)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_get_cursor(pcon, cursor);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_get_cursor_l);
 
 /* dpms manipulation functions */
 int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.set_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -440,17 +528,26 @@ int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state)
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_dpms);
+
+int vcrtcm_g_set_dpms_l(struct vcrtcm_pcon *pcon, int state)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_set_dpms(pcon, state);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_set_dpms_l);
 
 /* dpms manipulation functions */
 int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.get_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -463,10 +560,20 @@ int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state)
 			     pcon->pconid);
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_dpms);
+
+int vcrtcm_g_get_dpms_l(struct vcrtcm_pcon *pcon, int *state)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_get_dpms(pcon, state);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_get_dpms_l);
 
 /* retrieve the last (fake) vblank time if it exists */
 int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
@@ -511,7 +618,6 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status)
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.connected &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -525,11 +631,20 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status)
 		*status = VCRTCM_PCON_CONNECTED;
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
-
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_pcon_connected);
+
+int vcrtcm_g_pcon_connected_l(struct vcrtcm_pcon *pcon, int *status)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_pcon_connected(pcon, status);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_pcon_connected_l);
 
 static struct vcrtcm_mode common_modes[17] = {
 	{640, 480, 60},
@@ -561,7 +676,6 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.get_modes &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -576,12 +690,21 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 		*modes = common_modes;
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
-
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_modes);
 
+int vcrtcm_g_get_modes_l(struct vcrtcm_pcon *pcon,
+		     struct vcrtcm_mode **modes, int *count)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_get_modes(pcon, modes, count);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_get_modes_l);
 
 /*
  * check if the mode is acceprable by the attached PCON
@@ -593,7 +716,6 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 {
 	int r;
 
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.check_mode &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -607,11 +729,21 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 		*status = VCRTCM_MODE_OK;
 		r = 0;
 	}
-	mutex_unlock(&pcon->mutex);
-
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_check_mode);
+
+int vcrtcm_g_check_mode_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_mode *mode, int *status)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_check_mode(pcon, mode, status);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_check_mode_l);
 
 /*
  * disable the specified PCON. Called when the CRTC associated with
@@ -619,7 +751,6 @@ EXPORT_SYMBOL(vcrtcm_g_check_mode);
  */
 int vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
 {
-	mutex_lock(&pcon->mutex);
 	if (pcon->pcon_funcs.disable &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -632,11 +763,20 @@ int vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
 		VCRTCM_DEBUG("missing disable backend, pcon %i\n",
 			pcon->pconid);
 	}
-	mutex_unlock(&pcon->mutex);
-
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_disable);
+
+int vcrtcm_g_disable_l(struct vcrtcm_pcon *pcon)
+{
+	int r;
+
+	vcrtcm_g_lock_mutex(pcon->pconid);
+	r = vcrtcm_g_disable(pcon);
+	vcrtcm_g_unlock_mutex(pcon->pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_g_disable_l);
 
 int vcrtcm_g_lock_mutex(int pconid)
 {

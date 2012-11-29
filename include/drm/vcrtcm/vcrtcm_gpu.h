@@ -117,21 +117,35 @@ int vcrtcm_g_disable(struct vcrtcm_pcon *pcon);
 int vcrtcm_g_lock_mutex(int pconid);
 int vcrtcm_g_unlock_mutex(int pconid);
 
-#define vcrtcm_g_attach_l vcrtcm_g_attach
-#define vcrtcm_g_detach_l vcrtcm_g_detach
-#define vcrtcm_g_set_fb_l vcrtcm_g_set_fb
-#define vcrtcm_g_get_fb_l vcrtcm_g_get_fb
-#define vcrtcm_g_dirty_fb_l vcrtcm_g_dirty_fb
-#define vcrtcm_g_wait_fb_l vcrtcm_g_wait_fb
-#define vcrtcm_g_get_fps_l vcrtcm_g_get_fps
-#define vcrtcm_g_set_fps_l vcrtcm_g_set_fps
-#define vcrtcm_g_set_cursor_l vcrtcm_g_set_cursor
-#define vcrtcm_g_get_cursor_l vcrtcm_g_get_cursor
-#define vcrtcm_g_set_dpms_l vcrtcm_g_set_dpms
-#define vcrtcm_g_get_dpms_l vcrtcm_g_get_dpms
-#define vcrtcm_g_pcon_connected_l vcrtcm_g_pcon_connected
-#define vcrtcm_g_get_modes_l vcrtcm_g_get_modes
-#define vcrtcm_g_check_mode_l vcrtcm_g_check_mode
-#define vcrtcm_g_disable_l vcrtcm_g_disable
+int vcrtcm_g_attach_l(int pconid,
+		  struct drm_crtc *drm_crtc,
+		  struct vcrtcm_gpu_funcs *gpu_callbacks,
+		  struct vcrtcm_pcon **pcon);
+int vcrtcm_g_detach_l(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_set_fb_l(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
+int vcrtcm_g_get_fb_l(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb);
+int vcrtcm_g_page_flip_l(struct vcrtcm_pcon *pcon, u32 ioaddr);
+int vcrtcm_g_dirty_fb_l(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_wait_fb_l(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_get_fb_status_l(struct vcrtcm_pcon *pcon, u32 *status);
+int vcrtcm_g_get_fps_l(struct vcrtcm_pcon *pcon, int *fps);
+int vcrtcm_g_set_fps_l(struct vcrtcm_pcon *pcon, int fps);
+int vcrtcm_g_set_cursor_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_cursor *cursor);
+int vcrtcm_g_get_cursor_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_cursor *cursor);
+int vcrtcm_g_set_dpms_l(struct vcrtcm_pcon *pcon, int state);
+int vcrtcm_g_get_dpms_l(struct vcrtcm_pcon *pcon, int *state);
+int vcrtcm_g_get_vblank_time_l(struct vcrtcm_pcon *pcon,
+			   struct timeval *vblank_time);
+int vcrtcm_g_set_vblank_time_l(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_pcon_connected_l(struct vcrtcm_pcon *pcon, int *status);
+int vcrtcm_g_get_modes_l(struct vcrtcm_pcon *pcon,
+		     struct vcrtcm_mode **modes, int *count);
+int vcrtcm_g_check_mode_l(struct vcrtcm_pcon *pcon,
+		      struct vcrtcm_mode *mode, int *status);
+int vcrtcm_g_disable_l(struct vcrtcm_pcon *pcon);
+int vcrtcm_g_lock_mutex_l(int pconid);
+int vcrtcm_g_unlock_mutex_l(int pconid);
 
 #endif
