@@ -109,14 +109,21 @@ EXPORT_SYMBOL(vcrtcm_g_attach_l);
  * set the pointer to PCON to NULL and it may need to do
  * additional (driver-dependent) cleanup
  */
-int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_detach(int pconid)
 {
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->drm_crtc) {
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
-	/* TBD: the pcon detach routine must be called before
+	/* NB: the pcon detach routine must be called before
 	* the gpu detach routine, to give the pcon detach
 	* routine a chance to return the pcon's push buffers
 	* before the pcon is detached from the crtc.
@@ -126,13 +133,13 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 		pcon->pim->callbacks_enabled) {
 		int r;
 
-		r = pcon->pcon_funcs.detach(pcon->pconid,
+		r = pcon->pcon_funcs.detach(pconid,
 					    pcon->pcon_cookie);
 		if (r)
 			return r;
 	}
 	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+		pcon->gpu_funcs.detach(pconid, pcon->drm_crtc);
 	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
 	pcon->drm_crtc = NULL;
 	return 0;
@@ -140,13 +147,13 @@ int vcrtcm_g_detach(struct vcrtcm_pcon *pcon)
 }
 EXPORT_SYMBOL(vcrtcm_g_detach);
 
-int vcrtcm_g_detach_l(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_detach_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_detach(pcon);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_detach(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_detach_l);
@@ -162,34 +169,40 @@ EXPORT_SYMBOL(vcrtcm_g_detach_l);
  * the register content and flow information to the back-end
  * and lets the PCON deal with it
  */
-int vcrtcm_g_set_fb(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
+int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.set_fb(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.set_fb(pconid,
 					    pcon->pcon_cookie, fb);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %i\n",
-			       pcon->pconid);
+			       pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fb);
 
-int vcrtcm_g_set_fb_l(struct vcrtcm_pcon *pcon, struct vcrtcm_fb *fb)
+int vcrtcm_g_set_fb_l(int pconid, struct vcrtcm_fb *fb)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_set_fb(pcon, fb);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_set_fb(pconid, fb);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fb_l);
@@ -199,36 +212,40 @@ EXPORT_SYMBOL(vcrtcm_g_set_fb_l);
  * of the emulated registers (implemented in the GTD driver) into
  * a structure pointed by fb argument
  */
-int vcrtcm_g_get_fb(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_fb(int pconid,
 		  struct vcrtcm_fb *fb)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_fb(pcon->pconid,
+		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n", pconid);
+		r = pcon->pcon_funcs.get_fb(pconid,
 			pcon->pcon_cookie, fb);
 	} else {
 		VCRTCM_WARNING("missing get_fb backend, pcon %i\n",
-			       pcon->pconid);
+			       pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fb);
 
-int vcrtcm_g_get_fb_l(struct vcrtcm_pcon *pcon,
-		  struct vcrtcm_fb *fb)
+int vcrtcm_g_get_fb_l(int pconid, struct vcrtcm_fb *fb)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_get_fb(pcon, fb);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_get_fb(pconid, fb);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fb_l);
@@ -248,11 +265,17 @@ EXPORT_SYMBOL(vcrtcm_g_get_fb_l);
  *
  * NB: This function is callable in atomic context.
  */
-int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr)
+int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 {
 	int r = 0;
 	unsigned long flags;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	/*
 	* NB: because this function is callable in atomic context,
 	* the caller does not have to lock the mutex.
@@ -268,7 +291,7 @@ int vcrtcm_g_page_flip(struct vcrtcm_pcon *pcon, u32 ioaddr)
 		* NB: the pcon's page_flip callback is required
 		* to be callable in interrupt context
 		*/
-		r = pcon->pcon_funcs.page_flip(pcon->pconid,
+		r = pcon->pcon_funcs.page_flip(pconid,
 			pcon->pcon_cookie, ioaddr);
 	}
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
@@ -283,34 +306,40 @@ EXPORT_SYMBOL(vcrtcm_g_page_flip);
  * will typically simply record that the frame is dirty and then
  * transmit it at the next vblank.
  */
-int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_dirty_fb(int pconid)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling dirty_fb backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.dirty_fb(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.dirty_fb(pconid,
 			pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_dirty_fb);
 
-int vcrtcm_g_dirty_fb_l(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_dirty_fb_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_dirty_fb(pcon);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_dirty_fb(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_dirty_fb_l);
@@ -322,55 +351,64 @@ EXPORT_SYMBOL(vcrtcm_g_dirty_fb_l);
  * transmission will typically wait until the frame is
  * finished being inserted into the transmission pipeline.
  */
-int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_wait_fb(int pconid)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.wait_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		VCRTCM_DEBUG("calling wait_fb backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.wait_fb(pcon->pconid,
+		VCRTCM_DEBUG("calling wait_fb backend, pcon %i\n", pconid);
+		r = pcon->pcon_funcs.wait_fb(pconid,
 			pcon->pcon_cookie);
 	} else {
-		VCRTCM_DEBUG("missing wait_fb backend, pcon %i\n",
-			     pcon->pconid);
+		VCRTCM_DEBUG("missing wait_fb backend, pcon %i\n", pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_wait_fb);
 
-int vcrtcm_g_wait_fb_l(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_wait_fb_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_wait_fb(pcon);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_wait_fb(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_wait_fb_l);
 
 /* retrieves the status of frame buffer */
-int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon,
-			 u32 *status)
+int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_fb_status &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb_status backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_fb_status(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.get_fb_status(pconid,
 			pcon->pcon_cookie, status);
 	} else {
 		VCRTCM_WARNING("missing get_fb_status backend, pcon %i\n",
-			       pcon->pconid);
+			       pconid);
 		r = 0;
 	}
 	return r;
@@ -378,17 +416,23 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon,
 EXPORT_SYMBOL(vcrtcm_g_get_fb_status);
 
 /* sets the frame rate */
-int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
+int vcrtcm_g_set_fps(int pconid, int fps)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (fps <= 0) {
 		cancel_delayed_work_sync(&pcon->vblank_work);
 		pcon->fps = 0;
 		pcon->vblank_period_jiffies = 0;
 		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
-			pcon->pconid);
+			pconid);
 	} else {
 		unsigned long now;
 		int old_fps = pcon->fps;
@@ -404,44 +448,51 @@ int vcrtcm_g_set_fps(struct vcrtcm_pcon *pcon, int fps)
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_fps backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.set_fps(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.set_fps(pconid,
 			pcon->pcon_cookie, fps);
 	} else {
 		VCRTCM_WARNING("missing set_fps backend, pcon %i\n",
-			       pcon->pconid);
+			       pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fps);
 
-int vcrtcm_g_set_fps_l(struct vcrtcm_pcon *pcon, int fps)
+int vcrtcm_g_set_fps_l(int pconid, int fps)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_set_fps(pcon, fps);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_set_fps(pconid, fps);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_fps_l);
 
-int vcrtcm_g_get_fps(struct vcrtcm_pcon *pcon, int *fps)
+int vcrtcm_g_get_fps(int pconid, int *fps)
 {
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	*fps = pcon->fps;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fps);
 
-int vcrtcm_g_get_fps_l(struct vcrtcm_pcon *pcon, int *fps)
+int vcrtcm_g_get_fps_l(int pconid, int *fps)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_get_fps(pcon, fps);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_get_fps(pconid, fps);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_fps_l);
@@ -456,36 +507,42 @@ EXPORT_SYMBOL(vcrtcm_g_get_fps_l);
  * the register content and flow information to the back-end
  * and lets the PCON deal with it
  */
-int vcrtcm_g_set_cursor(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_set_cursor(int pconid,
 		      struct vcrtcm_cursor *cursor)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_cursor backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.set_cursor(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.set_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
 		VCRTCM_DEBUG("missing set_cursor backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_cursor);
 
-int vcrtcm_g_set_cursor_l(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_set_cursor_l(int pconid,
 		      struct vcrtcm_cursor *cursor)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_set_cursor(pcon, cursor);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_set_cursor(pconid, cursor);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_cursor_l);
@@ -495,110 +552,135 @@ EXPORT_SYMBOL(vcrtcm_g_set_cursor_l);
  * of the emulated registers (implemented in the GTD driver) into
  * a structure pointed by cursor argument.
  */
-int vcrtcm_g_get_cursor(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_cursor(int pconid,
 		      struct vcrtcm_cursor *cursor)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_cursor(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.get_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
 		VCRTCM_DEBUG("missing get_fb backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_cursor);
 
-int vcrtcm_g_get_cursor_l(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_cursor_l(int pconid,
 		      struct vcrtcm_cursor *cursor)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_get_cursor(pcon, cursor);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_get_cursor(pconid, cursor);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_cursor_l);
 
 /* dpms manipulation functions */
-int vcrtcm_g_set_dpms(struct vcrtcm_pcon *pcon, int state)
+int vcrtcm_g_set_dpms(int pconid, int state)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.set_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_dpms backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.set_dpms(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.set_dpms(pconid,
 			pcon->pcon_cookie, state);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_dpms);
 
-int vcrtcm_g_set_dpms_l(struct vcrtcm_pcon *pcon, int state)
+int vcrtcm_g_set_dpms_l(int pconid, int state)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_set_dpms(pcon, state);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_set_dpms(pconid, state);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_set_dpms_l);
 
 /* dpms manipulation functions */
-int vcrtcm_g_get_dpms(struct vcrtcm_pcon *pcon, int *state)
+int vcrtcm_g_get_dpms(int pconid, int *state)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_dpms backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_dpms(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.get_dpms(pconid,
 			pcon->pcon_cookie, state);
 	} else {
 		VCRTCM_DEBUG("missing get_dpms backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		r = 0;
 	}
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_dpms);
 
-int vcrtcm_g_get_dpms_l(struct vcrtcm_pcon *pcon, int *state)
+int vcrtcm_g_get_dpms_l(int pconid, int *state)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_get_dpms(pcon, state);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_get_dpms(pconid, state);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_dpms_l);
 
 /* retrieve the last (fake) vblank time if it exists */
-int vcrtcm_g_get_vblank_time(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_vblank_time(int pconid,
 			   struct timeval *vblank_time)
 {
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->vblank_time_valid)
 		return -EAGAIN;
@@ -612,8 +694,15 @@ EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
  * is generated internally by the GPU without involving the PCON
  * (typically after a successful push)
  */
-int vcrtcm_g_set_vblank_time(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_set_vblank_time(int pconid)
 {
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
@@ -627,21 +716,27 @@ EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
  * emulators), but some can feed real display devices
  * and may want to query the device they are driving for status
  */
-int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status)
+int vcrtcm_g_pcon_connected(int pconid, int *status)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.connected &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling connected backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.connected(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.connected(pconid,
 			pcon->pcon_cookie, status);
 	} else {
 		VCRTCM_DEBUG("missing connected backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		*status = VCRTCM_PCON_CONNECTED;
 		r = 0;
 	}
@@ -649,13 +744,13 @@ int vcrtcm_g_pcon_connected(struct vcrtcm_pcon *pcon, int *status)
 }
 EXPORT_SYMBOL(vcrtcm_g_pcon_connected);
 
-int vcrtcm_g_pcon_connected_l(struct vcrtcm_pcon *pcon, int *status)
+int vcrtcm_g_pcon_connected_l(int pconid, int *status)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_pcon_connected(pcon, status);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_pcon_connected(pconid, status);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_pcon_connected_l);
@@ -685,22 +780,28 @@ static struct vcrtcm_mode common_modes[17] = {
  * if the PCON does not implement the backend function, assume
  * that it can support anything and use a list of common modes
  */
-int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_modes(int pconid,
 		     struct vcrtcm_mode **modes, int *count)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.get_modes &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_modes backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.get_modes(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.get_modes(pconid,
 			pcon->pcon_cookie, modes, count);
 	} else {
 		VCRTCM_DEBUG("missing get_modes backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		*count = sizeof(common_modes) / sizeof(struct vcrtcm_mode);
 		*modes = common_modes;
 		r = 0;
@@ -709,14 +810,14 @@ int vcrtcm_g_get_modes(struct vcrtcm_pcon *pcon,
 }
 EXPORT_SYMBOL(vcrtcm_g_get_modes);
 
-int vcrtcm_g_get_modes_l(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_get_modes_l(int pconid,
 		     struct vcrtcm_mode **modes, int *count)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_get_modes(pcon, modes, count);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_get_modes(pconid, modes, count);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_get_modes_l);
@@ -726,22 +827,28 @@ EXPORT_SYMBOL(vcrtcm_g_get_modes_l);
  * if backed function is not implemented, assume the PCON
  * accepts everything and the mode is OK
  */
-int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_check_mode(int pconid,
 		      struct vcrtcm_mode *mode, int *status)
 {
 	int r;
+	struct vcrtcm_pcon *pcon;
 
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.check_mode &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling check_mode backend, pcon %i\n",
-			     pcon->pconid);
-		r = pcon->pcon_funcs.check_mode(pcon->pconid,
+			     pconid);
+		r = pcon->pcon_funcs.check_mode(pconid,
 			pcon->pcon_cookie, mode, status);
 	} else {
 		VCRTCM_DEBUG("missing check_mode backend, pcon %i\n",
-			     pcon->pconid);
+			     pconid);
 		*status = VCRTCM_MODE_OK;
 		r = 0;
 	}
@@ -749,14 +856,14 @@ int vcrtcm_g_check_mode(struct vcrtcm_pcon *pcon,
 }
 EXPORT_SYMBOL(vcrtcm_g_check_mode);
 
-int vcrtcm_g_check_mode_l(struct vcrtcm_pcon *pcon,
+int vcrtcm_g_check_mode_l(int pconid,
 		      struct vcrtcm_mode *mode, int *status)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_check_mode(pcon, mode, status);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_check_mode(pconid, mode, status);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_check_mode_l);
@@ -765,32 +872,39 @@ EXPORT_SYMBOL(vcrtcm_g_check_mode_l);
  * disable the specified PCON. Called when the CRTC associated with
  * the PCON is disabled from userland
  */
-int vcrtcm_g_disable(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_disable(int pconid)
 {
+	struct vcrtcm_pcon *pcon;
+
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
 	vcrtcm_check_mutex(__func__, pcon);
 	if (pcon->pcon_funcs.disable &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling disable backend, pcon %i\n",
-			pcon->pconid);
+			pconid);
 
-		pcon->pcon_funcs.disable(pcon->pconid,
+		pcon->pcon_funcs.disable(pconid,
 					 pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %i\n",
-			pcon->pconid);
+			pconid);
 	}
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_disable);
 
-int vcrtcm_g_disable_l(struct vcrtcm_pcon *pcon)
+int vcrtcm_g_disable_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pcon->pconid);
-	r = vcrtcm_g_disable(pcon);
-	vcrtcm_g_unlock_mutex(pcon->pconid);
+	vcrtcm_g_lock_mutex(pconid);
+	r = vcrtcm_g_disable(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_disable_l);
