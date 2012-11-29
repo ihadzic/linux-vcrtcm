@@ -105,7 +105,8 @@ static void __exit vcrtcm_exit(void)
 					pcon->pcon_funcs.detach(pcon->pconid,
 						pcon->pcon_cookie);
 				if (pcon->gpu_funcs.detach)
-					pcon->gpu_funcs.detach(pcon->drm_crtc);
+					pcon->gpu_funcs.detach(pcon->pconid,
+						pcon->drm_crtc);
 			}
 			vcrtcm_dealloc_pcon(pcon->pconid);
 			vcrtcm_unlock_pcon(pcon);

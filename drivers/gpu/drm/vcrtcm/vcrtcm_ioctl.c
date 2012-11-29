@@ -134,7 +134,7 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 		}
 	}
 	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->drm_crtc);
+		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
 	return 0;
 }
 

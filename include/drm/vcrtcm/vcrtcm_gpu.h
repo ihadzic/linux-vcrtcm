@@ -37,20 +37,21 @@ struct vcrtcm_mode;
 /* functional interface to GPU driver */
 struct vcrtcm_gpu_funcs {
 	/* callback into GPU driver when detach is called */
-	void (*detach) (struct drm_crtc *drm_crtc);
+	void (*detach)(int pconid, struct drm_crtc *drm_crtc);
 
 	/* VBLANK emulation function  */
-	void (*vblank) (struct drm_crtc *drm_crtc);
+	void (*vblank)(int pconid, struct drm_crtc *drm_crtc);
 
 	/* synchronization with GPU rendering (e.g. fence wait) */
-	void (*wait_fb) (struct drm_crtc *drm_crtc);
+	void (*wait_fb)(int pconid, struct drm_crtc *drm_crtc);
 
 	/* PCON requests from GPU to push the buffer to it */
-	int (*push) (struct drm_crtc *scrtc,
+	int (*push)(int pconid, struct drm_crtc *drm_crtc,
 			 struct drm_gem_object *dbuf_fb,
 			 struct drm_gem_object *dbuf_cursor);
+
 	/* PCON signals a hotplug event to GPU */
-	void (*hotplug) (struct drm_crtc *crtc);
+	void (*hotplug)(int pconid, struct drm_crtc *drm_crtc);
 };
 
 struct vcrtcm_pcon {

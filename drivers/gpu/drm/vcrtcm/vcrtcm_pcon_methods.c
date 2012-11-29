@@ -316,7 +316,7 @@ int vcrtcm_p_wait_fb(int pconid)
 	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
-		pcon->gpu_funcs.wait_fb(pcon->drm_crtc);
+		pcon->gpu_funcs.wait_fb(pcon->pconid, pcon->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
@@ -348,7 +348,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	pcon->vblank_time_valid = 1;
 	if (pcon->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
-		pcon->gpu_funcs.vblank(pcon->drm_crtc);
+		pcon->gpu_funcs.vblank(pcon->pconid, pcon->drm_crtc);
 	}
 	pcon->last_vblank_jiffies = jiffies;
 	return 0;
@@ -387,7 +387,7 @@ int vcrtcm_p_push(int pconid,
 	}
 	if (pcon->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for pcon %i\n", pconid);
-		return pcon->gpu_funcs.push(crtc,
+		return pcon->gpu_funcs.push(pcon->pconid, crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
@@ -412,7 +412,7 @@ int vcrtcm_p_hotplug(int pconid)
 	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
-		pcon->gpu_funcs.hotplug(crtc);
+		pcon->gpu_funcs.hotplug(pcon->pconid, crtc);
 		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
 
 	}
@@ -591,7 +591,7 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 			VCRTCM_INFO("doing implicit detach of pcon %i\n",
 				pcon->pconid);
 		if (pcon->gpu_funcs.detach)
-			pcon->gpu_funcs.detach(pcon->drm_crtc);
+			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
 	}
 }
 
