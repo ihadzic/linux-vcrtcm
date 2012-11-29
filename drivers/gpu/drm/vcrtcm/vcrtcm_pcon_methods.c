@@ -145,6 +145,7 @@ static const struct dma_buf_ops vcrtcm_dma_buf_ops = {
 	.vunmap = vcrtcm_dma_buf_vunmap
 };
 
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 void
 vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon)
 {
@@ -161,6 +162,7 @@ vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon)
 	else if (mutex_owner != current->pid)
 		VCRTCM_ERROR("mutex violation: not owner: %s\n", func);
 }
+#endif
 
 /*
  * called by PCON to register the push buffer with PRIME infrastructure.
@@ -675,23 +677,29 @@ EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
 
 void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon)
 {
-	unsigned long flags;
-
 	mutex_lock(&pcon->mutex);
-	spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
-	pcon->in_mutex = 1;
-	pcon->mutex_owner = current->pid;
-	spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
+		pcon->in_mutex = 1;
+		pcon->mutex_owner = current->pid;
+		spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+	}
+#endif
 }
 
 void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon)
 {
-	unsigned long flags;
-
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	BUG_ON(!pcon->in_mutex);
-	spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
-	pcon->in_mutex = 0;
-	spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&pcon->mutex_owner_spinlock, flags);
+		pcon->in_mutex = 0;
+		spin_unlock_irqrestore(&pcon->mutex_owner_spinlock, flags);
+	}
+#endif
 	mutex_unlock(&pcon->mutex);
 }
 

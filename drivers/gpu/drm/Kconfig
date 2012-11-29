@@ -58,6 +58,12 @@ config DRM_VCRTCM
 	  Select either 'm' or 'n'; 'y' has not been tested. Selecting 'm',
 	  even if you have no use for it, is safe.
 
+config DRM_VCRTCM_DEBUG_MUTEXES
+        bool "Mutex debugging"
+        depends on DRM_VCRTCM
+        help
+         This feature enables detection of mutex-violating calls to VCRTCM API functions.
+
 menu "VCRTCM PCON-implementation modules (PIMs)"
         depends on DRM_VCRTCM
 	source "drivers/gpu/drm/pim/udl/Kconfig"
