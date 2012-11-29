@@ -41,8 +41,6 @@
 #define VCRTCM_CURSOR_FLAG_HIDE 0x1
 #define VCRTCM_PFLIP_DEFERRED 1
 
-#define PCON_DESC_MAXLEN 512
-
 
 enum vcrtcm_xfer_mode {
 	VCRTCM_PEER_PULL,

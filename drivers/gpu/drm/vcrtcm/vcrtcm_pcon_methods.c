@@ -29,6 +29,7 @@
 #include "vcrtcm_module.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_alloc_priv.h"
+#include "vcrtcm_pcon.h"
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped

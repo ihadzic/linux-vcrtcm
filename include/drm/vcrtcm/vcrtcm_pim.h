@@ -34,6 +34,7 @@
 #include <vcrtcm/vcrtcm_common.h>
 
 #define PIM_NAME_MAXLEN 33
+#define PCON_DESC_MAXLEN 512
 
 /* descriptor for push buffer; when push-method is used */
 /* the PCON must obtain the buffer from GPU because it */

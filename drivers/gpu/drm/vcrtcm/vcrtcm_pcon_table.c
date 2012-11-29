@@ -31,6 +31,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_vblank.h"
+#include "vcrtcm_pcon.h"
 
 struct pconid_table_entry {
 	struct vcrtcm_pcon *pcon;

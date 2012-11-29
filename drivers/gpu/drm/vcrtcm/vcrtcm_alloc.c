@@ -30,6 +30,7 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_module.h"
+#include "vcrtcm_pcon.h"
 
 #define VCRTCM_ALLOC_LOG_MAXLEN 64
 

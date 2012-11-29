@@ -29,6 +29,7 @@
 #include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_pcon.h"
 
 int vcrtcm_pim_register(char *pim_name,
 	struct vcrtcm_pim_funcs *funcs, int *pimid)

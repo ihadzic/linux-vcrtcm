@@ -24,15 +24,14 @@
 #ifndef __VCRTCM_GPU_H__
 #define __VCRTCM_GPU_H__
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <linux/dma-buf.h>
 #include <vcrtcm/vcrtcm_common.h>
 
 struct vcrtcm_pcon;
 struct vcrtcm_cursor;
 struct vcrtcm_fb;
 struct vcrtcm_mode;
+struct drm_gem_object;
+struct drm_crtc;
 
 /* functional interface to GPU driver */
 struct vcrtcm_gpu_funcs {
@@ -52,43 +51,6 @@ struct vcrtcm_gpu_funcs {
 
 	/* PCON signals a hotplug event to GPU */
 	void (*hotplug)(int pconid, struct drm_crtc *drm_crtc);
-};
-
-struct vcrtcm_pcon {
-	char description[PCON_DESC_MAXLEN];
-	struct vcrtcm_pim *pim;
-	struct vcrtcm_pcon_funcs pcon_funcs;
-	struct vcrtcm_gpu_funcs gpu_funcs;
-	int pcon_callbacks_enabled;
-	enum vcrtcm_xfer_mode xfer_mode;
-	void *pcon_cookie;
-	int pconid; /* index into table maintained by vcrtcm */
-	int minor; /* -1 if pcon has no user-accessible minor */
-	struct kobject kobj;
-	struct list_head pcons_in_pim_list;
-	struct mutex mutex;
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-	int in_mutex;
-	pid_t mutex_owner;
-	spinlock_t mutex_owner_spinlock;
-#endif
-	spinlock_t page_flip_spinlock;
-	int being_destroyed;
-	/* records the time when last (emulated) vblank occurred */
-	struct timeval vblank_time;
-	int vblank_time_valid;
-	/* identifies the CRTC using this PCON */
-	struct drm_crtc *drm_crtc;
-	int alloc_cnt;
-	int page_alloc_cnt;
-	int log_alloc_cnts;
-	int log_alloc_bugs;
-	struct delayed_work vblank_work;
-	int fps;
-	unsigned long vblank_period_jiffies;
-	unsigned long last_vblank_jiffies;
-	unsigned long next_vblank_jiffies;
-	int vblank_slack_jiffies;
 };
 
 int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,

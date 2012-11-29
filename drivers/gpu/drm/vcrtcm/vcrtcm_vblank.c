@@ -24,6 +24,7 @@
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_methods.h"
+#include "vcrtcm_pcon.h"
 
 void
 vcrtcm_vblank_work_fcn(struct work_struct *work)

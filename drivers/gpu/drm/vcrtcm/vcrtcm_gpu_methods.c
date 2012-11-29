@@ -26,6 +26,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_module.h"
+#include "vcrtcm_pcon.h"
 
 /*
  * called by the GPU driver to attach its CRTC to the

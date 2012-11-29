@@ -24,6 +24,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_pcon.h"
 
 struct class *vcrtcm_class;
 
