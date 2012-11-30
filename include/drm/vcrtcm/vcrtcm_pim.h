@@ -35,8 +35,6 @@
 
 #define PIM_NAME_MAXLEN 33
 
-struct drm_crtc;
-
 /* descriptor for push buffer; when push-method is used */
 /* the PCON must obtain the buffer from GPU because it */
 /* must be a proper buffer object (GEM or TTM or whatever */

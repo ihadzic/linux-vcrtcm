@@ -43,8 +43,6 @@
 
 #define PCON_DESC_MAXLEN 512
 
-struct vcrtcm_mode;
-struct drm_crtc;
 
 enum vcrtcm_xfer_mode {
 	VCRTCM_PEER_PULL,
@@ -86,10 +84,9 @@ struct vcrtcm_pcon_funcs {
 	int (*detach)(int pconid, void *cookie);
 	int (*set_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
 	int (*get_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
-	int (*dirty_fb)(int pconid, void *cookie, struct drm_crtc *drm_crtc);
-	int (*wait_fb)(int pconid, void *cookie, struct drm_crtc *drm_crtc);
-	int (*get_fb_status)(int pconid, void *cookie,
-		struct drm_crtc *drm_crtc, u32 *status);
+	int (*dirty_fb)(int pconid, void *cookie);
+	int (*wait_fb)(int pconid, void *cookie);
+	int (*get_fb_status)(int pconid, void *cookie, u32 *status);
 	int (*set_fps)(int pconid, void *cookie, int fps);
 	int (*set_cursor)(int pconid, void *cookie,
 		struct vcrtcm_cursor *cursor);

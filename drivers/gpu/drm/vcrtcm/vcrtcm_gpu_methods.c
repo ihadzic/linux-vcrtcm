@@ -294,7 +294,7 @@ int vcrtcm_g_dirty_fb(struct vcrtcm_pcon *pcon)
 		VCRTCM_DEBUG("calling dirty_fb backend, pcon %i\n",
 			     pcon->pconid);
 		r = pcon->pcon_funcs.dirty_fb(pcon->pconid,
-			pcon->pcon_cookie, pcon->drm_crtc);
+			pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %i\n",
 			     pcon->pconid);
@@ -333,7 +333,7 @@ int vcrtcm_g_wait_fb(struct vcrtcm_pcon *pcon)
 		VCRTCM_DEBUG("calling wait_fb backend, pcon %i\n",
 			     pcon->pconid);
 		r = pcon->pcon_funcs.wait_fb(pcon->pconid,
-			pcon->pcon_cookie, pcon->drm_crtc);
+			pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing wait_fb backend, pcon %i\n",
 			     pcon->pconid);
@@ -367,7 +367,7 @@ int vcrtcm_g_get_fb_status(struct vcrtcm_pcon *pcon,
 		VCRTCM_DEBUG("calling get_fb_status backend, pcon %i\n",
 			     pcon->pconid);
 		r = pcon->pcon_funcs.get_fb_status(pcon->pconid,
-			pcon->pcon_cookie, pcon->drm_crtc, status);
+			pcon->pcon_cookie, status);
 	} else {
 		VCRTCM_WARNING("missing get_fb_status backend, pcon %i\n",
 			       pcon->pconid);
