@@ -183,13 +183,18 @@ int vcrtcm_unlock_pconid(int pconid)
 
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 void
-vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon)
+vcrtcm_check_mutex(const char *func, int pconid)
 {
 	unsigned long flags;
 	int in_mutex;
 	pid_t mutex_owner;
-	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+	struct pconid_table_entry *entry;
 
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		return;
+	}
+	entry = &pconid_table[pconid];
 	spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
 	in_mutex = entry->in_mutex;
 	mutex_owner = entry->mutex_owner;

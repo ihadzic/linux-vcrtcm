@@ -48,10 +48,9 @@ int vcrtcm_unlock_pconid(int pconid);
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
 
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-void vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon);
+void vcrtcm_check_mutex(const char *func, int pconid);
 #else
-static inline void vcrtcm_check_mutex(const char *func,
-	struct vcrtcm_pcon *pcon) {}
+static inline void vcrtcm_check_mutex(const char *func, int pconid) {}
 #endif
 
 #endif

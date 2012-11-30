@@ -166,13 +166,13 @@ int vcrtcm_p_register_prime(int pconid,
 	int size = PAGE_SIZE * pbd->num_pages;
 	struct drm_gem_object *obj;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
 		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
@@ -230,12 +230,12 @@ int vcrtcm_p_unregister_prime(int pconid,
 	struct drm_device *dev;
 	struct drm_gem_object *obj = pbd->gpu_private;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	if (!obj) {
 		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
 		return -ENODEV;
@@ -281,12 +281,12 @@ int vcrtcm_p_wait_fb(int pconid)
 	unsigned long jiffies_snapshot, jiffies_snapshot_2;
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
@@ -310,12 +310,12 @@ int vcrtcm_p_emulate_vblank(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	if (!pcon->drm_crtc)
 		return -EINVAL;
 	do_gettimeofday(&pcon->vblank_time);
@@ -344,12 +344,12 @@ int vcrtcm_p_push(int pconid,
 	struct drm_gem_object *push_buffer_fb = NULL;
 	struct drm_gem_object *push_buffer_cursor = NULL;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
@@ -378,12 +378,12 @@ int vcrtcm_p_hotplug(int pconid)
 	struct vcrtcm_pcon *pcon;
 	struct drm_crtc *crtc;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
 		pcon->gpu_funcs.hotplug(pcon->pconid, crtc);
@@ -404,12 +404,12 @@ int vcrtcm_p_free_pb(int pconid,
 {
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	if (pbd) {
 		int r;
 
@@ -459,13 +459,13 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 	struct vcrtcm_push_buffer_descriptor *pbd;
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
 			    GFP_KERNEL, VCRTCM_OWNER_PCON | pconid);
 	pbd->pconid = pconid;
@@ -524,12 +524,12 @@ vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_push_buffer_descriptor *npbd;
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return NULL;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
 		vcrtcm_p_free_pb(pconid, pbd);
@@ -573,12 +573,12 @@ int vcrtcm_p_detach(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	do_vcrtcm_p_detach(pcon, 1);
 	return 0;
 }
@@ -605,12 +605,12 @@ int vcrtcm_p_destroy(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	do_vcrtcm_p_destroy(pcon, 1);
 	return 0;
 }
@@ -621,12 +621,12 @@ int vcrtcm_p_disable_callbacks(int pconid)
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
@@ -638,12 +638,12 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 {
 	struct vcrtcm_pcon *pcon;
 
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	vcrtcm_check_mutex(__func__, pcon);
 	pcon->log_alloc_cnts = on;
 	return 0;
 }
