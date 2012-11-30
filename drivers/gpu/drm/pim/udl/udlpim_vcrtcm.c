@@ -282,8 +282,7 @@ int udlpim_get_fb(int pconid, void *cookie,
 	return 0;
 }
 
-int udlpim_dirty_fb(int pconid, void *cookie,
-		    struct drm_crtc *drm_crtc)
+int udlpim_dirty_fb(int pconid, void *cookie)
 {
 	struct udlpim_pcon *pcon = cookie;
 	struct udlpim_minor *minor;
@@ -302,14 +301,12 @@ int udlpim_dirty_fb(int pconid, void *cookie,
 	return 0;
 }
 
-int udlpim_wait_fb(int pconid, void *cookie,
-		   struct drm_crtc *drm_crtc)
+int udlpim_wait_fb(int pconid, void *cookie)
 {
 	return 0;
 }
 
-int udlpim_get_fb_status(int pconid, void *cookie,
-			 struct drm_crtc *drm_crtc, u32 *status)
+int udlpim_get_fb_status(int pconid, void *cookie, u32 *status)
 {
 	struct udlpim_pcon *pcon = cookie;
 	struct udlpim_minor *minor;
