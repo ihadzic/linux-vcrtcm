@@ -219,6 +219,19 @@ out_err0:
 }
 EXPORT_SYMBOL(vcrtcm_p_register_prime);
 
+int vcrtcm_p_register_prime_l(int pconid,
+			    struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_register_prime(pconid, pbd);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_register_prime_l);
+
 /*
  * Called by PCON to unregister the push buffer with PRIME infrastructure.
  * Typically PCON calls this function when freeing the push buffer or
@@ -275,6 +288,19 @@ int vcrtcm_p_unregister_prime(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime);
 
+int vcrtcm_p_unregister_prime_l(int pconid,
+			    struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_unregister_prime(pconid, pbd);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_unregister_prime_l);
+
 /*
  * The PCON can use this function wait for the GPU to finish rendering
  * to the frame.  Push-mode pims must call this function before freeing
@@ -305,6 +331,18 @@ int vcrtcm_p_wait_fb(int pconid)
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb);
+
+int vcrtcm_p_wait_fb_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_wait_fb(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
 
 /*
  * called by the PCON to emulate vblank
@@ -338,6 +376,18 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
+
+int vcrtcm_p_emulate_vblank_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_emulate_vblank(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_emulate_vblank_l);
 
 /*
  * called by the PCON to request GPU push of the
@@ -383,6 +433,20 @@ int vcrtcm_p_push(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_push);
 
+int vcrtcm_p_push_l(int pconid,
+		struct vcrtcm_push_buffer_descriptor *fpbd,
+		struct vcrtcm_push_buffer_descriptor *cpbd)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_push(pconid, fpbd, cpbd);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_push_l);
+
 /*
  * called by the PCON to signal hotplug event on a CRTC
  * attached to the specified PCON
@@ -411,6 +475,18 @@ int vcrtcm_p_hotplug(int pconid)
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug);
+
+int vcrtcm_p_hotplug_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_hotplug(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_hotplug_l);
 
 /*
  * Called by PCONs whose push-buffer backing store is in main
@@ -461,6 +537,19 @@ int vcrtcm_p_free_pb(int pconid,
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb);
+
+int vcrtcm_p_free_pb_l(int pconid,
+		      struct vcrtcm_push_buffer_descriptor *pbd)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_free_pb(pconid, pbd);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_free_pb_l);
 
 /*
  * Called by PCONs whose push-buffer backing store is in main
@@ -531,6 +620,20 @@ out_err0:
 }
 EXPORT_SYMBOL(vcrtcm_p_alloc_pb);
 
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_alloc_pb_l(int pconid, int npages,
+		  gfp_t gfp_mask)
+{
+	struct vcrtcm_push_buffer_descriptor *r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return ERR_PTR(-EINVAL);
+	r = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_alloc_pb_l);
+
 /*
  * Called by PCONs when buffer resize occurs. This function only
  * gets us the new push buffer in main memory. If PCON needs to do
@@ -577,6 +680,21 @@ vcrtcm_p_realloc_pb(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
 
+struct vcrtcm_push_buffer_descriptor *
+vcrtcm_p_realloc_pb_l(int pconid,
+		    struct vcrtcm_push_buffer_descriptor *pbd, int npages,
+		    gfp_t gfp_mask)
+{
+	struct vcrtcm_push_buffer_descriptor *r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return ERR_PTR(-EINVAL);
+	r = vcrtcm_p_realloc_pb(pconid, pbd, npages, gfp_mask);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
+
 /* this function is actually not in the vcrtcm-pim api,
  * but it could be added to that api, if needed.
  * NB: if you change the implementation of this function, you might
@@ -616,6 +734,18 @@ int vcrtcm_p_detach(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
 
+int vcrtcm_p_detach_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_detach(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_detach_l);
+
 void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 {
 	unsigned long flags;
@@ -651,6 +781,18 @@ int vcrtcm_p_destroy(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
+int vcrtcm_p_destroy_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_destroy(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_destroy_l);
+
 int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
@@ -670,6 +812,18 @@ int vcrtcm_p_disable_callbacks(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);
 
+int vcrtcm_p_disable_callbacks_l(int pconid)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_disable_callbacks(pconid);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_disable_callbacks_l);
+
 int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 {
 	struct vcrtcm_pcon *pcon;
@@ -685,6 +839,18 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
+
+int vcrtcm_p_log_alloc_cnts_l(int pconid, int on)
+{
+	int r;
+
+	if (vcrtcm_p_lock_mutex(pconid))
+		return -EINVAL;
+	r = vcrtcm_p_log_alloc_cnts(pconid, on);
+	vcrtcm_g_unlock_mutex(pconid);
+	return r;
+}
+EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts_l);
 
 int vcrtcm_p_lock_mutex(int pconid)
 {
