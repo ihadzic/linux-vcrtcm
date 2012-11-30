@@ -157,13 +157,17 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
+	/*
+	* NB: destroy() and page_flip() are the only callbacks
+	* for which the lock is not held
+	*/
+	vcrtcm_unlock_pconid(pconid);
 	/* NB: must tell pim to destroy pcon before destroying it myself,
 	 * to give the pcon a chance to returns its allocated buffers
 	 */
 	if (funcs.destroy)
 		funcs.destroy(pconid, cookie);
 	vcrtcm_destroy_pcon(pcon);
-	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
 

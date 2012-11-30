@@ -130,6 +130,11 @@ struct vcrtcm_pim_funcs {
 	 * This function *must* deallocate the given PCON and free all
 	 * its resources. The PIM can assume that the given PCON has
 	 * already been detached before this function is called.
+	 *
+	 * NB: The pcon is NOT locked when this function is called.
+	 * Not locking the pcon enables the PIM to wait_sync() for
+	 * other threads to finish all pcon-related operations without
+	 * deadlocking with the thread that is receiving this callback.
 	 */
 	void (*destroy)(int pconid, void *cookie);
 
