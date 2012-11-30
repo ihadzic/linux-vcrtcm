@@ -37,7 +37,8 @@ int vcrtcm_id_generator_init(struct vcrtcm_id_generator *gen, int num_ids)
 	if (!gen)
 		return -EINVAL;
 
-	ptr = vcrtcm_kmalloc(sizeof(VCRTCM_ID_GEN_MASK_TYPE) * num_chunks, GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
+	ptr = vcrtcm_kmalloc(sizeof(VCRTCM_ID_GEN_MASK_TYPE) * num_chunks,
+			     GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 	if (!ptr)
 		return -ENOMEM;
 
