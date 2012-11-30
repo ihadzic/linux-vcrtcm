@@ -651,12 +651,12 @@ EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts);
 
 int vcrtcm_p_lock_mutex(int pconid)
 {
-	return vcrtcm_lock_mutex(pconid);
+	return vcrtcm_lock_pconid(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_lock_mutex);
 
 int vcrtcm_p_unlock_mutex(int pconid)
 {
-	return vcrtcm_unlock_mutex(pconid);
+	return vcrtcm_unlock_pconid(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_unlock_mutex);

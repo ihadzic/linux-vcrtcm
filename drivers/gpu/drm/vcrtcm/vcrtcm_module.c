@@ -95,7 +95,7 @@ static void __exit vcrtcm_exit(void)
 
 		pcon = vcrtcm_get_pcon(pconid);
 		if (pcon) {
-			vcrtcm_lock_pcon(pcon);
+			vcrtcm_lock_pconid(pcon->pconid);
 			VCRTCM_INFO("removing pcon %u\n", pcon->pconid);
 			if (pcon->drm_crtc) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
@@ -109,8 +109,8 @@ static void __exit vcrtcm_exit(void)
 					pcon->gpu_funcs.detach(pcon->pconid,
 						pcon->drm_crtc);
 			}
-			vcrtcm_dealloc_pcon(pcon->pconid);
-			vcrtcm_unlock_pcon(pcon);
+			vcrtcm_dealloc_pcon(pcon);
+			vcrtcm_unlock_pconid(pcon->pconid);
 			vcrtcm_kfree(pcon);
 		}
 	}

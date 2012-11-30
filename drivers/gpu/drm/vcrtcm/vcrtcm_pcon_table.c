@@ -98,15 +98,12 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 * the pcon.  This is to permit the caller to release the pcon's
 * mutex and spin lock before freeing the struct.
 */
-void vcrtcm_dealloc_pcon(int pconid)
+void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 {
 	struct pconid_table_entry *entry;
-	struct vcrtcm_pcon *pcon;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS)
-		return;
 	mutex_lock(&pconid_table_mutex);
-	entry = &pconid_table[pconid];
+	entry = &pconid_table[pcon->pconid];
 	pcon = entry->pcon;
 	if (pcon != NULL) {
 		int cnt;
@@ -118,7 +115,7 @@ void vcrtcm_dealloc_pcon(int pconid)
 			VCRTCM_ERROR("pcon %d (pim %s) is being destroyed, "
 				"but it has not freed %d of its allocations, "
 				"%d of which were page allocations\n",
-				pconid, pcon->pim->name, cnt, page_cnt);
+				pcon->pconid, pcon->pim->name, cnt, page_cnt);
 		entry->pcon = NULL;
 	}
 	mutex_unlock(&pconid_table_mutex);
@@ -140,10 +137,15 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 	return ret;
 }
 
-void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon)
+int vcrtcm_lock_pconid(int pconid)
 {
-	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+	struct pconid_table_entry *entry;
 
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		return -EINVAL;
+	}
+	entry = &pconid_table[pconid];
 	mutex_lock(&entry->mutex);
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	{
@@ -154,12 +156,18 @@ void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon)
 		spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
 	}
 #endif
+	return 0;
 }
 
-void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon)
+int vcrtcm_unlock_pconid(int pconid)
 {
-	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+	struct pconid_table_entry *entry;
 
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		return -EINVAL;
+	}
+	entry = &pconid_table[pconid];
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	BUG_ON(!entry->in_mutex);
 	{
@@ -170,6 +178,7 @@ void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon)
 	}
 #endif
 	mutex_unlock(&entry->mutex);
+	return 0;
 }
 
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES

@@ -24,36 +24,10 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_sysfs_priv.h"
 
-int vcrtcm_lock_mutex(int pconid)
-{
-	struct vcrtcm_pcon *pcon;
-
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	vcrtcm_lock_pcon(pcon);
-	return 0;
-}
-
-int vcrtcm_unlock_mutex(int pconid)
-{
-	struct vcrtcm_pcon *pcon;
-
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	vcrtcm_unlock_pcon(pcon);
-	return 0;
-}
-
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
-	vcrtcm_dealloc_pcon(pcon->pconid);
+	vcrtcm_dealloc_pcon(pcon);
 }

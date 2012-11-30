@@ -36,9 +36,9 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	int next_vblank_delay;
 	unsigned long now;
 
-	vcrtcm_lock_pcon(pcon);
+	vcrtcm_lock_pconid(pcon->pconid);
 	if (pcon->vblank_period_jiffies == 0) {
-		vcrtcm_unlock_pcon(pcon);
+		vcrtcm_unlock_pconid(pcon->pconid);
 		return;
 	}
 	now = jiffies;
@@ -55,5 +55,5 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
 		next_vblank_delay = 0;
 	schedule_delayed_work(&pcon->vblank_work, next_vblank_delay);
-	vcrtcm_unlock_pcon(pcon);
+	vcrtcm_unlock_pconid(pcon->pconid);
 }

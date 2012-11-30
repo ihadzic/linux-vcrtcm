@@ -57,8 +57,6 @@ struct vcrtcm_pcon {
 	int vblank_slack_jiffies;
 };
 
-int vcrtcm_lock_mutex(int pconid);
-int vcrtcm_unlock_mutex(int pconid);
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
 
 #endif
