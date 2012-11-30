@@ -23,6 +23,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon.h"
 
 void

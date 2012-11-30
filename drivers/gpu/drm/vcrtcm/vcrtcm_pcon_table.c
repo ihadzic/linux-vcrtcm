@@ -34,11 +34,32 @@
 #include "vcrtcm_pcon.h"
 
 struct pconid_table_entry {
+	struct mutex mutex;
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+	int in_mutex;
+	pid_t mutex_owner;
+	spinlock_t mutex_owner_spinlock;
+#endif
 	struct vcrtcm_pcon *pcon;
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static DEFINE_MUTEX(pconid_table_mutex);
+
+void init_pcon_table(void)
+{
+	int k;
+
+	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
+		struct pconid_table_entry *entry = &pconid_table[k];
+
+		mutex_init(&entry->mutex);
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+		entry->in_mutex = 0;
+		spin_lock_init(&entry->mutex_owner_spinlock);
+#endif
+	}
+}
 
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 {
@@ -61,12 +82,8 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
 			spin_lock_init(&pcon->page_flip_spinlock);
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-			spin_lock_init(&pcon->mutex_owner_spinlock);
-#endif
 			INIT_DELAYED_WORK(&pcon->vblank_work,
 				vcrtcm_vblank_work_fcn);
-			mutex_init(&pcon->mutex);
 			entry->pcon = pcon;
 			mutex_unlock(&pconid_table_mutex);
 			return pcon;
@@ -122,3 +139,55 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 	return ret;
 }
+
+void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon)
+{
+	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+
+	mutex_lock(&entry->mutex);
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
+		entry->in_mutex = 1;
+		entry->mutex_owner = current->pid;
+		spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
+	}
+#endif
+}
+
+void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon)
+{
+	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+	BUG_ON(!entry->in_mutex);
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
+		entry->in_mutex = 0;
+		spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
+	}
+#endif
+	mutex_unlock(&entry->mutex);
+}
+
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+void
+vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon)
+{
+	unsigned long flags;
+	int in_mutex;
+	pid_t mutex_owner;
+	struct pconid_table_entry *entry = &pconid_table[pcon->pconid];
+
+	spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
+	in_mutex = entry->in_mutex;
+	mutex_owner = entry->mutex_owner;
+	spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
+	if (!in_mutex)
+		VCRTCM_ERROR("mutex violation: not in mutex: %s\n", func);
+	else if (mutex_owner != current->pid)
+		VCRTCM_ERROR("mutex violation: not owner: %s\n", func);
+}
+#endif

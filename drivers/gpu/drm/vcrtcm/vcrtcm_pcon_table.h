@@ -27,8 +27,18 @@
 struct vcrtcm_pcon;
 struct vcrtcm_pim;
 
+void init_pcon_table(void);
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim);
 void vcrtcm_dealloc_pcon(int pconid);
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
+void vcrtcm_lock_pcon(struct vcrtcm_pcon *pcon);
+void vcrtcm_unlock_pcon(struct vcrtcm_pcon *pcon);
+
+#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+void vcrtcm_check_mutex(const char *func, struct vcrtcm_pcon *pcon);
+#else
+static inline void vcrtcm_check_mutex(const char *func,
+	struct vcrtcm_pcon *pcon) {}
+#endif
 
 #endif

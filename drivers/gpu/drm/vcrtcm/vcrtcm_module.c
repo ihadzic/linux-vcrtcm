@@ -55,6 +55,7 @@ static int __init vcrtcm_init(void)
 {
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
+	init_pcon_table();
 	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
 	vcrtcm_cdev = cdev_alloc();
 	if (!vcrtcm_cdev)
