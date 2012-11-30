@@ -57,44 +57,79 @@ struct vcrtcm_push_buffer_descriptor {
 };
 
 struct vcrtcm_pcon_funcs {
+	/* mutex locked: yes; must be atomic: no */
 	int (*attach)(int pconid, void *cookie);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*detach)(int pconid, void *cookie);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*set_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*get_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*dirty_fb)(int pconid, void *cookie);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*wait_fb)(int pconid, void *cookie);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*get_fb_status)(int pconid, void *cookie, u32 *status);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*set_fps)(int pconid, void *cookie, int fps);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*set_cursor)(int pconid, void *cookie,
 		struct vcrtcm_cursor *cursor);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*get_cursor)(int pconid, void *cookie,
 		struct vcrtcm_cursor *cursor);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*set_dpms)(int pconid, void *cookie, int state);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*get_dpms)(int pconid, void *cookie, int *state);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*connected)(int pconid, void *cookie, int *status);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*get_modes)(int pconid, void *cookie, struct vcrtcm_mode **modes,
 		int *count);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*check_mode)(int pconid, void *cookie, struct vcrtcm_mode *mode,
 		int *status);
+
+	/* mutex locked: yes; must be atomic: no */
 	void (*disable)(int pconid, void *cookie);
+
+	/* mutex locked: yes; must be atomic: no */
 	int (*vblank)(int pconid, void *cookie);
 
-	/* this function must be implemented to be callable in atomic context */
+	/* mutex locked: NO; must be atomic: YES */
 	int (*page_flip)(int pconid, void *cookie, u32 ioaddr);
 };
 
 /* every PIM must implement these functions */
 struct vcrtcm_pim_funcs {
-	/* Create a new PCON instance
+	/*
+	 * This function must try to create a new PCON instance.
 	 */
 	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
 		struct vcrtcm_pcon_funcs *funcs,
 		enum vcrtcm_xfer_mode *xfer_mode, int *minor,
 		int *vblank_slack, char *description);
 
-	/* Deallocate the given PCON instance and free resources used.
-	 * The PIM can assume that the given PCON has been detached
-	 * and removed from VCRTCM before this function is called.
+	/*
+	 * This function *must* deallocate the given PCON and free all
+	 * its resources. The PIM can assume that the given PCON has
+	 * already been detached before this function is called.
 	 */
 	void (*destroy)(int pconid, void *cookie);
 
