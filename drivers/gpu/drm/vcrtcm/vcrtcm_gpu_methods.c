@@ -83,7 +83,8 @@ int vcrtcm_g_attach_l(int pconid,
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_attach(pconid, drm_crtc, gpu_funcs, xfer_mode);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -147,7 +148,8 @@ int vcrtcm_g_detach_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_detach(pconid);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -196,7 +198,8 @@ int vcrtcm_g_set_fb_l(int pconid, struct vcrtcm_fb *fb)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_set_fb(pconid, fb);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -239,7 +242,8 @@ int vcrtcm_g_get_fb_l(int pconid, struct vcrtcm_fb *fb)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_get_fb(pconid, fb);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -335,7 +339,8 @@ int vcrtcm_g_dirty_fb_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_dirty_fb(pconid);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -378,7 +383,8 @@ int vcrtcm_g_wait_fb_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_wait_fb(pconid);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -462,7 +468,8 @@ int vcrtcm_g_set_fps_l(int pconid, int fps)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_set_fps(pconid, fps);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -488,7 +495,8 @@ int vcrtcm_g_get_fps_l(int pconid, int *fps)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_get_fps(pconid, fps);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -538,7 +546,8 @@ int vcrtcm_g_set_cursor_l(int pconid,
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_set_cursor(pconid, cursor);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -583,7 +592,8 @@ int vcrtcm_g_get_cursor_l(int pconid,
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_get_cursor(pconid, cursor);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -622,7 +632,8 @@ int vcrtcm_g_set_dpms_l(int pconid, int state)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_set_dpms(pconid, state);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -661,7 +672,8 @@ int vcrtcm_g_get_dpms_l(int pconid, int *state)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_get_dpms(pconid, state);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -746,7 +758,8 @@ int vcrtcm_g_pcon_connected_l(int pconid, int *status)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_pcon_connected(pconid, status);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -813,7 +826,8 @@ int vcrtcm_g_get_modes_l(int pconid,
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_get_modes(pconid, modes, count);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -859,7 +873,8 @@ int vcrtcm_g_check_mode_l(int pconid,
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_check_mode(pconid, mode, status);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
@@ -900,7 +915,8 @@ int vcrtcm_g_disable_l(int pconid)
 {
 	int r;
 
-	vcrtcm_g_lock_mutex(pconid);
+	if (vcrtcm_g_lock_mutex(pconid))
+		return -EINVAL;
 	r = vcrtcm_g_disable(pconid);
 	vcrtcm_g_unlock_mutex(pconid);
 	return r;
