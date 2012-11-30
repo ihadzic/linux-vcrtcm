@@ -26,9 +26,9 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_pim_methods.h"
-#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pcon.h"
 
 int vcrtcm_pim_register(char *pim_name,

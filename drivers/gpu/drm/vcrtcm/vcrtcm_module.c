@@ -39,7 +39,6 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_alloc_priv.h"
-#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pcon.h"
 
 static const struct file_operations vcrtcm_fops;

@@ -24,7 +24,6 @@
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_utils_priv.h"
-#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_pcon.h"
 

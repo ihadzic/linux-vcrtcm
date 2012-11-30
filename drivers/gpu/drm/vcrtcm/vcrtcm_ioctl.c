@@ -27,7 +27,6 @@
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
-#include "vcrtcm_pcon_methods.h"
 #include "vcrtcm_pcon.h"
 
 static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
