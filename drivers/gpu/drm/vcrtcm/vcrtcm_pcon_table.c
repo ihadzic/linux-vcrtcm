@@ -93,11 +93,6 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 	return NULL;
 }
 
-/*
-* NB: the caller is responsible for calling vcrtcm_kfree() on
-* the pcon.  This is to permit the caller to release the pcon's
-* mutex and spin lock before freeing the struct.
-*/
 void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 {
 	struct pconid_table_entry *entry;
@@ -116,6 +111,7 @@ void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 				"but it has not freed %d of its allocations, "
 				"%d of which were page allocations\n",
 				pcon->pconid, pcon->pim->name, cnt, page_cnt);
+		vcrtcm_kfree(pcon);
 		entry->pcon = NULL;
 	}
 	mutex_unlock(&pconid_table_mutex);

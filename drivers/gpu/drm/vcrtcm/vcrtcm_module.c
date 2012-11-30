@@ -95,23 +95,24 @@ static void __exit vcrtcm_exit(void)
 
 		pcon = vcrtcm_get_pcon(pconid);
 		if (pcon) {
-			vcrtcm_lock_pconid(pcon->pconid);
-			VCRTCM_INFO("removing pcon %u\n", pcon->pconid);
+			int pconid = pcon->pconid;
+
+			vcrtcm_lock_pconid(pconid);
+			VCRTCM_INFO("removing pcon %u\n", pconid);
 			if (pcon->drm_crtc) {
 				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
 						pcon->drm_crtc);
 				if (pcon->pcon_funcs.detach &&
 					pcon->pcon_callbacks_enabled &&
 					pcon->pim->callbacks_enabled)
-					pcon->pcon_funcs.detach(pcon->pconid,
+					pcon->pcon_funcs.detach(pconid,
 						pcon->pcon_cookie);
 				if (pcon->gpu_funcs.detach)
-					pcon->gpu_funcs.detach(pcon->pconid,
+					pcon->gpu_funcs.detach(pconid,
 						pcon->drm_crtc);
 			}
 			vcrtcm_dealloc_pcon(pcon);
-			vcrtcm_unlock_pconid(pcon->pconid);
-			vcrtcm_kfree(pcon);
+			vcrtcm_unlock_pconid(pconid);
 		}
 	}
 	if (vcrtcm_class)

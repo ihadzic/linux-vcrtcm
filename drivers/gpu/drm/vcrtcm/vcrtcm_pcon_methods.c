@@ -598,7 +598,6 @@ void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
 	pcon->being_destroyed = 1;
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
 	vcrtcm_destroy_pcon(pcon);
-	vcrtcm_kfree(pcon);
 }
 
 int vcrtcm_p_destroy(int pconid)

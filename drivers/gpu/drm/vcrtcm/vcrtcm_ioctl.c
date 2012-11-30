@@ -54,10 +54,11 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 
 /* TODO: Need better errors. */
 static long
-vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
+vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon;
+	int pconid;
 	int r;
 
 	VCRTCM_DEBUG("pimid %d, hints %d\n", pimid, hints);
@@ -80,9 +81,10 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_ERROR("no pconids available");
 		return -ENODEV;
 	}
-	vcrtcm_lock_pconid(pcon->pconid);
+	pconid = pcon->pconid;
+	vcrtcm_lock_pconid(pconid);
 	pcon->pim = pim;
-	r = pim->funcs.instantiate(pcon->pconid, hints,
+	r = pim->funcs.instantiate(pconid, hints,
 					&pcon->pcon_cookie,
 					&pcon->pcon_funcs,
 					&pcon->xfer_mode,
@@ -93,16 +95,15 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *pconid)
 		VCRTCM_ERROR("no pcons of type %s available...\n",
 			     pim->name);
 		vcrtcm_dealloc_pcon(pcon);
-		vcrtcm_unlock_pconid(pcon->pconid);
-		vcrtcm_kfree(pcon);
+		vcrtcm_unlock_pconid(pconid);
 		return r;
 	}
-	VCRTCM_INFO("new pcon created, id %i\n", pcon->pconid);
+	VCRTCM_INFO("new pcon created, id %i\n", pconid);
 	vcrtcm_sysfs_add_pcon(pcon);
 	list_add_tail(&pcon->pcons_in_pim_list,
 		      &pim->pcons_in_pim_list);
-	*pconid = pcon->pconid;
-	vcrtcm_unlock_pconid(pcon->pconid);
+	*ret_pconid = pconid;
+	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
 
@@ -179,7 +180,6 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		funcs.destroy(pconid, cookie);
 	vcrtcm_destroy_pcon(pcon);
 	vcrtcm_unlock_pconid(pconid);
-	vcrtcm_kfree(pcon);
 	return 0;
 }
 
