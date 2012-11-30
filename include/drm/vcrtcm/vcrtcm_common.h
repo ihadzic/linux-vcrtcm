@@ -41,7 +41,6 @@
 #define VCRTCM_CURSOR_FLAG_HIDE 0x1
 #define VCRTCM_PFLIP_DEFERRED 1
 
-
 enum vcrtcm_xfer_mode {
 	VCRTCM_PEER_PULL,
 	VCRTCM_PEER_PUSH,
@@ -75,33 +74,6 @@ struct vcrtcm_mode {
 	int w;
 	int h;
 	int refresh;
-};
-
-struct vcrtcm_pcon_funcs {
-	int (*attach)(int pconid, void *cookie);
-	int (*detach)(int pconid, void *cookie);
-	int (*set_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
-	int (*get_fb)(int pconid, void *cookie, struct vcrtcm_fb *fb);
-	int (*dirty_fb)(int pconid, void *cookie);
-	int (*wait_fb)(int pconid, void *cookie);
-	int (*get_fb_status)(int pconid, void *cookie, u32 *status);
-	int (*set_fps)(int pconid, void *cookie, int fps);
-	int (*set_cursor)(int pconid, void *cookie,
-		struct vcrtcm_cursor *cursor);
-	int (*get_cursor)(int pconid, void *cookie,
-		struct vcrtcm_cursor *cursor);
-	int (*set_dpms)(int pconid, void *cookie, int state);
-	int (*get_dpms)(int pconid, void *cookie, int *state);
-	int (*connected)(int pconid, void *cookie, int *status);
-	int (*get_modes)(int pconid, void *cookie, struct vcrtcm_mode **modes,
-		int *count);
-	int (*check_mode)(int pconid, void *cookie, struct vcrtcm_mode *mode,
-		int *status);
-	void (*disable)(int pconid, void *cookie);
-	int (*vblank)(int pconid, void *cookie);
-
-	/* this function must be implemented to be callable in atomic context */
-	int (*page_flip)(int pconid, void *cookie, u32 ioaddr);
 };
 
 #endif
