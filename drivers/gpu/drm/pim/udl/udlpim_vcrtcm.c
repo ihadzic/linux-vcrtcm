@@ -103,7 +103,7 @@ int udlpim_detach(int pconid, void *cookie)
 	return 0;
 }
 
-static int udlpim_realloc_pb(struct udlpim_minor *udlpim_minor,
+static int udlpim_realloc_pb(struct udlpim_minor *minor,
 			     struct udlpim_pcon *pcon,
 			     int size, int flag)
 {
@@ -137,16 +137,16 @@ static int udlpim_realloc_pb(struct udlpim_minor *udlpim_minor,
 	}
 	pbd0 = vcrtcm_p_realloc_pb(pcon->pconid, pbd0,
 				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
-				   &udlpim_minor->kmalloc_track,
-				   &udlpim_minor->page_track);
+				   &minor->kmalloc_track,
+				   &minor->page_track);
 	if (IS_ERR(pbd0)) {
 		r = PTR_ERR(pbd0);
 		goto out_err0;
 	}
 	pbd1 = vcrtcm_p_realloc_pb(pcon->pconid, pbd1,
 				   num_pages, GFP_KERNEL | __GFP_HIGHMEM,
-				   &udlpim_minor->kmalloc_track,
-				   &udlpim_minor->page_track);
+				   &minor->kmalloc_track,
+				   &minor->page_track);
 	if (IS_ERR(pbd1)) {
 		r = PTR_ERR(pbd1);
 		goto out_err1;
@@ -191,12 +191,12 @@ out_err3:
 		vm_unmap_ram(pb_mapped_ram0, pbd0->num_pages);
 out_err2:
 	vcrtcm_p_free_pb(pcon->pconid, pbd1,
-			 &udlpim_minor->kmalloc_track,
-			 &udlpim_minor->page_track);
+			 &minor->kmalloc_track,
+			 &minor->page_track);
 out_err1:
 	vcrtcm_p_free_pb(pcon->pconid, pbd0,
-			 &udlpim_minor->kmalloc_track,
-			 &udlpim_minor->page_track);
+			 &minor->kmalloc_track,
+			 &minor->page_track);
 out_err0:
 	if (flag ==  UDLPIM_ALLOC_PB_FLAG_FB) {
 		pcon->pbd_fb[0] = NULL;
@@ -644,7 +644,7 @@ void udlpim_fake_vblank(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
-	struct udlpim_minor *udlpim_minor =
+	struct udlpim_minor *minor =
 		container_of(delayed_work, struct udlpim_minor, fake_vblank_work);
 	struct udlpim_pcon *pcon;
 	/*static long last_snapshot = 0;*/
@@ -655,16 +655,16 @@ void udlpim_fake_vblank(struct work_struct *work)
 	int next_vblank_delay;
 	int udlpim_fake_vblank_slack_sane = 0;
 
-	UDLPIM_DEBUG("minor=%d\n", udlpim_minor->minor);
+	UDLPIM_DEBUG("minor=%d\n", minor->minor);
 	udlpim_fake_vblank_slack_sane =
 			(udlpim_fake_vblank_slack_sane <= 0) ? 0 : udlpim_fake_vblank_slack;
 
-	if (!udlpim_minor) {
-		VCRTCM_ERROR("Cannot find udlpim_minor\n");
+	if (!minor) {
+		VCRTCM_ERROR("Cannot find minor\n");
 		return;
 	}
 
-	pcon = udlpim_minor->pcon;
+	pcon = minor->pcon;
 
 	if (!pcon) {
 		VCRTCM_ERROR("Cannot find pcon descriptor\n");
@@ -679,9 +679,9 @@ void udlpim_fake_vblank(struct work_struct *work)
 			pcon->next_vblank_jiffies +=
 					pcon->fb_xmit_period_jiffies;
 
-			mutex_lock(&udlpim_minor->buffer_mutex);
+			mutex_lock(&minor->buffer_mutex);
 			udlpim_do_xmit_fb_push(pcon);
-			mutex_unlock(&udlpim_minor->buffer_mutex);
+			mutex_unlock(&minor->buffer_mutex);
 		}
 
 		if (!next_vblank_jiffies_valid) {
@@ -700,11 +700,11 @@ void udlpim_fake_vblank(struct work_struct *work)
 			(int)next_vblank_jiffies - (int)jiffies_snapshot;
 		if (next_vblank_delay <= udlpim_fake_vblank_slack_sane)
 			next_vblank_delay = 0;
-		if (!queue_delayed_work(udlpim_minor->workqueue,
-					&udlpim_minor->fake_vblank_work,
+		if (!queue_delayed_work(minor->workqueue,
+					&minor->fake_vblank_work,
 					next_vblank_delay))
 			VCRTCM_WARNING("dup fake vblank, minor %d\n",
-				udlpim_minor->minor);
+				minor->minor);
 	} else
 		UDLPIM_DEBUG("Next fake vblank not scheduled\n");
 
