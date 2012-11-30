@@ -39,7 +39,7 @@ int udlpim_true32bpp; /* Enable experimental (and buggy) true 32bpp color. */
 int udlpim_debug; /* Enable the printing of debugging information */
 int udlpim_enable_default_modes; /* Use standard VESA modes if we can't get EDID. */
 
-struct list_head udlpim_info_list;
+struct list_head udlpim_minor_list;
 int udlpim_major = -1;
 int udlpim_num_minors = -1;
 int udlpim_fake_vblank_slack = 1;
@@ -61,7 +61,7 @@ static int __init udlpim_init(void)
 	"(C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	VCRTCM_INFO("Push mode enabled");
 
-	INIT_LIST_HEAD(&udlpim_info_list);
+	INIT_LIST_HEAD(&udlpim_minor_list);
 
 	vcrtcm_id_generator_init(&udlpim_minor_id_generator,
 					UDLPIM_MAX_DEVICES);

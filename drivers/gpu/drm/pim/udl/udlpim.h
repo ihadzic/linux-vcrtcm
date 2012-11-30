@@ -52,7 +52,7 @@ extern int udlpim_debug;
 extern int udlpim_enable_default_modes;
 
 extern struct usb_driver udlpim_driver;
-extern struct list_head udlpim_info_list;
+extern struct list_head udlpim_minor_list;
 extern int udlpim_major;
 extern int udlpim_num_minors;
 extern int udlpim_fake_vblank_slack;
@@ -62,7 +62,7 @@ extern struct vcrtcm_id_generator udlpim_minor_id_generator;
 
 struct urb_node {
 	struct list_head entry;
-	struct udlpim_info *dev;
+	struct udlpim_minor *dev;
 	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
@@ -99,7 +99,7 @@ struct udlpim_scratch_memory_descriptor {
 	unsigned int hline_8_num_pages;
 };
 
-struct udlpim_info {
+struct udlpim_minor {
 	struct list_head list;
 	int minor;
 	struct udlpim_pcon *pcon;
@@ -173,20 +173,20 @@ struct udlpim_pcon {
 	int pb_needs_xmit[2];
 	int push_buffer_index;
 	int dpms_state;
-	struct udlpim_info *udlpim_info;
+	struct udlpim_minor *minor;
 };
 
 /* USB/HW functions that VCRTCM functions need access to */
-int udlpim_setup_screen(struct udlpim_info *udlpim_info,
+int udlpim_setup_screen(struct udlpim_minor *udlpim_minor,
 	struct udlpim_video_mode *mode, struct vcrtcm_fb *vcrtcm_fb);
-int udlpim_error_screen(struct udlpim_info *udlpim_info);
-int udlpim_dpms_sleep(struct udlpim_info *udlpim_info);
-int udlpim_dpms_wakeup(struct udlpim_info *udlpim_info);
-int udlpim_transmit_framebuffer(struct udlpim_info *udlpim_info);
-int udlpim_build_modelist(struct udlpim_info *udlpim_info,
+int udlpim_error_screen(struct udlpim_minor *udlpim_minor);
+int udlpim_dpms_sleep(struct udlpim_minor *udlpim_minor);
+int udlpim_dpms_wakeup(struct udlpim_minor *udlpim_minor);
+int udlpim_transmit_framebuffer(struct udlpim_minor *udlpim_minor);
+int udlpim_build_modelist(struct udlpim_minor *udlpim_minor,
 			struct udlpim_video_mode **modes, int *mode_count);
-int udlpim_free_modelist(struct udlpim_info *udlpim_info,
+int udlpim_free_modelist(struct udlpim_minor *udlpim_minor,
 			struct udlpim_video_mode *modes);
-void udlpim_query_edid_core(struct udlpim_info *udlpim_info);
+void udlpim_query_edid_core(struct udlpim_minor *udlpim_minor);
 
 #endif
