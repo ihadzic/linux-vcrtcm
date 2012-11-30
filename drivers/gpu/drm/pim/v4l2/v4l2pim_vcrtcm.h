@@ -39,9 +39,9 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 void v4l2pim_destroy(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */
-int v4l2pim_dirty_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
-int v4l2pim_wait_fb(int pconid, void *cookie, struct drm_crtc *drm_crtc);
-int v4l2pim_get_fb_status(int pconid, void *cookie, struct drm_crtc *drm_crtc, u32 *status);
+int v4l2pim_dirty_fb(int pconid, void *cookie);
+int v4l2pim_wait_fb(int pconid, void *cookie);
+int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status);
 int v4l2pim_set_dpms(int pconid, void *cookie, int state);
 int v4l2pim_get_dpms(int pconid, void *cookie, int *state);
 

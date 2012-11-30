@@ -263,8 +263,7 @@ int v4l2pim_get_fb(int pconid, void *cookie,
 	return 0;
 }
 
-int v4l2pim_dirty_fb(int pconid, void *cookie,
-		     struct drm_crtc *drm_crtc)
+int v4l2pim_dirty_fb(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = cookie;
 	struct v4l2pim_minor *minor;
@@ -283,14 +282,12 @@ int v4l2pim_dirty_fb(int pconid, void *cookie,
 	return 0;
 }
 
-int v4l2pim_wait_fb(int pconid, void *cookie,
-		    struct drm_crtc *drm_crtc)
+int v4l2pim_wait_fb(int pconid, void *cookie)
 {
 	return 0;
 }
 
-int v4l2pim_get_fb_status(int pconid, void *cookie,
-			  struct drm_crtc *drm_crtc, u32 *status)
+int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status)
 {
 	struct v4l2pim_pcon *pcon = cookie;
 	struct v4l2pim_minor *minor;
