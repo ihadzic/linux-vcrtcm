@@ -557,7 +557,7 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb);
  * NB: if you change the implementation of this function, you might
  * also need to change the implementation of do_vcrtcm_ioctl_detach_pcon()
  */
-void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
+static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
 	unsigned long flags;
 
