@@ -123,6 +123,7 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
 		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		dump_stack();
 		return NULL;
 	}
 	mutex_lock(&pconid_table_mutex);
@@ -139,6 +140,7 @@ int vcrtcm_lock_pconid(int pconid)
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
 		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		dump_stack();
 		return -EINVAL;
 	}
 	entry = &pconid_table[pconid];
@@ -161,6 +163,7 @@ int vcrtcm_unlock_pconid(int pconid)
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
 		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		dump_stack();
 		return -EINVAL;
 	}
 	entry = &pconid_table[pconid];
@@ -188,6 +191,7 @@ vcrtcm_check_mutex(const char *func, int pconid)
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
 		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		dump_stack();
 		return;
 	}
 	entry = &pconid_table[pconid];
@@ -195,9 +199,13 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	in_mutex = entry->in_mutex;
 	mutex_owner = entry->mutex_owner;
 	spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
-	if (!in_mutex)
+	if (!in_mutex) {
 		VCRTCM_ERROR("mutex violation: not in mutex: %s\n", func);
-	else if (mutex_owner != current->pid)
-		VCRTCM_ERROR("mutex violation: not owner: %s\n", func);
+		dump_stack();
+	} else if (mutex_owner != current->pid) {
+		VCRTCM_ERROR("mutex violation: pcon 0x%08x locked by other: %s\n",
+			pconid, func);
+		dump_stack();
+	}
 }
 #endif
