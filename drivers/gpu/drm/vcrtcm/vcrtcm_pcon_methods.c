@@ -224,10 +224,10 @@ int vcrtcm_p_register_prime_l(int pconid,
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_register_prime(pconid, pbd);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_register_prime_l);
@@ -293,10 +293,10 @@ int vcrtcm_p_unregister_prime_l(int pconid,
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_unregister_prime(pconid, pbd);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime_l);
@@ -336,10 +336,10 @@ int vcrtcm_p_wait_fb_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_wait_fb(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
@@ -381,10 +381,10 @@ int vcrtcm_p_emulate_vblank_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_emulate_vblank(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank_l);
@@ -439,10 +439,10 @@ int vcrtcm_p_push_l(int pconid,
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_push(pconid, fpbd, cpbd);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_push_l);
@@ -480,10 +480,10 @@ int vcrtcm_p_hotplug_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_hotplug(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug_l);
@@ -543,10 +543,10 @@ int vcrtcm_p_free_pb_l(int pconid,
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_free_pb(pconid, pbd);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb_l);
@@ -626,10 +626,10 @@ vcrtcm_p_alloc_pb_l(int pconid, int npages,
 {
 	struct vcrtcm_push_buffer_descriptor *r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return ERR_PTR(-EINVAL);
 	r = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_alloc_pb_l);
@@ -687,10 +687,10 @@ vcrtcm_p_realloc_pb_l(int pconid,
 {
 	struct vcrtcm_push_buffer_descriptor *r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return ERR_PTR(-EINVAL);
 	r = vcrtcm_p_realloc_pb(pconid, pbd, npages, gfp_mask);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
@@ -738,10 +738,10 @@ int vcrtcm_p_detach_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_detach(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach_l);
@@ -785,10 +785,10 @@ int vcrtcm_p_destroy_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_destroy(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy_l);
@@ -816,10 +816,10 @@ int vcrtcm_p_disable_callbacks_l(int pconid)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_disable_callbacks(pconid);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks_l);
@@ -844,22 +844,22 @@ int vcrtcm_p_log_alloc_cnts_l(int pconid, int on)
 {
 	int r;
 
-	if (vcrtcm_p_lock_mutex(pconid))
+	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_log_alloc_cnts(pconid, on);
-	vcrtcm_g_unlock_mutex(pconid);
+	vcrtcm_g_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts_l);
 
-int vcrtcm_p_lock_mutex(int pconid)
+int vcrtcm_p_lock_pconid(int pconid)
 {
 	return vcrtcm_lock_pconid(pconid);
 }
-EXPORT_SYMBOL(vcrtcm_p_lock_mutex);
+EXPORT_SYMBOL(vcrtcm_p_lock_pconid);
 
-int vcrtcm_p_unlock_mutex(int pconid)
+int vcrtcm_p_unlock_pconid(int pconid)
 {
 	return vcrtcm_unlock_pconid(pconid);
 }
-EXPORT_SYMBOL(vcrtcm_p_unlock_mutex);
+EXPORT_SYMBOL(vcrtcm_p_unlock_pconid);

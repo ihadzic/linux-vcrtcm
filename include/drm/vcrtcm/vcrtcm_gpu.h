@@ -79,8 +79,8 @@ int vcrtcm_g_get_modes(int pconid,
 int vcrtcm_g_check_mode(int pconid,
 		      struct vcrtcm_mode *mode, int *status);
 int vcrtcm_g_disable(int pconid);
-int vcrtcm_g_lock_mutex(int pconid);
-int vcrtcm_g_unlock_mutex(int pconid);
+int vcrtcm_g_lock_pconid(int pconid);
+int vcrtcm_g_unlock_pconid(int pconid);
 
 /* this function is callable in atomic context */
 int vcrtcm_g_page_flip(int pconid, u32 ioaddr);
