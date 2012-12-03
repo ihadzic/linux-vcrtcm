@@ -204,18 +204,17 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 
 static void radeon_wait_fb_callback(struct drm_crtc *crtc)
 {
-	struct drm_device *ddev;
-	struct radeon_device *rdev;
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
+	struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
 
-	DRM_DEBUG("crtc_id %d\n", radeon_crtc->crtc_id);
-	ddev = radeon_crtc->base.dev;
-	rdev = ddev->dev_private;
-	mutex_lock(&rdev->ring_lock);
-	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_empty_locked(rdev, i);
-	mutex_unlock(&rdev->ring_lock);
+	DRM_DEBUG("crtc_id %d\n", rcrtc->crtc_id);
+	if (rcrtc->last_push_fence_c) {
+		radeon_fence_wait(rcrtc->last_push_fence_c, false);
+		radeon_fence_unref(&rcrtc->last_push_fence_c);
+	}
+	if (rcrtc->last_push_fence_fb) {
+		radeon_fence_wait(rcrtc->last_push_fence_fb, false);
+		radeon_fence_unref(&rcrtc->last_push_fence_fb);
+	}
 }
 
 static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
