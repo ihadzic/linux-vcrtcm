@@ -79,7 +79,7 @@ struct vcrtcm_pim *vcrtcm_get_pim(int pimid)
 		}
 	}
 	mutex_unlock(&pim_list_mutex);
-	VCRTCM_ERROR("pim %s is not registered\n", pim->name);
+	VCRTCM_ERROR("pim %d is not registered\n", pimid);
 	return NULL;
 }
 
