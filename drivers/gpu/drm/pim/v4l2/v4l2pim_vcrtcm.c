@@ -134,11 +134,15 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 			pcon->pconid, minor->minor);
 		return -EBUSY;
 	}
-	if (pcon->attached)
-		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
+	if (pcon->attached) {
+		VCRTCM_INFO("waiting for push completion on pcon %d\n",
+			    pcon->pconid);
+		vcrtcm_p_wait_fb(pcon->pconid);
+	}
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
+	VCRTCM_INFO("detached pcon %d\n", pcon->pconid);
 	return 0;
 }
 
@@ -632,8 +636,6 @@ struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor
 
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 {
-	VCRTCM_INFO("waiting for push completion on pcon %d\n", pcon->pconid);
-	vcrtcm_p_wait_fb(pcon->pconid);
 	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
