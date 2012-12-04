@@ -34,10 +34,12 @@ static void v4l2pim_free_pb(struct v4l2pim_pcon *pcon, int flag)
 			pbd = pcon->pbd_fb[i];
 			pb_mapped_ram = pcon->pb_fb[i];
 			pcon->pbd_fb[i] = NULL;
+			pcon->pb_fb[i] = NULL;
 		} else {
 			pbd = pcon->pbd_cursor[i];
 			pb_mapped_ram = pcon->pb_cursor[i];
 			pcon->pbd_cursor[i] = NULL;
+			pcon->pb_cursor[i] = NULL;
 		}
 		if (pbd) {
 			BUG_ON(!pbd->gpu_private);
