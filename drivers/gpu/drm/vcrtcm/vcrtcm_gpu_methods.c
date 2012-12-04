@@ -72,7 +72,6 @@ int vcrtcm_g_attach(int pconid,
 			return r;
 		}
 	}
-	pcon->pconid = pconid;
 	pcon->drm_crtc = drm_crtc;
 	pcon->gpu_funcs = *gpu_funcs;
 	*xfer_mode = pcon->xfer_mode;
