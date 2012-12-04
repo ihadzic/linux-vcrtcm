@@ -83,8 +83,12 @@ static void __exit udlpim_exit(void)
 	vcrtcm_pim_disable_callbacks(udlpim_pimid);
 	list_for_each_entry_safe(minor, tmp, &udlpim_minor_list, list) {
 		if (minor->pcon) {
+			int pconid = minor->pcon->pconid;
+
+			vcrtcm_p_lock_pconid(pconid);
 			udlpim_detach_pcon(minor->pcon);
 			udlpim_destroy_pcon(minor->pcon);
+			vcrtcm_p_unlock_pconid(pconid);
 		}
 	}
 	/* must deregister usb before unregistering pim, because
