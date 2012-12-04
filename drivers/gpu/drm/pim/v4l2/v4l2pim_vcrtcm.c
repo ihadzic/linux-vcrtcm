@@ -132,7 +132,7 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 
 	minor = pcon->minor;
 	if (atomic_read(&minor->users) > 0) {
-		VCRTCM_INFO("cannot detach pcon %d, some process has minor %d open",
+		VCRTCM_ERROR("cannot detach pcon %d, minor %d in use\n",
 			pcon->pconid, minor->minor);
 		return -EBUSY;
 	}
