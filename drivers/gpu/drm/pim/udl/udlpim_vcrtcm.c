@@ -74,11 +74,15 @@ int udlpim_attach(int pconid, void *cookie)
 
 void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 {
-	if (pcon->attached)
-		VCRTCM_INFO("detaching pcon %d\n", pcon->pconid);
+	if (pcon->attached) {
+		VCRTCM_INFO("waiting for push completion on pcon %d\n",
+			    pcon->pconid);
+		vcrtcm_p_wait_fb(pcon->pconid);
+	}
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
+	VCRTCM_INFO("detached pcon %d\n", pcon->pconid);
 }
 
 int udlpim_detach(int pconid, void *cookie)
@@ -732,8 +736,6 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 
 void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 {
-	VCRTCM_INFO("waiting for push completion on pcon %d\n", pcon->pconid);
-	vcrtcm_p_wait_fb(pcon->pconid);
 	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
