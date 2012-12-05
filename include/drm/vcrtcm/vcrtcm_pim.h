@@ -75,7 +75,7 @@ struct vcrtcm_pcon_funcs {
 	/* mutex locked: yes; must be atomic: no */
 	int (*wait_fb)(int pconid, void *cookie);
 
-	/* mutex locked: yes; must be atomic: no */
+	/* mutex locked: yes; must be atomic: YES */
 	int (*get_fb_status)(int pconid, void *cookie, u32 *status);
 
 	/* mutex locked: yes; must be atomic: no */
@@ -142,27 +142,95 @@ struct vcrtcm_pim_funcs {
 	int (*test)(int arg);
 };
 
+/*
+ * If a function is stated to be atomic, then it is guaranteed
+ * to be callable in atomic context.  If its atomicness is
+ * stated to be "unspecified," then it is not currently guaranteed
+ * to be atomic, although its current implementation might be
+ * atomic.
+ */
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_lock_pconid(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_unlock_pconid(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_destroy(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_emulate_vblank(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_wait_fb(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_register_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_unregister_prime(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_push(int pconid, struct vcrtcm_push_buffer_descriptor *fpbd,
 	struct vcrtcm_push_buffer_descriptor *cpbd);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_hotplug(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_alloc_pb(int pconid, int npages,
 	gfp_t gfp_mask);
+
+/*
+ * atomic: unspecified
+ */
 struct vcrtcm_push_buffer_descriptor *vcrtcm_p_realloc_pb(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd, int npages,
 	gfp_t gfp_mask);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_free_pb(int pconid, struct vcrtcm_push_buffer_descriptor *pbd);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_disable_callbacks(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_p_log_alloc_cnts(int pconid, int on);
 
+/*
+ * locking variants of above functions.  each one locks
+ * the pcon, then calls the nonlocking variant, then unlocks
+ * the pcon.
+ */
 int vcrtcm_p_destroy_l(int pconid);
 int vcrtcm_p_emulate_vblank_l(int pconid);
 int vcrtcm_p_wait_fb_l(int pconid);

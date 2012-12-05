@@ -53,38 +53,125 @@ struct vcrtcm_gpu_funcs {
 	void (*hotplug)(int pconid, struct drm_crtc *drm_crtc);
 };
 
+/*
+ * If a function is stated to be atomic, then it is guaranteed
+ * to be callable in atomic context.  If its atomicness is
+ * stated to be "unspecified," then it is not currently guaranteed
+ * to be atomic, although its current implementation might be
+ * atomic.
+ */
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
 		  enum vcrtcm_xfer_mode *xfer_mode);
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_detach(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_get_fb(int pconid, struct vcrtcm_fb *fb);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_dirty_fb(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_wait_fb(int pconid);
+
+/*
+ * atomic: YES
+ */
 int vcrtcm_g_get_fb_status(int pconid, u32 *status);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_get_fps(int pconid, int *fps);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_set_fps(int pconid, int fps);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_set_cursor(int pconid,
+
 		      struct vcrtcm_cursor *cursor);
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_get_cursor(int pconid,
+
 		      struct vcrtcm_cursor *cursor);
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_set_dpms(int pconid, int state);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_get_dpms(int pconid, int *state);
+
+/*
+ * atomic: YES
+ */
 int vcrtcm_g_get_vblank_time(int pconid,
 			   struct timeval *vblank_time);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_set_vblank_time(int pconid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_pcon_connected(int pconid, int *status);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_get_modes(int pconid,
 		     struct vcrtcm_mode **modes, int *count);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_check_mode(int pconid,
 		      struct vcrtcm_mode *mode, int *status);
-int vcrtcm_g_disable(int pconid);
-int vcrtcm_g_lock_pconid(int pconid);
-int vcrtcm_g_unlock_pconid(int pconid);
 
-/* this function is callable in atomic context */
+/*
+ * atomic: unspecified
+ */
+int vcrtcm_g_disable(int pconid);
+
+/*
+ * atomic: YES
+ */
 int vcrtcm_g_page_flip(int pconid, u32 ioaddr);
 
+/*
+ * locking variants of above functions.  each one locks
+ * the pcon, then calls the nonlocking variant, then unlocks
+ * the pcon.
+ */
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,
 		  struct vcrtcm_gpu_funcs *gpu_callbacks,
@@ -113,5 +200,8 @@ int vcrtcm_g_get_modes_l(int pconid,
 int vcrtcm_g_check_mode_l(int pconid,
 		      struct vcrtcm_mode *mode, int *status);
 int vcrtcm_g_disable_l(int pconid);
+
+int vcrtcm_g_lock_pconid(int pconid);
+int vcrtcm_g_unlock_pconid(int pconid);
 
 #endif
