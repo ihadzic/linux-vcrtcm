@@ -22,18 +22,44 @@
 
 /* IOCTLs */
 #define VCRTCM_MAGIC 'K'
+
+/* args: pimid hints */
 #define VCRTCM_IOC_INSTANTIATE _IOW(VCRTCM_MAGIC, 1, int)
+
+/* args: pconid */
 #define VCRTCM_IOC_DESTROY _IOW(VCRTCM_MAGIC, 2, int)
+
+/* args: pimid testarg */
 #define VCRTCM_IOC_PIMTEST _IOW(VCRTCM_MAGIC, 3, int)
+
+/* args: drm-connector-id */
+#define VCRTCM_IOC_CONNECT _IOW(VCRTCM_MAGIC, 4, int)
+
+/* args: drm-connector-id */
+#define VCRTCM_IOC_DISCONNECT _IOW(VCRTCM_MAGIC, 5, int)
+
+/* args: pconid drm-connector-id */
+#define VCRTCM_IOC_ATTACH _IOW(VCRTCM_MAGIC, 6, int)
+
+/* args: pconid */
+#define VCRTCM_IOC_DETACH _IOW(VCRTCM_MAGIC, 7, int)
+
+/* args: pconid fps */
+#define VCRTCM_IOC_FPS _IOW(VCRTCM_MAGIC, 8, int)
+
+/* args: pconid */
+#define VCRTCM_IOC_XMIT _IOW(VCRTCM_MAGIC, 9, int)
 
 struct vcrtcm_ioctl_args {
 	union {
 		int pimid;
 		int pconid;
+		int connid;
 	} arg1;
 	union {
 		uint32_t hints;
 		uint32_t testarg;
+		int connid;
 	} arg2;
 	union {
 		int pconid;
