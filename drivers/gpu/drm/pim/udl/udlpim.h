@@ -57,7 +57,6 @@ extern struct usb_driver udlpim_driver;
 extern struct list_head udlpim_minor_list;
 extern int udlpim_num_minors;
 extern int udlpim_fake_vblank_slack;
-extern struct vcrtcm_pcon_props udlpim_vcrtcm_pcon_props;
 extern struct vcrtcm_id_generator udlpim_minor_id_generator;
 extern int udlpim_pimid;
 
