@@ -332,7 +332,7 @@ static void radeon_vcrtcm_hotplug(int pconid, struct drm_crtc *crtc)
 	schedule_work(&rdev->hotplug_work);
 }
 
-struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
+struct vcrtcm_g_pcon_funcs physical_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.wait_fb = radeon_wait_fb_callback,
@@ -340,7 +340,7 @@ struct vcrtcm_gpu_funcs physical_crtc_gpu_funcs = {
 	.hotplug = NULL /* real CRTC has its own hotplug */
 };
 
-struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
+struct vcrtcm_g_pcon_funcs virtual_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = radeon_emulate_vblank,
 	.wait_fb = radeon_wait_fb_callback,
