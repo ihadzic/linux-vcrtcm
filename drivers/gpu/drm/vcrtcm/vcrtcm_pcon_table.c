@@ -44,7 +44,7 @@ struct pconid_table_entry {
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
-static DEFINE_MUTEX(pconid_table_mutex);
+static DEFINE_SPINLOCK(pconid_table_spinlock);
 
 void init_pcon_table(void)
 {
@@ -64,19 +64,19 @@ void init_pcon_table(void)
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 {
 	int k;
+	unsigned long flags;
+	struct vcrtcm_pcon *pcon;
 
-	mutex_lock(&pconid_table_mutex);
+	pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon),
+		GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
+	if (!pcon) {
+		VCRTCM_ERROR("allocate of pcon failed\n");
+		return NULL;
+	}
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
 		struct pconid_table_entry *entry = &pconid_table[k];
 		if (!entry->pcon) {
-			struct vcrtcm_pcon *pcon;
-			pcon = vcrtcm_kzalloc(sizeof(struct vcrtcm_pcon),
-				GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
-			if (!pcon) {
-				VCRTCM_INFO("allocate of pcon failed\n");
-				mutex_unlock(&pconid_table_mutex);
-				return NULL;
-			}
 			pcon->pconid = k;
 			pcon->minor = -1;
 			pcon->log_alloc_bugs = 1;
@@ -85,50 +85,53 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			INIT_DELAYED_WORK(&pcon->vblank_work,
 				vcrtcm_vblank_work_fcn);
 			entry->pcon = pcon;
-			mutex_unlock(&pconid_table_mutex);
+			spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 			return pcon;
 		}
 	}
-	mutex_unlock(&pconid_table_mutex);
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+	vcrtcm_kfree(pcon);
+	VCRTCM_ERROR("no free pconid\n");
 	return NULL;
 }
 
 void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 {
 	struct pconid_table_entry *entry;
+	unsigned long flags;
+	int cnt;
+	int page_cnt;
 
-	mutex_lock(&pconid_table_mutex);
+	if (!pcon)
+		return;
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
 	entry = &pconid_table[pcon->pconid];
-	pcon = entry->pcon;
-	if (pcon != NULL) {
-		int cnt;
-		int page_cnt;
-
-		cnt = pcon->alloc_cnt;
-		page_cnt = pcon->page_alloc_cnt;
-		if (cnt != 0 || page_cnt != 0)
-			VCRTCM_ERROR("pcon %d (pim %s) is being destroyed, "
-				"but it has not freed %d of its allocations, "
-				"%d of which were page allocations\n",
-				pcon->pconid, pcon->pim->name, cnt, page_cnt);
-		vcrtcm_kfree(pcon);
-		entry->pcon = NULL;
-	}
-	mutex_unlock(&pconid_table_mutex);
+	BUG_ON(pcon != entry->pcon);
+	cnt = pcon->alloc_cnt;
+	page_cnt = pcon->page_alloc_cnt;
+	if (cnt != 0 || page_cnt != 0)
+		VCRTCM_ERROR("pcon %d (pim %s) is being destroyed, "
+			"but it has not freed %d of its allocations, "
+			"%d of which were page allocations\n",
+			pcon->pconid, pcon->pim->name, cnt, page_cnt);
+	entry->pcon = NULL;
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+	vcrtcm_kfree(pcon);
 }
 
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 {
 	struct vcrtcm_pcon *ret;
+	unsigned long flags;
 
 	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
 		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
 		dump_stack();
 		return NULL;
 	}
-	mutex_lock(&pconid_table_mutex);
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
 	ret = pconid_table[pconid].pcon;
-	mutex_unlock(&pconid_table_mutex);
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 	if (!ret)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 	return ret;
