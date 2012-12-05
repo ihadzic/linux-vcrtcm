@@ -36,7 +36,7 @@
 #include <drm/drm_pciids.h>
 #include <linux/console.h>
 #include <linux/module.h>
-
+#include <vcrtcm/vcrtcm_gpu.h>
 
 /*
  * KMS wrapper.
@@ -124,6 +124,7 @@ int radeon_debugfs_init(struct drm_minor *minor);
 void radeon_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
+static int radeon_vcrtcm_gpuid = -1;
 
 int radeon_no_wb;
 int radeon_modeset = -1;
@@ -423,8 +424,13 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.resume = radeon_pci_resume,
 };
 
+static struct vcrtcm_gpu_funcs radeon_vcrtcm_funcs = {
+};
+
 static int __init radeon_init(void)
 {
+	int r;
+
 	driver = &driver_old;
 	pdriver = &radeon_pci_driver;
 	driver->num_ioctls = radeon_max_ioctl;
@@ -457,11 +463,16 @@ static int __init radeon_init(void)
 	}
 	/* if the vga console setting is enabled still
 	 * let modprobe override it */
-	return drm_pci_init(driver, pdriver);
+	r = drm_pci_init(driver, pdriver);
+	if (r)
+		return r;
+	vcrtcm_g_register("radeon", &radeon_vcrtcm_funcs, &radeon_vcrtcm_gpuid);
+	return 0;
 }
 
 static void __exit radeon_exit(void)
 {
+	vcrtcm_g_unregister(radeon_vcrtcm_gpuid);
 	drm_pci_exit(driver, pdriver);
 	radeon_unregister_atpx_handler();
 }
