@@ -76,11 +76,6 @@ int udlpim_attach(int pconid, void *cookie)
 
 void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 {
-	if (pcon->attached) {
-		VCRTCM_INFO("waiting for push completion on pcon %d\n",
-			    pcon->pconid);
-		vcrtcm_p_wait_fb(pcon->pconid);
-	}
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
