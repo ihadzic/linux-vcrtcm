@@ -29,8 +29,8 @@
 struct vcrtcm_pcon {
 	char description[PCON_DESC_MAXLEN];
 	struct vcrtcm_pim *pim;
-	struct vcrtcm_pcon_funcs pcon_funcs;
-	struct vcrtcm_gpu_funcs gpu_funcs;
+	struct vcrtcm_p_pcon_funcs pim_funcs;
+	struct vcrtcm_g_pcon_funcs gpu_funcs;
 	int pcon_callbacks_enabled;
 	enum vcrtcm_xfer_mode xfer_mode;
 	void *pcon_cookie;

@@ -36,7 +36,7 @@
  */
 int vcrtcm_g_attach(int pconid,
 		  struct drm_crtc *drm_crtc,
-		  struct vcrtcm_gpu_funcs *gpu_funcs,
+		  struct vcrtcm_g_pcon_funcs *gpu_funcs,
 		  enum vcrtcm_xfer_mode *xfer_mode)
 {
 
@@ -61,11 +61,11 @@ int vcrtcm_g_attach(int pconid,
 	 * if we got here, then we have found the PCON
 	 * and it's free for us to attach to
 	 */
-	if (pcon->pcon_funcs.attach &&
+	if (pcon->pim_funcs.attach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
-		r = pcon->pcon_funcs.attach(pcon->pconid,
+		r = pcon->pim_funcs.attach(pcon->pconid,
 					    pcon->pcon_cookie);
 		if (r) {
 			VCRTCM_ERROR("back-end attach call failed\n");
@@ -81,7 +81,7 @@ EXPORT_SYMBOL(vcrtcm_g_attach);
 
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,
-		  struct vcrtcm_gpu_funcs *gpu_funcs,
+		  struct vcrtcm_g_pcon_funcs *gpu_funcs,
 		  enum vcrtcm_xfer_mode *xfer_mode)
 {
 	int r;
@@ -134,18 +134,18 @@ int vcrtcm_g_detach(int pconid)
 	* routine a chance to return the pcon's push buffers
 	* before the pcon is detached from the crtc.
 	*/
-	if (pcon->pcon_funcs.detach &&
+	if (pcon->pim_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
-		r = pcon->pcon_funcs.detach(pconid,
+		r = pcon->pim_funcs.detach(pconid,
 					    pcon->pcon_cookie);
 		if (r)
 			return r;
 	}
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pconid, pcon->drm_crtc);
-	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_gpu_funcs));
+	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
 	pcon->drm_crtc = NULL;
 	return 0;
 
@@ -190,12 +190,12 @@ int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.set_fb &&
+	if (pcon->pim_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.set_fb(pconid,
+		r = pcon->pim_funcs.set_fb(pconid,
 					    pcon->pcon_cookie, fb);
 	} else {
 		VCRTCM_WARNING("missing set_fb backend, pcon %i\n",
@@ -239,11 +239,11 @@ int vcrtcm_g_get_fb(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.get_fb &&
+	if (pcon->pim_funcs.get_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n", pconid);
-		r = pcon->pcon_funcs.get_fb(pconid,
+		r = pcon->pim_funcs.get_fb(pconid,
 			pcon->pcon_cookie, fb);
 	} else {
 		VCRTCM_WARNING("missing get_fb backend, pcon %i\n",
@@ -306,14 +306,14 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	if (pcon->being_destroyed)
 		r = -ENODEV;
-	else if (pcon->pcon_funcs.page_flip &&
+	else if (pcon->pim_funcs.page_flip &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		/*
 		* NB: the pcon's page_flip callback is required
 		* to be callable in interrupt context
 		*/
-		r = pcon->pcon_funcs.page_flip(pconid,
+		r = pcon->pim_funcs.page_flip(pconid,
 			pcon->pcon_cookie, ioaddr);
 	}
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
@@ -343,12 +343,12 @@ int vcrtcm_g_dirty_fb(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.dirty_fb &&
+	if (pcon->pim_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling dirty_fb backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.dirty_fb(pconid,
+		r = pcon->pim_funcs.dirty_fb(pconid,
 			pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing dirty_fb backend, pcon %i\n",
@@ -393,11 +393,11 @@ int vcrtcm_g_wait_fb(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.wait_fb &&
+	if (pcon->pim_funcs.wait_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling wait_fb backend, pcon %i\n", pconid);
-		r = pcon->pcon_funcs.wait_fb(pconid,
+		r = pcon->pim_funcs.wait_fb(pconid,
 			pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing wait_fb backend, pcon %i\n", pconid);
@@ -435,12 +435,12 @@ int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.get_fb_status &&
+	if (pcon->pim_funcs.get_fb_status &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb_status backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.get_fb_status(pconid,
+		r = pcon->pim_funcs.get_fb_status(pconid,
 			pcon->pcon_cookie, status);
 	} else {
 		VCRTCM_WARNING("missing get_fb_status backend, pcon %i\n",
@@ -484,12 +484,12 @@ int vcrtcm_g_set_fps(int pconid, int fps)
 		if (old_fps == 0)
 			schedule_delayed_work(&pcon->vblank_work, 0);
 	}
-	if (pcon->pcon_funcs.set_fps &&
+	if (pcon->pim_funcs.set_fps &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_fps backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.set_fps(pconid,
+		r = pcon->pim_funcs.set_fps(pconid,
 			pcon->pcon_cookie, fps);
 	} else {
 		VCRTCM_WARNING("missing set_fps backend, pcon %i\n",
@@ -569,12 +569,12 @@ int vcrtcm_g_set_cursor(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.set_cursor &&
+	if (pcon->pim_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_cursor backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.set_cursor(pconid,
+		r = pcon->pim_funcs.set_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
 		VCRTCM_DEBUG("missing set_cursor backend, pcon %i\n",
@@ -619,12 +619,12 @@ int vcrtcm_g_get_cursor(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.set_cursor &&
+	if (pcon->pim_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.get_cursor(pconid,
+		r = pcon->pim_funcs.get_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
 		VCRTCM_DEBUG("missing get_fb backend, pcon %i\n",
@@ -664,12 +664,12 @@ int vcrtcm_g_set_dpms(int pconid, int state)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.set_dpms &&
+	if (pcon->pim_funcs.set_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_dpms backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.set_dpms(pconid,
+		r = pcon->pim_funcs.set_dpms(pconid,
 			pcon->pcon_cookie, state);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon %i\n",
@@ -708,12 +708,12 @@ int vcrtcm_g_get_dpms(int pconid, int *state)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.get_dpms &&
+	if (pcon->pim_funcs.get_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_dpms backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.get_dpms(pconid,
+		r = pcon->pim_funcs.get_dpms(pconid,
 			pcon->pcon_cookie, state);
 	} else {
 		VCRTCM_DEBUG("missing get_dpms backend, pcon %i\n",
@@ -805,12 +805,12 @@ int vcrtcm_g_pcon_connected(int pconid, int *status)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.connected &&
+	if (pcon->pim_funcs.connected &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling connected backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.connected(pconid,
+		r = pcon->pim_funcs.connected(pconid,
 			pcon->pcon_cookie, status);
 	} else {
 		VCRTCM_DEBUG("missing connected backend, pcon %i\n",
@@ -875,12 +875,12 @@ int vcrtcm_g_get_modes(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.get_modes &&
+	if (pcon->pim_funcs.get_modes &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_modes backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.get_modes(pconid,
+		r = pcon->pim_funcs.get_modes(pconid,
 			pcon->pcon_cookie, modes, count);
 	} else {
 		VCRTCM_DEBUG("missing get_modes backend, pcon %i\n",
@@ -927,12 +927,12 @@ int vcrtcm_g_check_mode(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.check_mode &&
+	if (pcon->pim_funcs.check_mode &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling check_mode backend, pcon %i\n",
 			     pconid);
-		r = pcon->pcon_funcs.check_mode(pconid,
+		r = pcon->pim_funcs.check_mode(pconid,
 			pcon->pcon_cookie, mode, status);
 	} else {
 		VCRTCM_DEBUG("missing check_mode backend, pcon %i\n",
@@ -975,13 +975,13 @@ int vcrtcm_g_disable(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pcon_funcs.disable &&
+	if (pcon->pim_funcs.disable &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling disable backend, pcon %i\n",
 			pconid);
 
-		pcon->pcon_funcs.disable(pconid,
+		pcon->pim_funcs.disable(pconid,
 					 pcon->pcon_cookie);
 	} else {
 		VCRTCM_DEBUG("missing disable backend, pcon %i\n",

@@ -86,7 +86,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
 	pcon->pim = pim;
 	r = pim->funcs.instantiate(pconid, hints,
 					&pcon->pcon_cookie,
-					&pcon->pcon_funcs,
+					&pcon->pim_funcs,
 					&pcon->xfer_mode,
 					&pcon->minor,
 					&pcon->vblank_slack_jiffies,
@@ -133,12 +133,12 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	}
 	if (pcon->drm_crtc) {
 		vcrtcm_prepare_detach(pcon);
-		if (pcon->pcon_funcs.detach &&
+		if (pcon->pim_funcs.detach &&
 			pcon->pcon_callbacks_enabled &&
 			pcon->pim->callbacks_enabled) {
 			int r;
 
-			r = pcon->pcon_funcs.detach(pcon->pconid,
+			r = pcon->pim_funcs.detach(pcon->pconid,
 							pcon->pcon_cookie);
 			if (r) {
 				vcrtcm_unlock_pconid(pconid);

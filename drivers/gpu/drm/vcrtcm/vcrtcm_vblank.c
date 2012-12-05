@@ -45,10 +45,10 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	if (time_after_eq(now + pcon->vblank_slack_jiffies,
 		pcon->next_vblank_jiffies)) {
 		pcon->next_vblank_jiffies += pcon->vblank_period_jiffies;
-		if (pcon->pcon_funcs.vblank &&
+		if (pcon->pim_funcs.vblank &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled)
-			pcon->pcon_funcs.vblank(pcon->pconid,
+			pcon->pim_funcs.vblank(pcon->pconid,
 				pcon->pcon_cookie);
 	}
 	next_vblank_delay = pcon->next_vblank_jiffies - (int)now;

@@ -56,7 +56,7 @@ struct vcrtcm_push_buffer_descriptor {
 	unsigned long num_pages;
 };
 
-struct vcrtcm_pcon_funcs {
+struct vcrtcm_p_pcon_funcs {
 	/* mutex locked: yes; must be atomic: no */
 	int (*attach)(int pconid, void *cookie);
 
@@ -122,7 +122,7 @@ struct vcrtcm_pim_funcs {
 	 * This function must try to create a new PCON instance.
 	 */
 	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
-		struct vcrtcm_pcon_funcs *funcs,
+		struct vcrtcm_p_pcon_funcs *funcs,
 		enum vcrtcm_xfer_mode *xfer_mode, int *minor,
 		int *vblank_slack, char *description);
 

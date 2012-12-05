@@ -33,8 +33,7 @@ struct vcrtcm_mode;
 struct drm_gem_object;
 struct drm_crtc;
 
-/* functional interface to GPU driver */
-struct vcrtcm_gpu_funcs {
+struct vcrtcm_g_pcon_funcs {
 	/* callback into GPU driver when detach is called */
 	void (*detach)(int pconid, struct drm_crtc *drm_crtc);
 
@@ -65,7 +64,7 @@ struct vcrtcm_gpu_funcs {
  * atomic: unspecified
  */
 int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,
-		  struct vcrtcm_gpu_funcs *gpu_callbacks,
+		  struct vcrtcm_g_pcon_funcs *funcs,
 		  enum vcrtcm_xfer_mode *xfer_mode);
 /*
  * atomic: unspecified
@@ -174,7 +173,7 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr);
  */
 int vcrtcm_g_attach_l(int pconid,
 		  struct drm_crtc *drm_crtc,
-		  struct vcrtcm_gpu_funcs *gpu_callbacks,
+		  struct vcrtcm_g_pcon_funcs *funcs,
 		  enum vcrtcm_xfer_mode *xfer_mode);
 int vcrtcm_g_detach_l(int pconid);
 int vcrtcm_g_set_fb_l(int pconid, struct vcrtcm_fb *fb);
