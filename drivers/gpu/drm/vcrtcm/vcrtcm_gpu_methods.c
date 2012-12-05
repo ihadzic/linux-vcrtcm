@@ -1014,3 +1014,21 @@ int vcrtcm_g_unlock_pconid(int pconid)
 	return vcrtcm_unlock_pconid(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_g_unlock_pconid);
+
+int vcrtcm_g_register(char *gpu_name,
+	struct vcrtcm_gpu_funcs *funcs, int *gpuid)
+{
+	/* gpuid is currently unused */
+	*gpuid = 0;
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_g_register);
+
+/*
+ * atomic: unspecified
+ */
+int vcrtcm_g_unregister(int gpuid)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_g_unregister);

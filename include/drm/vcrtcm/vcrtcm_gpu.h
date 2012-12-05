@@ -32,6 +32,7 @@ struct vcrtcm_fb;
 struct vcrtcm_mode;
 struct drm_gem_object;
 struct drm_crtc;
+struct drm_device;
 
 struct vcrtcm_g_pcon_funcs {
 	/* callback into GPU driver when detach is called */
@@ -52,6 +53,10 @@ struct vcrtcm_g_pcon_funcs {
 	void (*hotplug)(int pconid, struct drm_crtc *drm_crtc);
 };
 
+/* currently empty */
+struct vcrtcm_gpu_funcs {
+};
+
 /*
  * If a function is stated to be atomic, then it is guaranteed
  * to be callable in atomic context.  If its atomicness is
@@ -63,9 +68,20 @@ struct vcrtcm_g_pcon_funcs {
 /*
  * atomic: unspecified
  */
+int vcrtcm_g_register(char *gpu_name,
+	struct vcrtcm_gpu_funcs *funcs, int *gpuid);
+
+/*
+* atomic: unspecified
+*/
+int vcrtcm_g_unregister(int gpuid);
+
+/*
+ * atomic: unspecified
+ */
 int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,
-		  struct vcrtcm_g_pcon_funcs *funcs,
-		  enum vcrtcm_xfer_mode *xfer_mode);
+	struct vcrtcm_g_pcon_funcs *funcs,
+	enum vcrtcm_xfer_mode *xfer_mode);
 /*
  * atomic: unspecified
  */
