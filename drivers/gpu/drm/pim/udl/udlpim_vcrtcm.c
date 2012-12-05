@@ -691,7 +691,7 @@ int udlpim_vblank(int pconid, void *cookie)
 	return r;
 }
 
-struct vcrtcm_pcon_funcs udlpim_vcrtcm_pcon_funcs = {
+struct vcrtcm_p_pcon_funcs udlpim_pcon_funcs = {
 	.attach = udlpim_attach,
 	.detach = udlpim_detach,
 	.set_fb = udlpim_set_fb,
@@ -736,7 +736,7 @@ void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 }
 
 int udlpim_instantiate(int pconid, uint32_t hints,
-	void **cookie, struct vcrtcm_pcon_funcs *funcs,
+	void **cookie, struct vcrtcm_p_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
 	int *vblank_slack, char *description)
 {
@@ -757,7 +757,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 					usbdev->manufacturer,
 					usbdev->product, usbdev->serial);
 			*minornum = -1;
-			*funcs = udlpim_vcrtcm_pcon_funcs;
+			*funcs = udlpim_pcon_funcs;
 			*xfer_mode = VCRTCM_PUSH_PULL;
 			*cookie = minor->pcon;
 			*vblank_slack = udlpim_fake_vblank_slack;
