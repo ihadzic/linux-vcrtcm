@@ -466,22 +466,14 @@ static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
 static struct radeon_crtc
 *display_index_to_radeon_crtc(struct radeon_device *rdev, int display_index)
 {
-	struct radeon_crtc *radeon_crtc;
 	struct virtual_crtc *virtual_crtc;
 
-	radeon_crtc = NULL;
-
-	if (display_index < rdev->num_crtc) {
-		radeon_crtc = rdev->mode_info.crtcs[display_index];
-	}
-
-	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->crtc_id == display_index) {
-			radeon_crtc = virtual_crtc->radeon_crtc;
-			break;
-		}
-	}
-	return radeon_crtc;
+	if (display_index < rdev->num_crtc)
+		return rdev->mode_info.crtcs[display_index];
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, display_index);
+	if (virtual_crtc)
+		return virtual_crtc->radeon_crtc;
+	return NULL;
 }
 
 static inline int radeon_vcrtcm_g_set_fps(struct radeon_crtc *radeon_crtc,

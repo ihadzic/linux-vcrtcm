@@ -507,25 +507,18 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct virtual_crtc *virtual_crtc;
-	int ret;
 
 	if (crtc < 0 || crtc >= rdev->num_crtc+rdev->num_virtual_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
-
 	if (crtc >= rdev->num_crtc) {
-		ret = 0;
-		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				ret = virtual_crtc->radeon_crtc->emulated_vblank_counter;
-				break;
-			}
-		}
-	} else
-		ret = radeon_get_vblank_counter(rdev, crtc);
-
-	return ret;
+		virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+		if (virtual_crtc)
+			return virtual_crtc->radeon_crtc->emulated_vblank_counter;
+		return 0;
+	}
+	return radeon_get_vblank_counter(rdev, crtc);
 }
 
 /**
@@ -550,12 +543,10 @@ int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 
 	if (crtc >= rdev->num_crtc) {
 		struct virtual_crtc *virtual_crtc;
-		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				DRM_DEBUG("vblank enabled for virtual crtc_id %d\n", crtc);
-				virtual_crtc->radeon_crtc->vblank_emulation_enabled = true;
-				break;
-			}
+		virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+		if (virtual_crtc) {
+			DRM_DEBUG("vblank enabled for virtual crtc_id %d\n", crtc);
+			virtual_crtc->radeon_crtc->vblank_emulation_enabled = true;
 		}
 		return 0;
 	} else {
@@ -588,12 +579,10 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 
 	if (crtc >= rdev->num_crtc) {
 		struct virtual_crtc *virtual_crtc;
-		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				DRM_DEBUG("vblank disabled for virtual crtc_id %d\n", crtc);
-				virtual_crtc->radeon_crtc->vblank_emulation_enabled = false;
-				break;
-			}
+		virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+		if (virtual_crtc) {
+			DRM_DEBUG("vblank disabled for virtual crtc_id %d\n", crtc);
+			virtual_crtc->radeon_crtc->vblank_emulation_enabled = false;
 		}
 	} else {
 		DRM_DEBUG("vblank disabled for physical crtc_id %d\n", crtc);

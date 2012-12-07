@@ -39,6 +39,21 @@
 struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector);
 void radeon_connector_destroy(struct drm_connector *connector);
 
+/*
+ * returns the virtual_crtc with a given id
+ */
+struct virtual_crtc *radeon_virtual_crtc_lookup(struct radeon_device *rdev,
+	int crtc_id)
+{
+	struct virtual_crtc *ret;
+
+	list_for_each_entry(ret, &rdev->mode_info.virtual_crtcs, list) {
+		if (ret->radeon_crtc->crtc_id == crtc_id)
+			return ret;
+	}
+	return NULL;
+}
+
 /* utility function for finding a virtual CRTC given a virtual connector
  * mapping between virtual crtcs and connectors must be 1:1:1, which
  * is always true for virtual CRTCs
@@ -76,11 +91,9 @@ static struct radeon_crtc
 		WARN_ON(1);
 		return NULL;
 	}
-	list_for_each_entry(virtual_crtc,
-			    &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->crtc_id == crtc)
-			return virtual_crtc->radeon_crtc;
-	}
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+	if (virtual_crtc)
+		return virtual_crtc->radeon_crtc;
 	return NULL;
 }
 
@@ -526,13 +539,11 @@ static void radeon_virtual_crtc_pre_page_flip(struct radeon_device *rdev, int cr
 
 	if (crtc >= rdev->num_crtc) {
 		struct virtual_crtc *virtual_crtc;
-		list_for_each_entry(virtual_crtc,
-				    &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				DRM_DEBUG("pflip emulation enabled for virtual crtc_id %d\n", crtc);
-				virtual_crtc->radeon_crtc->pflip_emulation_enabled = true;
-				break;
-			}
+
+		virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+		if (virtual_crtc) {
+			DRM_DEBUG("pflip emulation enabled for virtual crtc_id %d\n", crtc);
+			virtual_crtc->radeon_crtc->pflip_emulation_enabled = true;
 		}
 	} else {
 		DRM_ERROR("virtual pflip requested on physical crtc\n");
@@ -548,13 +559,11 @@ static void radeon_virtual_crtc_post_page_flip(struct radeon_device *rdev, int c
 
 	if (crtc >= rdev->num_crtc) {
 		struct virtual_crtc *virtual_crtc;
-		list_for_each_entry(virtual_crtc,
-				    &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				DRM_DEBUG("pflip emulation disabled for virtual crtc_id %d\n", crtc);
-				virtual_crtc->radeon_crtc->pflip_emulation_enabled = false;
-				break;
-			}
+
+		virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+		if (virtual_crtc) {
+			DRM_DEBUG("pflip emulation disabled for virtual crtc_id %d\n", crtc);
+			virtual_crtc->radeon_crtc->pflip_emulation_enabled = false;
 		}
 	} else {
 		DRM_ERROR("radeon_virtual_crtc_post_page_flip called on physical crtc\n");
@@ -702,17 +711,12 @@ void radeon_virtual_crtc_handle_flip(struct radeon_device *rdev, int crtc)
 		DRM_ERROR("not supposed to be here for (physical) crtc %d\n", crtc);
 		return;
 	}
-	list_for_each_entry(virtual_crtc,
-			    &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-			radeon_crtc = virtual_crtc->radeon_crtc;
-			break;
-		}
-	}
-	if (!radeon_crtc) {
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+	if (!virtual_crtc) {
 		DRM_ERROR("crtc not found\n");
 		return;
 	}
+	radeon_crtc = virtual_crtc->radeon_crtc;
 	DRM_DEBUG("performing page flip on virtual crtc %d\n", crtc);
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	work = radeon_crtc->unpin_work;
@@ -1089,7 +1093,7 @@ static void radeon_virtual_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
-	struct virtual_crtc *virtual_crtc, *tmp;
+	struct virtual_crtc *virtual_crtc;
 
 	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
 
@@ -1099,20 +1103,17 @@ static void radeon_virtual_crtc_destroy(struct drm_crtc *crtc)
 	 */
 	radeon_vcrtcm_detach(radeon_crtc);
 
-	list_for_each_entry_safe(virtual_crtc, tmp,
-				 &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc == radeon_crtc) {
-			DRM_DEBUG("found virtual crtc that should be removed\n");
-			list_del(&virtual_crtc->list);
-			kfree(virtual_crtc);
-			if (rdev->num_virtual_crtc != 0)
-				rdev->num_virtual_crtc--;
-			else
-				DRM_ERROR("num_virtual_crtc corrupted, "
-					  "but can't do anything about it\n");
-		}
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, radeon_crtc->crtc_id);
+	if (virtual_crtc) {
+		DRM_DEBUG("found virtual crtc that should be removed\n");
+		list_del(&virtual_crtc->list);
+		kfree(virtual_crtc);
+		if (rdev->num_virtual_crtc != 0)
+			rdev->num_virtual_crtc--;
+		else
+			DRM_ERROR("num_virtual_crtc corrupted, "
+				  "but can't do anything about it\n");
 	}
-
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);
 }
@@ -1234,35 +1235,33 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	int r;
 
 	DRM_DEBUG("crtc %d is virtual\n", crtc);
-	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-			if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
-				/* max_error is 1000 ns  because that is the granularity */
-				/* of gettimeofday when it snapshot in emulate_vblank */
-				*max_error = 1000;
-				r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon,
-							   vblank_time);
-				if (r)
-					return r;
-				r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon,
-							 &vblank_status);
-				if (r)
-					return r;
-				DRM_DEBUG("last vblank time: %u sec %u usec\n",
-					  (unsigned int)vblank_time->tv_sec,
-					  (unsigned int)vblank_time->tv_usec);
-				if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
-					DRM_DEBUG("not in vblank interval\n");
-					return 0;
-				} else {
-					DRM_DEBUG("in vblank interval\n");
-					return DRM_VBLANKTIME_INVBL;
-				}
-			} else {
-				DRM_DEBUG("no hal on crtc %d\n", crtc);
-				return -ENOTSUPP;
-			}
-		}
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
+	if (!virtual_crtc || !virtual_crtc->radeon_crtc)
+		return -ENOTSUPP;
+	if (!virtual_crtc->radeon_crtc->vcrtcm_pcon) {
+		DRM_DEBUG("no pcon on crtc %d\n", crtc);
+		return -ENOTSUPP;
 	}
-	return -ENOTSUPP;
+	/*
+	 * max_error is 1000 ns  because that is the granularity
+	 * of gettimeofday when it snapshot in emulate_vblank
+	 */
+	*max_error = 1000;
+	r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon,
+				   vblank_time);
+	if (r)
+		return r;
+	r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon,
+				 &vblank_status);
+	if (r)
+		return r;
+	DRM_DEBUG("last vblank time: %u sec %u usec\n",
+		  (unsigned int)vblank_time->tv_sec,
+		  (unsigned int)vblank_time->tv_usec);
+	if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
+		DRM_DEBUG("not in vblank interval\n");
+		return 0;
+	}
+	DRM_DEBUG("in vblank interval\n");
+	return DRM_VBLANKTIME_INVBL;
 }
