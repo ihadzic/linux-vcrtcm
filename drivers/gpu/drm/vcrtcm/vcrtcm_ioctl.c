@@ -112,6 +112,10 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
  */
 static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 {
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
+		return -EINVAL;
+	}
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
 	if (!pcon->drm_crtc)
@@ -153,6 +157,10 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	if (!pcon) {
 		vcrtcm_unlock_pconid(pconid);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -EINVAL;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
 	if (!pcon->pim->callbacks_enabled) {
