@@ -26,6 +26,14 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 
+/*
+ * A pcon.  This struct is created when the pcon is created via
+ * the user-space "instantiate" ioctl and freed when the pcon is
+ * destroyed either by the user-space "destroy" ioctl or by the
+ * pim itself.  Neither the gpu driver nor the pim has access to
+ * this struct; the gpu driver and pim manipulate pcons via the
+ * vcrtcm api using pcon ids.
+ */
 struct vcrtcm_pcon {
 	char description[PCON_DESC_MAXLEN];
 	struct vcrtcm_pim *pim;

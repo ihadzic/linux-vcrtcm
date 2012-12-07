@@ -288,12 +288,11 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 	struct vcrtcm_pcon *pcon;
 
 	/*
-	* NB: because this function is callable in atomic context,
-	* the caller does not have to lock the mutex.
+	* NB: this function does not require that the mutex be locked,
+	* because this function is intended to be called from an isr
 	*
 	* vcrtcm_check_mutex(__func__, pconid);
 	*/
-
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
