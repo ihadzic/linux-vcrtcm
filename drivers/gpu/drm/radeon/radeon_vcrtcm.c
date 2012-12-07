@@ -27,8 +27,12 @@
 #include "radeon_virtual_crtc.h"
 #include "radeon_vcrtcm_kernel.h"
 
-/* note: intended to be called from ISR (atomic context), so
-   no mutex/semaphore holding allowed */
+/*
+ * NB: This function is called in atomic context.  Hence, it must
+ * call the *nonlocking* variant of vcrtcm_g_page_flip().  That
+ * vcrtcm function is specially implemented to allow calls to the
+ * nonlocking variant even when the pcon is not already locked.
+ */
 int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 			    uint64_t fb_location)
 {
@@ -90,7 +94,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			vcrtcm_fb.viewport_y = 0;
 		vcrtcm_fb.hdisplay = crtc->mode.hdisplay;
 		vcrtcm_fb.vdisplay = crtc->mode.vdisplay;
-		return vcrtcm_g_set_fb(radeon_crtc->vcrtcm_pcon, &vcrtcm_fb);
+		return vcrtcm_g_set_fb_l(radeon_crtc->vcrtcm_pcon, &vcrtcm_fb);
 	}
 	return 0;
 }
@@ -111,7 +115,7 @@ int radeon_vcrtcm_wait(struct radeon_device *rdev)
 	/* first wait for all real CRTCs */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		if (rdev->mode_info.crtcs[i]->vcrtcm_pcon) {
-			r = vcrtcm_g_wait_fb(rdev->mode_info.crtcs[i]->
+			r = vcrtcm_g_wait_fb_l(rdev->mode_info.crtcs[i]->
 					   vcrtcm_pcon);
 			if (r)
 				return r;
@@ -121,7 +125,7 @@ int radeon_vcrtcm_wait(struct radeon_device *rdev)
 	/* now do the same kind of wait for all virtual CRTCs */
 	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 		if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
-			r = vcrtcm_g_wait_fb(virtual_crtc->radeon_crtc->
+			r = vcrtcm_g_wait_fb_l(virtual_crtc->radeon_crtc->
 					   vcrtcm_pcon);
 			if (r)
 				return r;
@@ -150,13 +154,13 @@ void radeon_vcrtcm_xmit(struct radeon_device *rdev)
 	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc = rdev->mode_info.crtcs[i];
 		if ((radeon_crtc->vcrtcm_pcon) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
+			vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon);
 	}
 
 	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
 		radeon_crtc = virtual_crtc->radeon_crtc;
 		if ((radeon_crtc->vcrtcm_pcon) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
+			vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon);
 	}
 }
 
@@ -217,6 +221,11 @@ static void radeon_wait_fb_callback(struct drm_crtc *crtc)
 	}
 }
 
+/*
+ * NB: This function is a vcrtcm-registered callback.  Because vcrtcm
+ * always calls callbacks with the pcon already locked, this function
+ * must call the *nonlocking* variants of the vcrtcm api functions.
+ */
 static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_fb,
 			      struct drm_gem_object *dbuf_cursor)
@@ -341,7 +350,7 @@ struct vcrtcm_gpu_funcs virtual_crtc_gpu_funcs = {
 	.hotplug = radeon_vcrtcm_hotplug
 };
 
-static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
+static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 					int pconid)
 {
 	int r;
@@ -353,11 +362,11 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 		return -EBUSY;
 
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
-		r = vcrtcm_g_attach(pconid, crtc,
+		r = vcrtcm_g_attach_l(pconid, crtc,
 				  &physical_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_pcon);
 	else
-		r = vcrtcm_g_attach(pconid, crtc,
+		r = vcrtcm_g_attach_l(pconid, crtc,
 				  &virtual_crtc_gpu_funcs,
 				  &radeon_crtc->vcrtcm_pcon);
 
@@ -377,7 +386,7 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
 						    crtc->y, 1);
 		if (r) {
-			vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
+			vcrtcm_g_detach_l(radeon_crtc->vcrtcm_pcon);
 			return r;
 		}
 		/* we also need to set the cursor */
@@ -407,7 +416,7 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 			rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
 			r = radeon_bo_reserve(rbo, false);
 			if (unlikely(r)) {
-				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
+				vcrtcm_g_detach_l(radeon_crtc->vcrtcm_pcon);
 				return r;
 			}
 			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
@@ -415,22 +424,22 @@ static int radeon_vcrtcm_g_attach(struct radeon_crtc *radeon_crtc,
 
 			vcrtcm_cursor.ioaddr =
 				rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
-			DRM_INFO("radeon_vcrtcm_g_attach: cursor i/o address 0x%08x\n",
+			DRM_INFO("radeon_vcrtcm_attach: cursor i/o address 0x%08x\n",
 				 vcrtcm_cursor.ioaddr);
-			r = vcrtcm_g_set_cursor(radeon_crtc->vcrtcm_pcon,
+			r = vcrtcm_g_set_cursor_l(radeon_crtc->vcrtcm_pcon,
 					      &vcrtcm_cursor);
 			if (r) {
-				vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
+				vcrtcm_g_detach_l(radeon_crtc->vcrtcm_pcon);
 				return r;
 			}
 		}
 	}
 	/* and we need to update the DPMS state */
 	if (radeon_crtc->enabled)
-		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon,
+		vcrtcm_g_set_dpms_l(radeon_crtc->vcrtcm_pcon,
 				VCRTCM_DPMS_STATE_ON);
 	else
-		vcrtcm_g_set_dpms(radeon_crtc->vcrtcm_pcon,
+		vcrtcm_g_set_dpms_l(radeon_crtc->vcrtcm_pcon,
 				VCRTCM_DPMS_STATE_OFF);
 
 	if (radeon_crtc->crtc_id >= rdev->num_crtc)
@@ -448,7 +457,7 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 	int r = -EINVAL;
 
 	if (radeon_crtc->vcrtcm_pcon) {
-		r = vcrtcm_g_detach(radeon_crtc->vcrtcm_pcon);
+		r = vcrtcm_g_detach_l(radeon_crtc->vcrtcm_pcon);
 		if (radeon_crtc->crtc_id >= rdev->num_crtc)
 			schedule_work(&rdev->hotplug_work);
 	}
@@ -458,7 +467,7 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
 {
 	if (radeon_crtc->vcrtcm_pcon)
-		return vcrtcm_g_dirty_fb(radeon_crtc->vcrtcm_pcon);
+		return vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon);
 	else
 		return -EINVAL;
 }
@@ -476,11 +485,11 @@ static struct radeon_crtc
 	return NULL;
 }
 
-static inline int radeon_vcrtcm_g_set_fps(struct radeon_crtc *radeon_crtc,
+static inline int radeon_vcrtcm_set_fps(struct radeon_crtc *radeon_crtc,
 					int fps)
 {
 	if (radeon_crtc->vcrtcm_pcon)
-		return vcrtcm_g_set_fps(radeon_crtc->vcrtcm_pcon, fps);
+		return vcrtcm_g_set_fps_l(radeon_crtc->vcrtcm_pcon, fps);
 	else
 		return -EINVAL;
 }
@@ -525,13 +534,13 @@ int radeon_vcrtcm_ioctl(struct drm_device *dev,
 
 	case RADEON_VCRTCM_CTL_OP_CODE_SET_RATE:
 		DRM_DEBUG("set fps\n");
-		r = radeon_vcrtcm_g_set_fps(radeon_crtc,
+		r = radeon_vcrtcm_set_fps(radeon_crtc,
 					  rvcd->arg1.fps);
 		break;
 
 	case RADEON_VCRTCM_CTL_OP_CODE_ATTACH:
 		DRM_DEBUG("attach\n");
-		r = radeon_vcrtcm_g_attach(radeon_crtc,
+		r = radeon_vcrtcm_attach(radeon_crtc,
 					 rvcd->arg1.pconid);
 		break;
 
