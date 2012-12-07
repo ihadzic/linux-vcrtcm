@@ -48,6 +48,10 @@ int vcrtcm_g_attach(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -EINVAL;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->drm_crtc) {
 		VCRTCM_ERROR("pcon %i already attached to crtc_drm %p\n",
 			     pconid, drm_crtc);
@@ -116,6 +120,10 @@ int vcrtcm_g_detach(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (!pcon->drm_crtc) {
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
@@ -178,6 +186,10 @@ int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -222,6 +234,10 @@ int vcrtcm_g_get_fb(int pconid,
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.get_fb &&
 		pcon->pcon_callbacks_enabled &&
@@ -283,6 +299,10 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	if (pcon->being_destroyed)
 		r = -ENODEV;
@@ -318,6 +338,10 @@ int vcrtcm_g_dirty_fb(int pconid)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
@@ -365,6 +389,10 @@ int vcrtcm_g_wait_fb(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.wait_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -403,6 +431,10 @@ int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.get_fb_status &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -430,6 +462,10 @@ int vcrtcm_g_set_fps(int pconid, int fps)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (fps <= 0) {
 		cancel_delayed_work_sync(&pcon->vblank_work);
@@ -486,6 +522,10 @@ int vcrtcm_g_get_fps(int pconid, int *fps)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	*fps = pcon->fps;
 	return 0;
 }
@@ -524,6 +564,10 @@ int vcrtcm_g_set_cursor(int pconid,
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
@@ -571,6 +615,10 @@ int vcrtcm_g_get_cursor(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.set_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -612,6 +660,10 @@ int vcrtcm_g_set_dpms(int pconid, int state)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.set_dpms &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -651,6 +703,10 @@ int vcrtcm_g_get_dpms(int pconid, int *state)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.get_dpms &&
 		pcon->pcon_callbacks_enabled &&
@@ -692,6 +748,10 @@ int vcrtcm_g_get_vblank_time(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (!pcon->vblank_time_valid)
 		return -EAGAIN;
 	*vblank_time = pcon->vblank_time;
@@ -713,6 +773,10 @@ int vcrtcm_g_set_vblank_time(int pconid)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
@@ -736,6 +800,10 @@ int vcrtcm_g_pcon_connected(int pconid, int *status)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.connected &&
 		pcon->pcon_callbacks_enabled &&
@@ -803,6 +871,10 @@ int vcrtcm_g_get_modes(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.get_modes &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -851,6 +923,10 @@ int vcrtcm_g_check_mode(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->pcon_funcs.check_mode &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -894,6 +970,10 @@ int vcrtcm_g_disable(int pconid)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (pcon->pcon_funcs.disable &&
 		pcon->pcon_callbacks_enabled &&
