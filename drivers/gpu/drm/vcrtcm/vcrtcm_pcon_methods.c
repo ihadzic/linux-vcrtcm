@@ -173,6 +173,10 @@ int vcrtcm_p_register_prime(int pconid,
 		r = -ENODEV;
 		goto out_err0;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
 		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
@@ -236,6 +240,7 @@ int vcrtcm_p_unregister_prime(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	/* this function is legal to call on a pcon that is being destroyed */
 	if (!obj) {
 		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
 		return -ENODEV;
@@ -287,7 +292,8 @@ int vcrtcm_p_wait_fb(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
-	VCRTCM_INFO("waiting for GPU pcon %i\n", pconid);
+	/* this function is legal to call on a pcon that is being destroyed */
+	VCRTCM_INFO("waiting for GPU pcon 0x%08x\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
 		pcon->gpu_funcs.wait_fb(pcon->pconid, pcon->drm_crtc);
@@ -315,6 +321,10 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
 	}
 	if (!pcon->drm_crtc)
 		return -EINVAL;
@@ -350,6 +360,10 @@ int vcrtcm_p_push(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	crtc = pcon->drm_crtc;
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
@@ -384,6 +398,10 @@ int vcrtcm_p_hotplug(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
 		pcon->gpu_funcs.hotplug(pcon->pconid, crtc);
@@ -410,6 +428,7 @@ int vcrtcm_p_free_pb(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	/* this function is legal to call on a pcon that is being destroyed */
 	if (pbd) {
 		int r;
 
@@ -464,6 +483,11 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		r = -ENODEV;
+		goto out_err0;
+	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		r = -EINVAL;
 		goto out_err0;
 	}
 	pbd = vcrtcm_kzalloc(sizeof(struct vcrtcm_push_buffer_descriptor),
@@ -530,6 +554,10 @@ vcrtcm_p_realloc_pb(int pconid,
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return NULL;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return NULL;
+	}
 	if (npages == 0) {
 		VCRTCM_DEBUG("zero size requested\n");
 		vcrtcm_p_free_pb(pconid, pbd);
@@ -579,6 +607,10 @@ int vcrtcm_p_detach(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	do_vcrtcm_p_detach(pcon, 1);
 	return 0;
 }
@@ -610,6 +642,10 @@ int vcrtcm_p_destroy(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (pcon->being_destroyed) {
+		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pconid);
+		return -EINVAL;
+	}
 	do_vcrtcm_p_destroy(pcon, 1);
 	return 0;
 }
@@ -626,6 +662,7 @@ int vcrtcm_p_disable_callbacks(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	/* this function is legal to call on a pcon that is being destroyed */
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
 	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
@@ -643,6 +680,7 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	/* this function is legal to call on a pcon that is being destroyed */
 	pcon->log_alloc_cnts = on;
 	return 0;
 }
