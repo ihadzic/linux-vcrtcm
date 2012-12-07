@@ -37,7 +37,7 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	unsigned long now;
 
 	vcrtcm_lock_pconid(pcon->pconid);
-	if (pcon->vblank_period_jiffies == 0) {
+	if (pcon->being_destroyed || pcon->vblank_period_jiffies == 0) {
 		vcrtcm_unlock_pconid(pcon->pconid);
 		return;
 	}
