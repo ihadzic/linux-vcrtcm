@@ -625,56 +625,23 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	struct drm_crtc *drmcrtc;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= rdev->num_crtc + rdev->num_virtual_crtc) {
+	/* it's a virtual CRTC, do all the work in a separate function */
+	if (crtc >= rdev->num_crtc && crtc < dev->num_crtcs)
+		return radeon_virtual_crtc_get_vblank_timestamp_kms(dev, crtc,
+				    max_error, vblank_time, flags);
+
+	if (crtc < 0 || crtc >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
 
-	if (crtc >= rdev->num_crtc) {
-		struct virtual_crtc *virtual_crtc;
-		int r;
-		u32 vblank_status;
-		DRM_DEBUG("crtc %d is virtual\n", crtc);
-		list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-			if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
-				if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
-					/* max_error is 1000 ns  because that is the granularity */
-					/* of gettimeofday when it snapshot in emulate_vblank */
-					*max_error = 1000;
-					r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon,
-								   vblank_time);
-					if (r)
-						return r;
-					r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon,
-								 &vblank_status);
-					if (r)
-						return r;
-					DRM_DEBUG("last vblank time: %u sec %u usec\n",
-						  (unsigned int)vblank_time->tv_sec,
-						  (unsigned int)vblank_time->tv_usec);
-					if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
-						DRM_DEBUG("not in vblank interval\n");
-						return 0;
-					} else {
-						DRM_DEBUG("in vblank interval\n");
-						return DRM_VBLANKTIME_INVBL;
-					}
-				} else {
-					DRM_DEBUG("no hal on crtc %d\n", crtc);
-					return -ENOTSUPP;
-				}
-			}
-		}
-		return -ENOTSUPP;
-	} else {
-		/* Get associated drm_crtc: */
-		drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
+	/* Get associated drm_crtc: */
+	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
 
-		/* Helper routine in DRM core does all the work: */
-		return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
-							     vblank_time, flags,
-							     drmcrtc);
-	}
+	/* Helper routine in DRM core does all the work: */
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+						     vblank_time, flags,
+						     drmcrtc);
 }
 
 /*

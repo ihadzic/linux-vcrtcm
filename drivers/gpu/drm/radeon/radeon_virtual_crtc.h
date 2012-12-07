@@ -50,4 +50,9 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 				       uint64_t cursor_gpuaddr);
 void radeon_emulate_vblank_core(struct radeon_device *rdev,
 				struct radeon_crtc *radeon_crtc);
+int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+					int *max_error,
+					struct timeval *vblank_time,
+					unsigned flags);
+
 #endif

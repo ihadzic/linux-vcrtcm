@@ -1223,3 +1223,46 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 	DRM_INFO("created virtual crtc radeon_crtc_id %d, drm_crtc_id %d\n",
 		 radeon_crtc->crtc_id, radeon_crtc->base.base.id);
 }
+
+int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
+	int crtc, int *max_error, struct timeval *vblank_time,
+	unsigned flags)
+{
+	struct radeon_device *rdev = dev->dev_private;
+	struct virtual_crtc *virtual_crtc;
+	u32 vblank_status;
+	int r;
+
+	DRM_DEBUG("crtc %d is virtual\n", crtc);
+	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
+		if (virtual_crtc->radeon_crtc->crtc_id == crtc) {
+			if (virtual_crtc->radeon_crtc->vcrtcm_pcon) {
+				/* max_error is 1000 ns  because that is the granularity */
+				/* of gettimeofday when it snapshot in emulate_vblank */
+				*max_error = 1000;
+				r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon,
+							   vblank_time);
+				if (r)
+					return r;
+				r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon,
+							 &vblank_status);
+				if (r)
+					return r;
+				DRM_DEBUG("last vblank time: %u sec %u usec\n",
+					  (unsigned int)vblank_time->tv_sec,
+					  (unsigned int)vblank_time->tv_usec);
+				if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
+					DRM_DEBUG("not in vblank interval\n");
+					return 0;
+				} else {
+					DRM_DEBUG("in vblank interval\n");
+					return DRM_VBLANKTIME_INVBL;
+				}
+			} else {
+				DRM_DEBUG("no hal on crtc %d\n", crtc);
+				return -ENOTSUPP;
+			}
+		}
+	}
+	return -ENOTSUPP;
+}
