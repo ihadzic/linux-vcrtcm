@@ -738,10 +738,14 @@ EXPORT_SYMBOL(vcrtcm_p_detach_l);
 
 int vcrtcm_p_destroy(int pconid)
 {
+	spinlock_t *page_flip_spinlock;
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
 	vcrtcm_check_mutex(__func__, pconid);
+	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	if (!page_flip_spinlock)
+		return -EINVAL;
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
@@ -758,9 +762,9 @@ int vcrtcm_p_destroy(int pconid)
 		pcon->drm_crtc = NULL;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
-	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
+	spin_lock_irqsave(page_flip_spinlock, flags);
 	pcon->being_destroyed = 1;
-	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
+	spin_unlock_irqrestore(page_flip_spinlock, flags);
 	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
@@ -782,6 +786,7 @@ int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
+	spinlock_t *page_flip_spinlock;
 
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
@@ -790,9 +795,11 @@ int vcrtcm_p_disable_callbacks(int pconid)
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
-	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
+	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	BUG_ON(!page_flip_spinlock);
+	spin_lock_irqsave(page_flip_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
-	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
+	spin_unlock_irqrestore(page_flip_spinlock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);

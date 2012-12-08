@@ -34,6 +34,7 @@
 #include "vcrtcm_pcon.h"
 
 struct pconid_table_entry {
+	spinlock_t page_flip_spinlock;
 	struct mutex mutex;
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	int in_mutex;
@@ -53,6 +54,7 @@ void init_pcon_table(void)
 	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
 		struct pconid_table_entry *entry = &pconid_table[k];
 
+		spin_lock_init(&entry->page_flip_spinlock);
 		mutex_init(&entry->mutex);
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 		entry->in_mutex = 0;
@@ -81,7 +83,6 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			pcon->minor = -1;
 			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
-			spin_lock_init(&pcon->page_flip_spinlock);
 			INIT_DELAYED_WORK(&pcon->vblank_work,
 				vcrtcm_vblank_work_fcn);
 			entry->pcon = pcon;
@@ -135,6 +136,19 @@ struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 	if (!ret)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 	return ret;
+}
+
+spinlock_t *vcrtcm_get_pconid_spinlock(int pconid)
+{
+	struct pconid_table_entry *entry;
+
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
+		dump_stack();
+		return NULL;
+	}
+	entry = &pconid_table[pconid];
+	return &entry->page_flip_spinlock;
 }
 
 int vcrtcm_lock_pconid(int pconid)

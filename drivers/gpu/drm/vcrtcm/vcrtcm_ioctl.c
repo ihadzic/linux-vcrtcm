@@ -113,6 +113,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	void *cookie;
 	struct vcrtcm_pim_funcs funcs;
 	unsigned long flags;
+	spinlock_t *page_flip_spinlock;
 
 	if (vcrtcm_lock_pconid(pconid))
 		return -EINVAL;
@@ -152,17 +153,20 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		pcon->drm_crtc = NULL;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
-	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
+	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	BUG_ON(!page_flip_spinlock);
+	spin_lock_irqsave(page_flip_spinlock, flags);
 	pcon->being_destroyed = 1;
-	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
+	spin_unlock_irqrestore(page_flip_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
 	/*
-	* NB: destroy() and page_flip() are the only callbacks
-	* for which the lock is not held
-	*/
+	 * NB: destroy() and page_flip() are the only callbacks
+	 * for which the mutex is not held
+	 */
 	vcrtcm_unlock_pconid(pconid);
-	/* NB: must tell pim to destroy pcon before destroying it myself,
+	/*
+	 * NB: must tell pim to destroy pcon before destroying it myself,
 	 * to give the pcon a chance to returns its allocated buffers
 	 */
 	if (funcs.destroy)

@@ -46,7 +46,6 @@ struct vcrtcm_pcon {
 	int minor; /* -1 if pcon has no user-accessible minor */
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
-	spinlock_t page_flip_spinlock;
 	int being_destroyed;
 	/* records the time when last (emulated) vblank occurred */
 	struct timeval vblank_time;

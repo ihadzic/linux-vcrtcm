@@ -32,20 +32,25 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim);
 void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon);
 
 /*
-* locks the pconid, regardless of whether a pcon with that id currently exists.
-*/
+ * locks the pconid, regardless of whether a pcon with that id currently exists.
+ */
 int vcrtcm_lock_pconid(int pconid);
 
 /*
-* unlocks the pconid, regardless of whether a pcon with that id
-* currently exists.
-*/
+ * unlocks the pconid, regardless of whether a pcon with that id
+ * currently exists.
+ */
 int vcrtcm_unlock_pconid(int pconid);
 
 /*
-* retrieves the pcon with the given id.  does not do any locking.
-*/
+ * retrieves the pcon with the given id.  does not do any locking.
+ */
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
+
+/*
+ * retrieves the spin lock associated with the pconid
+ */
+spinlock_t *vcrtcm_get_pconid_spinlock(int pconid);
 
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 void vcrtcm_check_mutex(const char *func, int pconid);
