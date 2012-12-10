@@ -76,47 +76,17 @@ module_init(vcrtcm_init);
 
 static void __exit vcrtcm_exit(void)
 {
-	int pconid;
-
 	VCRTCM_INFO("unloading module");
-	vcrtcm_free_pims();
+	BUG_ON(vcrtcm_num_pims() > 0);
+	BUG_ON(vcrtcm_num_pcons() > 0);
 	if (vcrtcm_class)
 		device_destroy(vcrtcm_class, vcrtcm_dev);
 	if (vcrtcm_cdev)
 		cdev_del(vcrtcm_cdev);
 	unregister_chrdev_region(vcrtcm_dev, 1);
-
-	/*
-	 * any remaining virtual CRTC must now be detached and destroyed
-	 * even if the PCONs have not explicitly given them up
-	 */
-	for (pconid = 0; pconid < MAX_NUM_PCONIDS; ++pconid) {
-		struct vcrtcm_pcon *pcon;
-
-		pcon = vcrtcm_get_pcon(pconid);
-		if (pcon) {
-			int pconid = pcon->pconid;
-
-			vcrtcm_lock_pconid(pconid);
-			VCRTCM_INFO("removing pcon %u\n", pconid);
-			if (pcon->drm_crtc) {
-				VCRTCM_INFO("pcon in use by CRTC %p, forcing detach\n",
-						pcon->drm_crtc);
-				if (pcon->pim_funcs.detach &&
-					pcon->pcon_callbacks_enabled &&
-					pcon->pim->callbacks_enabled)
-					pcon->pim_funcs.detach(pconid,
-						pcon->pcon_cookie);
-				if (pcon->gpu_funcs.detach)
-					pcon->gpu_funcs.detach(pconid,
-						pcon->drm_crtc);
-			}
-			vcrtcm_dealloc_pcon(pcon);
-			vcrtcm_unlock_pconid(pconid);
-		}
-	}
 	if (vcrtcm_class)
 		class_destroy(vcrtcm_class);
+	VCRTCM_INFO("module exiting");
 }
 
 static const struct file_operations vcrtcm_fops = {

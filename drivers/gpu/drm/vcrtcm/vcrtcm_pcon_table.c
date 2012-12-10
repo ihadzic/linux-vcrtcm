@@ -45,6 +45,7 @@ struct pconid_table_entry {
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
+static int num_pcons;
 static DEFINE_SPINLOCK(pconid_table_spinlock);
 
 void init_pcon_table(void)
@@ -61,6 +62,17 @@ void init_pcon_table(void)
 		spin_lock_init(&entry->mutex_owner_spinlock);
 #endif
 	}
+}
+
+int vcrtcm_num_pcons(void)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
+	ret = num_pcons;
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+	return ret;
 }
 
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
@@ -86,6 +98,7 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 			INIT_DELAYED_WORK(&pcon->vblank_work,
 				vcrtcm_vblank_work_fcn);
 			entry->pcon = pcon;
+			++num_pcons;
 			spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 			return pcon;
 		}
@@ -116,6 +129,7 @@ void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 			"%d of which were page allocations\n",
 			pcon->pconid, pcon->pim->name, cnt, page_cnt);
 	entry->pcon = NULL;
+	--num_pcons;
 	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 	vcrtcm_kfree(pcon);
 }

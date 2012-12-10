@@ -32,6 +32,7 @@
 static int next_pimid;
 static LIST_HEAD(pim_list);
 static DEFINE_MUTEX(pim_list_mutex);
+static int num_pims;
 
 struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	struct vcrtcm_pim_funcs *funcs)
@@ -63,8 +64,19 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	pim->log_alloc_bugs = 1;
 	next_pimid++;
 	list_add_tail(&pim->pim_list, &pim_list);
+	++num_pims;
 	mutex_unlock(&pim_list_mutex);
 	return pim;
+}
+
+int vcrtcm_num_pims(void)
+{
+	int ret;
+
+	mutex_lock(&pim_list_mutex);
+	ret = num_pims;
+	mutex_unlock(&pim_list_mutex);
+	return ret;
 }
 
 struct vcrtcm_pim *vcrtcm_get_pim(int pimid)
@@ -98,17 +110,6 @@ void vcrtcm_destroy_pim(struct vcrtcm_pim *pim)
 			pim->name, cnt, page_cnt);
 	list_del(&pim->pim_list);
 	vcrtcm_kfree(pim);
-	mutex_unlock(&pim_list_mutex);
-}
-
-void vcrtcm_free_pims()
-{
-	struct vcrtcm_pim *pim, *pim_tmp;
-
-	mutex_lock(&pim_list_mutex);
-	list_for_each_entry_safe(pim, pim_tmp, &pim_list, pim_list) {
-		list_del(&pim->pim_list);
-		vcrtcm_kfree(pim);
-	}
+	--num_pims;
 	mutex_unlock(&pim_list_mutex);
 }
