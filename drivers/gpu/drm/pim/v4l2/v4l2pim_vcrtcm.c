@@ -204,9 +204,7 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 		w = pcon->vcrtcm_fb.hdisplay;
 		h = pcon->vcrtcm_fb.vdisplay;
 		sb_size = w * h * (pcon->vcrtcm_fb.bpp >> 3);
-		mutex_lock(&minor->sb_lock);
 		v4l2pim_alloc_shadowbuf(minor, sb_size);
-		mutex_unlock(&minor->sb_lock);
 	}
 	return r;
 }
@@ -519,6 +517,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		unsigned int vp_offset, hlen, p, vpx, vpy, Bpp;
 		unsigned int i, j;
 		char *mb, *sb;
+		unsigned long flags;
 
 		hpixels = pcon->vcrtcm_fb.hdisplay;
 		vpixels = pcon->vcrtcm_fb.vdisplay;
@@ -577,7 +576,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: initiating copy\n",
 				push_buffer_index);
 		jiffies_snapshot = jiffies;
-		mutex_lock(&minor->sb_lock);
+		spin_lock_irqsave(&minor->sb_lock, flags);
 		if (minor->shadowbuf) {
 			minor->jshadowbuf = jiffies;
 			mb = minor->main_buffer + vp_offset;
@@ -588,7 +587,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 				sb += hlen;
 			}
 		}
-		mutex_unlock(&minor->sb_lock);
+		spin_unlock_irqrestore(&minor->sb_lock, flags);
 		V4L2PIM_DEBUG("copy took %u ms\n",
 			      jiffies_to_msecs(jiffies - jiffies_snapshot));
 		pcon->pb_needs_xmit[push_buffer_index] = 0;

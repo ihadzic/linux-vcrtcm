@@ -83,7 +83,7 @@ struct v4l2pim_minor {
 	/* v4l2pim */
 	uint8_t *shadowbuf;
 	uint32_t shadowbufsize;
-	struct mutex sb_lock;
+	spinlock_t sb_lock;
 	struct page **shadowbuf_pages;
 	unsigned int shadowbuf_num_pages;
 	unsigned long jshadowbuf;
