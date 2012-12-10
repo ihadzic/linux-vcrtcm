@@ -72,7 +72,7 @@ int vcrtcm_g_attach(int pconid,
 			return r;
 		}
 	}
-	pcon->drm_crtc = drm_crtc;
+	vcrtcm_set_crtc(pcon, drm_crtc);
 	pcon->gpu_funcs = *gpu_funcs;
 	*xfer_mode = pcon->xfer_mode;
 	return 0;
@@ -146,7 +146,7 @@ int vcrtcm_g_detach(int pconid)
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pconid, pcon->drm_crtc);
 	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
-	pcon->drm_crtc = NULL;
+	vcrtcm_set_crtc(pcon, NULL);
 	return 0;
 
 }

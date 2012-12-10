@@ -355,20 +355,35 @@ EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
  */
 int vcrtcm_p_emulate_vblank(int pconid)
 {
+	unsigned long flags;
+	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
 
-	vcrtcm_check_mutex(__func__, pconid);
+	/*
+	* NB: this function does not require that the mutex be locked,
+	* because some pims call this function from an isr
+	*
+	* vcrtcm_check_mutex(__func__, pconid);
+	*/
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	if (!pcon_spinlock)
+		return -EINVAL;
+	spin_lock_irqsave(pcon_spinlock, flags);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (!pcon->drm_crtc)
+	if (!pcon->drm_crtc) {
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		return -EINVAL;
+	}
 	do_gettimeofday(&pcon->vblank_time);
 	pcon->vblank_time_valid = 1;
 	if (pcon->gpu_funcs.vblank) {
@@ -376,6 +391,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		pcon->gpu_funcs.vblank(pcon->pconid, pcon->drm_crtc);
 	}
 	pcon->last_vblank_jiffies = jiffies;
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
@@ -719,7 +735,7 @@ int vcrtcm_p_detach(int pconid)
 	vcrtcm_prepare_detach(pcon);
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-	pcon->drm_crtc = NULL;
+	vcrtcm_set_crtc(pcon, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
@@ -759,7 +775,7 @@ int vcrtcm_p_destroy(int pconid)
 		vcrtcm_prepare_detach(pcon);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-		pcon->drm_crtc = NULL;
+		vcrtcm_set_crtc(pcon, NULL);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
 	spin_lock_irqsave(page_flip_spinlock, flags);

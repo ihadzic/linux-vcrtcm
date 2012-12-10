@@ -54,3 +54,20 @@ void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
 	if (pcon->xfer_mode == VCRTCM_PEER_PUSH || pcon->xfer_mode == VCRTCM_PUSH_PULL)
 		vcrtcm_p_wait_fb(pcon->pconid);
 }
+
+void vcrtcm_set_crtc(struct vcrtcm_pcon *pcon, struct drm_crtc *crtc)
+{
+	unsigned long flags;
+	spinlock_t *pcon_spinlock;
+
+	/*
+	 * the setting of the drm_crtc field has to be protected with
+	 * the spin lock because vcrtcm_p_emulate_vblank() examines
+	 * that field while not holding the pcon's mutex
+	 */
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
+	BUG_ON(!pcon_spinlock);
+	spin_lock_irqsave(pcon_spinlock, flags);
+	pcon->drm_crtc = crtc;
+	spin_unlock_irqrestore(pcon_spinlock, flags);
+}

@@ -150,7 +150,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		}
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-		pcon->drm_crtc = NULL;
+		vcrtcm_set_crtc(pcon, NULL);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
