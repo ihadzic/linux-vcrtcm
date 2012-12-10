@@ -285,7 +285,7 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 {
 	int r = 0;
 	unsigned long flags;
-	spinlock_t *page_flip_spinlock;
+	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
 
 	/*
@@ -294,18 +294,18 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 	*
 	* vcrtcm_check_mutex(__func__, pconid);
 	*/
-	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
-	if (!page_flip_spinlock)
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	if (!pcon_spinlock)
 		return -EINVAL;
-	spin_lock_irqsave(page_flip_spinlock, flags);
+	spin_lock_irqsave(pcon_spinlock, flags);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		spin_unlock_irqrestore(page_flip_spinlock, flags);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		spin_unlock_irqrestore(page_flip_spinlock, flags);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
@@ -319,7 +319,7 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 		r = pcon->pim_funcs.page_flip(pconid,
 			pcon->pcon_cookie, ioaddr);
 	}
-	spin_unlock_irqrestore(page_flip_spinlock, flags);
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_g_page_flip);

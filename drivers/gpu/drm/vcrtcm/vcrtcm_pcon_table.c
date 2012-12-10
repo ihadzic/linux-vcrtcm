@@ -34,7 +34,7 @@
 #include "vcrtcm_pcon.h"
 
 struct pconid_table_entry {
-	spinlock_t page_flip_spinlock;
+	spinlock_t spinlock;
 	struct mutex mutex;
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	int in_mutex;
@@ -54,7 +54,7 @@ void init_pcon_table(void)
 	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
 		struct pconid_table_entry *entry = &pconid_table[k];
 
-		spin_lock_init(&entry->page_flip_spinlock);
+		spin_lock_init(&entry->spinlock);
 		mutex_init(&entry->mutex);
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 		entry->in_mutex = 0;
@@ -148,7 +148,7 @@ spinlock_t *vcrtcm_get_pconid_spinlock(int pconid)
 		return NULL;
 	}
 	entry = &pconid_table[pconid];
-	return &entry->page_flip_spinlock;
+	return &entry->spinlock;
 }
 
 int vcrtcm_lock_pconid(int pconid)

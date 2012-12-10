@@ -786,7 +786,7 @@ int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
-	spinlock_t *page_flip_spinlock;
+	spinlock_t *pcon_spinlock;
 
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
@@ -795,11 +795,11 @@ int vcrtcm_p_disable_callbacks(int pconid)
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
-	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
-	BUG_ON(!page_flip_spinlock);
-	spin_lock_irqsave(page_flip_spinlock, flags);
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	BUG_ON(!pcon_spinlock);
+	spin_lock_irqsave(pcon_spinlock, flags);
 	pcon->pcon_callbacks_enabled = 0;
-	spin_unlock_irqrestore(page_flip_spinlock, flags);
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks);

@@ -113,7 +113,7 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	void *cookie;
 	struct vcrtcm_pim_funcs funcs;
 	unsigned long flags;
-	spinlock_t *page_flip_spinlock;
+	spinlock_t *pcon_spinlock;
 
 	if (vcrtcm_lock_pconid(pconid))
 		return -EINVAL;
@@ -153,11 +153,11 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		pcon->drm_crtc = NULL;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
-	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
-	BUG_ON(!page_flip_spinlock);
-	spin_lock_irqsave(page_flip_spinlock, flags);
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	BUG_ON(!pcon_spinlock);
+	spin_lock_irqsave(pcon_spinlock, flags);
 	pcon->being_destroyed = 1;
-	spin_unlock_irqrestore(page_flip_spinlock, flags);
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
 	/*

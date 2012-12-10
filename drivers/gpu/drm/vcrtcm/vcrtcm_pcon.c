@@ -27,18 +27,18 @@
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
 	unsigned long flags;
-	spinlock_t *page_flip_spinlock;
+	spinlock_t *pcon_spinlock;
 
 	pcon->vblank_period_jiffies = 0;
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
-	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
-	BUG_ON(!page_flip_spinlock);
-	spin_lock_irqsave(page_flip_spinlock, flags);
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
+	BUG_ON(!pcon_spinlock);
+	spin_lock_irqsave(pcon_spinlock, flags);
 	vcrtcm_dealloc_pcon(pcon);
-	spin_unlock_irqrestore(page_flip_spinlock, flags);
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 }
 
 void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
