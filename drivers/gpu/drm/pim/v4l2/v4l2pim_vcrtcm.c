@@ -109,15 +109,31 @@ out_err0:
 	return r;
 }
 
-int v4l2pim_attach(int pconid, void *cookie)
+static struct v4l2pim_pcon *v4l2pim_cookie2pcon(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = cookie;
+
+	if (pcon->magic != V4L2PIM_PCON_GOOD_MAGIC) {
+		VCRTCM_ERROR("bad magic (0x%08x) in cookie (0x%p) for pcon %d\n",
+			pcon->magic, cookie, pconid);
+		dump_stack();
+		return NULL;
+	}
+	if (pcon->pconid != pconid) {
+		VCRTCM_ERROR("mismatching pcon ids (%d vs. %d)\n",
+			pconid, pcon->pconid);
+		dump_stack();
+		return NULL;
+	}
+	return pcon;
+}
+int v4l2pim_attach(int pconid, void *cookie)
+{
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
 		minor->minor, pconid);
@@ -145,12 +161,10 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 
 int v4l2pim_detach(int pconid, void *cookie)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	return v4l2pim_detach_pcon(pcon);
 }
 
@@ -212,15 +226,13 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 int v4l2pim_set_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 	int r = 0;
 	int size;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d.\n", minor->minor);
 	mutex_lock(&minor->buffer_mutex);
@@ -236,13 +248,11 @@ int v4l2pim_set_fb(int pconid, void *cookie,
 int v4l2pim_get_fb(int pconid, void *cookie,
 		   struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 	if (!pcon) {
@@ -258,13 +268,11 @@ int v4l2pim_get_fb(int pconid, void *cookie,
 
 int v4l2pim_dirty_fb(int pconid, void *cookie)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 
@@ -282,15 +290,13 @@ int v4l2pim_wait_fb(int pconid, void *cookie)
 
 int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
 	unsigned long flags;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("\n");
 
@@ -306,12 +312,10 @@ int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status)
 
 int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	if (fps > 0) {
 		pcon->last_xmit_jiffies = jiffies;
 		pcon->fb_dirty = 1;
@@ -323,15 +327,13 @@ int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 int v4l2pim_set_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 	int r = 0;
 	int size;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 	mutex_lock(&minor->buffer_mutex);
@@ -349,13 +351,11 @@ int v4l2pim_set_cursor(int pconid, void *cookie,
 int v4l2pim_get_cursor(int pconid, void *cookie,
 		       struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 	mutex_lock(&minor->buffer_mutex);
@@ -367,13 +367,11 @@ int v4l2pim_get_cursor(int pconid, void *cookie,
 
 int v4l2pim_set_dpms(int pconid, void *cookie, int state)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d, state %d\n", minor->minor, state);
 	pcon->dpms_state = state;
@@ -382,13 +380,11 @@ int v4l2pim_set_dpms(int pconid, void *cookie, int state)
 
 int v4l2pim_get_dpms(int pconid, void *cookie, int *state)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -ENODEV;
-	}
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 	*state = pcon->dpms_state;
@@ -397,13 +393,11 @@ int v4l2pim_get_dpms(int pconid, void *cookie, int *state)
 
 void v4l2pim_disable(int pconid, void *cookie)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return;
-	}
 	minor = pcon->minor;
 	mutex_lock(&minor->buffer_mutex);
 	pcon->fb_xmit_allowed = 0;
@@ -412,7 +406,7 @@ void v4l2pim_disable(int pconid, void *cookie)
 
 int v4l2pim_vblank(int pconid, void *cookie)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
@@ -622,6 +616,8 @@ struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor
 			GFP_KERNEL, pconid);
 	if (pcon == NULL)
 		return NULL;
+	VCRTCM_INFO("alloced pcon %d (0x%p)\n", pconid, pcon);
+	pcon->magic = V4L2PIM_PCON_GOOD_MAGIC;
 	pcon->pconid = pconid;
 	pcon->minor = minor;
 	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
@@ -630,7 +626,8 @@ struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor
 
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 {
-	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
+	VCRTCM_INFO("destroying pcon %d (0x%p)\n", pcon->pconid, pcon);
+	pcon->magic = V4L2PIM_PCON_BAD_MAGIC;
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
 }
@@ -666,15 +663,14 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 
 void v4l2pim_destroy(int pconid, void *cookie)
 {
-	struct v4l2pim_pcon *pcon = cookie;
+	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 	struct v4l2pim_minor *minor;
 
 	/* the pim destroy callback can assume that the pcon is detached */
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return;
-	}
 	minor = pcon->minor;
 	v4l2pim_destroy_pcon(pcon);
 	v4l2pim_destroy_minor(minor);
 }
+

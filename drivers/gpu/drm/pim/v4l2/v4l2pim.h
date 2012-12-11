@@ -39,6 +39,9 @@
 #define V4L2PIM_PIM_NAME "v4l2"
 #define V4L2PIM_MAX_MINORS 64
 
+#define V4L2PIM_PCON_GOOD_MAGIC 0xcafebabe
+#define V4L2PIM_PCON_BAD_MAGIC 0xdeadbeef
+
 #define V4L2PIM_VID_LIMIT_MAX 128
 #define V4L2PIM_FPS_HARD_LIMIT 100
 #define V4L2PIM_XMIT_HARD_DEADLINE (HZ/10)
@@ -100,6 +103,7 @@ struct v4l2pim_minor {
 };
 
 struct v4l2pim_pcon {
+	uint32_t magic;
 	int pconid;
 	int fps;
 	int attached;
