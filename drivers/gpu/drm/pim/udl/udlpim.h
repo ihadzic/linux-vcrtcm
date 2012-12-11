@@ -34,6 +34,9 @@
 #define UDLPIM_XMIT_HARD_DEADLINE (HZ/10)
 #define UDLPIM_PIM_NAME "udl"
 
+#define UDLPIM_PCON_GOOD_MAGIC 0xcafebabe
+#define UDLPIM_PCON_BAD_MAGIC 0xdeadbeef
+
 #define UDLPIM_IN_DO_XMIT 0x1
 
 #define UDLPIM_ALLOC_PB_FLAG_FB 0x0
@@ -148,8 +151,9 @@ struct udlpim_minor {
 };
 
 struct udlpim_pcon {
-	struct list_head list;
+	uint32_t magic;
 	int pconid;
+	struct list_head list;
 	int attached;
 	int fb_xmit_counter;
 	int fb_dirty;

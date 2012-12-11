@@ -61,14 +61,31 @@ static void udlpim_free_pb(struct udlpim_pcon *pcon, int flag)
 	}
 }
 
-int udlpim_attach(int pconid, void *cookie)
+struct udlpim_pcon *udlpim_cookie2pcon(int pconid, void *cookie)
 {
 	struct udlpim_pcon *pcon = cookie;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
-		return -ENODEV;
+	if (pcon->magic != UDLPIM_PCON_GOOD_MAGIC) {
+		VCRTCM_ERROR("bad magic (0x%08x) in cookie (0x%p) for pcon %d\n",
+			pcon->magic, cookie, pconid);
+		dump_stack();
+		return NULL;
 	}
+	if (pcon->pconid != pconid) {
+		VCRTCM_ERROR("mismatching pcon ids (%d vs. %d)\n",
+			pconid, pcon->pconid);
+		dump_stack();
+		return NULL;
+	}
+	return pcon;
+}
+
+int udlpim_attach(int pconid, void *cookie)
+{
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
+
+	if (!pcon)
+		return -ENODEV;
 	VCRTCM_INFO("attaching pcon %d\n", pconid);
 	pcon->attached = 1;
 	return 0;
@@ -84,12 +101,10 @@ void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 
 int udlpim_detach(int pconid, void *cookie)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	udlpim_detach_pcon(pcon);
 	return 0;
 }
@@ -198,7 +213,7 @@ out_err0:
 int udlpim_set_fb(int pconid, void *cookie,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
@@ -207,11 +222,8 @@ int udlpim_set_fb(int pconid, void *cookie,
 	int i = 0;
 	int size;
 
-	/* TODO: Do we need this? */
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -261,13 +273,11 @@ int udlpim_set_fb(int pconid, void *cookie,
 int udlpim_get_fb(int pconid, void *cookie,
 		  struct vcrtcm_fb *vcrtcm_fb)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -279,13 +289,11 @@ int udlpim_get_fb(int pconid, void *cookie,
 
 int udlpim_dirty_fb(int pconid, void *cookie)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -303,16 +311,14 @@ int udlpim_wait_fb(int pconid, void *cookie)
 
 int udlpim_get_fb_status(int pconid, void *cookie, u32 *status)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
 	unsigned long flags;
 
 	UDLPIM_DEBUG("\n");
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	spin_lock_irqsave(&minor->lock, flags);
 	if (minor->status & UDLPIM_IN_DO_XMIT)
@@ -325,12 +331,10 @@ int udlpim_get_fb_status(int pconid, void *cookie, u32 *status)
 
 int udlpim_set_fps(int pconid, void *cookie, int fps)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	if (fps > 0) {
 		pcon->last_xmit_jiffies = jiffies;
 		pcon->fb_dirty = 1;
@@ -341,15 +345,13 @@ int udlpim_set_fps(int pconid, void *cookie, int fps)
 int udlpim_set_cursor(int pconid, void *cookie,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	int r = 0;
 	int size;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -368,13 +370,11 @@ int udlpim_set_cursor(int pconid, void *cookie,
 int udlpim_get_cursor(int pconid, void *cookie,
 		      struct vcrtcm_cursor *vcrtcm_cursor)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -387,13 +387,11 @@ int udlpim_get_cursor(int pconid, void *cookie,
 
 int udlpim_set_dpms(int pconid, void *cookie, int state)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d, state %d\n", minor->minor, state);
 
@@ -410,13 +408,11 @@ int udlpim_set_dpms(int pconid, void *cookie, int state)
 
 int udlpim_get_dpms(int pconid, void *cookie, int *state)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
@@ -427,14 +423,12 @@ int udlpim_get_dpms(int pconid, void *cookie, int *state)
 
 int udlpim_connected(int pconid, void *cookie, int *status)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
 	UDLPIM_DEBUG("");
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	if (minor->monitor_connected) {
 		UDLPIM_DEBUG("...connected\n");
@@ -449,7 +443,7 @@ int udlpim_connected(int pconid, void *cookie, int *status)
 int udlpim_get_modes(int pconid, void *cookie,
 		     struct vcrtcm_mode **modes, int *count)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	struct udlpim_video_mode *udlpim_video_modes;
 	struct vcrtcm_mode *vcrtcm_mode_list;
@@ -458,10 +452,8 @@ int udlpim_get_modes(int pconid, void *cookie,
 	int retval = 0;
 	int i = 0;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 	vcrtcm_mode_list = minor->last_vcrtcm_mode_list;
 	*modes = NULL;
@@ -513,7 +505,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 int udlpim_check_mode(int pconid, void *cookie,
 		      struct vcrtcm_mode *mode, int *status)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	struct udlpim_video_mode *udlpim_video_modes;
 	int udlpim_mode_count = 0;
@@ -521,10 +513,8 @@ int udlpim_check_mode(int pconid, void *cookie,
 	int i;
 
 	UDLPIM_DEBUG("\n");
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return -EINVAL;
-	}
 	minor = pcon->minor;
 
 	*status = VCRTCM_MODE_BAD;
@@ -558,13 +548,11 @@ int udlpim_check_mode(int pconid, void *cookie,
 
 void udlpim_disable(int pconid, void *cookie)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return;
-	}
 	minor = pcon->minor;
 	mutex_lock(&minor->buffer_mutex);
 	pcon->fb_xmit_allowed = 0;
@@ -573,13 +561,15 @@ void udlpim_disable(int pconid, void *cookie)
 
 int udlpim_vblank(int pconid, void *cookie)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
 	unsigned long flags;
 
+	if (!pcon)
+		return -EINVAL;
 	minor = pcon->minor;
 	mutex_lock(&minor->buffer_mutex);
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
@@ -722,6 +712,8 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 		VCRTCM_ERROR("create_pcon failed, no memory\n");
 		return NULL;
 	}
+	VCRTCM_INFO("alloced pcon %d (0x%p)\n", pconid, pcon);
+	pcon->magic = UDLPIM_PCON_GOOD_MAGIC;
 	pcon->pconid = pconid;
 	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
 	pcon->minor = minor;
@@ -730,7 +722,8 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 
 void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 {
-	VCRTCM_INFO("destroying pcon %d\n", pcon->pconid);
+	VCRTCM_INFO("destroying pcon %d (0x%p)\n", pcon->pconid, pcon);
+	pcon->magic = UDLPIM_PCON_BAD_MAGIC;
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
 }
@@ -771,14 +764,12 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 
 void udlpim_destroy(int pconid, void *cookie)
 {
-	struct udlpim_pcon *pcon = cookie;
+	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 	struct udlpim_minor *minor;
 
 	/* the pim destroy callback can assume that the pcon is detached */
-	if (!pcon) {
-		VCRTCM_ERROR("Cannot find pcon descriptor\n");
+	if (!pcon)
 		return;
-	}
 	minor = pcon->minor;
 	udlpim_destroy_pcon(pcon);
 	minor->pcon = NULL;
