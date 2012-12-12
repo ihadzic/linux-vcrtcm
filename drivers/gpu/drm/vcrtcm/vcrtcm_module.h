@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2011 Alcatel-Lucent, Inc.
- * Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
+ * Authors:
+ *      Ilija Hadzic <ihadzic@research.bell-labs.com>
+ *      Martin Carroll <martin.carroll@research.bell-labs.com>
+ *      William Katsak <wkatsak@cs.rutgers.edu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
