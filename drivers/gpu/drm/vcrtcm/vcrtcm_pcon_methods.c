@@ -702,19 +702,19 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
  */
 static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
+	if (!pcon->drm_crtc)
+		return;
 	pcon->vblank_period_jiffies = 0;
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
-	if (pcon->drm_crtc) {
-		if (explicit)
-			VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
-		else
-			VCRTCM_INFO("doing implicit detach of pcon %i\n",
-				pcon->pconid);
-		if (pcon->gpu_funcs.detach)
-			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-		pcon->drm_crtc = NULL;
-	}
+	if (explicit)
+		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
+	else
+		VCRTCM_INFO("doing implicit detach of pcon %i\n",
+			pcon->pconid);
+	if (pcon->gpu_funcs.detach)
+		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+	pcon->drm_crtc = NULL;
 }
 
 int vcrtcm_p_detach(int pconid)
