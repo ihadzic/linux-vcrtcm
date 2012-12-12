@@ -24,8 +24,4 @@
 #ifndef __VCRTCM_P_H__
 #define __VCRTCM_P_H__
 
-struct vcrtcm_pcon;
-
-void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit);
-
 #endif
