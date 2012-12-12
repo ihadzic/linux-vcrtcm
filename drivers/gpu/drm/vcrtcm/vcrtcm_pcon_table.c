@@ -33,6 +33,8 @@
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pcon.h"
 
+#define MAX_NUM_PCONIDS 1024
+
 struct pconid_table_entry {
 	spinlock_t spinlock;
 	struct mutex mutex;
@@ -47,6 +49,16 @@ struct pconid_table_entry {
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONIDS];
 static int num_pcons;
 static DEFINE_SPINLOCK(pconid_table_spinlock);
+
+static struct pconid_table_entry *pconid2entry(int pconid)
+{
+	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
+		VCRTCM_ERROR("bad pcon id %d\n", pconid);
+		dump_stack();
+		return NULL;
+	}
+	return &pconid_table[pconid];
+}
 
 void init_pcon_table(void)
 {
@@ -119,7 +131,9 @@ void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 	if (!pcon)
 		return;
 	spin_lock_irqsave(&pconid_table_spinlock, flags);
-	entry = &pconid_table[pcon->pconid];
+	entry = pconid2entry(pcon->pconid);
+	if (!entry)
+		return;
 	BUG_ON(pcon != entry->pcon);
 	cnt = pcon->alloc_cnt;
 	page_cnt = pcon->page_alloc_cnt;
@@ -136,16 +150,15 @@ void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid)
 {
+	struct pconid_table_entry *entry;
 	struct vcrtcm_pcon *ret;
 	unsigned long flags;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
-		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
-		dump_stack();
+	entry = pconid2entry(pconid);
+	if (!entry)
 		return NULL;
-	}
 	spin_lock_irqsave(&pconid_table_spinlock, flags);
-	ret = pconid_table[pconid].pcon;
+	ret = entry->pcon;
 	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 	if (!ret)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
@@ -156,12 +169,9 @@ spinlock_t *vcrtcm_get_pconid_spinlock(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
-		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
-		dump_stack();
+	entry = pconid2entry(pconid);
+	if (!entry)
 		return NULL;
-	}
-	entry = &pconid_table[pconid];
 	return &entry->spinlock;
 }
 
@@ -169,12 +179,9 @@ int vcrtcm_lock_pconid(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
-		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
-		dump_stack();
+	entry = pconid2entry(pconid);
+	if (!entry)
 		return -EINVAL;
-	}
-	entry = &pconid_table[pconid];
 	mutex_lock(&entry->mutex);
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	{
@@ -192,12 +199,9 @@ int vcrtcm_unlock_pconid(int pconid)
 {
 	struct pconid_table_entry *entry;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
-		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
-		dump_stack();
+	entry = pconid2entry(pconid);
+	if (!entry)
 		return -EINVAL;
-	}
-	entry = &pconid_table[pconid];
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	BUG_ON(!entry->in_mutex);
 	{
@@ -220,12 +224,9 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	pid_t mutex_owner;
 	struct pconid_table_entry *entry;
 
-	if (pconid < 0 || pconid >= MAX_NUM_PCONIDS) {
-		VCRTCM_ERROR("invalid pcon id %d\n", pconid);
-		dump_stack();
+	entry = pconid2entry(pconid);
+	if (!entry)
 		return;
-	}
-	entry = &pconid_table[pconid];
 	spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
 	in_mutex = entry->in_mutex;
 	mutex_owner = entry->mutex_owner;
