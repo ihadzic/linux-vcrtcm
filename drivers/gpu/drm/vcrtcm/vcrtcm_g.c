@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_utils.h>
-#include "vcrtcm_gpu_methods.h"
+#include "vcrtcm_g.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_utils_priv.h"

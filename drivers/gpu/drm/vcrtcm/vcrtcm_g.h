@@ -18,7 +18,7 @@
  */
 
 
-#ifndef __VCRTCM_PIMMETHODS_H__
-#define __VCRTCM_PIMMETHODS_H__
+#ifndef __VCRTCM_G_H__
+#define __VCRTCM_G_H__
 
 #endif
