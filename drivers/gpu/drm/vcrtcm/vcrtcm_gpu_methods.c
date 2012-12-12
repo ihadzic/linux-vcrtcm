@@ -128,11 +128,9 @@ int vcrtcm_g_detach(int pconid)
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
-	pcon->vblank_period_jiffies = 0;
-	pcon->fps = 0;
-	cancel_delayed_work_sync(&pcon->vblank_work);
-
-	/* NB: the pcon detach routine must be called before
+	vcrtcm_prepare_detach(pcon);
+	/*
+	* NB: the pcon detach routine must be called before
 	* the gpu detach routine, to give the pcon detach
 	* routine a chance to return the pcon's push buffers
 	* before the pcon is detached from the crtc.
@@ -141,7 +139,6 @@ int vcrtcm_g_detach(int pconid)
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
-
 		r = pcon->pcon_funcs.detach(pconid,
 					    pcon->pcon_cookie);
 		if (r)

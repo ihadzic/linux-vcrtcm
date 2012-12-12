@@ -33,3 +33,11 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	vcrtcm_sysfs_del_pcon(pcon);
 	vcrtcm_dealloc_pcon(pcon);
 }
+
+void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
+{
+	VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
+	pcon->vblank_period_jiffies = 0;
+	pcon->fps = 0;
+	cancel_delayed_work_sync(&pcon->vblank_work);
+}

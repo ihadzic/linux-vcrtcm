@@ -107,51 +107,12 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
 	return 0;
 }
 
-/* NB: if you change the implementation of this function, you might
- * also need to change the implementation of vcrtcm_p_detach_pcon()
- */
-static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
-{
-	if (pcon->being_destroyed) {
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
-		return -EINVAL;
-	}
-	if (!pcon->drm_crtc)
-		return 0;
-	if (explicit)
-		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
-	else
-		VCRTCM_INFO("doing implicit detach of pcon %i\n",
-			pcon->pconid);
-	pcon->vblank_period_jiffies = 0;
-	pcon->fps = 0;
-	cancel_delayed_work_sync(&pcon->vblank_work);
-	if (pcon->pcon_funcs.detach &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
-		int r;
-
-		r = pcon->pcon_funcs.detach(pcon->pconid,
-						pcon->pcon_cookie);
-		if (r) {
-			VCRTCM_ERROR("pim refuses to detach pcon %d\n",
-				pcon->pconid);
-			return r;
-		}
-	}
-	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-	pcon->drm_crtc = NULL;
-	return 0;
-}
-
 static long vcrtcm_ioctl_destroy_pcon(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
 	struct vcrtcm_pim_funcs funcs;
 	unsigned long flags;
-	int r;
 
 	if (vcrtcm_lock_pconid(pconid))
 		return -EINVAL;
@@ -170,12 +131,25 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 		VCRTCM_ERROR("pim %s has callbacks disabled\n", pcon->pim->name);
 		return -ECANCELED;
 	}
-	r = do_vcrtcm_ioctl_detach_pcon(pcon, 0);
-	if (r) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("detach failed, not destroying pcon %i\n",
-			     pconid);
-		return r;
+	if (pcon->drm_crtc) {
+		vcrtcm_prepare_detach(pcon);
+		if (pcon->pcon_funcs.detach &&
+			pcon->pcon_callbacks_enabled &&
+			pcon->pim->callbacks_enabled) {
+			int r;
+
+			r = pcon->pcon_funcs.detach(pcon->pconid,
+							pcon->pcon_cookie);
+			if (r) {
+				vcrtcm_unlock_pconid(pconid);
+				VCRTCM_ERROR("pim refuses to detach pcon %d\n",
+					pcon->pconid);
+				return r;
+			}
+		}
+		if (pcon->gpu_funcs.detach)
+			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+		pcon->drm_crtc = NULL;
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
 	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);

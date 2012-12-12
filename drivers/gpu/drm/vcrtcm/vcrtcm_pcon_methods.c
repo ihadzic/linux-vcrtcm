@@ -695,28 +695,6 @@ vcrtcm_p_realloc_pb_l(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
 
-/* this function is actually not in the vcrtcm-pim api,
- * but it could be added to that api, if needed.
- * NB: if you change the implementation of this function, you might
- * also need to change the implementation of do_vcrtcm_ioctl_detach_pcon()
- */
-static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
-{
-	if (!pcon->drm_crtc)
-		return;
-	pcon->vblank_period_jiffies = 0;
-	pcon->fps = 0;
-	cancel_delayed_work_sync(&pcon->vblank_work);
-	if (explicit)
-		VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
-	else
-		VCRTCM_INFO("doing implicit detach of pcon %i\n",
-			pcon->pconid);
-	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
-	pcon->drm_crtc = NULL;
-}
-
 int vcrtcm_p_detach(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
@@ -731,7 +709,14 @@ int vcrtcm_p_detach(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	do_vcrtcm_p_detach(pcon, 1);
+	if (!pcon->drm_crtc) {
+		VCRTCM_WARNING("pcon %d already detached\n", pcon->pconid);
+		return 0;
+	}
+	vcrtcm_prepare_detach(pcon);
+	if (pcon->gpu_funcs.detach)
+		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+	pcon->drm_crtc = NULL;
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
@@ -748,25 +733,10 @@ int vcrtcm_p_detach_l(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_detach_l);
 
-void do_vcrtcm_p_destroy(struct vcrtcm_pcon *pcon, int explicit)
-{
-	unsigned long flags;
-
-	do_vcrtcm_p_detach(pcon, 0);
-	if (explicit)
-		VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
-	else
-		VCRTCM_INFO("doing implicit destroy of pcon %i\n",
-			pcon->pconid);
-	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
-	pcon->being_destroyed = 1;
-	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
-	vcrtcm_destroy_pcon(pcon);
-}
-
 int vcrtcm_p_destroy(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
+	unsigned long flags;
 
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
@@ -778,7 +748,17 @@ int vcrtcm_p_destroy(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	do_vcrtcm_p_destroy(pcon, 1);
+	if (pcon->drm_crtc) {
+		vcrtcm_prepare_detach(pcon);
+		if (pcon->gpu_funcs.detach)
+			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+		pcon->drm_crtc = NULL;
+	}
+	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
+	spin_lock_irqsave(&pcon->page_flip_spinlock, flags);
+	pcon->being_destroyed = 1;
+	spin_unlock_irqrestore(&pcon->page_flip_spinlock, flags);
+	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);

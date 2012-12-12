@@ -58,5 +58,6 @@ struct vcrtcm_pcon {
 };
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
+void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon);
 
 #endif
