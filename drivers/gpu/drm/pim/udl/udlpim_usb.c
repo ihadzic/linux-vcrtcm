@@ -884,6 +884,7 @@ static int udlpim_render_hline(struct udlpim_minor *minor,
 	 */
 	if (minor->cursor &&
 	    vcrtcm_cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
+		pcon->pbd_cursor[pcon->push_buffer_index] &&
 	    !pcon->pbd_cursor[pcon->push_buffer_index]->virgin &&
 	    line_num >= vcrtcm_cursor->location_y &&
 	    line_num < vcrtcm_cursor->location_y + vcrtcm_cursor->height) {
