@@ -539,8 +539,9 @@ int v4l2pim_vblank(int pconid, void *cookie)
 
 		/* Overlay the cursor on the framebuffer */
 		cursor = &pcon->vcrtcm_cursor;
-		if ((cursor->flag != VCRTCM_CURSOR_FLAG_HIDE) &&
-		    (!pcon->pbd_cursor[push_buffer_index]->virgin)) {
+		if (cursor->flag != VCRTCM_CURSOR_FLAG_HIDE &&
+			pcon->pbd_cursor[push_buffer_index] &&
+		    !pcon->pbd_cursor[push_buffer_index]->virgin) {
 			uint32_t *fb_end;
 			int clip_y = 0;
 			mb = minor->main_buffer + vp_offset;
