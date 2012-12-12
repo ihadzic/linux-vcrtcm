@@ -57,7 +57,7 @@ int vcrtcm_pim_unregister(int pimid)
 	VCRTCM_INFO("unregistering %s\n", pim->name);
 	list_for_each_entry_safe(pcon, tmp,
 			&pim->pcons_in_pim_list, pcons_in_pim_list)
-		do_vcrtcm_p_destroy(pcon, 0);
+		vcrtcm_p_destroy_l(pcon->pconid);
 	vcrtcm_sysfs_del_pim(pim);
 	vcrtcm_destroy_pim(pim);
 	VCRTCM_INFO("finished unregistering pim\n");
