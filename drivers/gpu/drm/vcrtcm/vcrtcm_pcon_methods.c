@@ -712,6 +712,7 @@ static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 				pcon->pconid);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+		pcon->drm_crtc = NULL;
 	}
 }
 
