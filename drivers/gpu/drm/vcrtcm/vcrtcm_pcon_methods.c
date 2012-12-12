@@ -702,8 +702,9 @@ EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
  */
 static void do_vcrtcm_p_detach(struct vcrtcm_pcon *pcon, int explicit)
 {
-	cancel_delayed_work_sync(&pcon->vblank_work);
 	pcon->vblank_period_jiffies = 0;
+	pcon->fps = 0;
+	cancel_delayed_work_sync(&pcon->vblank_work);
 	if (pcon->drm_crtc) {
 		if (explicit)
 			VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);

@@ -116,8 +116,6 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
-	cancel_delayed_work_sync(&pcon->vblank_work);
-	pcon->vblank_period_jiffies = 0;
 	if (!pcon->drm_crtc)
 		return 0;
 	if (explicit)
@@ -125,6 +123,9 @@ static long do_vcrtcm_ioctl_detach_pcon(struct vcrtcm_pcon *pcon, int explicit)
 	else
 		VCRTCM_INFO("doing implicit detach of pcon %i\n",
 			pcon->pconid);
+	pcon->vblank_period_jiffies = 0;
+	pcon->fps = 0;
+	cancel_delayed_work_sync(&pcon->vblank_work);
 	if (pcon->pcon_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {

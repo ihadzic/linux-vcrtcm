@@ -26,6 +26,8 @@
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
+	pcon->vblank_period_jiffies = 0;
+	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);

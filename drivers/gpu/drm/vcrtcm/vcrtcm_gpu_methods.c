@@ -128,6 +128,10 @@ int vcrtcm_g_detach(int pconid)
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
+	pcon->vblank_period_jiffies = 0;
+	pcon->fps = 0;
+	cancel_delayed_work_sync(&pcon->vblank_work);
+
 	/* NB: the pcon detach routine must be called before
 	* the gpu detach routine, to give the pcon detach
 	* routine a chance to return the pcon's push buffers
@@ -468,9 +472,9 @@ int vcrtcm_g_set_fps(int pconid, int fps)
 		return -EINVAL;
 	}
 	if (fps <= 0) {
-		cancel_delayed_work_sync(&pcon->vblank_work);
 		pcon->fps = 0;
 		pcon->vblank_period_jiffies = 0;
+		cancel_delayed_work_sync(&pcon->vblank_work);
 		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
 			pconid);
 	} else {
@@ -482,7 +486,7 @@ int vcrtcm_g_set_fps(int pconid, int fps)
 		pcon->last_vblank_jiffies = now;
 		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
 		if (old_fps == 0)
-				schedule_delayed_work(&pcon->vblank_work, 0);
+			schedule_delayed_work(&pcon->vblank_work, 0);
 	}
 	if (pcon->pcon_funcs.set_fps &&
 		pcon->pcon_callbacks_enabled &&
