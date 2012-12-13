@@ -96,7 +96,7 @@ out_err0:
 		 * allocated in the first one before returning
 		 */
 		BUG_ON(!old_pbd || !old_pb);
-		vm_unmap_ram(old_pbd->pages, num_pages);
+		vm_unmap_ram(old_pb, num_pages);
 		if (flag == V4L2PIM_ALLOC_PB_FLAG_FB) {
 			pcon->pbd_fb[0] = NULL;
 			pcon->pb_fb[0] = NULL;
