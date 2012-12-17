@@ -355,7 +355,6 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 	struct drm_crtc *crtc = &radeon_crtc->base;
 	struct radeon_device *rdev =
 	    (struct radeon_device *)crtc->dev->dev_private;
-	struct vcrtcm_pcon *vcrtcm_pcon;
 
 	if (radeon_crtc->pconid >= 0)
 		return -EBUSY;
@@ -363,18 +362,17 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 	if (radeon_crtc->crtc_id < rdev->num_crtc)
 		r = vcrtcm_g_attach_l(pconid, crtc,
 				  &physical_crtc_gpu_funcs,
-				  &vcrtcm_pcon);
+				  &radeon_crtc->xfer_mode);
 	else
 		r = vcrtcm_g_attach_l(pconid, crtc,
 				  &virtual_crtc_gpu_funcs,
-				  &vcrtcm_pcon);
+				  &radeon_crtc->xfer_mode);
 
 	if (r) {
 		radeon_crtc->pconid = -1;
 		return r;
 	}
-	radeon_crtc->pconid = vcrtcm_pcon->pconid;
-	radeon_crtc->xfer_mode = vcrtcm_pcon->xfer_mode;
+	radeon_crtc->pconid = pconid;
 
 	/* if the attach was successful, we also need to send the crtc */
 	/* FB address and geometry to VCRTCM module. This is because */
