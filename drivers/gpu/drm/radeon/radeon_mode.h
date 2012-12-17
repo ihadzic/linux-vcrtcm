@@ -37,6 +37,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <vcrtcm/vcrtcm_gpu.h>
 
 struct radeon_bo;
 struct radeon_device;
@@ -340,7 +341,8 @@ struct radeon_crtc {
 	struct radeon_fence *last_push_fence_c;
 	struct radeon_fence *last_push_fence_fb;
 	struct drm_framebuffer *vcrtcm_push_fb;
-	struct vcrtcm_pcon *vcrtcm_pcon;
+	enum vcrtcm_xfer_mode xfer_mode;
+	int pconid;
 };
 
 struct radeon_encoder_primary_dac {

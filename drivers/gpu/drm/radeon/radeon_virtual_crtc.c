@@ -144,11 +144,11 @@ static int radeon_virtual_crtc_get_modes(struct drm_connector *connector)
 		return 0;
 
 	/* if we have no PCON attached, then we have no modes to add */
-	if (!radeon_crtc->vcrtcm_pcon)
+	if (radeon_crtc->pconid < 0)
 		return 0;
 
 	/* found an attached PCON, ask it */
-	r = vcrtcm_g_get_modes_l(radeon_crtc->vcrtcm_pcon->pconid,
+	r = vcrtcm_g_get_modes_l(radeon_crtc->pconid,
 			     &probed_modes, &probed_modes_count);
 	if (r)
 		return 0;
@@ -179,14 +179,14 @@ static int radeon_virtual_crtc_mode_valid(struct drm_connector *connector,
 	/* if nothing is attached or there is no crtc, then no mode is good */
 	if (!radeon_crtc)
 		return MODE_ERROR;
-	if (!radeon_crtc->vcrtcm_pcon)
+	if (radeon_crtc->pconid < 0)
 		return MODE_ERROR;
 
 	/* otherwise, we ask VCRTCM */
 	vcrtcm_mode.w = drm_mode_width(mode);
 	vcrtcm_mode.h = drm_mode_height(mode);
 	vcrtcm_mode.refresh = drm_mode_vrefresh(mode);
-	r = vcrtcm_g_check_mode_l(radeon_crtc->vcrtcm_pcon->pconid,
+	r = vcrtcm_g_check_mode_l(radeon_crtc->pconid,
 			      &vcrtcm_mode,
 			      &mode_status);
 	if (r)
@@ -213,11 +213,11 @@ radeon_virtual_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_unknown;
 
 	/* we are not connected if nothing is attached or there is no crtc */
-	if (!radeon_crtc->vcrtcm_pcon)
+	if (radeon_crtc->pconid < 0)
 		return connector_status_disconnected;
 
 	/* otherwise ask VCRTCM */
-	r = vcrtcm_g_pcon_connected_l(radeon_crtc->vcrtcm_pcon->pconid,
+	r = vcrtcm_g_pcon_connected_l(radeon_crtc->pconid,
 				 &connected_status);
 	if (r)
 		return connector_status_unknown;
@@ -483,8 +483,8 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_DEBUG("enabling crtc\n");
 		radeon_crtc->enabled = true;
 		/*radeon_pm_compute_clocks(rdev); */
-		if (radeon_crtc->vcrtcm_pcon)
-			vcrtcm_g_set_dpms_l(radeon_crtc->vcrtcm_pcon->pconid,
+		if (radeon_crtc->pconid >= 0)
+			vcrtcm_g_set_dpms_l(radeon_crtc->pconid,
 					VCRTCM_DPMS_STATE_ON);
 		drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
 		break;
@@ -493,8 +493,8 @@ void radeon_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG("disabling crtc\n");
 		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
-		if (radeon_crtc->vcrtcm_pcon)
-			vcrtcm_g_set_dpms_l(radeon_crtc->vcrtcm_pcon->pconid,
+		if (radeon_crtc->pconid >= 0)
+			vcrtcm_g_set_dpms_l(radeon_crtc->pconid,
 					VCRTCM_DPMS_STATE_OFF);
 		radeon_crtc->enabled = false;
 		/*radeon_pm_compute_clocks(rdev); */
@@ -587,7 +587,7 @@ static int radeon_virtual_crtc_page_flip(struct drm_crtc *crtc,
 	u64 base;
 	int r;
 
-	if (!radeon_crtc->vcrtcm_pcon) {
+	if (radeon_crtc->pconid < 0) {
 		struct timeval now;
 		int crtc_id = radeon_crtc->crtc_id;
 		DRM_DEBUG("no PCON on CRTC %d, pflip faked out\n", crtc_id);
@@ -841,8 +841,8 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 		/* it's a good idea to wait on VCRTCM before returning, that */
 		/* would guarantee not to release a buffer whose transmission */
 		/* may still be in progress */
-		if (radeon_crtc->vcrtcm_pcon)
-			r = vcrtcm_g_wait_fb_l(radeon_crtc->vcrtcm_pcon->pconid);
+		if (radeon_crtc->pconid >= 0)
+			r = vcrtcm_g_wait_fb_l(radeon_crtc->pconid);
 		/* if wait fails, unpin anyway (we have a bigger problem in that case) */
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
@@ -880,8 +880,8 @@ static void radeon_virtual_crtc_disable(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	DRM_DEBUG("\n");
-	if (radeon_crtc->vcrtcm_pcon)
-		vcrtcm_g_disable_l(radeon_crtc->vcrtcm_pcon->pconid);
+	if (radeon_crtc->pconid >= 0)
+		vcrtcm_g_disable_l(radeon_crtc->pconid);
 	radeon_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	radeon_crtc->pll_id = -1;
 	radeon_crtc->adjusted_clock = 0;
@@ -931,19 +931,19 @@ int radeon_virtual_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	DRM_DEBUG("x %d y %d crtc %d\n", x, y, radeon_crtc->crtc_id);
 
-	if (radeon_crtc->vcrtcm_pcon) {
+	if (radeon_crtc->pconid >= 0) {
 		struct vcrtcm_cursor vcrtcm_cursor;
 
-		r = vcrtcm_g_get_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_get_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
 		vcrtcm_cursor.location_x = x;
 		vcrtcm_cursor.location_y = y;
-		r = vcrtcm_g_set_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_set_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (radeon_crtc->enabled)
-			vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon->pconid);
+			vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
 	}
 
 	return r;
@@ -956,24 +956,24 @@ int radeon_hide_virtual_cursor(struct radeon_crtc *radeon_crtc)
 	int fps;
 
 	DRM_DEBUG("\n");
-	if (radeon_crtc->vcrtcm_pcon) {
+	if (radeon_crtc->pconid >= 0) {
 		/* turn off cursor */
-		r = vcrtcm_g_get_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_get_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
 		vcrtcm_cursor.flag |= VCRTCM_CURSOR_FLAG_HIDE;
-		r = vcrtcm_g_set_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_set_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
-		r = vcrtcm_g_get_fps_l(radeon_crtc->vcrtcm_pcon->pconid, &fps);
+		r = vcrtcm_g_get_fps_l(radeon_crtc->pconid, &fps);
 		if (r)
 			return r;
 		/* force xmit only if xmit is enabled, */
 		/* otherwise, just silently return */
 		if (fps > 0)
-			return vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon->pconid);
+			return vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
 		else
 			return 0;
 	}
@@ -992,13 +992,13 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 	int fps;
 
 	DRM_DEBUG("\n");
-	if (radeon_crtc->vcrtcm_pcon) {
+	if (radeon_crtc->pconid >= 0) {
 		cursor_ioaddr =
 		    rdev->mc.aper_base + (cursor_gpuaddr - rdev->mc.vram_start);
 		DRM_DEBUG("cursor sprite ioaddr %llx gpuaddr %llx size %d\n",
 			  cursor_ioaddr, cursor_gpuaddr, obj->size);
 
-		r = vcrtcm_g_get_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_get_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
@@ -1007,15 +1007,15 @@ int radeon_show_and_set_virtual_cursor(struct radeon_crtc *radeon_crtc,
 		vcrtcm_cursor.height = radeon_crtc->cursor_height;
 		vcrtcm_cursor.bpp = radeon_crtc->base.fb->bits_per_pixel;
 		vcrtcm_cursor.ioaddr = cursor_ioaddr;
-		r = vcrtcm_g_set_cursor_l(radeon_crtc->vcrtcm_pcon->pconid,
+		r = vcrtcm_g_set_cursor_l(radeon_crtc->pconid,
 				      &vcrtcm_cursor);
 		if (r)
 			return r;
-		r = vcrtcm_g_get_fps_l(radeon_crtc->vcrtcm_pcon->pconid, &fps);
+		r = vcrtcm_g_get_fps_l(radeon_crtc->pconid, &fps);
 		if (r)
 			return r;
 		if (fps > 0)
-			return vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon->pconid);
+			return vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
 		else
 			return 0;
 	}
@@ -1081,8 +1081,8 @@ unpin:
 	}
 
 	radeon_crtc->cursor_bo = obj;
-	if (radeon_crtc->vcrtcm_pcon && radeon_crtc->enabled)
-		vcrtcm_g_dirty_fb_l(radeon_crtc->vcrtcm_pcon->pconid);
+	if (radeon_crtc->pconid >= 0 && radeon_crtc->enabled)
+		vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
@@ -1156,7 +1156,7 @@ void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 	radeon_crtc->pflip_emulation_enabled = false;
 	radeon_crtc->last_push_fence_c = NULL;
 	radeon_crtc->last_push_fence_fb = NULL;
-	radeon_crtc->vcrtcm_pcon = NULL;
+	radeon_crtc->pconid = -1;
 	radeon_crtc->vcrtcm_push_fb = NULL;
 }
 
@@ -1256,7 +1256,7 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	virtual_crtc = radeon_virtual_crtc_lookup(rdev, crtc);
 	if (!virtual_crtc || !virtual_crtc->radeon_crtc)
 		return -ENOTSUPP;
-	if (!virtual_crtc->radeon_crtc->vcrtcm_pcon) {
+	if (virtual_crtc->radeon_crtc->pconid < 0) {
 		DRM_DEBUG("no pcon on crtc %d\n", crtc);
 		return -ENOTSUPP;
 	}
@@ -1265,11 +1265,11 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	 * of gettimeofday when it snapshot in emulate_vblank
 	 */
 	*max_error = 1000;
-	r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->vcrtcm_pcon->pconid,
+	r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->pconid,
 				   vblank_time);
 	if (r)
 		return r;
-	r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->vcrtcm_pcon->pconid,
+	r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->pconid,
 				 &vblank_status);
 	if (r)
 		return r;
