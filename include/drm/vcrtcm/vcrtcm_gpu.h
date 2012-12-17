@@ -155,7 +155,7 @@ int vcrtcm_g_dirty_fb(int pconid);
 int vcrtcm_g_wait_fb(int pconid);
 
 /*
- * mutex: must be locked before calling this function
+ * mutex: need not be locked before calling this function
  * atomic: YES
  */
 int vcrtcm_g_get_fb_status(int pconid, u32 *status);

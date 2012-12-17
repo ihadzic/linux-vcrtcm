@@ -431,18 +431,55 @@ EXPORT_SYMBOL(vcrtcm_g_wait_fb_l);
 /* retrieves the status of frame buffer */
 int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 {
-	int r;
 	struct vcrtcm_pcon *pcon;
+	spinlock_t *pcon_spinlock = NULL;
+	unsigned long flags = 0;
+	int already_locked_by_me;
+	int r = 0;
 
-	vcrtcm_check_mutex(__func__, pconid);
+	/*
+	* NB: this function does not require that the mutex be locked
+	*
+	* vcrtcm_check_mutex(__func__, pconid);
+	*/
+
+	/*
+	 * Vcrtcm api functions that do not require that the mutex
+	 * be locked use the spin lock to protect against races.
+	 * In the case of this particular function, it is possible
+	 * (and legal) for this function to be called when the spin
+	 * lock is already held.  Here is how that can happen:
+	 *
+	 *    1. pim calls vcrtcm_p_emulate_vblank()
+	 *    2. vcrtcm_p_emulate_vblank() takes spin lock
+	 *    2. vcrtcm_p_emulate_vblank() calls gpu driver's vblank() callback
+	 *    3. gpu driver's vblank() callback calls this function
+	 *
+	 * It is *also* possible (and legal) for this function to
+	 * be called when the spin lock is *not* already held.
+	 *
+	 * To handle both situations correctly, this function checks
+	 * whether the current pid already has the spin lock, and
+	 * if so, it does not attempt to re-lock it.
+	 */
+	already_locked_by_me = vcrtcm_current_pid_is_spinlock_owner(pconid);
+	if (!already_locked_by_me) {
+		pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+		if (!pcon_spinlock)
+			return -EINVAL;
+		spin_lock_irqsave(pcon_spinlock, flags);
+		vcrtcm_set_spinlock_owner(pconid);
+	}
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
+		r = -ENODEV;
+		goto done;
 	}
 	if (pcon->being_destroyed) {
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		return -EINVAL;
+		r = -EINVAL;
+		goto done;
 	}
 	if (pcon->pim_funcs.get_fb_status &&
 		pcon->pcon_callbacks_enabled &&
@@ -451,10 +488,11 @@ int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 			     pconid);
 		r = pcon->pim_funcs.get_fb_status(pconid,
 			pcon->pcon_cookie, status);
-	} else {
-		VCRTCM_WARNING("missing get_fb_status backend, pcon %i\n",
-			       pconid);
-		r = 0;
+	}
+done:
+	if (!already_locked_by_me) {
+		vcrtcm_clear_spinlock_owner(pconid);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 	}
 	return r;
 }

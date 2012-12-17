@@ -272,3 +272,17 @@ void vcrtcm_clear_spinlock_owner(int pconid)
 	entry->spinlock_owner = -1;
 	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 }
+
+int vcrtcm_current_pid_is_spinlock_owner(int pconid)
+{
+	struct pconid_table_entry *entry;
+	unsigned long flags;
+	int ret;
+
+	entry = pconid2entry(pconid);
+	BUG_ON(!entry);
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
+	ret = (entry->spinlock_owner == current->pid);
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+	return ret;
+}

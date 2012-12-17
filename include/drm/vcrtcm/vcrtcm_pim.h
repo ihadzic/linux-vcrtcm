@@ -117,7 +117,7 @@ struct vcrtcm_p_pcon_funcs {
 	/*
 	 * called to ask the pim for the frame buffer status
 	 *
-	 * mutex locked: yes
+	 * mutex locked: not necessarily
 	 * must be atomic: YES
 	 */
 	int (*get_fb_status)(int pconid, void *cookie, u32 *status);
