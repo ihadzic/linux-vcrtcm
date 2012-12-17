@@ -1228,20 +1228,36 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 /*
  * implementation of radeon_get_vblank_timestamp_kms for virtual crtcs
  *
- * NB: This function is called indirectly from the vcrtcm-registered
- * callback radeon_emulate_vblank, via this chain:
+ * NB: One way in which this function is called is in the context of the
+ * vcrtcm-registered callback radeon_emulate_vblank(), via this call chain:
  *
  *    radeon_get_vblank_timestamp_kms
  *    ? radeon_disable_vblank_kms
  *    drm_get_last_vbltimestamp
  *    drm_handle_vblank
- *    ? read_tsc
  *    radeon_emulate_vblank_core
  *    radeon_emulate_vblank
  *
- * Because vcrtcm always calls callbacks with the pcon already locked,
- * this function must call the *nonlocking* variants of the vcrtcm
- * api functions.
+ * The vcrtcm api requires the gpu's vblank callback to be atomic.  Hence,
+ * this function must be atomic, and hence it must call the *nonlocking*
+ * variants of the vcrtcm api functions.
+ *
+ * This function can also be called when it is *not* in the context of a
+ * vcrtcm-registered callback -- for example, like so:
+ *
+ *    radeon_get_vblank_timestamp_kms
+ *    ? radeon_disable_vblank_kms
+ *    drm_get_last_vbltimestamp
+ *    vblank_disable_and_save
+ *    vblank_disable_fn
+ *    ? vblank_disable_and_save
+ *    call_timer_fn
+ *    ? vblank_disable_and_save
+ *    run_timer_softirq
+ *    __do_softirq
+ *
+ * If you modify the implementation of this function, please keep in
+ * mind the different contexts in which it can be called.
  */
 int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	int crtc, int *max_error, struct timeval *vblank_time,
