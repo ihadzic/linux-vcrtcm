@@ -742,54 +742,6 @@ int vcrtcm_g_get_dpms_l(int pconid, int *state)
 }
 EXPORT_SYMBOL(vcrtcm_g_get_dpms_l);
 
-/* retrieve the last (fake) vblank time if it exists */
-int vcrtcm_g_get_vblank_time(int pconid,
-			   struct timeval *vblank_time)
-{
-	struct vcrtcm_pcon *pcon;
-
-	vcrtcm_check_mutex(__func__, pconid);
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	if (pcon->being_destroyed) {
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		return -EINVAL;
-	}
-	if (!pcon->vblank_time_valid)
-		return -EAGAIN;
-	*vblank_time = pcon->vblank_time;
-	return 0;
-}
-EXPORT_SYMBOL(vcrtcm_g_get_vblank_time);
-
-/*
- * set new (fake) vblank time; used when vblank emulation
- * is generated internally by the GPU without involving the PCON
- * (typically after a successful push)
- */
-int vcrtcm_g_set_vblank_time(int pconid)
-{
-	struct vcrtcm_pcon *pcon;
-
-	vcrtcm_check_mutex(__func__, pconid);
-	pcon = vcrtcm_get_pcon(pconid);
-	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
-	}
-	if (pcon->being_destroyed) {
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		return -EINVAL;
-	}
-	do_gettimeofday(&pcon->vblank_time);
-	pcon->vblank_time_valid = 1;
-	return 0;
-}
-EXPORT_SYMBOL(vcrtcm_g_set_vblank_time);
-
 /*
  * check if the attached PCON is in the connected state
  * some PCONs can be always connected (typically software

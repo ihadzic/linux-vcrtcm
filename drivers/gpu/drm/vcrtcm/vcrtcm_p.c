@@ -387,8 +387,6 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		spin_unlock_irqrestore(pcon_spinlock, flags);
 		return -EINVAL;
 	}
-	do_gettimeofday(&pcon->vblank_time);
-	pcon->vblank_time_valid = 1;
 	if (pcon->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
 		pcon->gpu_funcs.vblank(pcon->pconid, pcon->drm_crtc);

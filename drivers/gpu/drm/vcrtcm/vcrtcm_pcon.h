@@ -50,9 +50,6 @@ struct vcrtcm_pcon {
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
 	int being_destroyed;
-	/* records the time when last (emulated) vblank occurred */
-	struct timeval vblank_time;
-	int vblank_time_valid;
 	/* identifies the CRTC using this PCON */
 	struct drm_crtc *drm_crtc;
 	int alloc_cnt;

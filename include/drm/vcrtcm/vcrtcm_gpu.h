@@ -200,19 +200,6 @@ int vcrtcm_g_get_dpms(int pconid, int *state);
 
 /*
  * mutex: must be locked before calling this function
- * atomic: YES
- */
-int vcrtcm_g_get_vblank_time(int pconid,
-			   struct timeval *vblank_time);
-
-/*
- * mutex: must be locked before calling this function
- * atomic: unspecified
- */
-int vcrtcm_g_set_vblank_time(int pconid);
-
-/*
- * mutex: must be locked before calling this function
  * atomic: unspecified
  */
 int vcrtcm_g_pcon_connected(int pconid, int *status);
@@ -267,9 +254,6 @@ int vcrtcm_g_get_cursor_l(int pconid,
 		      struct vcrtcm_cursor *cursor);
 int vcrtcm_g_set_dpms_l(int pconid, int state);
 int vcrtcm_g_get_dpms_l(int pconid, int *state);
-int vcrtcm_g_get_vblank_time_l(int pconid,
-			   struct timeval *vblank_time);
-int vcrtcm_g_set_vblank_time_l(int pconid);
 int vcrtcm_g_pcon_connected_l(int pconid, int *status);
 int vcrtcm_g_get_modes_l(int pconid,
 		     struct vcrtcm_mode **modes, int *count);
