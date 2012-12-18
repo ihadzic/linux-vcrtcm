@@ -31,16 +31,20 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
 	unsigned long flags;
 	spinlock_t *pcon_spinlock;
+	int pconid;
 
+	pconid = pcon->pconid;
 	pcon->vblank_period_jiffies = 0;
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
-	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	vcrtcm_dealloc_pcon(pcon);
+	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 }
 
@@ -71,6 +75,8 @@ void vcrtcm_set_crtc(struct vcrtcm_pcon *pcon, struct drm_crtc *crtc)
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pcon->pconid);
 	pcon->drm_crtc = crtc;
+	vcrtcm_clear_spinlock_owner(pcon->pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 }

@@ -301,16 +301,17 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 	if (!pcon_spinlock)
 		return -EINVAL;
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
+		r = -ENODEV;
+		goto done;
 	}
 	if (pcon->being_destroyed) {
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		return -EINVAL;
+		r = -EINVAL;
+		goto done;
 	}
 	if (pcon->pim_funcs.page_flip &&
 		pcon->pcon_callbacks_enabled &&
@@ -322,6 +323,8 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr)
 		r = pcon->pim_funcs.page_flip(pconid,
 			pcon->pcon_cookie, ioaddr);
 	}
+done:
+	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return r;
 }

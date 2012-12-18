@@ -159,7 +159,9 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	pcon->being_destroyed = 1;
+	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;

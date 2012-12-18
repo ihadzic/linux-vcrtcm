@@ -361,6 +361,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	unsigned long flags;
 	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
+	int r = 0;
 
 	/*
 	* NB: this function does not require that the mutex be locked,
@@ -372,28 +373,32 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	if (!pcon_spinlock)
 		return -EINVAL;
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		return -ENODEV;
+		r = -ENODEV;
+		goto done;
 	}
 	if (pcon->being_destroyed) {
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		return -EINVAL;
+		r = -EINVAL;
+		goto done;
 	}
 	if (!pcon->drm_crtc) {
-		spin_unlock_irqrestore(pcon_spinlock, flags);
-		return -EINVAL;
+		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
+		r = -EINVAL;
+		goto done;
 	}
 	if (pcon->gpu_funcs.vblank) {
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
 		pcon->gpu_funcs.vblank(pcon->pconid, pcon->drm_crtc);
 	}
 	pcon->last_vblank_jiffies = jiffies;
+done:
+	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
-	return 0;
+	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
@@ -755,13 +760,13 @@ EXPORT_SYMBOL(vcrtcm_p_detach_l);
 
 int vcrtcm_p_destroy(int pconid)
 {
-	spinlock_t *page_flip_spinlock;
+	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
 	vcrtcm_check_mutex(__func__, pconid);
-	page_flip_spinlock = vcrtcm_get_pconid_spinlock(pconid);
-	if (!page_flip_spinlock)
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	if (!pcon_spinlock)
 		return -EINVAL;
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
@@ -779,9 +784,11 @@ int vcrtcm_p_destroy(int pconid)
 		vcrtcm_set_crtc(pcon, NULL);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
-	spin_lock_irqsave(page_flip_spinlock, flags);
+	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	pcon->being_destroyed = 1;
-	spin_unlock_irqrestore(page_flip_spinlock, flags);
+	vcrtcm_clear_spinlock_owner(pconid);
+	spin_unlock_irqrestore(pcon_spinlock, flags);
 	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
@@ -815,7 +822,9 @@ int vcrtcm_p_disable_callbacks(int pconid)
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
+	vcrtcm_set_spinlock_owner(pconid);
 	pcon->pcon_callbacks_enabled = 0;
+	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return 0;
 }
