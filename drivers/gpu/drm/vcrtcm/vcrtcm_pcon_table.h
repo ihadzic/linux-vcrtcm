@@ -61,4 +61,7 @@ void vcrtcm_check_mutex(const char *func, int pconid);
 static inline void vcrtcm_check_mutex(const char *func, int pconid) {}
 #endif
 
+void vcrtcm_set_spinlock_owner(int pconid);
+void vcrtcm_clear_spinlock_owner(int pconid);
+
 #endif

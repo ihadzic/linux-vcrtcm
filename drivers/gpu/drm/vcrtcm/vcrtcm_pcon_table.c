@@ -40,6 +40,7 @@
 
 struct pconid_table_entry {
 	spinlock_t spinlock;
+	pid_t spinlock_owner;
 	struct mutex mutex;
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
 	int in_mutex;
@@ -70,6 +71,7 @@ void init_pcon_table(void)
 	for (k = 0; k < MAX_NUM_PCONIDS; ++k) {
 		struct pconid_table_entry *entry = &pconid_table[k];
 
+		entry->spinlock_owner = -1;
 		spin_lock_init(&entry->spinlock);
 		mutex_init(&entry->mutex);
 #ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
@@ -244,3 +246,29 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	}
 }
 #endif
+
+void vcrtcm_set_spinlock_owner(int pconid)
+{
+	struct pconid_table_entry *entry;
+	unsigned long flags;
+
+	entry = pconid2entry(pconid);
+	if (!entry)
+		return;
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
+	entry->spinlock_owner = current->pid;
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+}
+
+void vcrtcm_clear_spinlock_owner(int pconid)
+{
+	struct pconid_table_entry *entry;
+	unsigned long flags;
+
+	entry = pconid2entry(pconid);
+	if (!entry)
+		return;
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
+	entry->spinlock_owner = -1;
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
+}
