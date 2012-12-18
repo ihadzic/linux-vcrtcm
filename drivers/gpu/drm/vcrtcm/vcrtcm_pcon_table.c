@@ -133,10 +133,10 @@ void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon)
 
 	if (!pcon)
 		return;
-	spin_lock_irqsave(&pconid_table_spinlock, flags);
 	entry = pconid2entry(pcon->pconid);
 	if (!entry)
 		return;
+	spin_lock_irqsave(&pconid_table_spinlock, flags);
 	BUG_ON(pcon != entry->pcon);
 	cnt = pcon->alloc_cnt;
 	page_cnt = pcon->page_alloc_cnt;
