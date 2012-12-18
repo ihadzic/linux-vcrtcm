@@ -1158,6 +1158,7 @@ void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 	radeon_crtc->last_push_fence_fb = NULL;
 	radeon_crtc->pconid = -1;
 	radeon_crtc->vcrtcm_push_fb = NULL;
+	radeon_crtc->emulated_vblank_time_valid = 0;
 }
 
 void radeon_virtual_crtc_init(struct drm_device *dev, int index)
@@ -1281,10 +1282,9 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	 * of gettimeofday when it snapshot in emulate_vblank
 	 */
 	*max_error = 1000;
-	r = vcrtcm_g_get_vblank_time(virtual_crtc->radeon_crtc->pconid,
-				   vblank_time);
-	if (r)
-		return r;
+	if (!virtual_crtc->radeon_crtc->emulated_vblank_time_valid)
+		return -EAGAIN;
+	*vblank_time = virtual_crtc->radeon_crtc->emulated_vblank_time;
 	r = vcrtcm_g_get_fb_status(virtual_crtc->radeon_crtc->pconid,
 				 &vblank_status);
 	if (r)
@@ -1299,3 +1299,10 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	DRM_DEBUG("in vblank interval\n");
 	return DRM_VBLANKTIME_INVBL;
 }
+
+void radeon_virtual_crtc_set_emulated_vblank_time(struct radeon_crtc *radeon_crtc)
+{
+	do_gettimeofday(&radeon_crtc->emulated_vblank_time);
+	radeon_crtc->emulated_vblank_time_valid = 1;
+}
+

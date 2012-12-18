@@ -176,6 +176,7 @@ void radeon_emulate_vblank_core(struct radeon_device *rdev,
 {
 	struct drm_device *ddev = rdev->ddev;
 
+	radeon_virtual_crtc_set_emulated_vblank_time(radeon_crtc);
 	radeon_crtc->emulated_vblank_counter++;
 	if (radeon_crtc->vblank_emulation_enabled) {
 		DRM_DEBUG("emulating vblank interrupt on virtual crtc %d\n",
@@ -319,7 +320,7 @@ static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 	 */
 	if (srcrtc->crtc_id >= rdev->num_crtc) {
 		if (srcrtc->pconid >= 0)
-			vcrtcm_g_set_vblank_time(srcrtc->pconid);
+			radeon_virtual_crtc_set_emulated_vblank_time(srcrtc);
 		radeon_emulate_vblank(pconid, scrtc);
 	}
 	return 0;

@@ -343,6 +343,9 @@ struct radeon_crtc {
 	struct drm_framebuffer *vcrtcm_push_fb;
 	enum vcrtcm_xfer_mode xfer_mode;
 	int pconid;
+	/* time when last emulated vblank occurred */
+	struct timeval emulated_vblank_time;
+	int emulated_vblank_time_valid;
 };
 
 struct radeon_encoder_primary_dac {

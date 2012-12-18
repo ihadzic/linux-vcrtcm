@@ -56,5 +56,6 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev, int crt
 					unsigned flags);
 struct virtual_crtc *radeon_virtual_crtc_lookup(struct radeon_device *rdev,
 	int crtc_id);
+void radeon_virtual_crtc_set_emulated_vblank_time(struct radeon_crtc *radeon_crtc);
 
 #endif
