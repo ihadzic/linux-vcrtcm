@@ -417,8 +417,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		return -EINVAL;
 	minor = pcon->minor;
 	mutex_lock(&minor->buffer_mutex);
-	V4L2PIM_DEBUG("in v4l2pim_do_xmit_fb_push, minor %d\n",
-		      minor->minor);
+	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 
 	spin_lock_irqsave(&minor->lock, flags);
 	minor->status |= V4L2PIM_IN_DO_XMIT;
@@ -449,14 +448,14 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		pcon->fb_dirty = 0;
 		pcon->fb_xmit_counter++;
 
-		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
+		V4L2PIM_DEBUG("[%d]: frame buffer pitch %d width %d height %d bpp %d\n",
 				push_buffer_index,
 				pcon->vcrtcm_fb.pitch,
 				pcon->vcrtcm_fb.width,
 				pcon->vcrtcm_fb.height,
 				pcon->vcrtcm_fb.bpp);
 
-		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
+		V4L2PIM_DEBUG("[%d]: crtc x %d crtc y %d hdisplay %d vdisplay %d\n",
 				push_buffer_index,
 				pcon->vcrtcm_fb.viewport_x,
 				pcon->vcrtcm_fb.viewport_y,
@@ -567,8 +566,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 			}
 		}
 
-		V4L2PIM_DEBUG("v4l2pim_do_xmit_fb_push[%d]: initiating copy\n",
-				push_buffer_index);
+		V4L2PIM_DEBUG("[%d]: initiating copy\n", push_buffer_index);
 		jiffies_snapshot = jiffies;
 		spin_lock_irqsave(&minor->sb_lock, flags);
 		if (minor->shadowbuf) {
