@@ -236,14 +236,8 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	in_mutex = entry->in_mutex;
 	mutex_owner = entry->mutex_owner;
 	spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
-	if (!in_mutex) {
-		VCRTCM_ERROR("mutex violation: not in mutex: %s\n", func);
-		dump_stack();
-	} else if (mutex_owner != current->pid) {
-		VCRTCM_ERROR("mutex violation: pcon 0x%08x locked by other: %s\n",
-			pconid, func);
-		dump_stack();
-	}
+	BUG_ON(!in_mutex);
+	BUG_ON(mutex_owner != current->pid);
 }
 #endif
 
