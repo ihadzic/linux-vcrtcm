@@ -361,7 +361,6 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	unsigned long flags;
 	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
-	int r = 0;
 
 	/*
 	* NB: this function does not require that the mutex be locked,
@@ -376,29 +375,45 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	vcrtcm_set_spinlock_owner(pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
+		vcrtcm_clear_spinlock_owner(pconid);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon %d\n", pconid);
-		r = -ENODEV;
-		goto done;
+		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
+		vcrtcm_clear_spinlock_owner(pconid);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
-		r = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 	if (!pcon->drm_crtc) {
+		vcrtcm_clear_spinlock_owner(pconid);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
-		r = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 	if (pcon->gpu_funcs.vblank) {
+		struct drm_crtc *crtc = pcon->drm_crtc;
+
+		pcon->last_vblank_jiffies = jiffies;
+		vcrtcm_clear_spinlock_owner(pconid);
+		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
-		pcon->gpu_funcs.vblank(pcon->pconid, pcon->drm_crtc);
+		/*
+		 * spinlock released before going into the GPU-land
+		 * we are destruct-safe in here because we cached everything
+		 * from PCON while we held the spinlock; if GPU makes
+		 * any calls back into the VCRTCM, the destruct-safe property
+		 * of these functions will ensure that the system survives
+		 * and destruct-race
+		 */
+		pcon->gpu_funcs.vblank(pconid, crtc);
+		return 0;
 	}
 	pcon->last_vblank_jiffies = jiffies;
-done:
 	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
-	return r;
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
