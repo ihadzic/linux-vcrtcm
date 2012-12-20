@@ -55,10 +55,12 @@ void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
 
-	/* push-mode pims must wait_fb() before detaching,
+	/*
+	 * push-mode pims must wait_fb() before detaching,
 	 * so do it for them to make sure it gets done
 	 */
-	if (pcon->xfer_mode == VCRTCM_PEER_PUSH || pcon->xfer_mode == VCRTCM_PUSH_PULL)
+	if (pcon->xfer_mode == VCRTCM_PEER_PUSH ||
+	    pcon->xfer_mode == VCRTCM_PUSH_PULL)
 		vcrtcm_p_wait_fb(pcon->pconid);
 }
 

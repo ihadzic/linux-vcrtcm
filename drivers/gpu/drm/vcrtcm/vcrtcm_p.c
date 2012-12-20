@@ -363,11 +363,11 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	struct vcrtcm_pcon *pcon;
 
 	/*
-	* NB: this function does not require that the mutex be locked,
-	* because some pims call this function from an isr
-	*
-	* vcrtcm_check_mutex(__func__, pconid);
-	*/
+	 * NB: this function does not require that the mutex be locked,
+	 * because some pims call this function from an isr
+	 *
+	 * vcrtcm_check_mutex(__func__, pconid);
+	 */
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	if (!pcon_spinlock)
 		return -EINVAL;
