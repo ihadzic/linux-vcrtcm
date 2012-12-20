@@ -425,7 +425,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 
 	push_buffer_index = pcon->push_buffer_index;
 
-	if (pcon->pbd_fb) {
+	if (pcon->pbd_fb[push_buffer_index]) {
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
