@@ -461,8 +461,7 @@ static int fat_parse_short(struct super_block *sb,
 }
 
 /*
- * Return values: negative -> error, 0 -> not found, positive -> found,
- * value is the total amount of slots, including the shortname entry.
+ * Return values: negative -> error/not found, 0 -> found.
  */
 int fat_search_long(struct inode *inode, const unsigned char *name,
 		    int name_len, struct fat_slot_info *sinfo)
@@ -571,7 +570,7 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 	int short_len = 0, fill_len = 0;
 	int ret = 0;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 
 	cpos = filp->f_pos;
 	/* Fake . and .. for the root directory. */
@@ -693,7 +692,7 @@ fill_failed:
 	if (unicode)
 		__putname(unicode);
 out:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 	return ret;
 }
 
@@ -1255,7 +1254,7 @@ int fat_add_entries(struct inode *dir, void *slots, int nr_slots,
 
 	sinfo->nr_slots = nr_slots;
 
-	/* First stage: search free direcotry entries */
+	/* First stage: search free directory entries */
 	free_slots = nr_bhs = 0;
 	bh = prev = NULL;
 	pos = 0;

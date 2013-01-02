@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define __SYSCALL_COMPAT
-
 #include <linux/compat.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
@@ -28,81 +26,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unistd.h>
-
-asmlinkage int compat_sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->compat_sp, regs, 0, NULL, NULL);
-}
-
-asmlinkage int compat_sys_clone(unsigned long clone_flags, unsigned long newsp,
-			  int __user *parent_tidptr, int tls_val,
-			  int __user *child_tidptr, struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->compat_sp;
-
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-asmlinkage int compat_sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->compat_sp,
-		       regs, 0, NULL, NULL);
-}
-
-asmlinkage int compat_sys_execve(const char __user *filenamei,
-				 compat_uptr_t argv, compat_uptr_t envp,
-				 struct pt_regs *regs)
-{
-	int error;
-	char * filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename, compat_ptr(argv), compat_ptr(envp),
-				 regs);
-	putname(filename);
-out:
-	return error;
-}
-
-asmlinkage int compat_sys_sched_rr_get_interval(compat_pid_t pid,
-						struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
-	set_fs(old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
-asmlinkage int compat_sys_sendfile(int out_fd, int in_fd,
-				   compat_off_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
-			   count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-	return ret;
-}
+#include <asm/unistd32.h>
 
 static inline void
 do_compat_cache_op(unsigned long start, unsigned long end, int flags)

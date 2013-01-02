@@ -55,9 +55,9 @@ static int rio_mport_phys_table[] = {
 };
 
 
-/*
+/**
  * rio_destid_alloc - Allocate next available destID for given network
- * net: RIO network
+ * @net: RIO network
  *
  * Returns next available device destination ID for the specified RIO network.
  * Marks allocated ID as one in use.
@@ -69,14 +69,9 @@ static u16 rio_destid_alloc(struct rio_net *net)
 	struct rio_id_table *idtab = &net->destid_table;
 
 	spin_lock(&idtab->lock);
-	destid = find_next_zero_bit(idtab->table, idtab->max, idtab->next);
-	if (destid >= idtab->max)
-		destid = find_first_zero_bit(idtab->table, idtab->max);
+	destid = find_first_zero_bit(idtab->table, idtab->max);
 
 	if (destid < idtab->max) {
-		idtab->next = destid + 1;
-		if (idtab->next >= idtab->max)
-			idtab->next = 0;
 		set_bit(destid, idtab->table);
 		destid += idtab->start;
 	} else
@@ -86,10 +81,10 @@ static u16 rio_destid_alloc(struct rio_net *net)
 	return (u16)destid;
 }
 
-/*
+/**
  * rio_destid_reserve - Reserve the specivied destID
- * net: RIO network
- * destid: destID to reserve
+ * @net: RIO network
+ * @destid: destID to reserve
  *
  * Tries to reserve the specified destID.
  * Returns 0 if successfull.
@@ -106,10 +101,10 @@ static int rio_destid_reserve(struct rio_net *net, u16 destid)
 	return oldbit;
 }
 
-/*
+/**
  * rio_destid_free - free a previously allocated destID
- * net: RIO network
- * destid: destID to free
+ * @net: RIO network
+ * @destid: destID to free
  *
  * Makes the specified destID available for use.
  */
@@ -123,9 +118,9 @@ static void rio_destid_free(struct rio_net *net, u16 destid)
 	spin_unlock(&idtab->lock);
 }
 
-/*
+/**
  * rio_destid_first - return first destID in use
- * net: RIO network
+ * @net: RIO network
  */
 static u16 rio_destid_first(struct rio_net *net)
 {
@@ -142,10 +137,10 @@ static u16 rio_destid_first(struct rio_net *net)
 	return (u16)destid;
 }
 
-/*
+/**
  * rio_destid_next - return next destID in use
- * net: RIO network
- * from: destination ID from which search shall continue
+ * @net: RIO network
+ * @from: destination ID from which search shall continue
  */
 static u16 rio_destid_next(struct rio_net *net, u16 from)
 {
@@ -376,7 +371,7 @@ static void rio_switch_init(struct rio_dev *rdev, int do_enum)
  * device to the RIO device list.  Creates the generic sysfs nodes
  * for an RIO device.
  */
-static int __devinit rio_add_device(struct rio_dev *rdev)
+static int rio_add_device(struct rio_dev *rdev)
 {
 	int err;
 
@@ -468,7 +463,7 @@ inline int rio_enable_rx_tx_port(struct rio_mport *port,
  * to a RIO device on success or NULL on failure.
  *
  */
-static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
+static struct rio_dev *rio_setup_device(struct rio_net *net,
 					struct rio_mport *port, u16 destid,
 					u8 hopcount, int do_enum)
 {
@@ -842,7 +837,7 @@ static u16 rio_get_host_deviceid_lock(struct rio_mport *port, u8 hopcount)
  * Recursively enumerates a RIO network.  Transactions are sent via the
  * master port passed in @port.
  */
-static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
+static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			 u8 hopcount, struct rio_dev *prev, int prev_port)
 {
 	struct rio_dev *rdev;
@@ -1049,7 +1044,7 @@ static int rio_enum_complete(struct rio_mport *port)
  * Recursively discovers a RIO network.  Transactions are sent via the
  * master port passed in @port.
  */
-static int __devinit
+static int
 rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 	      u8 hopcount, struct rio_dev *prev, int prev_port)
 {
@@ -1156,15 +1151,15 @@ static int rio_mport_is_active(struct rio_mport *port)
  * network list of associated master ports. Returns a
  * RIO network pointer on success or %NULL on failure.
  */
-static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port,
+static struct rio_net *rio_alloc_net(struct rio_mport *port,
 					       int do_enum, u16 start)
 {
 	struct rio_net *net;
 
 	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
 	if (net && do_enum) {
-		net->destid_table.table = kzalloc(
-			BITS_TO_LONGS(RIO_MAX_ROUTE_ENTRIES(port->sys_size)) *
+		net->destid_table.table = kcalloc(
+			BITS_TO_LONGS(RIO_MAX_ROUTE_ENTRIES(port->sys_size)),
 			sizeof(long),
 			GFP_KERNEL);
 
@@ -1174,7 +1169,6 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port,
 			net = NULL;
 		} else {
 			net->destid_table.start = start;
-			net->destid_table.next = 0;
 			net->destid_table.max =
 					RIO_MAX_ROUTE_ENTRIES(port->sys_size);
 			spin_lock_init(&net->destid_table.lock);
@@ -1272,7 +1266,7 @@ static void rio_pw_enable(struct rio_mport *port, int enable)
  * link, then start recursive peer enumeration. Returns %0 if
  * enumeration succeeds or %-EBUSY if enumeration fails.
  */
-int __devinit rio_enum_mport(struct rio_mport *mport)
+int rio_enum_mport(struct rio_mport *mport)
 {
 	struct rio_net *net = NULL;
 	int rc = 0;
@@ -1375,7 +1369,7 @@ static void rio_build_route_tables(struct rio_net *net)
  * peer discovery. Returns %0 if discovery succeeds or %-EBUSY
  * on failure.
  */
-int __devinit rio_disc_mport(struct rio_mport *mport)
+int rio_disc_mport(struct rio_mport *mport)
 {
 	struct rio_net *net = NULL;
 	unsigned long to_end;
@@ -1391,7 +1385,7 @@ int __devinit rio_disc_mport(struct rio_mport *mport)
 		while (time_before(jiffies, to_end)) {
 			if (rio_enum_complete(mport))
 				goto enum_done;
-			schedule_timeout_uninterruptible(msecs_to_jiffies(10));
+			msleep(10);
 		}
 
 		pr_debug("RIO: discovery timeout on mport %d %s\n",

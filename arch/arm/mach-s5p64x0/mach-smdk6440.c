@@ -27,6 +27,7 @@
 #include <linux/mmc/host.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -52,7 +53,6 @@
 #include <plat/s5p-time.h>
 #include <plat/backlight.h>
 #include <plat/fb.h>
-#include <plat/regs-fb.h>
 #include <plat/sdhci.h>
 
 #include "common.h"
@@ -165,7 +165,6 @@ static struct platform_device *smdk6440_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_ts,
 	&s3c_device_wdt,
-	&samsung_asoc_dma,
 	&s5p6440_device_iis,
 	&s3c_device_fb,
 	&smdk6440_lcd_lte480wv,

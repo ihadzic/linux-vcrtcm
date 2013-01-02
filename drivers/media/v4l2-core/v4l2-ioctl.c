@@ -155,10 +155,10 @@ static const char *v4l2_memory_names[] = {
 	[V4L2_MEMORY_MMAP]    = "mmap",
 	[V4L2_MEMORY_USERPTR] = "userptr",
 	[V4L2_MEMORY_OVERLAY] = "overlay",
+	[V4L2_MEMORY_DMABUF] = "dmabuf",
 };
 
-#define prt_names(a, arr) ((((a) >= 0) && ((a) < ARRAY_SIZE(arr))) ? \
-			   arr[a] : "unknown")
+#define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unknown")
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
@@ -452,6 +452,15 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 		"flags=0x%08x, frames=%d, userbits=0x%08x\n",
 			tc->hours, tc->minutes, tc->seconds,
 			tc->type, tc->flags, tc->frames, *(__u32 *)tc->userbits);
+}
+
+static void v4l_print_exportbuffer(const void *arg, bool write_only)
+{
+	const struct v4l2_exportbuffer *p = arg;
+
+	pr_cont("fd=%d, type=%s, index=%u, plane=%u, flags=0x%08x\n",
+		p->fd, prt_names(p->type, v4l2_type_names),
+		p->index, p->plane, p->flags);
 }
 
 static void v4l_print_create_buffers(const void *arg, bool write_only)
@@ -1961,6 +1970,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_S_FBUF, vidioc_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_OVERLAY, v4l_overlay, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_QBUF, v4l_qbuf, v4l_print_buffer, INFO_FL_QUEUE),
+	IOCTL_INFO_STD(VIDIOC_EXPBUF, vidioc_expbuf, v4l_print_exportbuffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_exportbuffer, flags)),
 	IOCTL_INFO_FNC(VIDIOC_DQBUF, v4l_dqbuf, v4l_print_buffer, INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_STREAMON, v4l_streamon, v4l_print_buftype, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_STREAMOFF, v4l_streamoff, v4l_print_buftype, INFO_FL_PRIO | INFO_FL_QUEUE),
@@ -2188,6 +2198,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 	int ret = 0;
 
 	switch (cmd) {
+	case VIDIOC_PREPARE_BUF:
 	case VIDIOC_QUERYBUF:
 	case VIDIOC_QBUF:
 	case VIDIOC_DQBUF: {
@@ -2211,6 +2222,10 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		struct v4l2_subdev_edid *edid = parg;
 
 		if (edid->blocks) {
+			if (edid->blocks > 256) {
+				ret = -EINVAL;
+				break;
+			}
 			*user_ptr = (void __user *)edid->edid;
 			*kernel_ptr = (void *)&edid->edid;
 			*array_size = edid->blocks * 128;

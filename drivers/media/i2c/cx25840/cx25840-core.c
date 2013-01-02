@@ -599,7 +599,7 @@ static void cx23885_initialize(struct i2c_client *client)
 		cx25840_write4(client, 0x114, 0x01bf0c9e);
 		cx25840_write4(client, 0x110, 0x000a030c);
 		break;
-	};
+	}
 
 	/* ADC2 input select */
 	cx25840_write(client, 0x102, 0x10);
@@ -2065,7 +2065,7 @@ static int cx25840_irq_handler(struct v4l2_subdev *sd, u32 status,
 #define DIF_BPF_COEFF3435	(0x38c)
 #define DIF_BPF_COEFF36		(0x390)
 
-void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
+static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 {
 	u64 pll_freq;
 	u32 pll_freq_word;

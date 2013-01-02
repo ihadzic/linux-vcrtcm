@@ -26,7 +26,7 @@ static void kirkwood_enable_pcie_clk(const char *port)
 
 	clk = clk_get_sys("pcie", port);
 	if (IS_ERR(clk)) {
-		printk(KERN_ERR "PCIE clock %s missing\n", port);
+		pr_err("PCIE clock %s missing\n", port);
 		return;
 	}
 	clk_prepare_enable(clk);
@@ -47,8 +47,8 @@ void kirkwood_enable_pcie(void)
 void kirkwood_pcie_id(u32 *dev, u32 *rev)
 {
 	kirkwood_enable_pcie();
-	*dev = orion_pcie_dev_id((void __iomem *)PCIE_VIRT_BASE);
-	*rev = orion_pcie_rev((void __iomem *)PCIE_VIRT_BASE);
+	*dev = orion_pcie_dev_id(PCIE_VIRT_BASE);
+	*rev = orion_pcie_rev(PCIE_VIRT_BASE);
 }
 
 struct pcie_port {
@@ -133,7 +133,7 @@ static struct pci_ops pcie_ops = {
 
 static void __init pcie0_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE_VIRT_BASE;
+	pp->base = PCIE_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE;
 
 	/*
@@ -147,7 +147,7 @@ static void __init pcie0_ioresources_init(struct pcie_port *pp)
 
 static void __init pcie1_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE1_VIRT_BASE;
+	pp->base = PCIE1_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE1;
 
 	/*
@@ -168,7 +168,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 
 	index = pcie_port_map[nr];
-	printk(KERN_INFO "PCI: bus%d uses PCIe port %d\n", sys->busnr, index);
+	pr_info("PCI: bus%d uses PCIe port %d\n", sys->busnr, index);
 
 	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
@@ -186,7 +186,8 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	case 1:
 		kirkwood_enable_pcie_clk("1");
 		pcie1_ioresources_init(pp);
-		pci_ioremap_io(SZ_64K * sys->busnr, KIRKWOOD_PCIE1_IO_PHYS_BASE);
+		pci_ioremap_io(SZ_64K * sys->busnr,
+			       KIRKWOOD_PCIE1_IO_PHYS_BASE);
 		break;
 	default:
 		panic("PCIe setup: invalid controller %d", index);
@@ -207,14 +208,19 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
+/*
+ * The root complex has a hardwired class of PCI_CLASS_MEMORY_OTHER, when it
+ * is operating as a root complex this needs to be switched to
+ * PCI_CLASS_BRIDGE_HOST or Linux will errantly try to process the BAR's on
+ * the device. Decoding setup is handled by the orion code.
+ */
 static void __devinit rc_pci_fixup(struct pci_dev *dev)
 {
-	/*
-	 * Prevent enumeration of root complex.
-	 */
 	if (dev->bus->parent == NULL && dev->devfn == 0) {
 		int i;
 
+		dev->class &= 0xff;
+		dev->class |= PCI_CLASS_BRIDGE_HOST << 8;
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 			dev->resource[i].start = 0;
 			dev->resource[i].end   = 0;
@@ -223,22 +229,6 @@ static void __devinit rc_pci_fixup(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
-
-static struct pci_bus __init *
-kirkwood_pcie_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	struct pci_bus *bus;
-
-	if (nr < num_pcie_ports) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-					&sys->resources);
-	} else {
-		bus = NULL;
-		BUG();
-	}
-
-	return bus;
-}
 
 static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 	u8 pin)
@@ -251,19 +241,19 @@ static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 
 static struct hw_pci kirkwood_pci __initdata = {
 	.setup		= kirkwood_pcie_setup,
-	.scan		= kirkwood_pcie_scan_bus,
 	.map_irq	= kirkwood_pcie_map_irq,
+	.ops            = &pcie_ops,
 };
 
-static void __init add_pcie_port(int index, unsigned long base)
+static void __init add_pcie_port(int index, void __iomem *base)
 {
-	printk(KERN_INFO "Kirkwood PCIe port %d: ", index);
+	pr_info("Kirkwood PCIe port %d: ", index);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
-		printk(KERN_INFO "link up\n");
+	if (orion_pcie_link_up(base)) {
+		pr_info("link up\n");
 		pcie_port_map[num_pcie_ports++] = index;
 	} else
-		printk(KERN_INFO "link down, ignoring\n");
+		pr_info("link down, ignoring\n");
 }
 
 void __init kirkwood_pcie_init(unsigned int portmask)

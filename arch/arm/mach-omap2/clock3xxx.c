@@ -21,8 +21,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-
 #include "soc.h"
 #include "clock.h"
 #include "clock3xxx.h"
@@ -40,8 +38,8 @@
 
 /* needed by omap3_core_dpll_m2_set_rate() */
 struct clk *sdrc_ick_p, *arm_fck_p;
-
-int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
+int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
 {
 	/*
 	 * According to the 12-5 CDP code from TI, "Limitation 2.5"
@@ -53,7 +51,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 	}
 
-	return omap3_noncore_dpll_set_rate(clk, rate);
+	return omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
 }
 
 void __init omap3_clk_lock_dpll5(void)
@@ -63,15 +61,15 @@ void __init omap3_clk_lock_dpll5(void)
 
 	dpll5_clk = clk_get(NULL, "dpll5_ck");
 	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
-	clk_enable(dpll5_clk);
+	clk_prepare_enable(dpll5_clk);
 
 	/* Program dpll5_m2_clk divider for no division */
 	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
-	clk_enable(dpll5_m2_clk);
+	clk_prepare_enable(dpll5_m2_clk);
 	clk_set_rate(dpll5_m2_clk, DPLL5_FREQ_FOR_USBHOST);
 
-	clk_disable(dpll5_m2_clk);
-	clk_disable(dpll5_clk);
+	clk_disable_unprepare(dpll5_m2_clk);
+	clk_disable_unprepare(dpll5_clk);
 	return;
 }
 

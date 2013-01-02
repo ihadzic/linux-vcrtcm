@@ -105,7 +105,7 @@ static void fimc_device_run(void *priv)
 	struct fimc_frame *sf, *df;
 	struct fimc_dev *fimc;
 	unsigned long flags;
-	u32 ret;
+	int ret;
 
 	if (WARN(!ctx, "Null context\n"))
 		return;
@@ -439,6 +439,15 @@ static int fimc_m2m_dqbuf(struct file *file, void *fh,
 	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
 }
 
+static int fimc_m2m_expbuf(struct file *file, void *fh,
+			    struct v4l2_exportbuffer *eb)
+{
+	struct fimc_ctx *ctx = fh_to_ctx(fh);
+
+	return v4l2_m2m_expbuf(file, ctx->m2m_ctx, eb);
+}
+
+
 static int fimc_m2m_streamon(struct file *file, void *fh,
 			     enum v4l2_buf_type type)
 {
@@ -551,30 +560,31 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	return 0;
 }
 
-static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr)
+static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
 	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct v4l2_crop cr = *crop;
 	struct fimc_frame *f;
 	int ret;
 
-	ret = fimc_m2m_try_crop(ctx, cr);
+	ret = fimc_m2m_try_crop(ctx, &cr);
 	if (ret)
 		return ret;
 
-	f = (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
+	f = (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		&ctx->s_frame : &ctx->d_frame;
 
 	/* Check to see if scaling ratio is within supported range */
 	if (fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
-		if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = fimc_check_scaler_ratio(ctx, cr->c.width,
-					cr->c.height, ctx->d_frame.width,
+		if (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+			ret = fimc_check_scaler_ratio(ctx, cr.c.width,
+					cr.c.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctx->rotation);
 		} else {
 			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
-					ctx->s_frame.height, cr->c.width,
-					cr->c.height, ctx->rotation);
+					ctx->s_frame.height, cr.c.width,
+					cr.c.height, ctx->rotation);
 		}
 		if (ret) {
 			v4l2_err(&fimc->m2m.vfd, "Out of scaler range\n");
@@ -582,10 +592,10 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *
 		}
 	}
 
-	f->offs_h = cr->c.left;
-	f->offs_v = cr->c.top;
-	f->width  = cr->c.width;
-	f->height = cr->c.height;
+	f->offs_h = cr.c.left;
+	f->offs_v = cr.c.top;
+	f->width  = cr.c.width;
+	f->height = cr.c.height;
 
 	fimc_ctx_state_set(FIMC_PARAMS, ctx);
 
@@ -606,6 +616,7 @@ static const struct v4l2_ioctl_ops fimc_m2m_ioctl_ops = {
 	.vidioc_querybuf		= fimc_m2m_querybuf,
 	.vidioc_qbuf			= fimc_m2m_qbuf,
 	.vidioc_dqbuf			= fimc_m2m_dqbuf,
+	.vidioc_expbuf			= fimc_m2m_expbuf,
 	.vidioc_streamon		= fimc_m2m_streamon,
 	.vidioc_streamoff		= fimc_m2m_streamoff,
 	.vidioc_g_crop			= fimc_m2m_g_crop,
@@ -621,7 +632,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	int ret;
 
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	src_vq->io_modes = VB2_MMAP | VB2_USERPTR;
+	src_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	src_vq->drv_priv = ctx;
 	src_vq->ops = &fimc_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
@@ -632,7 +643,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 		return ret;
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR;
+	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->ops = &fimc_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
@@ -717,8 +728,7 @@ static int fimc_m2m_release(struct file *file)
 	dbg("pid: %d, state: 0x%lx, refcnt= %d",
 		task_pid_nr(current), fimc->state, fimc->m2m.refcnt);
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&fimc->lock);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	fimc_ctrls_delete(ctx);

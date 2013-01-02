@@ -27,13 +27,13 @@
 #include <asm/uaccess.h>
 #include <asm/switch_to.h>
 
-#include "init.h"
-#include "irq_kern.h"
-#include "irq_user.h"
-#include "kern_util.h"
+#include <init.h>
+#include <irq_kern.h>
+#include <irq_user.h>
+#include <kern_util.h>
 #include "mconsole.h"
 #include "mconsole_kern.h"
-#include "os.h"
+#include <os.h>
 
 static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)
@@ -123,7 +123,7 @@ void mconsole_log(struct mc_request *req)
 
 void mconsole_proc(struct mc_request *req)
 {
-	struct vfsmount *mnt = current->nsproxy->pid_ns->proc_mnt;
+	struct vfsmount *mnt = task_active_pid_ns(current)->proc_mnt;
 	char *buf;
 	int len;
 	struct file *file;
@@ -648,7 +648,7 @@ static void stack_proc(void *arg)
 	struct task_struct *from = current, *to = arg;
 
 	to->thread.saved_task = from;
-	rcu_switch(from, to);
+	rcu_user_hooks_switch(from, to);
 	switch_to(from, to, from);
 }
 

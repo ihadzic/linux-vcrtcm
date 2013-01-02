@@ -2126,8 +2126,7 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	vma->vm_flags |= VM_IO;
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	pos = cam->frame[i].bufmem;
 	while (size > 0) { /* size is page-aligned */
@@ -2482,11 +2481,13 @@ sn9c102_vidioc_enum_framesizes(struct sn9c102_device* cam, void __user * arg)
 		if (frmsize.pixel_format != V4L2_PIX_FMT_SN9C10X &&
 		    frmsize.pixel_format != V4L2_PIX_FMT_SBGGR8)
 			return -EINVAL;
+		break;
 	case BRIDGE_SN9C105:
 	case BRIDGE_SN9C120:
 		if (frmsize.pixel_format != V4L2_PIX_FMT_JPEG &&
 		    frmsize.pixel_format != V4L2_PIX_FMT_SBGGR8)
 			return -EINVAL;
+		break;
 	}
 
 	frmsize.type = V4L2_FRMSIZE_TYPE_STEPWISE;

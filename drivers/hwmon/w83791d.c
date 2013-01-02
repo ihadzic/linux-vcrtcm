@@ -22,7 +22,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * w83791d	10	5	5	3	0x71	0x5ca3	yes	no
  *
  * The w83791d chip appears to be part way between the 83781d and the
@@ -41,6 +41,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 #define NUMBER_OF_VIN		10
 #define NUMBER_OF_FANIN		5

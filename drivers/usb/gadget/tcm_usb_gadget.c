@@ -1384,7 +1384,7 @@ static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
 	if (!nacl) {
-		printk(KERN_ERR "Unable to alocate struct usbg_nacl\n");
+		printk(KERN_ERR "Unable to allocate struct usbg_nacl\n");
 		return NULL;
 	}
 
@@ -1468,16 +1468,6 @@ static int usbg_get_cmd_state(struct se_cmd *se_cmd)
 }
 
 static int usbg_queue_tm_rsp(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
-static u16 usbg_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	return 0;
-}
-
-static u16 usbg_get_fabric_sense_len(void)
 {
 	return 0;
 }
@@ -1822,7 +1812,7 @@ static ssize_t tcm_usbg_tpg_store_nexus(
 		ret = tcm_usbg_drop_nexus(tpg);
 		return (!ret) ? count : ret;
 	}
-	if (strlen(page) > USBG_NAMELEN) {
+	if (strlen(page) >= USBG_NAMELEN) {
 		pr_err("Emulated NAA Sas Address: %s, exceeds"
 				" max: %d\n", page, USBG_NAMELEN);
 		return -EINVAL;
@@ -1907,8 +1897,6 @@ static struct target_core_fabric_ops usbg_ops = {
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
 	.queue_tm_rsp			= usbg_queue_tm_rsp,
-	.get_fabric_sense_len		= usbg_get_fabric_sense_len,
-	.set_fabric_sense_len		= usbg_set_fabric_sense_len,
 	.check_stop_free		= usbg_check_stop_free,
 
 	.fabric_make_wwn		= usbg_make_tport,
@@ -1968,7 +1956,6 @@ static void usbg_deregister_configfs(void)
 static struct usb_interface_descriptor bot_intf_desc = {
 	.bLength =              sizeof(bot_intf_desc),
 	.bDescriptorType =      USB_DT_INTERFACE,
-	.bAlternateSetting =	0,
 	.bNumEndpoints =        2,
 	.bAlternateSetting =	USB_G_ALT_INT_BBB,
 	.bInterfaceClass =      USB_CLASS_MASS_STORAGE,
@@ -2152,6 +2139,7 @@ static struct usb_descriptor_header *uasp_fs_function_desc[] = {
 	(struct usb_descriptor_header *) &uasp_status_pipe_desc,
 	(struct usb_descriptor_header *) &uasp_fs_cmd_desc,
 	(struct usb_descriptor_header *) &uasp_cmd_pipe_desc,
+	NULL,
 };
 
 static struct usb_descriptor_header *uasp_hs_function_desc[] = {
@@ -2252,6 +2240,7 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct usb_ep		*ep;
 	int			iface;
+	int			ret;
 
 	iface = usb_interface_id(c, f);
 	if (iface < 0)
@@ -2302,6 +2291,11 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 		uasp_ss_status_desc.bEndpointAddress;
 	uasp_fs_cmd_desc.bEndpointAddress = uasp_ss_cmd_desc.bEndpointAddress;
 
+	ret = usb_assign_descriptors(f, uasp_fs_function_desc,
+			uasp_hs_function_desc, uasp_ss_function_desc);
+	if (ret)
+		goto ep_fail;
+
 	return 0;
 ep_fail:
 	pr_err("Can't claim all required eps\n");
@@ -2317,6 +2311,7 @@ static void usbg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_uas *fu = to_f_uas(f);
 
+	usb_free_all_descriptors(f);
 	kfree(fu);
 }
 
@@ -2397,9 +2392,6 @@ static int usbg_cfg_bind(struct usb_configuration *c)
 	if (!fu)
 		return -ENOMEM;
 	fu->function.name = "Target Function";
-	fu->function.descriptors = uasp_fs_function_desc;
-	fu->function.hs_descriptors = uasp_hs_function_desc;
-	fu->function.ss_descriptors = uasp_ss_function_desc;
 	fu->function.bind = usbg_bind;
 	fu->function.unbind = usbg_unbind;
 	fu->function.set_alt = usbg_set_alt;

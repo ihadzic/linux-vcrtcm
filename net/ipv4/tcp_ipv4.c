@@ -138,14 +138,6 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 
-static int tcp_repair_connect(struct sock *sk)
-{
-	tcp_connect_init(sk);
-	tcp_finish_connect(sk, NULL);
-
-	return 0;
-}
-
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -250,10 +242,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	inet->inet_id = tp->write_seq ^ jiffies;
 
-	if (likely(!tp->repair))
-		err = tcp_connect(sk);
-	else
-		err = tcp_repair_connect(sk);
+	err = tcp_connect(sk);
 
 	rt = NULL;
 	if (err)
@@ -708,10 +697,11 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 	arg.flags = (sk && inet_sk(sk)->transparent) ? IP_REPLY_ARG_NOSRCCHECK : 0;
 	/* When socket is gone, all binding information is lost.
-	 * routing might fail in this case. using iif for oif to
-	 * make sure we can deliver it
+	 * routing might fail in this case. No choice here, if we choose to force
+	 * input interface, we will misroute in case of asymmetric route.
 	 */
-	arg.bound_dev_if = sk ? sk->sk_bound_dev_if : inet_iif(skb);
+	if (sk)
+		arg.bound_dev_if = sk->sk_bound_dev_if;
 
 	net = dev_net(skb_dst(skb)->dev);
 	arg.tos = ip_hdr(skb)->tos;
@@ -876,10 +866,13 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 }
 
 static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
-			      struct request_values *rvp)
+			     struct request_values *rvp)
 {
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
-	return tcp_v4_send_synack(sk, NULL, req, rvp, 0, false);
+	int res = tcp_v4_send_synack(sk, NULL, req, rvp, 0, false);
+
+	if (!res)
+		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return res;
 }
 
 /*
@@ -1069,7 +1062,7 @@ int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family)
 }
 EXPORT_SYMBOL(tcp_md5_do_del);
 
-void tcp_clear_md5_list(struct sock *sk)
+static void tcp_clear_md5_list(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
@@ -1385,7 +1378,8 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 	struct sock *child;
 	int err;
 
-	req->retrans = 0;
+	req->num_retrans = 0;
+	req->num_timeout = 0;
 	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
@@ -1460,6 +1454,7 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 		skb_set_owner_r(skb, child);
 		__skb_queue_tail(&child->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		tp->syn_data_acked = 1;
 	}
 	sk->sk_data_ready(sk, 0);
 	bh_unlock_sock(child);
@@ -1739,7 +1734,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	tcp_initialize_rcv_mss(newsk);
 	tcp_synack_rtt_meas(newsk, req);
-	newtp->total_retrans = req->retrans;
+	newtp->total_retrans = req->num_retrans;
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Copy over the MD5 key from the original socket */
@@ -1772,10 +1767,8 @@ exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 put_and_exit:
-	tcp_clear_xmit_timers(newsk);
-	tcp_cleanup_congestion_control(newsk);
-	bh_unlock_sock(newsk);
-	sock_put(newsk);
+	inet_csk_prepare_forced_close(newsk);
+	tcp_done(newsk);
 	goto exit;
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
@@ -1917,7 +1910,6 @@ EXPORT_SYMBOL(tcp_v4_do_rcv);
 
 void tcp_v4_early_demux(struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
 	struct sock *sk;
@@ -1925,16 +1917,16 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 	if (skb->pkt_type != PACKET_HOST)
 		return;
 
-	if (!pskb_may_pull(skb, ip_hdrlen(skb) + sizeof(struct tcphdr)))
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) + sizeof(struct tcphdr)))
 		return;
 
 	iph = ip_hdr(skb);
-	th = (struct tcphdr *) ((char *)iph + ip_hdrlen(skb));
+	th = tcp_hdr(skb);
 
 	if (th->doff < sizeof(struct tcphdr) / 4)
 		return;
 
-	sk = __inet_lookup_established(net, &tcp_hashinfo,
+	sk = __inet_lookup_established(dev_net(skb->dev), &tcp_hashinfo,
 				       iph->saddr, th->source,
 				       iph->daddr, ntohs(th->dest),
 				       skb->skb_iif);
@@ -2638,7 +2630,7 @@ static void get_openreq4(const struct sock *sk, const struct request_sock *req,
 		0, 0, /* could print option size, but that is af dependent. */
 		1,    /* timers active (only the expire timer) */
 		jiffies_delta_to_clock_t(delta),
-		req->retrans,
+		req->num_timeout,
 		from_kuid_munged(seq_user_ns(f), uid),
 		0,  /* non standard timer */
 		0, /* open_requests have no inode */

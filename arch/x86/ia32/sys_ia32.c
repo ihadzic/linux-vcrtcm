@@ -385,32 +385,6 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 	return ret;
 }
 
-asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
-			     compat_uptr_t __user *envp, struct pt_regs *regs)
-{
-	long error;
-	char *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = compat_do_execve(filename, argv, envp, regs);
-	putname(filename);
-	return error;
-}
-
-asmlinkage long sys32_clone(unsigned int clone_flags, unsigned int newsp,
-			    struct pt_regs *regs)
-{
-	void __user *parent_tid = (void __user *)regs->dx;
-	void __user *child_tid = (void __user *)regs->di;
-
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
-}
-
 /*
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.

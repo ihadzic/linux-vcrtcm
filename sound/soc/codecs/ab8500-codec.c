@@ -391,10 +391,10 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_CLOCK_SUPPLY("audioclk"),
 
 	/* Regulators */
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0, 0),
 
 	/* Power */
 	SND_SOC_DAPM_SUPPLY("Audio Power",
@@ -2356,7 +2356,7 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-struct snd_soc_dai_driver ab8500_codec_dai[] = {
+static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	{
 		.name = "ab8500-codec-dai.0",
 		.id = 0,
@@ -2462,10 +2462,7 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
 	/* Setup AB8500 according to board-settings */
-	pdata = (struct ab8500_platform_data *)dev_get_platdata(dev->parent);
-
-	/* Inform SoC Core that we have our own I/O arrangements. */
-	codec->control_data = (void *)true;
+	pdata = dev_get_platdata(dev->parent);
 
 	if (np) {
 		if (!pdata)
@@ -2557,7 +2554,7 @@ static struct snd_soc_codec_driver ab8500_codec_driver = {
 	.num_dapm_routes =	ARRAY_SIZE(ab8500_dapm_routes),
 };
 
-static int __devinit ab8500_codec_driver_probe(struct platform_device *pdev)
+static int ab8500_codec_driver_probe(struct platform_device *pdev)
 {
 	int status;
 	struct ab8500_codec_drvdata *drvdata;
@@ -2583,7 +2580,7 @@ static int __devinit ab8500_codec_driver_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int __devexit ab8500_codec_driver_remove(struct platform_device *pdev)
+static int ab8500_codec_driver_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "%s Enter.\n", __func__);
 
@@ -2598,7 +2595,7 @@ static struct platform_driver ab8500_codec_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ab8500_codec_driver_probe,
-	.remove		= __devexit_p(ab8500_codec_driver_remove),
+	.remove		= ab8500_codec_driver_remove,
 	.suspend	= NULL,
 	.resume		= NULL,
 };

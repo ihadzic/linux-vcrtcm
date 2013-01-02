@@ -63,7 +63,7 @@
  *
  *	0	RapidIO inbound doorbells
  *	1	RapidIO inbound mailboxes
- *	1	RapidIO outbound mailboxes
+ *	2	RapidIO outbound mailboxes
  */
 #define RIO_DOORBELL_RESOURCE	0
 #define RIO_INB_MBOX_RESOURCE	1
@@ -266,7 +266,6 @@ struct rio_mport {
 
 struct rio_id_table {
 	u16 start;	/* logical minimal id */
-	u16 next;	/* hint for find */
 	u32 max;	/* max number of IDs in table */
 	spinlock_t lock;
 	unsigned long *table;
@@ -276,9 +275,11 @@ struct rio_id_table {
  * struct rio_net - RIO network info
  * @node: Node in global list of RIO networks
  * @devices: List of devices in this network
+ * @switches: List of switches in this netowrk
  * @mports: List of master ports accessing this network
  * @hport: Default port for accessing this network
  * @id: RIO network ID
+ * @destid_table: destID allocation table
  */
 struct rio_net {
 	struct list_head node;	/* node in list of networks */

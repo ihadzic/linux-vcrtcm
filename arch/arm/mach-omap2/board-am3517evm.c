@@ -25,6 +25,7 @@
 #include <linux/can/platform/ti_hecc.h>
 #include <linux/davinci_emac.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include "am35xx.h"
@@ -33,7 +34,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
@@ -208,6 +208,7 @@ static struct omap_dss_device am3517_evm_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device am3517_evm_dvi_device = {
@@ -261,6 +262,16 @@ static __init void am3517_evm_musb_init(void)
 	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
 
 	usb_musb_init(&musb_board_data);
+}
+
+static __init void am3517_evm_mcbsp1_init(void)
+{
+	u32 devconf0;
+
+	/* McBSP1 CLKR/FSR signal to be connected to CLKX/FSX pin */
+	devconf0 = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	devconf0 |=  OMAP2_MCBSP1_CLKR_MASK | OMAP2_MCBSP1_FSR_MASK;
+	omap_ctrl_writel(devconf0, OMAP2_CONTROL_DEVCONF0);
 }
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -366,6 +377,9 @@ static void __init am3517_evm_init(void)
 	/* MUSB */
 	am3517_evm_musb_init();
 
+	/* McBSP1 */
+	am3517_evm_mcbsp1_init();
+
 	/* MMC init function */
 	omap_hsmmc_init(mmc);
 }
@@ -380,5 +394,5 @@ MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.init_machine	= am3517_evm_init,
 	.init_late	= am35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

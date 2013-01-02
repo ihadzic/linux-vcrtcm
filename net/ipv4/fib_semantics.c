@@ -803,7 +803,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		unsigned int bytes;
 
 		if (!new_size)
-			new_size = 1;
+			new_size = 16;
 		bytes = new_size * sizeof(struct hlist_head *);
 		new_info_hash = fib_info_hash_alloc(bytes);
 		new_laddrhash = fib_info_hash_alloc(bytes);
@@ -840,6 +840,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
 		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
+		if (!nexthop_nh->nh_pcpu_rth_output)
+			goto failure;
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {

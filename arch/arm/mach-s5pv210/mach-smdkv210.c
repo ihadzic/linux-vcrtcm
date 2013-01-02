@@ -28,6 +28,7 @@
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
@@ -46,7 +47,6 @@
 #include <plat/fb.h>
 #include <plat/s5p-time.h>
 #include <plat/backlight.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/mfc.h>
 #include <plat/clock.h>
 
@@ -234,7 +234,6 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_ac97,
 	&s5pv210_device_iis0,
 	&s5pv210_device_spdif,
-	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&samsung_device_keypad,
 	&smdkv210_dm9000,

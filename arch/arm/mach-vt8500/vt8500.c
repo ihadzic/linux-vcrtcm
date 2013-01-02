@@ -31,8 +31,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/restart.h>
-
 #include "common.h"
 
 #define LEGACY_GPIO_BASE	0xD8110000
@@ -77,8 +75,11 @@ static void vt8500_power_off(void)
 
 void __init vt8500_init(void)
 {
-	struct device_node *np, *fb;
+	struct device_node *np;
+#if defined(CONFIG_FB_VT8500) || defined(CONFIG_FB_WM8505)
+	struct device_node *fb;
 	void __iomem *gpio_base;
+#endif
 
 #ifdef CONFIG_FB_VT8500
 	fb = of_find_compatible_node(NULL, NULL, "via,vt8500-fb");
@@ -191,5 +192,6 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.timer		= &vt8500_timer,
 	.init_machine	= vt8500_init,
 	.restart	= vt8500_restart,
+	.handle_irq	= vt8500_handle_irq,
 MACHINE_END
 

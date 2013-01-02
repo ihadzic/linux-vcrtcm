@@ -500,7 +500,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 		case 3:
 			state->af9013_config[i].clock = 25000000;
 			break;
-		};
+		}
 		dev_dbg(&d->udev->dev, "%s: [%d] xtal=%d set clock=%d\n",
 				__func__, i, val,
 				state->af9013_config[i].clock);
@@ -568,7 +568,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 					"supported, please report!\n",
 					KBUILD_MODNAME, val);
 			return -ENODEV;
-		};
+		}
 
 		state->af9013_config[i].tuner = val;
 		dev_dbg(&d->udev->dev, "%s: [%d] tuner id=%d\n",
@@ -1306,7 +1306,7 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
 
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = af9015_rc_query;
 	rc->interval = 500;
 

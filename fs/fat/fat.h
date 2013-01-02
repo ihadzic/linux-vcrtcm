@@ -29,6 +29,7 @@ struct fat_mount_options {
 	unsigned short fs_fmask;
 	unsigned short fs_dmask;
 	unsigned short codepage;   /* Codepage for shortname conversions */
+	int time_offset;	   /* Offset of timestamps from UTC (in minutes) */
 	char *iocharset;           /* Charset used for filename input/display */
 	unsigned short shortname;  /* flags for shortname display/create rule */
 	unsigned char name_check;  /* r = relaxed, n = normal, s = strict */
@@ -45,7 +46,7 @@ struct fat_mount_options {
 		 flush:1,	   /* write things quickly */
 		 nocase:1,	   /* Does this need case conversion? 0=need case conversion*/
 		 usefree:1,	   /* Use free_clusters for FAT32 */
-		 tz_utc:1,	   /* Filesystem timestamps are in UTC */
+		 tz_set:1,	   /* Filesystem timestamps' offset set */
 		 rodir:1,	   /* allow ATTR_RO for directory */
 		 discard:1,	   /* Issue discard requests on deletions */
 		 nfs:1;		   /* Do extra work needed for NFS export */
@@ -71,8 +72,9 @@ struct msdos_sb_info {
 	unsigned long root_cluster;   /* first cluster of the root directory */
 	unsigned long fsinfo_sector;  /* sector number of FAT32 fsinfo */
 	struct mutex fat_lock;
-	unsigned int prev_free;       /* previously allocated cluster number */
-	unsigned int free_clusters;   /* -1 if undefined */
+	struct mutex s_lock;
+	unsigned int prev_free;      /* previously allocated cluster number */
+	unsigned int free_clusters;  /* -1 if undefined */
 	unsigned int free_clus_valid; /* is free_clusters valid? */
 	struct fat_mount_options options;
 	struct nls_table *nls_disk;   /* Codepage used on disk */

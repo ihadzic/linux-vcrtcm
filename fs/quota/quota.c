@@ -307,6 +307,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	}
 }
 
+#ifdef CONFIG_BLOCK
+
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
@@ -322,6 +324,8 @@ static int quotactl_cmd_write(int cmd)
 	return 1;
 }
 
+#endif /* CONFIG_BLOCK */
+
 /*
  * look up a superblock on which quota ops will be performed
  * - use the name of a block device to find the superblock thereon
@@ -331,11 +335,11 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 #ifdef CONFIG_BLOCK
 	struct block_device *bdev;
 	struct super_block *sb;
-	char *tmp = getname(special);
+	struct filename *tmp = getname(special);
 
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	bdev = lookup_bdev(tmp);
+	bdev = lookup_bdev(tmp->name);
 	putname(tmp);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);

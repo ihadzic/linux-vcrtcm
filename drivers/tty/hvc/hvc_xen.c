@@ -422,7 +422,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	return ret;
 }
 
-static int __devinit xencons_probe(struct xenbus_device *dev,
+static int xencons_probe(struct xenbus_device *dev,
 				  const struct xenbus_device_id *id)
 {
 	int ret, devid;
@@ -478,7 +478,6 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateInitWait:
@@ -488,6 +487,10 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 		xenbus_switch_state(dev, XenbusStateConnected);
 		break;
 
+	case XenbusStateClosed:
+		if (dev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's CLOSING state -- fallthrough */
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;

@@ -3,15 +3,15 @@
  * Licensed under the GPL
  */
 
-#include "linux/irqreturn.h"
-#include "linux/kd.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
+#include <linux/irqreturn.h>
+#include <linux/kd.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include "chan.h"
-#include "irq_kern.h"
-#include "irq_user.h"
-#include "kern_util.h"
-#include "os.h"
+#include <irq_kern.h>
+#include <irq_user.h>
+#include <kern_util.h>
+#include <os.h>
 
 #define LINE_BUFSIZE 4096
 
@@ -584,6 +584,8 @@ int register_lines(struct line_driver *line_driver,
 		printk(KERN_ERR "register_lines : can't register %s driver\n",
 		       line_driver->name);
 		put_tty_driver(driver);
+		for (i = 0; i < nlines; i++)
+			tty_port_destroy(&lines[i].port);
 		return err;
 	}
 

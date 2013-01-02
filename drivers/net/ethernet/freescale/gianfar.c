@@ -210,7 +210,7 @@ static int gfar_init_bds(struct net_device *ndev)
 				skb = gfar_new_skb(ndev);
 				if (!skb) {
 					netdev_err(ndev, "Can't allocate RX buffers\n");
-					goto err_rxalloc_fail;
+					return -ENOMEM;
 				}
 				rx_queue->rx_skbuff[j] = skb;
 
@@ -223,10 +223,6 @@ static int gfar_init_bds(struct net_device *ndev)
 	}
 
 	return 0;
-
-err_rxalloc_fail:
-	free_skb_resources(priv);
-	return -ENOMEM;
 }
 
 static int gfar_alloc_skb_resources(struct net_device *ndev)
@@ -1353,10 +1349,17 @@ static int gfar_restore(struct device *dev)
 	struct gfar_private *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
 
-	if (!netif_running(ndev))
-		return 0;
+	if (!netif_running(ndev)) {
+		netif_device_attach(ndev);
 
-	gfar_init_bds(ndev);
+		return 0;
+	}
+
+	if (gfar_init_bds(ndev)) {
+		free_skb_resources(priv);
+		return -ENOMEM;
+	}
+
 	init_registers(ndev);
 	gfar_set_mac_address(ndev);
 	gfar_init_mac(ndev);
@@ -1709,6 +1712,7 @@ static void free_skb_tx_queue(struct gfar_priv_tx_q *tx_queue)
 		tx_queue->tx_skbuff[i] = NULL;
 	}
 	kfree(tx_queue->tx_skbuff);
+	tx_queue->tx_skbuff = NULL;
 }
 
 static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
@@ -1732,6 +1736,7 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 		rxbdp++;
 	}
 	kfree(rx_queue->rx_skbuff);
+	rx_queue->rx_skbuff = NULL;
 }
 
 /* If there are any tx skbs or rx skbs still around, free them.
@@ -1765,7 +1770,6 @@ static void free_skb_resources(struct gfar_private *priv)
 			  sizeof(struct rxbd8) * priv->total_rx_ring_size,
 			  priv->tx_queue[0]->tx_bd_base,
 			  priv->tx_queue[0]->tx_bd_dma_base);
-	skb_queue_purge(&priv->rx_recycle);
 }
 
 void gfar_start(struct net_device *dev)
@@ -1942,8 +1946,6 @@ static int gfar_enet_open(struct net_device *dev)
 	int err;
 
 	enable_napi(priv);
-
-	skb_queue_head_init(&priv->rx_recycle);
 
 	/* Initialize a bunch of registers */
 	init_registers(dev);
@@ -2533,16 +2535,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		bytes_sent += skb->len;
 
-		/* If there's room in the queue (limit it to rx_buffer_size)
-		 * we add this skb back into the pool, if it's the right size
-		 */
-		if (skb_queue_len(&priv->rx_recycle) < rx_queue->rx_ring_size &&
-		    skb_recycle_check(skb, priv->rx_buffer_size +
-				      RXBUF_ALIGNMENT)) {
-			gfar_align_skb(skb);
-			skb_queue_head(&priv->rx_recycle, skb);
-		} else
-			dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(skb);
 
 		tx_queue->tx_skbuff[skb_dirtytx] = NULL;
 
@@ -2608,7 +2601,7 @@ static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
 	if (!skb)
@@ -2621,14 +2614,7 @@ static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 
 struct sk_buff *gfar_new_skb(struct net_device *dev)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	struct sk_buff *skb = NULL;
-
-	skb = skb_dequeue(&priv->rx_recycle);
-	if (!skb)
-		skb = gfar_alloc_skb(dev);
-
-	return skb;
+	return gfar_alloc_skb(dev);
 }
 
 static inline void count_errors(unsigned short status, struct net_device *dev)
@@ -2787,7 +2773,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 			else if (skb)
-				skb_queue_head(&priv->rx_recycle, skb);
+				dev_kfree_skb(skb);
 		} else {
 			/* Increment the number of packets */
 			rx_queue->stats.rx_packets++;

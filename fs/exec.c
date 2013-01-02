@@ -59,7 +59,6 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-#include <asm/exec.h>
 
 #include <trace/events/task.h>
 #include "internal.h"
@@ -106,7 +105,7 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
-	char *tmp = getname(library);
+	struct filename *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 	static const struct open_flags uselib_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
@@ -392,7 +391,7 @@ struct user_arg_ptr {
 	union {
 		const char __user *const __user *native;
 #ifdef CONFIG_COMPAT
-		compat_uptr_t __user *compat;
+		const compat_uptr_t __user *compat;
 #endif
 	} ptr;
 };
@@ -603,7 +602,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	 * process cleanup to remove whatever mess we made.
 	 */
 	if (length != move_page_tables(vma, old_start,
-				       vma, new_start, length))
+				       vma, new_start, length, false))
 		return -ENOMEM;
 
 	lru_add_drain();
@@ -752,13 +751,14 @@ struct file *open_exec(const char *name)
 {
 	struct file *file;
 	int err;
+	struct filename tmp = { .name = name };
 	static const struct open_flags open_exec_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
 		.acc_mode = MAY_EXEC | MAY_OPEN,
 		.intent = LOOKUP_OPEN
 	};
 
-	file = do_filp_open(AT_FDCWD, name, &open_exec_flags, LOOKUP_FOLLOW);
+	file = do_filp_open(AT_FDCWD, &tmp, &open_exec_flags, LOOKUP_FOLLOW);
 	if (IS_ERR(file))
 		goto out;
 
@@ -878,9 +878,11 @@ static int de_thread(struct task_struct *tsk)
 		sig->notify_count--;
 
 	while (sig->notify_count) {
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
+		if (unlikely(__fatal_signal_pending(tsk)))
+			goto killed;
 		spin_lock_irq(lock);
 	}
 	spin_unlock_irq(lock);
@@ -898,9 +900,11 @@ static int de_thread(struct task_struct *tsk)
 			write_lock_irq(&tasklist_lock);
 			if (likely(leader->exit_state))
 				break;
-			__set_current_state(TASK_UNINTERRUPTIBLE);
+			__set_current_state(TASK_KILLABLE);
 			write_unlock_irq(&tasklist_lock);
 			schedule();
+			if (unlikely(__fatal_signal_pending(tsk)))
+				goto killed;
 		}
 
 		/*
@@ -994,6 +998,14 @@ no_thread_group:
 
 	BUG_ON(!thread_group_leader(tsk));
 	return 0;
+
+killed:
+	/* protects against exit_notify() and __exit_signal() */
+	read_lock(&tasklist_lock);
+	sig->group_exit_task = NULL;
+	sig->notify_count = 0;
+	read_unlock(&tasklist_lock);
+	return -EAGAIN;
 }
 
 char *get_task_comm(char *buf, struct task_struct *tsk)
@@ -1071,7 +1083,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	set_fs(USER_DS);
-	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD);
+	current->flags &=
+		~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD | PF_NOFREEZE);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
 
@@ -1162,8 +1175,23 @@ void free_bprm(struct linux_binprm *bprm)
 		mutex_unlock(&current->signal->cred_guard_mutex);
 		abort_creds(bprm->cred);
 	}
+	/* If a binfmt changed the interp, free it. */
+	if (bprm->interp != bprm->filename)
+		kfree(bprm->interp);
 	kfree(bprm);
 }
+
+int bprm_change_interp(char *interp, struct linux_binprm *bprm)
+{
+	/* If a binfmt changed the interp, free it first. */
+	if (bprm->interp != bprm->filename)
+		kfree(bprm->interp);
+	bprm->interp = kstrdup(interp, GFP_KERNEL);
+	if (!bprm->interp)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL(bprm_change_interp);
 
 /*
  * install the new credentials for this executable
@@ -1253,14 +1281,13 @@ int prepare_binprm(struct linux_binprm *bprm)
 	bprm->cred->egid = current_egid();
 
 	if (!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID) &&
-	    !current->no_new_privs) {
+	    !current->no_new_privs &&
+	    kuid_has_mapping(bprm->cred->user_ns, inode->i_uid) &&
+	    kgid_has_mapping(bprm->cred->user_ns, inode->i_gid)) {
 		/* Set-uid? */
 		if (mode & S_ISUID) {
-			if (!kuid_has_mapping(bprm->cred->user_ns, inode->i_uid))
-				return -EPERM;
 			bprm->per_clear |= PER_CLEAR_ON_SETID;
 			bprm->cred->euid = inode->i_uid;
-
 		}
 
 		/* Set-gid? */
@@ -1270,8 +1297,6 @@ int prepare_binprm(struct linux_binprm *bprm)
 		 * executable.
 		 */
 		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-			if (!kgid_has_mapping(bprm->cred->user_ns, inode->i_gid))
-				return -EPERM;
 			bprm->per_clear |= PER_CLEAR_ON_SETID;
 			bprm->cred->egid = inode->i_gid;
 		}
@@ -1336,12 +1361,16 @@ EXPORT_SYMBOL(remove_arg_zero);
 /*
  * cycle the list of binary formats handler, until one recognizes the image
  */
-int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+int search_binary_handler(struct linux_binprm *bprm)
 {
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
 	pid_t old_pid, old_vpid;
+
+	/* This allows 4 levels of binfmt rewrites before failing hard. */
+	if (depth > 5)
+		return -ELOOP;
 
 	retval = security_bprm_check(bprm);
 	if (retval)
@@ -1361,18 +1390,14 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	for (try=0; try<2; try++) {
 		read_lock(&binfmt_lock);
 		list_for_each_entry(fmt, &formats, lh) {
-			int (*fn)(struct linux_binprm *, struct pt_regs *) = fmt->load_binary;
+			int (*fn)(struct linux_binprm *) = fmt->load_binary;
 			if (!fn)
 				continue;
 			if (!try_module_get(fmt->module))
 				continue;
 			read_unlock(&binfmt_lock);
-			retval = fn(bprm, regs);
-			/*
-			 * Restore the depth counter to its starting value
-			 * in this call, so we don't have to rely on every
-			 * load_binary function to restore it on return.
-			 */
+			bprm->recursion_depth = depth + 1;
+			retval = fn(bprm);
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
 				if (depth == 0) {
@@ -1426,8 +1451,7 @@ EXPORT_SYMBOL(search_binary_handler);
  */
 static int do_execve_common(const char *filename,
 				struct user_arg_ptr argv,
-				struct user_arg_ptr envp,
-				struct pt_regs *regs)
+				struct user_arg_ptr envp)
 {
 	struct linux_binprm *bprm;
 	struct file *file;
@@ -1511,7 +1535,7 @@ static int do_execve_common(const char *filename,
 	if (retval < 0)
 		goto out;
 
-	retval = search_binary_handler(bprm,regs);
+	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto out;
 
@@ -1553,19 +1577,17 @@ out_ret:
 
 int do_execve(const char *filename,
 	const char __user *const __user *__argv,
-	const char __user *const __user *__envp,
-	struct pt_regs *regs)
+	const char __user *const __user *__envp)
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp);
 }
 
 #ifdef CONFIG_COMPAT
-int compat_do_execve(char *filename,
-	compat_uptr_t __user *__argv,
-	compat_uptr_t __user *__envp,
-	struct pt_regs *regs)
+static int compat_do_execve(const char *filename,
+	const compat_uptr_t __user *__argv,
+	const compat_uptr_t __user *__envp)
 {
 	struct user_arg_ptr argv = {
 		.is_compat = true,
@@ -1575,7 +1597,7 @@ int compat_do_execve(char *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp);
 }
 #endif
 
@@ -1646,3 +1668,31 @@ int get_dumpable(struct mm_struct *mm)
 {
 	return __get_dumpable(mm->flags);
 }
+
+SYSCALL_DEFINE3(execve,
+		const char __user *, filename,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = do_execve(path->name, argv, envp);
+		putname(path);
+	}
+	return error;
+}
+#ifdef CONFIG_COMPAT
+asmlinkage long compat_sys_execve(const char __user * filename,
+	const compat_uptr_t __user * argv,
+	const compat_uptr_t __user * envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = compat_do_execve(path->name, argv, envp);
+		putname(path);
+	}
+	return error;
+}
+#endif

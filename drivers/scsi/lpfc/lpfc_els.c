@@ -809,6 +809,8 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	phba->fc_ratov = FF_DEF_RATOV;
 	rc = memcmp(&vport->fc_portname, &sp->portName,
 		    sizeof(vport->fc_portname));
+	memcpy(&phba->fc_fabparam, sp, sizeof(struct serv_parm));
+
 	if (rc >= 0) {
 		/* This side will initiate the PLOGI */
 		spin_lock_irq(shost->host_lock);
@@ -1180,8 +1182,6 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	sp->cmn.w2.r_a_tov = 0;
 	sp->cmn.virtual_fabric_support = 0;
 	sp->cls1.classValid = 0;
-	sp->cls2.seqDelivery = 1;
-	sp->cls3.seqDelivery = 1;
 	if (sp->cmn.fcphLow < FC_PH3)
 		sp->cmn.fcphLow = FC_PH3;
 	if (sp->cmn.fcphHigh < FC_PH3)
@@ -1196,7 +1196,13 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			/* Set the fcfi to the fcfi we registered with */
 			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
 		}
+		/* Can't do SLI4 class2 without support sequence coalescing */
+		sp->cls2.classValid = 0;
+		sp->cls2.seqDelivery = 0;
 	} else {
+		/* Historical, setting sequential-delivery bit for SLI3 */
+		sp->cls2.seqDelivery = (sp->cls2.classValid) ? 1 : 0;
+		sp->cls3.seqDelivery = (sp->cls3.classValid) ? 1 : 0;
 		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			sp->cmn.request_multiple_Nport = 1;
 			/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
@@ -3160,7 +3166,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
-			if (cmd == ELS_CMD_PLOGI) {
+			if ((cmd == ELS_CMD_PLOGI) ||
+			    (cmd == ELS_CMD_PRLI)) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
 				retry = 1;
@@ -3305,7 +3312,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			if (cmd == ELS_CMD_PRLI)
 				lpfc_nlp_set_state(vport, ndlp,
-					NLP_STE_REG_LOGIN_ISSUE);
+					NLP_STE_PRLI_ISSUE);
 			else
 				lpfc_nlp_set_state(vport, ndlp,
 					NLP_STE_NPR_NODE);

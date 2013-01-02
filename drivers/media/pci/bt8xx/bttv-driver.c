@@ -200,7 +200,7 @@ static void flush_request_modules(struct bttv *dev)
 }
 #else
 #define request_modules(dev)
-#define flush_request_modules(dev)
+#define flush_request_modules(dev) do {} while(0)
 #endif /* CONFIG_MODULES */
 
 
@@ -301,11 +301,10 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* totalwidth */ 1135,
 			/* sqwidth */ 944,
 			/* vdelay */ 0x20,
-			/* sheight */ 576,
-			/* videostart0 */ 23)
 		/* bt878 (and bt848?) can capture another
 		   line below active video. */
-		.cropcap.bounds.height = (576 + 2) + 0x20 - 2,
+			/* sheight */ (576 + 2) + 0x20 - 2,
+			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR,
 		.name           = "NTSC",
@@ -668,6 +667,12 @@ static const struct v4l2_queryctrl bttv_ctls[] = {
 		.default_value = 32768,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	},{
+		.id            = V4L2_CID_COLOR_KILLER,
+		.name          = "Color killer",
+		.minimum       = 0,
+		.maximum       = 1,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+	}, {
 		.id            = V4L2_CID_HUE,
 		.name          = "Hue",
 		.minimum       = 0,
@@ -1474,6 +1479,9 @@ static int bttv_g_ctrl(struct file *file, void *priv,
 	case V4L2_CID_SATURATION:
 		c->value = btv->saturation;
 		break;
+	case V4L2_CID_COLOR_KILLER:
+		c->value = btv->opt_color_killer;
+		break;
 
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_VOLUME:
@@ -1526,7 +1534,6 @@ static int bttv_s_ctrl(struct file *file, void *f,
 					struct v4l2_control *c)
 {
 	int err;
-	int val;
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
 
@@ -1547,6 +1554,16 @@ static int bttv_s_ctrl(struct file *file, void *f,
 	case V4L2_CID_SATURATION:
 		bt848_sat(btv, c->value);
 		break;
+	case V4L2_CID_COLOR_KILLER:
+		btv->opt_color_killer = c->value;
+		if (btv->opt_color_killer) {
+			btor(BT848_SCLOOP_CKILL, BT848_E_SCLOOP);
+			btor(BT848_SCLOOP_CKILL, BT848_O_SCLOOP);
+		} else {
+			btand(~BT848_SCLOOP_CKILL, BT848_E_SCLOOP);
+			btand(~BT848_SCLOOP_CKILL, BT848_O_SCLOOP);
+		}
+		break;
 	case V4L2_CID_AUDIO_MUTE:
 		audio_mute(btv, c->value);
 		/* fall through */
@@ -1564,9 +1581,13 @@ static int bttv_s_ctrl(struct file *file, void *f,
 
 	case V4L2_CID_PRIVATE_CHROMA_AGC:
 		btv->opt_chroma_agc = c->value;
-		val = btv->opt_chroma_agc ? BT848_SCLOOP_CAGC : 0;
-		btwrite(val, BT848_E_SCLOOP);
-		btwrite(val, BT848_O_SCLOOP);
+		if (btv->opt_chroma_agc) {
+			btor(BT848_SCLOOP_CAGC, BT848_E_SCLOOP);
+			btor(BT848_SCLOOP_CAGC, BT848_O_SCLOOP);
+		} else {
+			btand(~BT848_SCLOOP_CAGC, BT848_E_SCLOOP);
+			btand(~BT848_SCLOOP_CAGC, BT848_O_SCLOOP);
+		}
 		break;
 	case V4L2_CID_PRIVATE_COMBFILTER:
 		btv->opt_combfilter = c->value;

@@ -1301,8 +1301,6 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 	if (!dst)
 		goto discard;
 
-	__skb_pull(skb, skb_network_offset(skb));
-
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
@@ -1312,6 +1310,7 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 			neigh_hh_init(neigh, dst);
 
 		do {
+			__skb_pull(skb, skb_network_offset(skb));
 			seq = read_seqbegin(&neigh->ha_lock);
 			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					      neigh->ha, NULL, skb->len);
@@ -1342,9 +1341,8 @@ int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb)
 	unsigned int seq;
 	int err;
 
-	__skb_pull(skb, skb_network_offset(skb));
-
 	do {
+		__skb_pull(skb, skb_network_offset(skb));
 		seq = read_seqbegin(&neigh->ha_lock);
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 				      neigh->ha, NULL, skb->len);
@@ -1789,8 +1787,7 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	    nla_put_u32(skb, NDTPA_QUEUE_LENBYTES, parms->queue_len_bytes) ||
 	    /* approximative value for deprecated QUEUE_LEN (in packets) */
 	    nla_put_u32(skb, NDTPA_QUEUE_LEN,
-			DIV_ROUND_UP(parms->queue_len_bytes,
-				     SKB_TRUESIZE(ETH_FRAME_LEN))) ||
+			parms->queue_len_bytes / SKB_TRUESIZE(ETH_FRAME_LEN)) ||
 	    nla_put_u32(skb, NDTPA_PROXY_QLEN, parms->proxy_qlen) ||
 	    nla_put_u32(skb, NDTPA_APP_PROBES, parms->app_probes) ||
 	    nla_put_u32(skb, NDTPA_UCAST_PROBES, parms->ucast_probes) ||
@@ -2772,6 +2769,8 @@ EXPORT_SYMBOL(neigh_app_ns);
 #endif /* CONFIG_ARPD */
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
 static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 			   size_t *lenp, loff_t *ppos)
@@ -2779,9 +2778,13 @@ static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 	int size, ret;
 	ctl_table tmp = *ctl;
 
+	tmp.extra1 = &zero;
+	tmp.extra2 = &unres_qlen_max;
 	tmp.data = &size;
-	size = DIV_ROUND_UP(*(int *)ctl->data, SKB_TRUESIZE(ETH_FRAME_LEN));
-	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+
+	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+
 	if (write && !ret)
 		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
 	return ret;
@@ -2867,7 +2870,8 @@ static struct neigh_sysctl_table {
 			.procname	= "unres_qlen_bytes",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1		= &zero,
+			.proc_handler   = proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_PROXY_QLEN] = {
 			.procname	= "proxy_qlen",
@@ -2988,6 +2992,10 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].extra1 = dev;
 	}
+
+	/* Don't export sysctls to unprivileged users */
+	if (neigh_parms_net(p)->user_ns != &init_user_ns)
+		t->neigh_vars[0].procname = NULL;
 
 	snprintf(neigh_path, sizeof(neigh_path), "net/%s/neigh/%s",
 		p_name, dev_name_source);

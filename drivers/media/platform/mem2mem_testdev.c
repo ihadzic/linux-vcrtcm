@@ -397,8 +397,7 @@ static void device_isr(unsigned long priv)
 	curr_ctx = v4l2_m2m_get_curr_priv(m2mtest_dev->m2m_dev);
 
 	if (NULL == curr_ctx) {
-		printk(KERN_ERR
-			"Instance released before the end of transaction\n");
+		pr_err("Instance released before the end of transaction\n");
 		return;
 	}
 
@@ -840,7 +839,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	int ret;
 
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	src_vq->io_modes = VB2_MMAP;
+	src_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	src_vq->drv_priv = ctx;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->ops = &m2mtest_qops;
@@ -851,7 +850,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 		return ret;
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	dst_vq->io_modes = VB2_MMAP;
+	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->ops = &m2mtest_qops;
@@ -894,7 +893,7 @@ static int m2mtest_open(struct file *file)
 
 	if (mutex_lock_interruptible(&dev->dev_mutex))
 		return -ERESTARTSYS;
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto open_unlock;
@@ -1020,7 +1019,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	int ret;
 
-	dev = kzalloc(sizeof *dev, GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1028,7 +1027,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
-		goto free_dev;
+		return ret;
 
 	atomic_set(&dev->num_inst, 0);
 	mutex_init(&dev->dev_mutex);
@@ -1067,15 +1066,13 @@ static int m2mtest_probe(struct platform_device *pdev)
 
 	return 0;
 
-	v4l2_m2m_release(dev->m2m_dev);
 err_m2m:
+	v4l2_m2m_release(dev->m2m_dev);
 	video_unregister_device(dev->vfd);
 rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
-free_dev:
-	kfree(dev);
 
 	return ret;
 }
@@ -1090,7 +1087,6 @@ static int m2mtest_remove(struct platform_device *pdev)
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	kfree(dev);
 
 	return 0;
 }

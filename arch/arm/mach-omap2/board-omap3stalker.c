@@ -40,19 +40,13 @@
 #include <asm/mach/flash.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <linux/input/matrix_keypad.h>
-#include <linux/spi/spi.h>
-#include <linux/interrupt.h>
-#include <linux/smsc911x.h>
-#include <linux/i2c/at24.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
@@ -124,6 +118,7 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= DSS_ENABLE_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device omap3_stalker_dvi_device = {
@@ -433,5 +428,5 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	.init_machine		= omap3_stalker_init,
 	.init_late		= omap35xx_init_late,
 	.timer			= &omap3_secure_timer,
-	.restart		= omap_prcm_restart,
+	.restart		= omap3xxx_restart,
 MACHINE_END

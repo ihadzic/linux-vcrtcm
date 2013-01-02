@@ -677,6 +677,7 @@ static struct usb_device_id technisat_usb2_id_table[] = {
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_DVB_S2) },
 	{ 0 }		/* Terminating entry */
 };
+MODULE_DEVICE_TABLE(usb, technisat_usb2_id_table);
 
 /* device description */
 static struct dvb_usb_device_properties technisat_usb2_devices = {
@@ -731,7 +732,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 		.rc_codes    = RC_MAP_TECHNISAT_USB2,
 		.module_name = "technisat-usb2",
 		.rc_query    = technisat_usb2_rc_query,
-		.allowed_protos = RC_TYPE_ALL,
+		.allowed_protos = RC_BIT_ALL,
 		.driver_type    = RC_DRIVER_IR_RAW,
 	}
 };

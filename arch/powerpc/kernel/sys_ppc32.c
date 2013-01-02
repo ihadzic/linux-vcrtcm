@@ -156,28 +156,6 @@ asmlinkage long compat_sys_sendfile64_wrapper(u32 out_fd, u32 in_fd,
 			    (off_t __user *)offset, count);
 }
 
-long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
-		  unsigned long a3, unsigned long a4, unsigned long a5,
-		  struct pt_regs *regs)
-{
-	int error;
-	char * filename;
-	
-	filename = getname((char __user *) a0);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-
-	error = compat_do_execve(filename, compat_ptr(a1), compat_ptr(a2), regs);
-
-	putname(filename);
-
-out:
-	return error;
-}
-
 /* Note: it is necessary to treat option as an unsigned int, 
  * with the corresponding cast to a signed int to insure that the 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
@@ -197,19 +175,10 @@ asmlinkage long compat_sys_prctl(u32 option, u32 arg2, u32 arg3, u32 arg4, u32 a
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long compat_sys_sched_rr_get_interval(u32 pid, struct compat_timespec __user *interval)
+asmlinkage long compat_sys_sched_rr_get_interval_wrapper(u32 pid,
+							 struct compat_timespec __user *interval)
 {
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs ();
-
-	/* The __user pointer cast is valid because of the set_fs() */
-	set_fs (KERNEL_DS);
-	ret = sys_sched_rr_get_interval((int)pid, (struct timespec __user *) &t);
-	set_fs (old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
+	return compat_sys_sched_rr_get_interval((int)pid, interval);
 }
 
 /* Note: it is necessary to treat mode as an unsigned int,

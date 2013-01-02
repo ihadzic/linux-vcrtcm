@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/efi.h>
 #include <linux/timex.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/platform_device.h>
 
 #include <asm/machvec.h>
@@ -83,7 +83,7 @@ static struct clocksource *itc_clocksource;
 
 extern cputime_t cycle_to_cputime(u64 cyc);
 
-static void vtime_account_user(struct task_struct *tsk)
+void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t delta_utime;
 	struct thread_info *ti = task_thread_info(tsk);
@@ -100,17 +100,10 @@ static void vtime_account_user(struct task_struct *tsk)
  * accumulated times to the current process, and to prepare accounting on
  * the next process.
  */
-void vtime_task_switch(struct task_struct *prev)
+void arch_vtime_task_switch(struct task_struct *prev)
 {
 	struct thread_info *pi = task_thread_info(prev);
 	struct thread_info *ni = task_thread_info(current);
-
-	if (idle_task(smp_processor_id()) != prev)
-		vtime_account_system(prev);
-	else
-		vtime_account_idle(prev);
-
-	vtime_account_user(prev);
 
 	pi->ac_stamp = ni->ac_stamp;
 	ni->ac_stime = ni->ac_utime = 0;
@@ -125,6 +118,8 @@ static cputime_t vtime_delta(struct task_struct *tsk)
 	struct thread_info *ti = task_thread_info(tsk);
 	cputime_t delta_stime;
 	__u64 now;
+
+	WARN_ON_ONCE(!irqs_disabled());
 
 	now = ia64_get_itc();
 
@@ -145,15 +140,6 @@ void vtime_account_system(struct task_struct *tsk)
 void vtime_account_idle(struct task_struct *tsk)
 {
 	account_idle_time(vtime_delta(tsk));
-}
-
-/*
- * Called from the timer interrupt handler to charge accumulated user time
- * to the current process.  Must be called with interrupts disabled.
- */
-void account_process_tick(struct task_struct *p, int user_tick)
-{
-	vtime_account_user(p);
 }
 
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */
@@ -454,7 +440,7 @@ void update_vsyscall_tz(void)
 {
 }
 
-void update_vsyscall(struct timespec *wall, struct timespec *wtm,
+void update_vsyscall_old(struct timespec *wall, struct timespec *wtm,
 			struct clocksource *c, u32 mult)
 {
 	write_seqcount_begin(&fsyscall_gtod_data.seq);

@@ -233,7 +233,6 @@ struct ds3000_state {
 	struct i2c_adapter *i2c;
 	const struct ds3000_config *config;
 	struct dvb_frontend frontend;
-	u8 skip_fw_load;
 	/* previous uncorrected block counter for DVB-S2 */
 	u16 prevUCBS2;
 };
@@ -392,11 +391,10 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 
 	dprintk("%s()\n", __func__);
 
-	if (ds3000_readreg(state, 0xb2) <= 0)
+	ret = ds3000_readreg(state, 0xb2);
+	if (ret < 0)
 		return ret;
 
-	if (state->skip_fw_load)
-		return 0;
 	/* Load firmware */
 	/* request the firmware, this will block until someone uploads it */
 	printk(KERN_INFO "%s: Waiting for firmware upload (%s)...\n", __func__,
@@ -410,9 +408,6 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 		return ret;
 	}
 
-	/* Make sure we don't recurse back through here during loading */
-	state->skip_fw_load = 1;
-
 	ret = ds3000_load_firmware(fe, fw);
 	if (ret)
 		printk("%s: Writing firmware to device failed\n", __func__);
@@ -421,9 +416,6 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 
 	dprintk("%s: Firmware upload %s\n", __func__,
 			ret == 0 ? "complete" : "failed");
-
-	/* Ensure firmware is always loaded if required */
-	state->skip_fw_load = 0;
 
 	return ret;
 }
@@ -1310,3 +1302,4 @@ MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
 			"DS3000/TS2020 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(DS3000_DEFAULT_FIRMWARE);
