@@ -269,10 +269,12 @@ static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 			if (!rdev->ring[ridx].ready)
 				DRM_ERROR("copy ring not ready (cursor)\n");
 			else if (!fence_c)
-				radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
+				radeon_copy_blit(rdev, saddr, daddr,
+						 num_pages, &fence_c);
 			else if (radeon_fence_signaled(fence_c)) {
 				radeon_fence_unref(&fence_c);
-				radeon_copy(rdev, saddr, daddr, num_pages, &fence_c);
+				radeon_copy_blit(rdev, saddr, daddr,
+						 num_pages, &fence_c);
 			} else
 				DRM_DEBUG("overlapped push (cursor)\n");
 			srcrtc->last_push_fence_c = fence_c;
@@ -304,10 +306,10 @@ static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 	if (!rdev->ring[ridx].ready)
 		DRM_ERROR("copy ring not ready (framebuffer)\n");
 	else if (!fence_fb)
-		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
+		radeon_copy_blit(rdev, saddr, daddr, num_pages, &fence_fb);
 	else if (radeon_fence_signaled(fence_fb)) {
 		radeon_fence_unref(&fence_fb);
-		radeon_copy(rdev, saddr, daddr, num_pages, &fence_fb);
+		radeon_copy_blit(rdev, saddr, daddr, num_pages, &fence_fb);
 	} else
 		DRM_DEBUG("overlapped push (framebuffer)\n");
 	srcrtc->last_push_fence_fb = fence_fb;
