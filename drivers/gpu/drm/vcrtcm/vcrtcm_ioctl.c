@@ -55,7 +55,6 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 	return 0;
 }
 
-/* TODO: Need better errors. */
 static long
 vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
 {
@@ -183,60 +182,36 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct vcrtcm_ioctl_args ioctl_args;
-	long result = 0;
+	long r;
 
 	VCRTCM_DEBUG("cmd = %u, arg = %lu\n", cmd, arg);
-
 	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct vcrtcm_ioctl_args)))
 		return -EFAULT;
-
-	if (cmd == VCRTCM_IOC_INSTANTIATE) {
-		void *ptr = (void *)arg;
-
-		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct vcrtcm_ioctl_args)))
-			return -EFAULT;
-
-		result = vcrtcm_ioctl_instantiate_pcon(ioctl_args.arg1.pimid,
+	if (copy_from_user(&ioctl_args, (void *)arg,
+		sizeof(struct vcrtcm_ioctl_args)))
+		return -EFAULT;
+	switch (cmd) {
+	case VCRTCM_IOC_INSTANTIATE:
+		r = vcrtcm_ioctl_instantiate_pcon(ioctl_args.arg1.pimid,
 						ioctl_args.arg2.hints,
 						&ioctl_args.result1.pconid);
-		if (result)
-			return result;
-
-		if (copy_to_user(ptr, &ioctl_args,
-					sizeof(struct vcrtcm_ioctl_args)))
-			return -EFAULT;
-
-		return 0;
-	} else if (cmd == VCRTCM_IOC_DESTROY) {
-		void *ptr = (void *)arg;
-
-		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct vcrtcm_ioctl_args)))
-			return -EFAULT;
-
-		result = vcrtcm_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
-
-		return result;
-	} else if (cmd == VCRTCM_IOC_PIMTEST) {
-		void *ptr = (void *)arg;
-
-		if (copy_from_user(&ioctl_args, ptr,
-				sizeof(struct vcrtcm_ioctl_args)))
-			return -EFAULT;
-
-		result = vcrtcm_ioctl_pimtest(ioctl_args.arg1.pimid,
+		break;
+	case VCRTCM_IOC_DESTROY:
+		r = vcrtcm_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
+		break;
+	case VCRTCM_IOC_PIMTEST:
+		r = vcrtcm_ioctl_pimtest(ioctl_args.arg1.pimid,
 			ioctl_args.arg2.testarg);
-		if (result)
-			return result;
-
-		if (copy_to_user(ptr, &ioctl_args,
-					sizeof(struct vcrtcm_ioctl_args)))
-			return -EFAULT;
-
-		return 0;
-	} else {
-		VCRTCM_ERROR("bad IOCTL\n");
-		return -EINVAL;
+		break;
+	default:
+		VCRTCM_ERROR("bad ioctl: %d\n", cmd);
+		r = -EINVAL;
+		break;
 	}
+	if (r)
+		return r;
+	if (copy_to_user((void *)arg, &ioctl_args,
+		sizeof(struct vcrtcm_ioctl_args)))
+		return -EFAULT;
+	return 0;
 }
