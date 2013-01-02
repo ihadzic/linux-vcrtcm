@@ -403,9 +403,9 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 		DRM_CONNECTOR_POLL_DISCONNECT;
 	connector->display_info.subpixel_order = subpixel_order;
 
-	drm_connector_attach_property(&radeon_connector->base,
-				      rdev->mode_info.load_detect_property,
-				      false);
+	drm_object_attach_property(&radeon_connector->base.base,
+				   rdev->mode_info.load_detect_property,
+				   false);
 
 	drm_sysfs_connector_add(connector);
 
