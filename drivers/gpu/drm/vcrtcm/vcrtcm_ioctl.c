@@ -56,7 +56,7 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 }
 
 static long
-vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
+vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_pconid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon;
@@ -109,7 +109,7 @@ vcrtcm_ioctl_instantiate_pcon(int pimid, uint32_t hints, int *ret_pconid)
 	return 0;
 }
 
-static long vcrtcm_ioctl_destroy_pcon(int pconid)
+static long vcrtcm_ioctl_destroy(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
@@ -179,29 +179,50 @@ static long vcrtcm_ioctl_destroy_pcon(int pconid)
 	return 0;
 }
 
+static long vcrtcm_ioctl_attach(int pconid, int connid)
+{
+	return 0;
+}
+
+static long vcrtcm_ioctl_detach(int pconid)
+{
+	return 0;
+}
+
+static long vcrtcm_ioctl_fps(int pconid, int fps)
+{
+	return 0;
+}
+
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct vcrtcm_ioctl_args ioctl_args;
+	struct vcrtcm_ioctl_args args;
 	long r;
 
 	VCRTCM_DEBUG("cmd = %u, arg = %lu\n", cmd, arg);
-	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct vcrtcm_ioctl_args)))
+	if (!access_ok(VERIFY_WRITE, arg, sizeof(args)))
 		return -EFAULT;
-	if (copy_from_user(&ioctl_args, (void *)arg,
-		sizeof(struct vcrtcm_ioctl_args)))
+	if (copy_from_user(&args, (void *)arg, sizeof(args)))
 		return -EFAULT;
 	switch (cmd) {
 	case VCRTCM_IOC_INSTANTIATE:
-		r = vcrtcm_ioctl_instantiate_pcon(ioctl_args.arg1.pimid,
-						ioctl_args.arg2.hints,
-						&ioctl_args.result1.pconid);
+		r = vcrtcm_ioctl_instantiate(args.arg1.pimid, args.arg2.hints,
+			&args.result1.pconid);
 		break;
 	case VCRTCM_IOC_DESTROY:
-		r = vcrtcm_ioctl_destroy_pcon(ioctl_args.arg1.pconid);
+		r = vcrtcm_ioctl_destroy(args.arg1.pconid);
+		break;
+	case VCRTCM_IOC_ATTACH:
+		r = vcrtcm_ioctl_attach(args.arg1.pconid, args.arg2.connid);
+		break;
+	case VCRTCM_IOC_DETACH:
+		r = vcrtcm_ioctl_detach(args.arg1.pconid);
+		break;
+	case VCRTCM_IOC_FPS:
+		r = vcrtcm_ioctl_fps(args.arg1.pconid, args.arg2.fps);
 		break;
 	case VCRTCM_IOC_PIMTEST:
-		r = vcrtcm_ioctl_pimtest(ioctl_args.arg1.pimid,
-			ioctl_args.arg2.testarg);
+		r = vcrtcm_ioctl_pimtest(args.arg1.pimid, args.arg2.testarg);
 		break;
 	default:
 		VCRTCM_ERROR("bad ioctl: %d\n", cmd);
@@ -210,8 +231,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	if (r)
 		return r;
-	if (copy_to_user((void *)arg, &ioctl_args,
-		sizeof(struct vcrtcm_ioctl_args)))
+	if (copy_to_user((void *)arg, &args, sizeof(args)))
 		return -EFAULT;
 	return 0;
 }
