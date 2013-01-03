@@ -384,6 +384,7 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 						    crtc->y, 1);
 		if (r) {
 			vcrtcm_g_detach_l(radeon_crtc->pconid);
+			radeon_crtc->pconid = -1;
 			return r;
 		}
 		/* we also need to set the cursor */
@@ -414,6 +415,7 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 			r = radeon_bo_reserve(rbo, false);
 			if (unlikely(r)) {
 				vcrtcm_g_detach_l(radeon_crtc->pconid);
+				radeon_crtc->pconid = -1;
 				return r;
 			}
 			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
@@ -427,6 +429,7 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 					      &vcrtcm_cursor);
 			if (r) {
 				vcrtcm_g_detach_l(radeon_crtc->pconid);
+				radeon_crtc->pconid = -1;
 				return r;
 			}
 		}
@@ -455,6 +458,7 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 
 	if (radeon_crtc->pconid >= 0) {
 		r = vcrtcm_g_detach_l(radeon_crtc->pconid);
+		radeon_crtc->pconid = -1;
 		if (radeon_crtc->crtc_id >= rdev->num_crtc)
 			schedule_work(&rdev->hotplug_work);
 	}
