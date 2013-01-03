@@ -270,6 +270,33 @@ static long vcrtcm_ioctl_fps(int pconid, int fps)
 	return r;
 }
 
+static long vcrtcm_ioctl_xmit(int pconid)
+{
+	int r = 0;
+	struct vcrtcm_pcon *pcon;
+
+	if (vcrtcm_lock_pconid(pconid))
+		return -EINVAL;
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
+	if (pcon->pim_funcs.dirty_fb &&
+		pcon->pcon_callbacks_enabled &&
+		pcon->pim->callbacks_enabled) {
+		r = pcon->pim_funcs.dirty_fb(pconid, pcon->pcon_cookie);
+	}
+	vcrtcm_unlock_pconid(pconid);
+	return r;
+}
+
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct vcrtcm_ioctl_args args;
@@ -296,6 +323,9 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case VCRTCM_IOC_FPS:
 		r = vcrtcm_ioctl_fps(args.arg1.pconid, args.arg2.fps);
+		break;
+	case VCRTCM_IOC_XMIT:
+		r = vcrtcm_ioctl_xmit(args.arg1.pconid);
 		break;
 	case VCRTCM_IOC_PIMTEST:
 		r = vcrtcm_ioctl_pimtest(args.arg1.pimid, args.arg2.testarg);
