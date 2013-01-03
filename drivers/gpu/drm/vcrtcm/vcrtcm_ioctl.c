@@ -186,6 +186,42 @@ static long vcrtcm_ioctl_attach(int pconid, int connid)
 
 static long vcrtcm_ioctl_detach(int pconid)
 {
+	struct vcrtcm_pcon *pcon;
+
+	if (vcrtcm_lock_pconid(pconid))
+		return -EINVAL;
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
+	if (!pcon->drm_crtc) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_WARNING("pcon already detached\n");
+		return -EINVAL;
+	}
+	vcrtcm_prepare_detach(pcon);
+	if (pcon->pim_funcs.detach &&
+		pcon->pcon_callbacks_enabled &&
+		pcon->pim->callbacks_enabled) {
+		int r;
+		r = pcon->pim_funcs.detach(pconid, pcon->pcon_cookie);
+		if (r) {
+			vcrtcm_unlock_pconid(pconid);
+			return r;
+		}
+	}
+	if (pcon->gpu_funcs.detach)
+		pcon->gpu_funcs.detach(pcon->drm_crtc);
+	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
+	vcrtcm_set_crtc(pcon, NULL);
+	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
 
