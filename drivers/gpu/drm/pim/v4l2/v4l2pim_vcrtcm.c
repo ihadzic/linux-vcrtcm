@@ -429,8 +429,8 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		have_push_buffer = 1;
 	} else {
 		have_push_buffer = 0;
-		VCRTCM_WARNING("no push buffer[%d], transmission skipped\n",
-				push_buffer_index);
+		V4L2PIM_DEBUG("no push buffer[%d], transmission skipped\n",
+			      push_buffer_index);
 	}
 
 	jiffies_snapshot = jiffies;
