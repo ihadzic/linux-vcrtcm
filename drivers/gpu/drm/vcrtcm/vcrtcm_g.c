@@ -131,12 +131,6 @@ int vcrtcm_g_detach(int pconid)
 		return -EINVAL;
 	}
 	vcrtcm_prepare_detach(pcon);
-	/*
-	* NB: the pcon detach routine must be called before
-	* the gpu detach routine, to give the pcon detach
-	* routine a chance to return the pcon's push buffers
-	* before the pcon is detached from the crtc.
-	*/
 	if (pcon->pim_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
@@ -146,12 +140,9 @@ int vcrtcm_g_detach(int pconid)
 		if (r)
 			return r;
 	}
-	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
 	vcrtcm_set_crtc(pcon, NULL);
 	return 0;
-
 }
 EXPORT_SYMBOL(vcrtcm_g_detach);
 
