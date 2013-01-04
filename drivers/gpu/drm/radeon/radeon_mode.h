@@ -335,6 +335,7 @@ struct radeon_crtc {
 	struct drm_connector *connector;
 	/* virtual crtc stuff */
 	bool vblank_emulation_enabled;
+	struct work_struct vblank_emulation_work;
 	bool pflip_emulation_enabled;
 	int emulated_vblank_counter;
 	int emulated_pflip_counter;

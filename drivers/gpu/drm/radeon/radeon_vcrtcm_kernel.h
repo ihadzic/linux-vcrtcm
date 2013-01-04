@@ -39,4 +39,5 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 uint64_t fb_location);
 int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 			    u64 base);
+void radeon_vblank_emulation_work_func(struct work_struct *work);
 #endif

@@ -220,6 +220,16 @@ static void radeon_wait_fb_callback(int pconid, struct drm_crtc *crtc)
 	}
 }
 
+void radeon_vblank_emulation_work_func(struct work_struct *work)
+{
+	struct radeon_crtc *rcrtc = container_of(work, struct radeon_crtc,
+						 vblank_emulation_work);
+
+	radeon_fence_wait(rcrtc->last_push_fence_fb, false);
+	radeon_virtual_crtc_set_emulated_vblank_time(rcrtc);
+	radeon_emulate_vblank(rcrtc->pconid, &rcrtc->base);
+}
+
 /*
  * NB: This function is a vcrtcm-registered callback.  Because vcrtcm
  * always calls callbacks with the pcon already locked, this function
@@ -314,17 +324,12 @@ static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 		DRM_DEBUG("overlapped push (framebuffer)\n");
 	srcrtc->last_push_fence_fb = fence_fb;
 	/*
-	 * we have no choice but to "speculatively" emulate the vblank here;
-	 * copy has probably not completed yet, but it is still safe to signal
-	 * the vblank because any subsequent rendering will be pipelined into
-	 * the GPU's queue after the copy and will thus happen after the copy
-	 * completes there should be no frame tearing.
+	 * we are done as soon as we have scheduled the copy
+	 * vblank emulation will occur vblank_emulation_work_func
+	 * when copy completes
 	 */
-	if (srcrtc->crtc_id >= rdev->num_crtc) {
-		if (srcrtc->pconid >= 0)
-			radeon_virtual_crtc_set_emulated_vblank_time(srcrtc);
-		radeon_emulate_vblank(pconid, scrtc);
-	}
+	if (srcrtc->crtc_id >= rdev->num_crtc)
+		schedule_work(&srcrtc->vblank_emulation_work);
 	return 0;
 }
 

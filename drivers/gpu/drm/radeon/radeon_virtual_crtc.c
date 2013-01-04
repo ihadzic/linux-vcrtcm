@@ -1188,6 +1188,8 @@ void radeon_virtual_crtc_init(struct drm_device *dev, int index)
 		return;
 	}
 
+	INIT_WORK(&radeon_crtc->vblank_emulation_work,
+		  radeon_vblank_emulation_work_func);
 	drm_crtc_init(dev, &radeon_crtc->base, &radeon_virtual_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&radeon_crtc->base, 256);
