@@ -308,8 +308,8 @@ int vcrtcm_p_unregister_prime_l(int pconid,
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime_l);
 
 /*
- * The PCON can use this function wait for the GPU to finish rendering
- * to the frame.  Push-mode pims must call this function before freeing
+ * The PCON can use this function wait for the GPU to finish copying
+ * the frame.  Push-mode pims must call this function before freeing
  * the frame's buffers, which typically occurs as part of the pcon-
  * destruction procedure.
  */
