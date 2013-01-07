@@ -35,7 +35,6 @@ void udlpim_disable(int pconid, void *cookie);
 
 /* VCRTCM functions that interact directly with HW */
 int udlpim_dirty_fb(int pconid, void *cookie);
-int udlpim_wait_fb(int pconid, void *cookie);
 int udlpim_set_dpms(int pconid, void *cookie, int state);
 int udlpim_get_dpms(int pconid, void *cookie, int *state);
 int udlpim_connected(int pconid, void *cookie, int *status);

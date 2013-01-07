@@ -305,11 +305,6 @@ int udlpim_dirty_fb(int pconid, void *cookie)
 	return 0;
 }
 
-int udlpim_wait_fb(int pconid, void *cookie)
-{
-	return 0;
-}
-
 int udlpim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
@@ -655,7 +650,7 @@ struct vcrtcm_p_pcon_funcs udlpim_pcon_funcs = {
 	.set_fb = udlpim_set_fb,
 	.get_fb = udlpim_get_fb,
 	.dirty_fb = udlpim_dirty_fb,
-	.wait_fb = udlpim_wait_fb,
+	.wait_fb = NULL,
 	.get_fb_status = NULL,
 	.set_fps = udlpim_set_fps,
 	.set_cursor = udlpim_set_cursor,
