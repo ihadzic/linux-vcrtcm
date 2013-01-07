@@ -37,8 +37,6 @@
 #define UDLPIM_PCON_GOOD_MAGIC 0xcafebabe
 #define UDLPIM_PCON_BAD_MAGIC 0xdeadbeef
 
-#define UDLPIM_IN_DO_XMIT 0x1
-
 #define UDLPIM_ALLOC_PB_FLAG_FB 0x0
 #define UDLPIM_ALLOC_PB_FLAG_CURSOR 0x1
 
@@ -109,7 +107,6 @@ struct udlpim_minor {
 	struct mutex buffer_mutex;
 	spinlock_t lock;
 	int enabled_queue;
-	unsigned long status;
 	wait_queue_head_t xmit_sync_queue;
 	struct workqueue_struct *workqueue;
 	struct delayed_work query_edid_work;

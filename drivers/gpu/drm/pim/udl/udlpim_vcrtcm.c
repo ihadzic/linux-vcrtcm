@@ -548,7 +548,6 @@ int udlpim_vblank(int pconid, void *cookie)
 	unsigned long jiffies_snapshot;
 	int push_buffer_index, have_push_buffer;
 	int r = 0;
-	unsigned long flags;
 
 	if (!pcon)
 		return -EINVAL;
@@ -556,12 +555,7 @@ int udlpim_vblank(int pconid, void *cookie)
 	mutex_lock(&minor->buffer_mutex);
 	UDLPIM_DEBUG("minor %d\n", minor->minor);
 
-	spin_lock_irqsave(&minor->lock, flags);
-	minor->status |= UDLPIM_IN_DO_XMIT;
-	spin_unlock_irqrestore(&minor->lock, flags);
-
 	push_buffer_index = pcon->push_buffer_index;
-
 	if (pcon->pbd_fb[push_buffer_index]) {
 		have_push_buffer = 1;
 	} else {
@@ -603,10 +597,6 @@ int udlpim_vblank(int pconid, void *cookie)
 				pcon->vcrtcm_fb.hdisplay,
 				pcon->vcrtcm_fb.vdisplay);
 
-		spin_lock_irqsave(&minor->lock, flags);
-		minor->status &= ~UDLPIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&minor->lock, flags);
-
 		r = vcrtcm_p_push(pcon->pconid,
 				  pcon->pbd_fb[push_buffer_index],
 				  pcon->pbd_cursor[push_buffer_index]);
@@ -636,10 +626,6 @@ int udlpim_vblank(int pconid, void *cookie)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		spin_lock_irqsave(&minor->lock, flags);
-		minor->status &= ~UDLPIM_IN_DO_XMIT;
-		spin_unlock_irqrestore(&minor->lock, flags);
-
 		vcrtcm_p_emulate_vblank(pcon->pconid);
 		UDLPIM_DEBUG("transmission not happening\n");
 	}
