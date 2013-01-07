@@ -481,9 +481,12 @@ int vcrtcm_g_get_fb_status(int pconid, u32 *status)
 		r = -EINVAL;
 		goto done;
 	}
-	if (pcon->pim_funcs.get_fb_status &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
+	if (pcon->xfer_mode == VCRTCM_PEER_PUSH ||
+	    pcon->xfer_mode == VCRTCM_PUSH_PULL)
+		*status = VCRTCM_FB_STATUS_PUSH;
+	else if (pcon->pim_funcs.get_fb_status &&
+		 pcon->pcon_callbacks_enabled &&
+		 pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb_status backend, pcon %i\n",
 			     pconid);
 		r = pcon->pim_funcs.get_fb_status(pconid,
