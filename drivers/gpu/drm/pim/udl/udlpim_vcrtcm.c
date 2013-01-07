@@ -310,26 +310,6 @@ int udlpim_wait_fb(int pconid, void *cookie)
 	return 0;
 }
 
-int udlpim_get_fb_status(int pconid, void *cookie, u32 *status)
-{
-	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
-	struct udlpim_minor *minor;
-	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	unsigned long flags;
-
-	UDLPIM_DEBUG("\n");
-	if (!pcon)
-		return -EINVAL;
-	minor = pcon->minor;
-	spin_lock_irqsave(&minor->lock, flags);
-	if (minor->status & UDLPIM_IN_DO_XMIT)
-		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&minor->lock, flags);
-	*status = tmp_status;
-	return 0;
-}
-
-
 int udlpim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
@@ -690,7 +670,7 @@ struct vcrtcm_p_pcon_funcs udlpim_pcon_funcs = {
 	.get_fb = udlpim_get_fb,
 	.dirty_fb = udlpim_dirty_fb,
 	.wait_fb = udlpim_wait_fb,
-	.get_fb_status = udlpim_get_fb_status,
+	.get_fb_status = NULL,
 	.set_fps = udlpim_set_fps,
 	.set_cursor = udlpim_set_cursor,
 	.get_cursor = udlpim_get_cursor,
