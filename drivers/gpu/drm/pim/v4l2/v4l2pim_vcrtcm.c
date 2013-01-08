@@ -284,11 +284,6 @@ int v4l2pim_dirty_fb(int pconid, void *cookie)
 	return 0;
 }
 
-int v4l2pim_wait_fb(int pconid, void *cookie)
-{
-	return 0;
-}
-
 int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
@@ -561,7 +556,7 @@ static struct vcrtcm_p_pcon_funcs v4l2pim_pcon_funcs = {
 	.set_fb = v4l2pim_set_fb,
 	.get_fb = v4l2pim_get_fb,
 	.dirty_fb = v4l2pim_dirty_fb,
-	.wait_fb = v4l2pim_wait_fb,
+	.wait_fb = NULL,
 	.get_fb_status = NULL,
 	.set_fps = v4l2pim_set_fps,
 	.set_cursor = v4l2pim_set_cursor,
