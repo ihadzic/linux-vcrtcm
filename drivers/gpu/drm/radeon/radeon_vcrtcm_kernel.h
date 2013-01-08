@@ -29,8 +29,10 @@
 #include "radeon_vcrtcm.h"
 
 int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc);
-int radeon_vcrtcm_wait(struct radeon_device *rdev);
-void radeon_vcrtcm_xmit(struct radeon_device *rdev);
+int radeon_vcrtcm_wait(struct drm_device *dev,
+		       struct drm_mode_group *mode_group);
+void radeon_vcrtcm_xmit(struct drm_device *dev,
+			struct drm_mode_group *mode_group);
 int radeon_vcrtcm_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,

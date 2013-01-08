@@ -99,66 +99,43 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 	return 0;
 }
 
-int radeon_vcrtcm_wait(struct radeon_device *rdev)
-{
-	struct virtual_crtc *virtual_crtc;
-	int i, r;
-
-	/*
-	 * REVISIT: this is extremely conservative (we wait for every
-	 * PCON of every CRTC, but we have no choice
-	 * once we start supporting multiple VMs, we will wait only
-	 * for those PCONs that are serving CRTCs of the VM that sent this
-	 * batch of IBs.
-	 */
-
-	/* first wait for all real CRTCs */
-	for (i = 0; i < rdev->num_crtc; i++) {
-		if (rdev->mode_info.crtcs[i]->pconid >= 0) {
-			r = vcrtcm_g_wait_fb_l(rdev->mode_info.crtcs[i]->pconid);
-			if (r)
-				return r;
-		}
-	}
-
-	/* now do the same kind of wait for all virtual CRTCs */
-	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-		if (virtual_crtc->radeon_crtc->pconid >= 0) {
-			r = vcrtcm_g_wait_fb_l(virtual_crtc->radeon_crtc->pconid);
-			if (r)
-				return r;
-		}
-	}
-
-	return 0;
-
-}
-
-void radeon_vcrtcm_xmit(struct radeon_device *rdev)
+int radeon_vcrtcm_wait(struct drm_device *dev,
+		       struct drm_mode_group *mode_group)
 {
 	int i;
-	struct radeon_crtc *radeon_crtc = NULL;
-	struct virtual_crtc *virtual_crtc;
 
-	/* loop through CRTCs and mark each CRTC for transmission */
-	/* back-end will evaluate the flag in the work function */
-	/* and deal with the PCON transmission */
+	for (i = 0; i < mode_group->num_crtcs; i++) {
+		struct drm_mode_object *obj =
+			drm_mode_object_find(dev, mode_group->id_list[i],
+					     DRM_MODE_OBJECT_CRTC);
+		struct drm_crtc *crtc = obj_to_crtc(obj);
+		struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
 
-	/* REVISIT: we can (in theory) get smarter if we knew */
-	/* what rendering activity belonged to what CRTC/framebuffer */
-	/* however we don't since that would require that we interpret */
-	/* the rendering commands in radeon_cs; maybe one day we will */
-	/* have the necessary information and make this smarter */
-	for (i = 0; i < rdev->num_crtc; i++) {
-		radeon_crtc = rdev->mode_info.crtcs[i];
-		if ((radeon_crtc->pconid >= 0) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
+		if ((rcrtc->pconid >= 0) && (rcrtc->enabled)) {
+			int r;
+
+			r = vcrtcm_g_wait_fb_l(rcrtc->pconid);
+			if (r)
+				return r;
+		}
 	}
+	return 0;
+}
 
-	list_for_each_entry(virtual_crtc, &rdev->mode_info.virtual_crtcs, list) {
-		radeon_crtc = virtual_crtc->radeon_crtc;
-		if ((radeon_crtc->pconid >= 0) && (radeon_crtc->enabled))
-			vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
+void radeon_vcrtcm_xmit(struct drm_device *dev,
+			struct drm_mode_group *mode_group)
+{
+	int i;
+
+	for (i = 0; i < mode_group->num_crtcs; i++) {
+		struct drm_mode_object *obj =
+			drm_mode_object_find(dev, mode_group->id_list[i],
+					     DRM_MODE_OBJECT_CRTC);
+		struct drm_crtc *crtc = obj_to_crtc(obj);
+		struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
+
+		if ((rcrtc->pconid >= 0) && (rcrtc->enabled))
+			vcrtcm_g_dirty_fb_l(rcrtc->pconid);
 	}
 }
 

@@ -520,8 +520,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	/* to avoid frame tearing, we must wait until vcrtcm transmission */
 	/* is done before scheduling the next batch of IBs to the GPU */
-	radeon_vcrtcm_xmit(rdev);
-	radeon_vcrtcm_wait(rdev);
+	radeon_vcrtcm_xmit(dev, &filp->minor->mode_group);
+	radeon_vcrtcm_wait(dev, &filp->minor->mode_group);
 
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
