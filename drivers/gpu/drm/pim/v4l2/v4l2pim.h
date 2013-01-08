@@ -46,8 +46,6 @@
 #define V4L2PIM_FPS_HARD_LIMIT 100
 #define V4L2PIM_XMIT_HARD_DEADLINE (HZ/10)
 
-#define V4L2PIM_IN_DO_XMIT 0x1
-
 #define V4L2PIM_ALLOC_PB_FLAG_FB 0x0
 #define V4L2PIM_ALLOC_PB_FLAG_CURSOR 0x1
 #define V4L2PIM_ALLOC_PB_STRING(x) ((x) ? "cursor" : "framebuffer")
@@ -74,9 +72,7 @@ struct v4l2pim_minor {
 	int minor;
 	struct v4l2pim_pcon *pcon;
 	struct mutex buffer_mutex;
-	spinlock_t lock;
 	int enabled_queue;
-	unsigned long status;
 	atomic_t users;
 	wait_queue_head_t xmit_sync_queue;
 	struct workqueue_struct *workqueue;

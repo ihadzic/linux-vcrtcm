@@ -945,7 +945,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 {
 	struct v4l2pim_minor *minor;
 	struct video_device *vfd;
-	unsigned long flags;
 	int ret;
 	int minornum = -1;
 
@@ -1006,16 +1005,12 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	minor->fmt = &formats[0];
 
 	mutex_init(&minor->buffer_mutex);
-	spin_lock_init(&minor->lock);
 	minor->minor = minornum;
 	INIT_LIST_HEAD(&minor->list);
 	init_waitqueue_head(&minor->xmit_sync_queue);
 	minor->enabled_queue = 1;
 	minor->workqueue = create_workqueue("v4l2pim_workers");
 	minor->pcon = NULL;
-	spin_lock_irqsave(&minor->lock, flags);
-	minor->status = 0;
-	spin_unlock_irqrestore(&minor->lock, flags);
 	list_add(&minor->list, &v4l2pim_minor_list);
 	return minor;
 rel_dev:
