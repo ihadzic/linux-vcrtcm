@@ -1159,6 +1159,7 @@ void radeon_virtual_crtc_data_init(struct radeon_crtc *radeon_crtc)
 	radeon_crtc->pconid = -1;
 	radeon_crtc->vcrtcm_push_fb = NULL;
 	radeon_crtc->emulated_vblank_time_valid = 0;
+	radeon_crtc->vcrtcm_push_in_progress = 0;
 }
 
 void radeon_virtual_crtc_init(struct drm_device *dev, int index)
@@ -1294,7 +1295,11 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 	DRM_DEBUG("last vblank time: %u sec %u usec\n",
 		  (unsigned int)vblank_time->tv_sec,
 		  (unsigned int)vblank_time->tv_usec);
-	if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
+	if (vblank_status == VCRTCM_FB_STATUS_PUSH) {
+		DRM_DEBUG("push mode, checking local status");
+		return (virtual_crtc->radeon_crtc->vcrtcm_push_in_progress) ?
+			0 : DRM_VBLANKTIME_INVBL;
+	} else if (vblank_status == VCRTCM_FB_STATUS_XMIT) {
 		DRM_DEBUG("not in vblank interval\n");
 		return 0;
 	}

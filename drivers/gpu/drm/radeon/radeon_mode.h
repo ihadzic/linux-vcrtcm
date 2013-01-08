@@ -342,6 +342,7 @@ struct radeon_crtc {
 	struct radeon_fence *last_push_fence_c;
 	struct radeon_fence *last_push_fence_fb;
 	struct drm_framebuffer *vcrtcm_push_fb;
+	int vcrtcm_push_in_progress;
 	enum vcrtcm_xfer_mode xfer_mode;
 	int pconid;
 	/* time when last emulated vblank occurred */

@@ -227,6 +227,7 @@ void radeon_vblank_emulation_work_func(struct work_struct *work)
 
 	radeon_fence_wait(rcrtc->last_push_fence_fb, false);
 	radeon_virtual_crtc_set_emulated_vblank_time(rcrtc);
+	rcrtc->vcrtcm_push_in_progress = 0;
 	radeon_emulate_vblank(rcrtc->pconid, &rcrtc->base);
 }
 
@@ -255,6 +256,12 @@ static int radeon_vcrtcm_push(int pconid, struct drm_crtc *scrtc,
 	/* bail out if we don't have the frame buffer */
 	if (!sfb)
 		return -ENOENT;
+
+	/* bail out if we are already transmitting */
+	if (srcrtc->vcrtcm_push_in_progress)
+		return -EBUSY;
+
+	srcrtc->vcrtcm_push_in_progress = 1;
 	srfb = to_radeon_framebuffer(sfb);
 	sfbbo = srfb->obj;
 
