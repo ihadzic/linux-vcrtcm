@@ -289,28 +289,6 @@ int v4l2pim_wait_fb(int pconid, void *cookie)
 	return 0;
 }
 
-int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status)
-{
-	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
-	struct v4l2pim_minor *minor;
-	u32 tmp_status = VCRTCM_FB_STATUS_IDLE;
-	unsigned long flags;
-
-	if (!pcon)
-		return -ENODEV;
-	minor = pcon->minor;
-	V4L2PIM_DEBUG("\n");
-
-	spin_lock_irqsave(&minor->lock, flags);
-	if (minor->status & V4L2PIM_IN_DO_XMIT)
-		tmp_status |= VCRTCM_FB_STATUS_XMIT;
-	spin_unlock_irqrestore(&minor->lock, flags);
-
-	*status = tmp_status;
-
-	return 0;
-}
-
 int v4l2pim_set_fps(int pconid, void *cookie, int fps)
 {
 	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
@@ -598,7 +576,7 @@ static struct vcrtcm_p_pcon_funcs v4l2pim_pcon_funcs = {
 	.get_fb = v4l2pim_get_fb,
 	.dirty_fb = v4l2pim_dirty_fb,
 	.wait_fb = v4l2pim_wait_fb,
-	.get_fb_status = v4l2pim_get_fb_status,
+	.get_fb_status = NULL,
 	.set_fps = v4l2pim_set_fps,
 	.set_cursor = v4l2pim_set_cursor,
 	.get_cursor = v4l2pim_get_cursor,

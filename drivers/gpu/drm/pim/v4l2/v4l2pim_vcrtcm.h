@@ -41,7 +41,6 @@ void v4l2pim_destroy(int pconid, void *cookie);
 /* VCRTCM functions that interact directly with HW */
 int v4l2pim_dirty_fb(int pconid, void *cookie);
 int v4l2pim_wait_fb(int pconid, void *cookie);
-int v4l2pim_get_fb_status(int pconid, void *cookie, u32 *status);
 int v4l2pim_set_dpms(int pconid, void *cookie, int state);
 int v4l2pim_get_dpms(int pconid, void *cookie, int *state);
 
