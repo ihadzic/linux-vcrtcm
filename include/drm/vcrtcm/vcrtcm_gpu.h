@@ -47,7 +47,7 @@ struct vcrtcm_g_pcon_funcs {
 	 * mutex locked: yes
 	 * must be atomic: no
 	 */
-	void (*detach)(int pconid, struct drm_crtc *drm_crtc);
+	void (*detach)(struct drm_crtc *drm_crtc);
 
 	/*
 	 * called to tell the gpu driver to emulate a vblank on the pcon
@@ -59,7 +59,7 @@ struct vcrtcm_g_pcon_funcs {
 	 * the mutex is locked, it is guaranteed that the pcon
 	 * will not be destroyed while this function is executing
 	 */
-	void (*vblank)(int pconid, struct drm_crtc *drm_crtc);
+	void (*vblank)(struct drm_crtc *drm_crtc);
 
 	/*
 	 * called to tell the gpu driver to that the pim wishes
@@ -69,7 +69,7 @@ struct vcrtcm_g_pcon_funcs {
 	 * mutex locked: yes
 	 * must be atomic: no
 	 */
-	void (*wait_fb)(int pconid, struct drm_crtc *drm_crtc);
+	void (*wait_fb)(struct drm_crtc *drm_crtc);
 
 	/*
 	 * called to tell the gpu driver to push a frame buffer
@@ -78,9 +78,9 @@ struct vcrtcm_g_pcon_funcs {
 	 * mutex locked: yes
 	 * must be atomic: no
 	 */
-	int (*push)(int pconid, struct drm_crtc *drm_crtc,
-			 struct drm_gem_object *dbuf_fb,
-			 struct drm_gem_object *dbuf_cursor);
+	int (*push)(struct drm_crtc *drm_crtc,
+		    struct drm_gem_object *dbuf_fb,
+		    struct drm_gem_object *dbuf_cursor);
 
 	/*
 	 * called to tell the gpu driver that a hotplug event
@@ -89,7 +89,7 @@ struct vcrtcm_g_pcon_funcs {
 	 * mutex locked: yes
 	 * must be atomic: no
 	 */
-	void (*hotplug)(int pconid, struct drm_crtc *drm_crtc);
+	void (*hotplug)(struct drm_crtc *drm_crtc);
 };
 
 /* currently empty */

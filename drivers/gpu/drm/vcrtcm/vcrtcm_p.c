@@ -328,7 +328,7 @@ int vcrtcm_p_wait_fb(int pconid)
 	VCRTCM_INFO("waiting for GPU pcon 0x%08x\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
-		pcon->gpu_funcs.wait_fb(pcon->pconid, pcon->drm_crtc);
+		pcon->gpu_funcs.wait_fb(pcon->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
 	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
@@ -407,7 +407,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		 * of these functions will ensure that the system survives
 		 * and destruct-race
 		 */
-		pcon->gpu_funcs.vblank(pconid, crtc);
+		pcon->gpu_funcs.vblank(crtc);
 		return 0;
 	}
 	pcon->last_vblank_jiffies = jiffies;
@@ -465,7 +465,7 @@ int vcrtcm_p_push(int pconid,
 	}
 	if (pcon->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for pcon %i\n", pconid);
-		return pcon->gpu_funcs.push(pcon->pconid, crtc,
+		return pcon->gpu_funcs.push(crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
@@ -508,7 +508,7 @@ int vcrtcm_p_hotplug(int pconid)
 	}
 	crtc = pcon->drm_crtc;
 	if (pcon->gpu_funcs.hotplug) {
-		pcon->gpu_funcs.hotplug(pcon->pconid, crtc);
+		pcon->gpu_funcs.hotplug(crtc);
 		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
 
 	}
@@ -755,7 +755,7 @@ int vcrtcm_p_detach(int pconid)
 	}
 	vcrtcm_prepare_detach(pcon);
 	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	vcrtcm_set_crtc(pcon, NULL);
 	return 0;
 }
@@ -795,7 +795,7 @@ int vcrtcm_p_destroy(int pconid)
 	if (pcon->drm_crtc) {
 		vcrtcm_prepare_detach(pcon);
 		if (pcon->gpu_funcs.detach)
-			pcon->gpu_funcs.detach(pcon->pconid, pcon->drm_crtc);
+			pcon->gpu_funcs.detach(pcon->drm_crtc);
 		vcrtcm_set_crtc(pcon, NULL);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);

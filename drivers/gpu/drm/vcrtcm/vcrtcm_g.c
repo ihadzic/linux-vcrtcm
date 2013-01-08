@@ -147,7 +147,7 @@ int vcrtcm_g_detach(int pconid)
 			return r;
 	}
 	if (pcon->gpu_funcs.detach)
-		pcon->gpu_funcs.detach(pconid, pcon->drm_crtc);
+		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
 	vcrtcm_set_crtc(pcon, NULL);
 	return 0;
