@@ -60,6 +60,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 		return ERR_PTR(-ENOMEM);
 	}
 	strncpy(pim->name, pim_name, PIM_NAME_MAXLEN);
+	pim->name[PIM_NAME_MAXLEN-1] = '\0';
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
