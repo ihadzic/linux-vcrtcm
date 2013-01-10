@@ -399,8 +399,7 @@ void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst)
 			   &radeon_virtual_connector_funcs, connector_type);
 	drm_connector_helper_add(&radeon_connector->base,
 				 &radeon_virtual_connector_helper_funcs);
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-		DRM_CONNECTOR_POLL_DISCONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->display_info.subpixel_order = subpixel_order;
 
 	drm_object_attach_property(&radeon_connector->base.base,
