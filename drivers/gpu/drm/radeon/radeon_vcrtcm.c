@@ -364,6 +364,19 @@ struct vcrtcm_g_pcon_funcs virtual_crtc_gpu_funcs = {
 	.hotplug = radeon_vcrtcm_hotplug
 };
 
+static struct vcrtcm_g_drmdev_funcs vcrtcm_drmdev_funcs = {
+};
+
+int radeon_vcrtcm_register_drmdev(struct drm_device *dev)
+{
+	return vcrtcm_g_register_drmdev(dev, &vcrtcm_drmdev_funcs);
+}
+
+int radeon_vcrtcm_unregister_drmdev(struct drm_device *dev)
+{
+	return vcrtcm_g_unregister_drmdev(dev);
+}
+
 static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 					int pconid)
 {

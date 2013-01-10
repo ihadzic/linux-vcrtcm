@@ -42,4 +42,7 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 			    u64 base);
 void radeon_vblank_emulation_work_func(struct work_struct *work);
+int radeon_vcrtcm_register_drmdev(struct drm_device *dev);
+int radeon_vcrtcm_unregister_drmdev(struct drm_device *dev);
+
 #endif
