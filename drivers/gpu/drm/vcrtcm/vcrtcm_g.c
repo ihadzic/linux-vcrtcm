@@ -29,6 +29,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_pcon.h"
+#include "vcrtcm_drmdev_table.h"
 
 /*
  * called by the GPU driver to attach its CRTC to the
@@ -993,20 +994,15 @@ int vcrtcm_g_unlock_pconid(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_g_unlock_pconid);
 
-int vcrtcm_g_register(char *gpu_name,
-	struct vcrtcm_gpu_funcs *funcs, int *gpuid)
+int vcrtcm_g_register_drmdev(struct drm_device *dev,
+	struct vcrtcm_g_drmdev_funcs *funcs)
 {
-	/* gpuid is currently unused */
-	*gpuid = 0;
-	return 0;
+	return vcrtcm_set_drmdev_funcs(dev, funcs);
 }
-EXPORT_SYMBOL(vcrtcm_g_register);
+EXPORT_SYMBOL(vcrtcm_g_register_drmdev);
 
-/*
- * atomic: unspecified
- */
-int vcrtcm_g_unregister(int gpuid)
+int vcrtcm_g_unregister_drmdev(struct drm_device *dev)
 {
-	return 0;
+	return vcrtcm_remove_drmdev_funcs(dev);
 }
-EXPORT_SYMBOL(vcrtcm_g_unregister);
+EXPORT_SYMBOL(vcrtcm_g_unregister_drmdev);

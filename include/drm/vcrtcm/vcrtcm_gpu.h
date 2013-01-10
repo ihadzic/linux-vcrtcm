@@ -93,7 +93,7 @@ struct vcrtcm_g_pcon_funcs {
 };
 
 /* currently empty */
-struct vcrtcm_gpu_funcs {
+struct vcrtcm_g_drmdev_funcs {
 };
 
 /*
@@ -104,17 +104,17 @@ struct vcrtcm_gpu_funcs {
  */
 
 /*
- * mutex: must be locked before calling this function
+ * mutex: N/A
  * atomic: unspecified
  */
-int vcrtcm_g_register(char *gpu_name,
-	struct vcrtcm_gpu_funcs *funcs, int *gpuid);
+int vcrtcm_g_register_drmdev(struct drm_device *dev,
+	struct vcrtcm_g_drmdev_funcs *funcs);
 
 /*
- * mutex: must be locked before calling this function
+ * mutex: N/A
  * atomic: unspecified
  */
-int vcrtcm_g_unregister(int gpuid);
+int vcrtcm_g_unregister_drmdev(struct drm_device *dev);
 
 /*
  * mutex: must be locked before calling this function
