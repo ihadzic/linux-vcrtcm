@@ -42,6 +42,15 @@ struct drm_device;
  */
 struct vcrtcm_g_pcon_funcs {
 	/*
+	 * called to give the gpu driver a chance to perform any
+	 * post-attach processing
+	 *
+	 * mutex locked: yes
+	 * must be atomic: no
+	 */
+	int (*post_attach)(struct drm_crtc *drm_crtc);
+
+	/*
 	 * called to tell the gpu driver to detach the pcon
 	 *
 	 * mutex locked: yes
@@ -92,8 +101,17 @@ struct vcrtcm_g_pcon_funcs {
 	void (*hotplug)(struct drm_crtc *drm_crtc);
 };
 
-/* currently empty */
 struct vcrtcm_g_drmdev_funcs {
+	/*
+	 * called to tell the gpu driver to attach the pcon to
+	 * the crtc
+	 *
+	 * mutex locked: yes
+	 * must be atomic: no
+	 */
+	int (*attach)(int pconid, struct drm_device *dev, int crtc_drmid,
+		int crtc_index, enum vcrtcm_xfer_mode xfer_mode,
+		struct vcrtcm_g_pcon_funcs *funcs, struct drm_crtc **drm_crtc);
 };
 
 /*

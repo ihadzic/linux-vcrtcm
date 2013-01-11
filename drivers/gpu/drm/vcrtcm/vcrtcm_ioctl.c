@@ -24,6 +24,7 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_alloc.h>
+#include <drm/drm_vcrtcm.h>
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_ioctl_priv.h"
 #include "vcrtcm_module.h"
@@ -31,6 +32,7 @@
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon.h"
+#include "vcrtcm_drmdev_table.h"
 
 static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 {
@@ -179,8 +181,79 @@ static long vcrtcm_ioctl_destroy(int pconid)
 	return 0;
 }
 
-static long vcrtcm_ioctl_attach(int pconid, int connid)
+static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 {
+	struct vcrtcm_pcon *pcon;
+	int crtc_drmid;
+	int crtc_index;
+	struct drm_crtc *drm_crtc;
+	struct drm_device *ddev;
+	struct vcrtcm_g_drmdev_funcs devfuncs;
+	dev_t dev;
+	int r;
+
+	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", pconid, connid,
+		major, minor);
+	dev = MKDEV(major, minor);
+	ddev = drm_vcrtcm_get_crtc_for_attach(dev, connid, &crtc_drmid,
+		&crtc_index);
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
+	BUG_ON(crtc_drmid < 0);
+	BUG_ON(crtc_index < 0);
+	if (vcrtcm_get_drmdev_funcs(ddev, &devfuncs) < 0) {
+		VCRTCM_ERROR("device %d:%d not registered\n", MAJOR(dev),
+			MINOR(dev));
+		return -EINVAL;
+	}
+	if (!devfuncs.attach) {
+		VCRTCM_ERROR("no attach callback\n");
+		return -EINVAL;
+	}
+	if (vcrtcm_lock_pconid(pconid))
+		return -EINVAL;
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
+	if (pcon->drm_crtc) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_WARNING("pcon already attached\n");
+		return -EINVAL;
+	}
+	if (pcon->pim_funcs.attach &&
+		pcon->pcon_callbacks_enabled &&
+		pcon->pim->callbacks_enabled) {
+		r = pcon->pim_funcs.attach(pconid, pcon->pcon_cookie);
+		if (r) {
+			vcrtcm_unlock_pconid(pconid);
+			return r;
+		}
+	}
+	r = devfuncs.attach(pcon->pconid, ddev, crtc_drmid, crtc_index,
+		pcon->xfer_mode, &pcon->gpu_funcs, &drm_crtc);
+	if (r) {
+		memset(&pcon->gpu_funcs, 0,
+			sizeof(struct vcrtcm_g_pcon_funcs));
+		if (pcon->pim_funcs.detach &&
+			pcon->pcon_callbacks_enabled &&
+			pcon->pim->callbacks_enabled) {
+			pcon->pim_funcs.detach(pconid, pcon->pcon_cookie);
+		}
+		vcrtcm_unlock_pconid(pconid);
+		return r;
+	}
+	vcrtcm_set_crtc(pcon, drm_crtc);
+	if (pcon->gpu_funcs.post_attach)
+		pcon->gpu_funcs.post_attach(pcon->drm_crtc);
+	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
 
@@ -316,7 +389,8 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		r = vcrtcm_ioctl_destroy(args.arg1.pconid);
 		break;
 	case VCRTCM_IOC_ATTACH:
-		r = vcrtcm_ioctl_attach(args.arg1.pconid, args.arg2.connid);
+		r = vcrtcm_ioctl_attach(args.arg1.pconid, args.arg2.connid,
+			args.arg3.major, args.arg4.minor);
 		break;
 	case VCRTCM_IOC_DETACH:
 		r = vcrtcm_ioctl_detach(args.arg1.pconid);
