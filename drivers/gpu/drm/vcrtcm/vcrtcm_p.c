@@ -325,13 +325,13 @@ int vcrtcm_p_wait_fb(int pconid)
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
-	VCRTCM_INFO("waiting for GPU pcon 0x%08x\n", pconid);
+	VCRTCM_DEBUG("waiting for GPU pcon 0x%08x\n", pconid);
 	jiffies_snapshot = jiffies;
 	if (pcon->gpu_funcs.wait_fb)
 		pcon->gpu_funcs.wait_fb(pcon->drm_crtc);
 	jiffies_snapshot_2 = jiffies;
 
-	VCRTCM_INFO("time spent waiting for GPU %d ms\n",
+	VCRTCM_DEBUG("time spent waiting for GPU %d ms\n",
 		    ((int)jiffies_snapshot_2 -
 		     (int)(jiffies_snapshot)) * 1000 / HZ);
 	return 0;
