@@ -1396,7 +1396,7 @@ out:
 	return ret;
 }
 
-static bool obj_is_in_group(uint32_t obj_id, struct drm_mode_group *group)
+bool drm_obj_is_in_group(uint32_t obj_id, struct drm_mode_group *group)
 {
 	int i, total_objs;
 
@@ -1450,7 +1450,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -1533,7 +1533,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	connector = obj_to_connector(obj);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
-		if (!obj_is_in_group(connector->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(connector->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -1543,7 +1543,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		if ((connector->encoder_ids[i] != 0) &&
-		    obj_is_in_group(connector->encoder_ids[i], mode_group))
+		    drm_obj_is_in_group(connector->encoder_ids[i], mode_group))
 			encoders_count++;
 	}
 
@@ -1614,7 +1614,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
 		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 			if ((connector->encoder_ids[i] != 0) &&
-			    obj_is_in_group(connector->encoder_ids[i],
+			    drm_obj_is_in_group(connector->encoder_ids[i],
 					    mode_group)) {
 				if (put_user(connector->encoder_ids[i],
 					     encoder_ptr + copied)) {
@@ -1701,7 +1701,7 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(encoder->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(encoder->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -1842,7 +1842,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(plane->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(plane->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -1936,7 +1936,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(plane->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(plane->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -1963,7 +1963,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -2091,7 +2091,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -2251,7 +2251,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -2894,7 +2894,7 @@ int drm_mode_attachmode_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(connector->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(connector->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -2957,7 +2957,7 @@ int drm_mode_detachmode_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(connector->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(connector->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -3571,7 +3571,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(arg_obj->id, mode_group)) {
+		if (!drm_obj_is_in_group(arg_obj->id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -3680,7 +3680,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -3748,7 +3748,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
@@ -3808,7 +3808,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
 			&file_priv->minor->mode_group;
-		if (!obj_is_in_group(crtc->base.id, mode_group)) {
+		if (!drm_obj_is_in_group(crtc->base.id, mode_group)) {
 			ret = -EPERM;
 			goto out;
 		}
