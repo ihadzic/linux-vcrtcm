@@ -138,14 +138,6 @@ int vcrtcm_g_unregister_drmdev(struct drm_device *dev);
  * mutex: must be locked before calling this function
  * atomic: unspecified
  */
-int vcrtcm_g_attach(int pconid, struct drm_crtc *drm_crtc,
-	struct vcrtcm_g_pcon_funcs *funcs,
-	enum vcrtcm_xfer_mode *xfer_mode);
-
-/*
- * mutex: must be locked before calling this function
- * atomic: unspecified
- */
 int vcrtcm_g_detach(int pconid);
 
 /*
@@ -183,12 +175,6 @@ int vcrtcm_g_get_fb_status(int pconid, u32 *status);
  * atomic: unspecified
  */
 int vcrtcm_g_get_fps(int pconid, int *fps);
-
-/*
- * mutex: must be locked before calling this function
- * atomic: unspecified
- */
-int vcrtcm_g_set_fps(int pconid, int fps);
 
 /*
  * mutex: must be locked before calling this function
@@ -253,10 +239,6 @@ int vcrtcm_g_page_flip(int pconid, u32 ioaddr);
  * the pcon, then calls the nonlocking variant, then unlocks
  * the pcon.
  */
-int vcrtcm_g_attach_l(int pconid,
-		  struct drm_crtc *drm_crtc,
-		  struct vcrtcm_g_pcon_funcs *funcs,
-		  enum vcrtcm_xfer_mode *xfer_mode);
 int vcrtcm_g_detach_l(int pconid);
 int vcrtcm_g_set_fb_l(int pconid, struct vcrtcm_fb *fb);
 int vcrtcm_g_get_fb_l(int pconid, struct vcrtcm_fb *fb);
@@ -265,7 +247,6 @@ int vcrtcm_g_dirty_fb_l(int pconid);
 int vcrtcm_g_wait_fb_l(int pconid);
 int vcrtcm_g_get_fb_status_l(int pconid, u32 *status);
 int vcrtcm_g_get_fps_l(int pconid, int *fps);
-int vcrtcm_g_set_fps_l(int pconid, int fps);
 int vcrtcm_g_set_cursor_l(int pconid,
 		      struct vcrtcm_cursor *cursor);
 int vcrtcm_g_get_cursor_l(int pconid,
