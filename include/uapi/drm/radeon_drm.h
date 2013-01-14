@@ -510,10 +510,7 @@ typedef struct {
 #define DRM_RADEON_GEM_GET_TILING	0x29
 #define DRM_RADEON_GEM_BUSY		0x2a
 #define DRM_RADEON_GEM_VA		0x2b
-/* FIXME: this define temporarily lives in radeon_vcrtcm.h
- *        because it's easier to maintain radeon_vcrtcm_ctl that way
- * #define DRM_RADEON_VCRTCM		0x2c
- */
+
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
 #define DRM_IOCTL_RADEON_CP_STOP    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_STOP, drm_radeon_cp_stop_t)

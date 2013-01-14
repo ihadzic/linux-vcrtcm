@@ -33,8 +33,6 @@ int radeon_vcrtcm_wait(struct drm_device *dev,
 		       struct drm_mode_group *mode_group);
 void radeon_vcrtcm_xmit(struct drm_device *dev,
 			struct drm_mode_group *mode_group);
-int radeon_vcrtcm_ioctl(struct drm_device *dev,
-			void *data, struct drm_file *file_priv);
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 int x, int y,
 			 struct drm_framebuffer *fb,
