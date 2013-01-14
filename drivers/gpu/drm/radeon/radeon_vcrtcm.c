@@ -202,7 +202,8 @@ void radeon_vblank_emulation_work_func(struct work_struct *work)
 	struct radeon_crtc *rcrtc = container_of(work, struct radeon_crtc,
 						 vblank_emulation_work);
 
-	radeon_fence_wait(rcrtc->last_push_fence_fb, false);
+	if (rcrtc->last_push_fence_fb)
+		radeon_fence_wait(rcrtc->last_push_fence_fb, false);
 	radeon_virtual_crtc_set_emulated_vblank_time(rcrtc);
 	rcrtc->vcrtcm_push_in_progress = 0;
 	radeon_emulate_vblank(&rcrtc->base);
