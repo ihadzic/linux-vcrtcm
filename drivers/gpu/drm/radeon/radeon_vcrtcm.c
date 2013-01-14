@@ -139,15 +139,6 @@ void radeon_vcrtcm_xmit(struct drm_device *dev,
 	}
 }
 
-static void radeon_detach_callback(struct drm_crtc *crtc)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-
-	DRM_INFO("dereferencing PCON pointer from crtc_id %d\n",
-		 radeon_crtc->crtc_id);
-	radeon_crtc->pconid = -1;
-}
-
 void radeon_emulate_vblank_core(struct radeon_device *rdev,
 				struct radeon_crtc *radeon_crtc)
 {
@@ -328,6 +319,31 @@ static void radeon_vcrtcm_hotplug(struct drm_crtc *crtc)
 	schedule_work(&rdev->hotplug_work);
 }
 
+int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
+{
+	struct drm_crtc *crtc = &radeon_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int r = -EINVAL;
+
+	if (radeon_crtc->pconid >= 0) {
+		r = vcrtcm_g_detach_l(radeon_crtc->pconid);
+		radeon_crtc->pconid = -1;
+		if (radeon_crtc->crtc_id >= rdev->num_crtc)
+			schedule_work(&rdev->hotplug_work);
+	}
+	return r;
+}
+
+static void radeon_detach_callback(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	DRM_INFO("dereferencing PCON pointer from crtc_id %d\n",
+		 radeon_crtc->crtc_id);
+	radeon_crtc->pconid = -1;
+}
+
 struct vcrtcm_g_pcon_funcs physical_crtc_gpu_funcs = {
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
@@ -447,22 +463,6 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 
 	return r;
 
-}
-
-int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
-{
-	struct drm_crtc *crtc = &radeon_crtc->base;
-	struct drm_device *dev = crtc->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	int r = -EINVAL;
-
-	if (radeon_crtc->pconid >= 0) {
-		r = vcrtcm_g_detach_l(radeon_crtc->pconid);
-		radeon_crtc->pconid = -1;
-		if (radeon_crtc->crtc_id >= rdev->num_crtc)
-			schedule_work(&rdev->hotplug_work);
-	}
-	return r;
 }
 
 static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
