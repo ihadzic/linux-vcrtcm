@@ -324,6 +324,10 @@ int vcrtcm_p_wait_fb(int pconid)
 		VCRTCM_ERROR("no pcon %d\n", pconid);
 		return -ENODEV;
 	}
+	if (!pcon->drm_crtc) {
+		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
+		return -EINVAL;
+	}
 	/* this function is legal to call on a pcon that is being destroyed */
 	VCRTCM_DEBUG("waiting for GPU pcon 0x%08x\n", pconid);
 	jiffies_snapshot = jiffies;
@@ -440,7 +444,6 @@ int vcrtcm_p_push(int pconid,
 		struct vcrtcm_push_buffer_descriptor *cpbd)
 {
 	struct vcrtcm_pcon *pcon;
-	struct drm_crtc *crtc;
 	struct drm_gem_object *push_buffer_fb = NULL;
 	struct drm_gem_object *push_buffer_cursor = NULL;
 
@@ -454,7 +457,10 @@ int vcrtcm_p_push(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	crtc = pcon->drm_crtc;
+	if (!pcon->drm_crtc) {
+		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
+		return -EINVAL;
+	}
 	if (cpbd) {
 		push_buffer_cursor = cpbd->gpu_private;
 		cpbd->virgin = 0;
@@ -465,7 +471,7 @@ int vcrtcm_p_push(int pconid,
 	}
 	if (pcon->gpu_funcs.push) {
 		VCRTCM_DEBUG("push for pcon %i\n", pconid);
-		return pcon->gpu_funcs.push(crtc,
+		return pcon->gpu_funcs.push(pcon->drm_crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
 		return -ENOTSUPP;
@@ -494,7 +500,6 @@ EXPORT_SYMBOL(vcrtcm_p_push_l);
 int vcrtcm_p_hotplug(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
-	struct drm_crtc *crtc;
 
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
@@ -506,9 +511,12 @@ int vcrtcm_p_hotplug(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	crtc = pcon->drm_crtc;
+	if (!pcon->drm_crtc) {
+		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
+		return -EINVAL;
+	}
 	if (pcon->gpu_funcs.hotplug) {
-		pcon->gpu_funcs.hotplug(crtc);
+		pcon->gpu_funcs.hotplug(pcon->drm_crtc);
 		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
 
 	}
