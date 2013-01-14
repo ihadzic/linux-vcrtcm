@@ -338,10 +338,14 @@ int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc)
 static void radeon_detach_callback(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 
-	DRM_INFO("dereferencing PCON pointer from crtc_id %d\n",
-		 radeon_crtc->crtc_id);
-	radeon_crtc->pconid = -1;
+	if (radeon_crtc->pconid >= 0) {
+		radeon_crtc->pconid = -1;
+		if (radeon_crtc->crtc_id >= rdev->num_crtc)
+			schedule_work(&rdev->hotplug_work);
+	}
 }
 
 struct vcrtcm_g_pcon_funcs physical_crtc_gpu_funcs = {
