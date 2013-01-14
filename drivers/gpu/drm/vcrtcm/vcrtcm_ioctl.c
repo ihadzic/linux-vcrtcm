@@ -191,7 +191,47 @@ static long vcrtcm_ioctl_detach(int pconid)
 
 static long vcrtcm_ioctl_fps(int pconid, int fps)
 {
-	return 0;
+	int r = 0;
+	struct vcrtcm_pcon *pcon;
+
+	if (vcrtcm_lock_pconid(pconid))
+		return -EINVAL;
+	pcon = vcrtcm_get_pcon(pconid);
+	if (!pcon) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("no pcon %d\n", pconid);
+		return -ENODEV;
+	}
+	if (pcon->being_destroyed) {
+		vcrtcm_unlock_pconid(pconid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		return -EINVAL;
+	}
+	if (fps <= 0) {
+		pcon->fps = 0;
+		pcon->vblank_period_jiffies = 0;
+		cancel_delayed_work_sync(&pcon->vblank_work);
+		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
+			pconid);
+	} else {
+		unsigned long now;
+		int old_fps = pcon->fps;
+
+		pcon->fps = fps;
+		pcon->vblank_period_jiffies = HZ/fps;
+		now = jiffies;
+		pcon->last_vblank_jiffies = now;
+		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
+		if (old_fps == 0)
+			schedule_delayed_work(&pcon->vblank_work, 0);
+	}
+	if (pcon->pim_funcs.set_fps &&
+		pcon->pcon_callbacks_enabled &&
+		pcon->pim->callbacks_enabled) {
+		r = pcon->pim_funcs.set_fps(pconid, pcon->pcon_cookie, fps);
+	}
+	vcrtcm_unlock_pconid(pconid);
+	return r;
 }
 
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
