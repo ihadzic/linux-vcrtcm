@@ -271,6 +271,8 @@ static void v4l2pim_start_generating(struct file *file)
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
 
+	if (!minor)
+		return;
 	if (test_and_set_bit(0, &minor->generating))
 		return;
 	file->private_data = minor;
