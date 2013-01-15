@@ -266,13 +266,8 @@ static int v4l2pim_thread(void *data)
 	return 0;
 }
 
-static void v4l2pim_start_generating(struct file *file)
+static void v4l2pim_start_generating(struct v4l2pim_minor *minor)
 {
-	struct v4l2pim_minor *minor;
-	minor = video_drvdata(file);
-
-	if (!minor)
-		return;
 	if (test_and_set_bit(0, &minor->generating))
 		return;
 
@@ -284,13 +279,8 @@ static void v4l2pim_start_generating(struct file *file)
 	}
 }
 
-static void v4l2pim_stop_generating(struct file *file)
+static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
 {
-	struct v4l2pim_minor *minor;
-	minor = video_drvdata(file);
-
-	if (!minor)
-		return;
 	if (!test_and_clear_bit(0, &minor->generating))
 		return;
 
@@ -555,7 +545,7 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
-	v4l2pim_start_generating(file);
+	v4l2pim_start_generating(minor);
 	return videobuf_read_stream(&minor->vb_vidq,
 				    data, count, ppos, 0,
 				    file->f_flags & O_NONBLOCK);
@@ -578,7 +568,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
-	v4l2pim_start_generating(file);
+	v4l2pim_start_generating(minor);
 	return videobuf_poll_stream(file, &minor->vb_vidq, wait);
 }
 
@@ -599,8 +589,8 @@ static int v4l2pim_release(struct file *file)
 {
 	struct v4l2pim_minor *minor;
 
-	v4l2pim_stop_generating(file);
 	minor = video_drvdata(file);
+	v4l2pim_stop_generating(minor);
 	atomic_dec(&minor->users);
 	module_put(THIS_MODULE);
 
@@ -693,7 +683,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	ret = videobuf_streamon(&minor->vb_vidq);
 	if (ret)
 		return ret;
-	v4l2pim_start_generating(file);
+	v4l2pim_start_generating(minor);
 	return 0;
 }
 
@@ -707,7 +697,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	ret = videobuf_streamoff(&minor->vb_vidq);
 	if (!ret)
-		v4l2pim_stop_generating(file);
+		v4l2pim_stop_generating(minor);
 	return ret;
 }
 
