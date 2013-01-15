@@ -53,7 +53,7 @@ int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
 int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			 int x, int y,
 			 struct drm_framebuffer *fb,
-			 uint64_t fb_location)
+			 uint64_t fb_location, int pcon_locked)
 {
 	struct drm_crtc *crtc = &radeon_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -94,7 +94,11 @@ int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
 			vcrtcm_fb.viewport_y = 0;
 		vcrtcm_fb.hdisplay = crtc->mode.hdisplay;
 		vcrtcm_fb.vdisplay = crtc->mode.vdisplay;
-		return vcrtcm_g_set_fb_l(radeon_crtc->pconid, &vcrtcm_fb);
+		if (pcon_locked)
+			return vcrtcm_g_set_fb(radeon_crtc->pconid, &vcrtcm_fb);
+		else
+			return vcrtcm_g_set_fb_l(radeon_crtc->pconid,
+				&vcrtcm_fb);
 	}
 	return 0;
 }
@@ -414,7 +418,7 @@ static int radeon_vcrtcm_attach(struct radeon_crtc *radeon_crtc,
 	if (crtc->fb) {
 		DRM_INFO("radeon_vcrtcm_g_attach: frame buffer exists\n");
 		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
-						    crtc->y, 1);
+						    crtc->y, 1, 0);
 		if (r) {
 			vcrtcm_g_detach_l(radeon_crtc->pconid);
 			radeon_crtc->pconid = -1;

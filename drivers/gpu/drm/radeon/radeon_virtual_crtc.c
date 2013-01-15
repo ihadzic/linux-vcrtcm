@@ -777,7 +777,7 @@ void radeon_virtual_crtc_handle_flip(struct radeon_device *rdev, int crtc)
 
 int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
-				    int x, int y, int atomic)
+				    int x, int y, int atomic, int pcon_locked)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *radeon_fb;
@@ -829,7 +829,8 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 	radeon_bo_unreserve(rbo);
 
-	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_gpuaddr);
+	r = radeon_vcrtcm_set_fb(radeon_crtc, x, y, target_fb, fb_gpuaddr,
+		pcon_locked);
 	if (!atomic && fb && fb != crtc->fb) {
 		DRM_DEBUG("found old framebuffer, unpinning\n");
 		radeon_fb = to_radeon_framebuffer(fb);
@@ -840,8 +841,12 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 		/* it's a good idea to wait on VCRTCM before returning, that */
 		/* would guarantee not to release a buffer whose transmission */
 		/* may still be in progress */
-		if (radeon_crtc->pconid >= 0)
-			r = vcrtcm_g_wait_fb_l(radeon_crtc->pconid);
+		if (radeon_crtc->pconid >= 0) {
+			if (pcon_locked)
+				r = vcrtcm_g_wait_fb(radeon_crtc->pconid);
+			else
+				r = vcrtcm_g_wait_fb_l(radeon_crtc->pconid);
+		}
 		/* if wait fails, unpin anyway (we have a bigger problem in that case) */
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
@@ -854,7 +859,7 @@ int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 static int radeon_virtual_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 					struct drm_framebuffer *old_fb)
 {
-	return radeon_virtual_crtc_do_set_base(crtc, old_fb, x, y, 0);
+	return radeon_virtual_crtc_do_set_base(crtc, old_fb, x, y, 0, 0);
 }
 
 static int radeon_virtual_crtc_set_base_atomic(struct drm_crtc *crtc,
@@ -862,7 +867,7 @@ static int radeon_virtual_crtc_set_base_atomic(struct drm_crtc *crtc,
 					       int x, int y,
 					       enum mode_set_atomic state)
 {
-	return radeon_virtual_crtc_do_set_base(crtc, fb, x, y, 1);
+	return radeon_virtual_crtc_do_set_base(crtc, fb, x, y, 1, 0);
 }
 
 static int radeon_virtual_crtc_mode_set(struct drm_crtc *crtc,

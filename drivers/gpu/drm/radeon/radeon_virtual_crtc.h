@@ -33,7 +33,7 @@ struct virtual_crtc {
 
 int radeon_virtual_crtc_do_set_base(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
-				    int x, int y, int atomic);
+				    int x, int y, int atomic, int pcon_locked);
 void radeon_virtual_crtc_handle_flip(struct radeon_device *rdev,
 				     int crtc_id);
 void radeon_add_virtual_enc_conn(struct drm_device *dev, int inst);
