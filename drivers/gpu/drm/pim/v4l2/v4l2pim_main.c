@@ -270,7 +270,6 @@ static void v4l2pim_start_generating(struct v4l2pim_minor *minor)
 {
 	if (test_and_set_bit(0, &minor->generating))
 		return;
-
 	minor->kthread = kthread_run(v4l2pim_thread, minor,
 					minor->v4l2_dev.name);
 	if (IS_ERR(minor->kthread)) {
@@ -283,7 +282,6 @@ static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
 {
 	if (!test_and_clear_bit(0, &minor->generating))
 		return;
-
 	if (minor->kthread) {
 		kthread_stop(minor->kthread);
 		minor->kthread = NULL;
