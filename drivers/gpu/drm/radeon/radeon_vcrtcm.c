@@ -368,6 +368,19 @@ struct vcrtcm_g_pcon_funcs virtual_crtc_gpu_funcs = {
 	.hotplug = radeon_vcrtcm_hotplug
 };
 
+static struct radeon_crtc
+*display_index_to_radeon_crtc(struct radeon_device *rdev, int display_index)
+{
+	struct virtual_crtc *virtual_crtc;
+
+	if (display_index < rdev->num_crtc)
+		return rdev->mode_info.crtcs[display_index];
+	virtual_crtc = radeon_virtual_crtc_lookup(rdev, display_index);
+	if (virtual_crtc)
+		return virtual_crtc->radeon_crtc;
+	return NULL;
+}
+
 static struct vcrtcm_g_drmdev_funcs vcrtcm_drmdev_funcs = {
 };
 
@@ -492,19 +505,6 @@ static int radeon_vcrtcm_force(struct radeon_crtc *radeon_crtc)
 		return vcrtcm_g_dirty_fb_l(radeon_crtc->pconid);
 	else
 		return -EINVAL;
-}
-
-static struct radeon_crtc
-*display_index_to_radeon_crtc(struct radeon_device *rdev, int display_index)
-{
-	struct virtual_crtc *virtual_crtc;
-
-	if (display_index < rdev->num_crtc)
-		return rdev->mode_info.crtcs[display_index];
-	virtual_crtc = radeon_virtual_crtc_lookup(rdev, display_index);
-	if (virtual_crtc)
-		return virtual_crtc->radeon_crtc;
-	return NULL;
 }
 
 static inline int radeon_vcrtcm_set_fps(struct radeon_crtc *radeon_crtc,
