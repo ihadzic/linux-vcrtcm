@@ -201,12 +201,16 @@ void radeon_vblank_emulation_work_func(struct work_struct *work)
 {
 	struct radeon_crtc *rcrtc = container_of(work, struct radeon_crtc,
 						 vblank_emulation_work);
+	struct radeon_device *rdev =
+		(struct radeon_device *)rcrtc->base.dev->dev_private;
 
 	if (rcrtc->last_push_fence_fb)
 		radeon_fence_wait(rcrtc->last_push_fence_fb, false);
-	radeon_virtual_crtc_set_emulated_vblank_time(rcrtc);
 	rcrtc->vcrtcm_push_in_progress = 0;
-	radeon_emulate_vblank(&rcrtc->base);
+	if (rcrtc->crtc_id >= rdev->num_crtc) {
+		radeon_virtual_crtc_set_emulated_vblank_time(rcrtc);
+		radeon_emulate_vblank(&rcrtc->base);
+	}
 }
 
 /*
@@ -313,8 +317,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	 * vblank emulation will occur vblank_emulation_work_func
 	 * when copy completes
 	 */
-	if (srcrtc->crtc_id >= rdev->num_crtc)
-		schedule_work(&srcrtc->vblank_emulation_work);
+	schedule_work(&srcrtc->vblank_emulation_work);
 	return 0;
 }
 
