@@ -177,6 +177,85 @@ static void radeon_emulate_vblank(struct drm_crtc *crtc)
 	radeon_emulate_vblank_core(rdev, radeon_crtc);
 }
 
+int radeon_post_attach_callback(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *ddev = radeon_crtc->base.dev;
+	struct radeon_device *rdev = ddev->dev_private;
+	int r;
+
+	/* we need to send the crtc */
+	/* FB address and geometry to VCRTCM module, because */
+	/* the attach can happen after the displays have been created */
+	/* (e.g. X has already started); the application in that case */
+	/* won't call set_base helper function and VCRTCM module won't */
+	/* have the FB information. So we do it here (we use */
+	/* atomic==1 because if this CRTC has the frame buffer */
+	/* bound, it should presumably be already pinned */
+	if (crtc->fb) {
+		DRM_INFO("post_attach: frame buffer exists\n");
+		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
+							crtc->y, 1, 1);
+		if (r) {
+			radeon_crtc->pconid = -1;
+			return r;
+		}
+		/* we also need to set the cursor */
+		if (radeon_crtc->cursor_bo) {
+			struct vcrtcm_cursor vcrtcm_cursor;
+			struct radeon_device *rdev =
+				(struct radeon_device *)crtc->dev->dev_private;
+			struct radeon_bo *rbo;
+			uint64_t cursor_gpuaddr;
+
+			DRM_INFO("post_attach: cursor exists w=%d, h=%d\n",
+				radeon_crtc->cursor_width,
+				radeon_crtc->cursor_height);
+			vcrtcm_cursor.flag = 0x0;
+			vcrtcm_cursor.width = radeon_crtc->cursor_width;
+			vcrtcm_cursor.height = radeon_crtc->cursor_height;
+			vcrtcm_cursor.bpp = crtc->fb->bits_per_pixel;
+
+			/* REVISIT: we don't have any other place to put it */
+			/* (radeon_crtc does not maintain cursor location) */
+			/* so we just set it to zero; it will be updated to */
+			/* the right value at the first cursor move */
+			vcrtcm_cursor.location_x = 0;
+			vcrtcm_cursor.location_y = 0;
+			/* cursor object should be pinned at this point so */
+			/* we just go for its address */
+			rbo = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+			r = radeon_bo_reserve(rbo, false);
+			if (unlikely(r)) {
+				radeon_crtc->pconid = -1;
+				return r;
+			}
+			cursor_gpuaddr = radeon_bo_gpu_offset(rbo);
+			radeon_bo_unreserve(rbo);
+
+			vcrtcm_cursor.ioaddr = rdev->mc.aper_base +
+				(cursor_gpuaddr - rdev->mc.vram_start);
+			DRM_INFO("post_attach: cursor i/o address 0x%08x\n",
+				 vcrtcm_cursor.ioaddr);
+			r = vcrtcm_g_set_cursor(radeon_crtc->pconid,
+						  &vcrtcm_cursor);
+			if (r) {
+				radeon_crtc->pconid = -1;
+				return r;
+			}
+		}
+	}
+	if (radeon_crtc->enabled)
+		vcrtcm_g_set_dpms(radeon_crtc->pconid, VCRTCM_DPMS_STATE_ON);
+	else
+		vcrtcm_g_set_dpms(radeon_crtc->pconid, VCRTCM_DPMS_STATE_OFF);
+
+	if (radeon_crtc->crtc_id >= rdev->num_crtc)
+		schedule_work(&rdev->hotplug_work);
+
+	return r;
+}
+
 static void radeon_wait_fb_callback(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
@@ -353,6 +432,7 @@ static void radeon_detach_callback(struct drm_crtc *crtc)
 }
 
 struct vcrtcm_g_pcon_funcs physical_crtc_gpu_funcs = {
+	.post_attach = radeon_post_attach_callback,
 	.detach = radeon_detach_callback,
 	.vblank = NULL, /* no vblank emulation for real CRTC */
 	.wait_fb = radeon_wait_fb_callback,
@@ -361,6 +441,7 @@ struct vcrtcm_g_pcon_funcs physical_crtc_gpu_funcs = {
 };
 
 struct vcrtcm_g_pcon_funcs virtual_crtc_gpu_funcs = {
+	.post_attach = radeon_post_attach_callback,
 	.detach = radeon_detach_callback,
 	.vblank = radeon_emulate_vblank,
 	.wait_fb = radeon_wait_fb_callback,
@@ -381,7 +462,39 @@ static struct radeon_crtc
 	return NULL;
 }
 
+int radeon_attach_callback(int pconid, struct drm_device *dev,
+	int crtc_drmid, int crtc_index, enum vcrtcm_xfer_mode xfer_mode,
+	struct vcrtcm_g_pcon_funcs *funcs, struct drm_crtc **drm_crtc)
+{
+	struct radeon_crtc *radeon_crtc;
+	struct radeon_device *rdev;
+
+	DRM_INFO("attaching pcon %d to crtc %d:%d\n", pconid, crtc_drmid,
+		crtc_index);
+	rdev = dev->dev_private;
+	BUG_ON(!rdev);
+	radeon_crtc = display_index_to_radeon_crtc(rdev, crtc_index);
+	if (!radeon_crtc) {
+		DRM_ERROR("no such crtc %d:%d\n", crtc_drmid, crtc_index);
+		return -EINVAL;
+	}
+	BUG_ON(radeon_crtc->crtc_id != crtc_index);
+	if (radeon_crtc->pconid >= 0) {
+		DRM_ERROR("already attached to pcon %d\n", radeon_crtc->pconid);
+		return -EINVAL;
+	}
+	radeon_crtc->xfer_mode = xfer_mode;
+	radeon_crtc->pconid = pconid;
+	*drm_crtc = &radeon_crtc->base;
+	if (radeon_crtc->crtc_id < rdev->num_crtc)
+		*funcs = physical_crtc_gpu_funcs;
+	else
+		*funcs = virtual_crtc_gpu_funcs;
+	return 0;
+}
+
 static struct vcrtcm_g_drmdev_funcs vcrtcm_drmdev_funcs = {
+	.attach = radeon_attach_callback,
 };
 
 int radeon_vcrtcm_register_drmdev(struct drm_device *dev)
