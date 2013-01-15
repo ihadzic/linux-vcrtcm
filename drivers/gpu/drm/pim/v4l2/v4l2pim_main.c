@@ -275,7 +275,6 @@ static void v4l2pim_start_generating(struct file *file)
 		return;
 	if (test_and_set_bit(0, &minor->generating))
 		return;
-	file->private_data = minor;
 
 	minor->kthread = kthread_run(v4l2pim_thread, minor,
 					minor->v4l2_dev.name);
@@ -290,8 +289,6 @@ static void v4l2pim_stop_generating(struct file *file)
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
 
-	if (!file->private_data)
-		return;
 	if (!minor)
 		return;
 	if (!test_and_clear_bit(0, &minor->generating))
