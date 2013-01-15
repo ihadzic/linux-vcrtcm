@@ -36,6 +36,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_alloc_priv.h"
+#include "vcrtcm_ioctl_priv.h"
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped
@@ -928,12 +929,14 @@ int vcrtcm_pim_unregister(int pimid)
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim)
 		return -EINVAL;
+	mutex_lock(&vcrtcm_ioctl_mutex);
 	VCRTCM_INFO("unregistering %s\n", pim->name);
 	list_for_each_entry_safe(pcon, tmp,
 			&pim->pcons_in_pim_list, pcons_in_pim_list)
 		vcrtcm_p_destroy_l(pcon->pconid);
 	vcrtcm_sysfs_del_pim(pim);
 	vcrtcm_destroy_pim(pim);
+	mutex_unlock(&vcrtcm_ioctl_mutex);
 	VCRTCM_INFO("finished unregistering pim\n");
 	return 0;
 }

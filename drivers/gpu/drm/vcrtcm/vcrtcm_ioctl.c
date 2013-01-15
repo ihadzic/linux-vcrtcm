@@ -34,7 +34,7 @@
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_drmdev_table.h"
 
-static DEFINE_MUTEX(ioctl_mutex);
+DEFINE_MUTEX(vcrtcm_ioctl_mutex);
 
 static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 {
@@ -382,7 +382,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 	if (copy_from_user(&args, (void *)arg, sizeof(args)))
 		return -EFAULT;
-	mutex_lock(&ioctl_mutex);
+	mutex_lock(&vcrtcm_ioctl_mutex);
 	switch (cmd) {
 	case VCRTCM_IOC_INSTANTIATE:
 		r = vcrtcm_ioctl_instantiate(args.arg1.pimid, args.arg2.hints,
@@ -412,7 +412,7 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		r = -EINVAL;
 		break;
 	}
-	mutex_unlock(&ioctl_mutex);
+	mutex_unlock(&vcrtcm_ioctl_mutex);
 	if (r)
 		return r;
 	if (copy_to_user((void *)arg, &args, sizeof(args)))

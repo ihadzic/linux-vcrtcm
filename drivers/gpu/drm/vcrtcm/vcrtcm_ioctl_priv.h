@@ -27,4 +27,6 @@
 
 long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
+extern struct mutex vcrtcm_ioctl_mutex;
+
 #endif
