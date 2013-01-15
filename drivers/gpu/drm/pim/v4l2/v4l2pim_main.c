@@ -393,6 +393,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct v4l2pim_minor *minor;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	strcpy(cap->driver, "v4l2pim");
 	strcpy(cap->card, "v4l2pim");
 	strlcpy(cap->bus_info, minor->v4l2_dev.name,
@@ -426,6 +428,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	uint32_t fbsize;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -460,6 +464,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	enum v4l2_field field;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -500,6 +506,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	uint32_t fbsize;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -535,6 +543,8 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	uint32_t fbsize;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -558,6 +568,8 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	uint32_t fbsize;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -578,6 +590,8 @@ static int v4l2pim_open(struct file *file)
 		return -EBUSY;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	atomic_inc(&minor->users);
 
 	return 0;
@@ -588,6 +602,8 @@ static int v4l2pim_release(struct file *file)
 	struct v4l2pim_minor *minor;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	v4l2pim_stop_generating(minor);
 	atomic_dec(&minor->users);
 	module_put(THIS_MODULE);
@@ -604,6 +620,8 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -645,6 +663,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 {
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	return videobuf_reqbufs(&minor->vb_vidq, p);
 }
 
@@ -652,6 +672,8 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	return videobuf_querybuf(&minor->vb_vidq, p);
 }
 
@@ -659,6 +681,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	return videobuf_qbuf(&minor->vb_vidq, p);
 }
 
@@ -666,6 +690,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4l2pim_minor *minor;
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	return videobuf_dqbuf(&minor->vb_vidq, p,
 				file->f_flags & O_NONBLOCK);
 }
@@ -676,6 +702,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	int ret;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	ret = videobuf_streamon(&minor->vb_vidq);
@@ -691,6 +719,8 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	int ret;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	ret = videobuf_streamoff(&minor->vb_vidq);
@@ -707,6 +737,8 @@ vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	struct v4l2_fract timeperframe;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -729,6 +761,8 @@ vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 	struct v4l2pim_pcon *pcon;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -749,6 +783,8 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	uint32_t i;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
@@ -775,6 +811,8 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	uint32_t i;
 
 	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
