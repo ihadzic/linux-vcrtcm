@@ -215,13 +215,13 @@ static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 }
 
 /* Initialize the pimmgr sysfs stuff (called from init). */
-void vcrtcm_sysfs_init(struct device *vcrtcm_device)
+int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 {
 	int ret = 0;
 
 	if (!vcrtcm_device) {
 		VCRTCM_ERROR("Invalid device, could not set up sysfs...\n");
-		return;
+		return -EINVAL;
 	}
 
 	memset(&pims_kobj, 0, sizeof(struct kobject));
@@ -230,13 +230,17 @@ void vcrtcm_sysfs_init(struct device *vcrtcm_device)
 
 	ret = kobject_init_and_add(&pims_kobj, &empty_type,
 					&vcrtcm_device->kobj, "pims");
-	if (ret < 0)
+	if (ret < 0) {
 		VCRTCM_ERROR("Error creating sysfs pim node...\n");
-
+		return ret;
+	}
 	ret = kobject_init_and_add(&pcons_kobj, &empty_type,
 					&vcrtcm_device->kobj, "pcons");
-	if (ret < 0)
+	if (ret < 0) {
 		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
+		return ret;
+	}
+	return 0;
 }
 
 int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim)
@@ -249,10 +253,11 @@ int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim)
 	ret = kobject_init_and_add(&pim->kobj, &pim_type,
 					&pims_kobj, "%s", pim->name);
 
-	if (ret < 0)
+	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pim to sysfs\n");
-
-	return ret;
+		return ret;
+	}
+	return 0;
 }
 
 void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim)
@@ -276,18 +281,18 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon)
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;
 	}
-
 	ret = sysfs_create_link(&pcon->pim->kobj, &pcon->kobj,
 						pcon->kobj.name);
-	if (ret < 0)
+	if (ret < 0) {
 		VCRTCM_ERROR("Error linking pcon to pim in sysfs\n");
-
+		return ret;
+	}
 	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj, "pim");
-
-	if (ret < 0)
+	if (ret < 0) {
 		VCRTCM_ERROR("Error linking pim to pcon in sysfs\n");
-
-	return 1;
+		return ret;
+	}
+	return 0;
 }
 
 void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon)

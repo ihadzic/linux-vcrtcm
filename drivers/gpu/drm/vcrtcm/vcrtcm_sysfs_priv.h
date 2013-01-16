@@ -35,7 +35,7 @@ int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim);
 void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim);
 int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon);
 void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon);
-void vcrtcm_sysfs_init(struct device *vcrtcm_device);
+int vcrtcm_sysfs_init(struct device *vcrtcm_device);
 void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon);
 
 extern struct class *vcrtcm_class;
