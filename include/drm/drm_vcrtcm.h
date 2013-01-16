@@ -25,9 +25,9 @@
 
 #include <linux/types.h>
 
-struct drm_device;
+struct drm_connector;
 
-struct drm_device *drm_vcrtcm_get_crtc_for_attach(dev_t dev, int connid,
+struct drm_connector *drm_vcrtcm_get_crtc_for_attach(dev_t dev, int connid,
 	int *crtc_drmid, int *crtc_index);
 
 #endif

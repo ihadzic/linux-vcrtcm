@@ -163,7 +163,7 @@ static int drm_vcrtcm_select_crtc_for_attach(struct drm_device *dev,
  * determines whether given connector is in the minor, and if
  * so, selects the crtc within that minor to attach to.
  */
-struct drm_device *drm_vcrtcm_get_crtc_for_attach(dev_t dev,
+struct drm_connector *drm_vcrtcm_get_crtc_for_attach(dev_t dev,
 	int connid, int *crtc_drmid, int *crtc_index)
 {
 	struct drm_minor *minor;
@@ -211,6 +211,6 @@ struct drm_device *drm_vcrtcm_get_crtc_for_attach(dev_t dev,
 	}
 	mutex_unlock(&ddev->mode_config.mutex);
 	mutex_unlock(&drm_global_mutex);
-	return ddev;
+	return conn;
 }
 EXPORT_SYMBOL(drm_vcrtcm_get_crtc_for_attach);
