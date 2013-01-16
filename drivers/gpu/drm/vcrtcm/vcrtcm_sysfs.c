@@ -165,7 +165,6 @@ static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 				"This is the PIM that handles type %s\n",
 				pim->name);
 	}
-
 	return 0;
 }
 
@@ -187,7 +186,6 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 			container_of(kobj, struct vcrtcm_pcon, kobj);
 	if (!pcon)
 		return 0;
-
 	if (attr == &pcon_desc_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%s\n", pcon->description);
 	} else if (attr == &pcon_minor_attr) {
@@ -196,7 +194,6 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 		pim = pcon->pim;
 		if (!pim)
 			return 0;
-
 		return scnprintf(buf, PAGE_SIZE, "unknown\n");
 	} else if (attr == &pcon_fps_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%d\n", pcon->fps);
@@ -223,11 +220,9 @@ int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 		VCRTCM_ERROR("Invalid device, could not set up sysfs...\n");
 		return -EINVAL;
 	}
-
 	memset(&pims_kobj, 0, sizeof(struct kobject));
 	memset(&pcons_kobj, 0, sizeof(struct kobject));
 	memset(&empty_type, 0, sizeof(struct kobj_type));
-
 	ret = kobject_init_and_add(&pims_kobj, &empty_type,
 					&vcrtcm_device->kobj, "pims");
 	if (ret < 0) {
@@ -249,10 +244,8 @@ int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim)
 
 	if (!pim)
 		return -EINVAL;
-
 	ret = kobject_init_and_add(&pim->kobj, &pim_type,
 					&pims_kobj, "%s", pim->name);
-
 	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pim to sysfs\n");
 		return ret;
@@ -264,7 +257,6 @@ void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim)
 {
 	if (!pim)
 		return;
-
 	kobject_del(&pim->kobj);
 }
 
@@ -274,7 +266,6 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon)
 
 	if (!pcon)
 		return -EINVAL;
-
 	ret = kobject_init_and_add(&pcon->kobj, &pcon_type,
 		&pcons_kobj, "%i", pcon->pconid);
 	if (ret < 0) {
@@ -299,7 +290,6 @@ void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon)
 {
 	if (!pcon)
 		return;
-
 	sysfs_remove_link(&pcon->pim->kobj, pcon->kobj.name);
 	kobject_del(&pcon->kobj);
 }
