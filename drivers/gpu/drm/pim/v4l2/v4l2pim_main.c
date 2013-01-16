@@ -716,17 +716,14 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct v4l2pim_minor *minor;
-	int ret;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = videobuf_streamoff(&minor->vb_vidq);
-	if (!ret)
-		v4l2pim_stop_generating(minor);
-	return ret;
+	v4l2pim_stop_generating(minor);
+	return 0;
 }
 
 static int
