@@ -63,6 +63,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	pim->name[PIM_NAME_MAXLEN-1] = '\0';
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
+	INIT_LIST_HEAD(&pim->minors_in_pim_list);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
 	pim->id = next_pimid;
 	pim->log_alloc_bugs = 1;

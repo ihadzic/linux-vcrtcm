@@ -1068,7 +1068,6 @@ int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 	r = vcrtcm_alloc_major(desired_major, max_minors, pim->name, &major);
 	if (r)
 		return r;
-	INIT_LIST_HEAD(&pim->minors_in_pim_list);
 	pim->major = major;
 	pim->has_major = 1;
 	pim->max_minors = max_minors;
