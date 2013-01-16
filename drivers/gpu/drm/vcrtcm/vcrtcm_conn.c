@@ -20,28 +20,48 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __VCRTCM_SYSFSPRIV_H__
-#define __VCRTCM_SYSFSPRIV_H__
-
 #include <linux/module.h>
-#include <linux/kobject.h>
-#include <linux/sysfs.h>
-#include <vcrtcm/vcrtcm_sysfs.h>
+#include <linux/string.h>
+#include <drm/drmP.h>
+#include <vcrtcm/vcrtcm_utils.h>
+#include <vcrtcm/vcrtcm_alloc.h>
+#include "vcrtcm_conn.h"
 
-struct vcrtcm_pim;
-struct vcrtcm_pcon;
-struct vcrtcm_conn;
+static DEFINE_MUTEX(conn_list_mutex);
+static LIST_HEAD(conn_list);
 
-int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim);
-void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim);
-int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon);
-void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon);
-int vcrtcm_sysfs_add_conn(struct vcrtcm_conn *conn);
-void vcrtcm_sysfs_del_conn(struct vcrtcm_conn *conn);
-int vcrtcm_sysfs_attach(struct vcrtcm_pcon *pcon);
-int vcrtcm_sysfs_detach(struct vcrtcm_pcon *pcon);
-int vcrtcm_sysfs_init(struct device *vcrtcm_device);
+void vcrtcm_lock_conntbl(void)
+{
+	mutex_lock(&conn_list_mutex);
+}
 
-extern struct class *vcrtcm_class;
+void vcrtcm_unlock_conntbl(void)
+{
+	mutex_unlock(&conn_list_mutex);
+}
 
-#endif
+struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn)
+{
+	struct vcrtcm_conn *conn;
+
+	list_for_each_entry(conn, &conn_list, conn_list) {
+		if (conn->drm_conn == drm_conn)
+			return conn;
+	}
+	conn = (struct vcrtcm_conn *)vcrtcm_kzalloc(
+		sizeof(struct vcrtcm_conn), GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
+	if (!conn) {
+		VCRTCM_ERROR("cannot allocate memory for conn\n");
+		return NULL;
+	}
+	INIT_LIST_HEAD(&conn->conn_list);
+	conn->drm_conn = drm_conn;
+	list_add_tail(&conn->conn_list, &conn_list);
+	return conn;
+}
+
+void vcrtcm_free_conn(struct vcrtcm_conn *conn)
+{
+	list_del(&conn->conn_list);
+	vcrtcm_kfree(conn);
+}

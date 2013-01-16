@@ -765,7 +765,7 @@ int vcrtcm_p_detach(int pconid)
 	vcrtcm_prepare_detach(pcon);
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
-	vcrtcm_set_crtc(pcon, NULL);
+	vcrtcm_detach(pcon);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach);
@@ -805,7 +805,7 @@ int vcrtcm_p_destroy(int pconid)
 		vcrtcm_prepare_detach(pcon);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
-		vcrtcm_set_crtc(pcon, NULL);
+		vcrtcm_detach(pcon);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
 	spin_lock_irqsave(pcon_spinlock, flags);

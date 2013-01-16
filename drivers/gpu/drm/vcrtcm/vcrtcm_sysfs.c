@@ -28,6 +28,7 @@
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon.h"
+#include "vcrtcm_conn.h"
 
 struct class *vcrtcm_class;
 
@@ -45,10 +46,19 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 						char *buf);
 static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size);
+static ssize_t conn_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t conn_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
+static ssize_t conn_pcons_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t conn_pcons_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
 
 static struct kobj_type empty_type;
 static struct kobject pims_kobj;
 static struct kobject pcons_kobj;
+static struct kobject conns_kobj;
 
 static const struct sysfs_ops pim_ops = {
 	.show = pim_show,
@@ -102,6 +112,11 @@ static struct attribute pcon_local_pconid_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+static struct attribute pcon_attach_minor_attr = {
+	.name = "attach_minor",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 static struct attribute pcon_fps_attr = {
 	.name = "fps",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
@@ -118,12 +133,41 @@ static struct attribute *pcon_attributes[] = {
 	&pcon_fps_attr,
 	&pcon_attached_attr,
 	&pcon_minor_attr,
+	&pcon_attach_minor_attr,
 	NULL
 };
 
 static struct kobj_type pcon_type = {
 	.sysfs_ops = &pcon_ops,
 	.default_attrs = pcon_attributes,
+};
+
+static const struct sysfs_ops conn_ops = {
+	.show = conn_show,
+	.store = conn_store
+};
+
+static struct attribute *conn_attributes[] = {
+	NULL
+};
+
+static struct kobj_type conn_type = {
+	.sysfs_ops = &conn_ops,
+	.default_attrs = conn_attributes,
+};
+
+static const struct sysfs_ops conn_pcons_ops = {
+	.show = conn_pcons_show,
+	.store = conn_pcons_store
+};
+
+static struct attribute *conn_pcons_attributes[] = {
+	NULL
+};
+
+static struct kobj_type conn_pcons_type = {
+	.sysfs_ops = &conn_pcons_ops,
+	.default_attrs = conn_pcons_attributes,
 };
 
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
@@ -177,11 +221,48 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 	} else if (attr == &pcon_attached_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%d\n",
 				pcon->drm_crtc ? 1 : 0);
+	} else if (attr == &pcon_attach_minor_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+			pcon->attach_minor);
 	}
 	return 0;
 }
 
 static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
+{
+	return 0;
+}
+
+static ssize_t conn_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
+{
+	struct vcrtcm_conn *conn = (struct vcrtcm_conn *)
+				container_of(kobj, struct vcrtcm_conn, kobj);
+
+	if (!conn)
+		return 0;
+	return 0;
+}
+
+static ssize_t conn_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
+{
+	return 0;
+}
+
+static ssize_t conn_pcons_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
+{
+	struct vcrtcm_conn *conn = (struct vcrtcm_conn *)
+		container_of(kobj, struct vcrtcm_conn, pcons_kobj);
+
+	if (!conn)
+		return 0;
+	return 0;
+}
+
+static ssize_t conn_pcons_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size)
 {
 	return 0;
@@ -198,6 +279,7 @@ int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 	memset(&pims_kobj, 0, sizeof(struct kobject));
 	memset(&pcons_kobj, 0, sizeof(struct kobject));
 	memset(&empty_type, 0, sizeof(struct kobj_type));
+	memset(&conns_kobj, 0, sizeof(struct kobject));
 	ret = kobject_init_and_add(&pims_kobj, &empty_type,
 					&vcrtcm_device->kobj, "pims");
 	if (ret < 0) {
@@ -208,6 +290,12 @@ int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 					&vcrtcm_device->kobj, "pcons");
 	if (ret < 0) {
 		VCRTCM_ERROR("Error creating sysfs pcon node...\n");
+		return ret;
+	}
+	ret = kobject_init_and_add(&conns_kobj, &empty_type,
+					&vcrtcm_device->kobj, "connectors");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error creating sysfs conn node...\n");
 		return ret;
 	}
 	return 0;
@@ -250,12 +338,12 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon)
 	ret = sysfs_create_link(&pcon->pim->kobj, &pcon->kobj,
 						pcon->kobj.name);
 	if (ret < 0) {
-		VCRTCM_ERROR("Error linking pcon to pim in sysfs\n");
+		VCRTCM_ERROR("Error linking pim->pcon in sysfs\n");
 		return ret;
 	}
 	ret = sysfs_create_link(&pcon->kobj, &pcon->pim->kobj, "pim");
 	if (ret < 0) {
-		VCRTCM_ERROR("Error linking pim to pcon in sysfs\n");
+		VCRTCM_ERROR("Error linking pcon->pim in sysfs\n");
 		return ret;
 	}
 	return 0;
@@ -267,4 +355,68 @@ void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon)
 		return;
 	sysfs_remove_link(&pcon->pim->kobj, pcon->kobj.name);
 	kobject_del(&pcon->kobj);
+}
+
+#define NAMEBUFLEN 64
+
+int vcrtcm_sysfs_add_conn(struct vcrtcm_conn *conn)
+{
+	int ret = 0;
+	char namebuf[NAMEBUFLEN];
+
+	snprintf(namebuf, NAMEBUFLEN, "%d:%d",
+		MINOR(conn->drm_conn->dev->dev->devt), conn->drm_conn->base.id);
+	ret = kobject_init_and_add(&conn->kobj, &conn_type,
+		&conns_kobj, "%s", namebuf);
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding conn to sysfs\n");
+		return ret;
+	}
+	ret = sysfs_create_link(&conn->kobj, &conn->drm_conn->kdev.kobj,
+		"drm_connector");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error linking conn->drmconn in sysfs\n");
+		return ret;
+	}
+	ret = kobject_init_and_add(&conn->pcons_kobj, &conn_pcons_type,
+		&conn->kobj, "pcons");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding conn/pcons to sysfs\n");
+		return ret;
+	}
+	return 0;
+}
+
+void vcrtcm_sysfs_del_conn(struct vcrtcm_conn *conn)
+{
+	if (!conn)
+		return;
+	sysfs_remove_link(&conn->kobj, "drm_connector");
+	kobject_del(&conn->pcons_kobj);
+	kobject_del(&conn->kobj);
+}
+
+int vcrtcm_sysfs_attach(struct vcrtcm_pcon *pcon)
+{
+	int ret = 0;
+
+	ret = sysfs_create_link(&pcon->conn->pcons_kobj, &pcon->kobj,
+		pcon->kobj.name);
+	if (ret < 0) {
+		VCRTCM_ERROR("Error linking conn->pcon in sysfs\n");
+		return ret;
+	}
+	ret = sysfs_create_link(&pcon->kobj, &pcon->conn->kobj, "connector");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error linking pcon->conn in sysfs\n");
+		return ret;
+	}
+	return 0;
+}
+
+int vcrtcm_sysfs_detach(struct vcrtcm_pcon *pcon)
+{
+	sysfs_remove_link(&pcon->conn->pcons_kobj, pcon->kobj.name);
+	sysfs_remove_link(&pcon->kobj, "connector");
+	return 0;
 }

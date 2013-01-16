@@ -64,6 +64,23 @@ void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
 		vcrtcm_p_wait_fb(pcon->pconid);
 }
 
+void vcrtcm_detach(struct vcrtcm_pcon *pcon)
+{
+	BUG_ON(!pcon->conn);
+	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
+	pcon->attach_minor = -1;
+	vcrtcm_set_crtc(pcon, NULL);
+	vcrtcm_sysfs_detach(pcon);
+	vcrtcm_lock_conntbl();
+	--pcon->conn->num_attached_pcons;
+	if (pcon->conn->num_attached_pcons == 0) {
+		vcrtcm_sysfs_del_conn(pcon->conn);
+		vcrtcm_free_conn(pcon->conn);
+	}
+	vcrtcm_unlock_conntbl();
+	pcon->conn = NULL;
+}
+
 void vcrtcm_set_crtc(struct vcrtcm_pcon *pcon, struct drm_crtc *crtc)
 {
 	unsigned long flags;

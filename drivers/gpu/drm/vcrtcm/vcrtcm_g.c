@@ -59,8 +59,7 @@ int vcrtcm_g_detach(int pconid)
 		if (r)
 			return r;
 	}
-	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
-	vcrtcm_set_crtc(pcon, NULL);
+	vcrtcm_detach(pcon);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_detach);

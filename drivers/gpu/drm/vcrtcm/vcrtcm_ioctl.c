@@ -156,7 +156,7 @@ static long vcrtcm_ioctl_destroy(int pconid)
 		}
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
-		vcrtcm_set_crtc(pcon, NULL);
+		vcrtcm_detach(pcon);
 	}
 	VCRTCM_INFO("destroying pcon %i\n", pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
@@ -193,6 +193,8 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	struct vcrtcm_g_drmdev_funcs devfuncs;
 	dev_t dev;
 	int r;
+	struct vcrtcm_conn *conn;
+	int conn_is_new;
 
 	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", pconid, connid,
 		major, minor);
@@ -231,12 +233,27 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 		VCRTCM_WARNING("pcon already attached\n");
 		return -EINVAL;
 	}
+	BUG_ON(pcon->conn);
+	vcrtcm_lock_conntbl();
+	conn = vcrtcm_get_conn(drm_conn);
+	if (!conn) {
+		vcrtcm_unlock_conntbl();
+		vcrtcm_unlock_pconid(pconid);
+		return -ENOMEM;
+	}
+	conn_is_new = (conn->num_attached_pcons == 0);
+	vcrtcm_unlock_conntbl();
 	if (pcon->pim_funcs.attach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		r = pcon->pim_funcs.attach(pconid, pcon->pcon_cookie);
 		if (r) {
 			vcrtcm_unlock_pconid(pconid);
+			if (conn_is_new) {
+				vcrtcm_lock_conntbl();
+				vcrtcm_free_conn(conn);
+				vcrtcm_unlock_conntbl();
+			}
 			return r;
 		}
 	}
@@ -251,11 +268,24 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 			pcon->pim_funcs.detach(pconid, pcon->pcon_cookie);
 		}
 		vcrtcm_unlock_pconid(pconid);
+		if (conn_is_new) {
+			vcrtcm_lock_conntbl();
+			vcrtcm_free_conn(conn);
+			vcrtcm_unlock_conntbl();
+		}
 		return r;
 	}
 	vcrtcm_set_crtc(pcon, drm_crtc);
 	if (pcon->gpu_funcs.post_attach)
 		pcon->gpu_funcs.post_attach(pcon->drm_crtc);
+	pcon->attach_minor = minor;
+	pcon->conn = conn;
+	vcrtcm_lock_conntbl();
+	++conn->num_attached_pcons;
+	if (conn_is_new)
+		vcrtcm_sysfs_add_conn(conn);
+	vcrtcm_unlock_conntbl();
+	vcrtcm_sysfs_attach(pcon);
 	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
@@ -282,6 +312,7 @@ static long vcrtcm_ioctl_detach(int pconid)
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
+	BUG_ON(!pcon->conn);
 	vcrtcm_prepare_detach(pcon);
 	if (pcon->pim_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
@@ -295,8 +326,7 @@ static long vcrtcm_ioctl_detach(int pconid)
 	}
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
-	memset(&pcon->gpu_funcs, 0, sizeof(struct vcrtcm_g_pcon_funcs));
-	vcrtcm_set_crtc(pcon, NULL);
+	vcrtcm_detach(pcon);
 	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }

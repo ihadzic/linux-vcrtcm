@@ -110,6 +110,7 @@ struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim)
 		if (!entry->pcon) {
 			pcon->pconid = k;
 			pcon->minor = -1;
+			pcon->attach_minor = -1;
 			pcon->log_alloc_bugs = 1;
 			pcon->pcon_callbacks_enabled = 1;
 			INIT_DELAYED_WORK(&pcon->vblank_work,

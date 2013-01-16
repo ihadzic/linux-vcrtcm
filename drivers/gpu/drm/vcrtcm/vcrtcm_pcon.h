@@ -28,6 +28,7 @@
 #include <linux/dma-buf.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
+#include "vcrtcm_conn.h"
 
 /*
  * A pcon.  This struct is created when the pcon is created via
@@ -50,8 +51,12 @@ struct vcrtcm_pcon {
 	struct kobject kobj;
 	struct list_head pcons_in_pim_list;
 	int being_destroyed;
-	/* identifies the CRTC using this PCON */
+
+	/* attached connector and CRTC */
+	struct vcrtcm_conn *conn;
 	struct drm_crtc *drm_crtc;
+
+	int attach_minor; /* minor specified in attach command */
 	int alloc_cnt;
 	int page_alloc_cnt;
 	int log_alloc_cnts;
@@ -66,6 +71,7 @@ struct vcrtcm_pcon {
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
 void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon);
+void vcrtcm_detach(struct vcrtcm_pcon *pcon);
 void vcrtcm_set_crtc(struct vcrtcm_pcon *pcon, struct drm_crtc *crtc);
 
 #endif
