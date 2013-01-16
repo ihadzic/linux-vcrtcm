@@ -189,7 +189,7 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	int crtc_drmid;
 	int crtc_index;
 	struct drm_crtc *drm_crtc;
-	struct drm_device *ddev;
+	struct drm_connector *drm_conn;
 	struct vcrtcm_g_drmdev_funcs devfuncs;
 	dev_t dev;
 	int r;
@@ -197,13 +197,14 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", pconid, connid,
 		major, minor);
 	dev = MKDEV(major, minor);
-	ddev = drm_vcrtcm_get_crtc_for_attach(dev, connid, &crtc_drmid,
+	drm_conn = drm_vcrtcm_get_crtc_for_attach(dev, connid, &crtc_drmid,
 		&crtc_index);
-	if (IS_ERR(ddev))
-		return PTR_ERR(ddev);
+	if (IS_ERR(drm_conn))
+		return PTR_ERR(drm_conn);
+	BUG_ON(drm_conn->base.id != connid);
 	BUG_ON(crtc_drmid < 0);
 	BUG_ON(crtc_index < 0);
-	if (vcrtcm_get_drmdev_funcs(ddev, &devfuncs) < 0) {
+	if (vcrtcm_get_drmdev_funcs(drm_conn->dev, &devfuncs) < 0) {
 		VCRTCM_ERROR("device %d:%d not registered\n", MAJOR(dev),
 			MINOR(dev));
 		return -EINVAL;
@@ -239,7 +240,7 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 			return r;
 		}
 	}
-	r = devfuncs.attach(pcon->pconid, ddev, crtc_drmid, crtc_index,
+	r = devfuncs.attach(pcon->pconid, drm_conn->dev, crtc_drmid, crtc_index,
 		pcon->xfer_mode, &pcon->gpu_funcs, &drm_crtc);
 	if (r) {
 		memset(&pcon->gpu_funcs, 0,
