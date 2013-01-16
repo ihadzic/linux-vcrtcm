@@ -37,9 +37,13 @@ struct vcrtcm_pim {
 	int id;
 	struct vcrtcm_pim_funcs funcs;
 	struct list_head pcons_in_pim_list;
+
+	/* protects major, max_minors, and minors_in_pim_list */
+	struct mutex majmin_mutex;
 	int major;
 	int max_minors;
 	struct list_head minors_in_pim_list;
+
 	struct kobject kobj;
 	struct list_head pim_list;
 	int callbacks_enabled;

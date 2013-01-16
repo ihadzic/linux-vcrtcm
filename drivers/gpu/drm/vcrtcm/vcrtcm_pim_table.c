@@ -64,6 +64,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	memcpy(&pim->funcs, funcs, sizeof(struct vcrtcm_pim_funcs));
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
 	INIT_LIST_HEAD(&pim->minors_in_pim_list);
+	mutex_init(&pim->majmin_mutex);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
 	pim->major = -1;
 	pim->id = next_pimid;

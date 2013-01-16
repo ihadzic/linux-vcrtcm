@@ -1060,7 +1060,9 @@ int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
+	mutex_lock(&pim->majmin_mutex);
 	if (pim->major >= 0) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pim %d already has major %d\n",
 			     pimid, pim->major);
 		return -EBUSY;
@@ -1071,6 +1073,7 @@ int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 	BUG_ON(major < 0);
 	pim->major = major;
 	pim->max_minors = max_minors;
+	mutex_unlock(&pim->majmin_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_add_major);
@@ -1085,17 +1088,21 @@ int vcrtcm_pim_del_major(int pimid)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
+	mutex_lock(&pim->majmin_mutex);
 	if (pim->major < 0) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pin %d has no major\n", pimid);
 		return -ENOENT;
 	}
 	if (!list_empty(&pim->minors_in_pim_list)) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("list of minors for pim %d not empty\n", pimid);
 		return -EBUSY;
 	}
 	vcrtcm_free_major(pim->major, pim->max_minors);
 	pim->major = 0;
 	pim->max_minors = 0;
+	mutex_unlock(&pim->majmin_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_del_major);
@@ -1104,11 +1111,19 @@ EXPORT_SYMBOL(vcrtcm_pim_del_major);
 int vcrtcm_pim_get_major(int pimid)
 {
 	struct vcrtcm_pim *pim;
+	int ret;
 
 	pim = vcrtcm_get_pim(pimid);
-	if (!pim || pim->major < 0)
+	if (!pim)
 		return -ENOENT;
-	return pim->major;
+	mutex_lock(&pim->majmin_mutex);
+	if (pim->major < 0) {
+		mutex_unlock(&pim->majmin_mutex);
+		return -ENOENT;
+	}
+	ret = pim->major;
+	mutex_unlock(&pim->majmin_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(vcrtcm_pim_get_major);
 
@@ -1142,24 +1157,30 @@ int vcrtcm_pim_add_minor(int pimid, int minor)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
+	mutex_lock(&pim->majmin_mutex);
 	if (pim->major < 0) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pim %d has no major\n", pimid);
 		return -ENOENT;
 	}
 	vcrtcm_minor = vcrtcm_get_minor(pim, minor);
 	if (vcrtcm_minor) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pim %d, minor %d, already added\n",
 			     pimid, minor);
 		return -EBUSY;
 	}
 	vcrtcm_minor = vcrtcm_kzalloc(sizeof(struct vcrtcm_minor), GFP_KERNEL,
 				      VCRTCM_OWNER_PIM | pim->id);
-	if (!vcrtcm_minor)
+	if (!vcrtcm_minor) {
+		mutex_unlock(&pim->majmin_mutex);
 		return -ENOMEM;
+	}
 	dev = MKDEV(pim->major, minor);
 	device = device_create(vcrtcm_class, NULL, dev, NULL,
 			       "%s%d", pim->name, minor);
 	if (!device) {
+		mutex_unlock(&pim->majmin_mutex);
 		vcrtcm_kfree(vcrtcm_minor);
 		return -EFAULT;
 	}
@@ -1167,6 +1188,7 @@ int vcrtcm_pim_add_minor(int pimid, int minor)
 	vcrtcm_minor->device = device;
 	list_add_tail(&vcrtcm_minor->minors_in_pim_list,
 		      &pim->minors_in_pim_list);
+	mutex_unlock(&pim->majmin_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_add_minor);
@@ -1184,12 +1206,15 @@ int vcrtcm_pim_del_minor(int pimid, int minor)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
+	mutex_lock(&pim->majmin_mutex);
 	if (pim->major < 0) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pim %d has no major\n", pimid);
 		return -ENOENT;
 	}
 	vcrtcm_minor = vcrtcm_get_minor(pim, minor);
 	if (!vcrtcm_minor) {
+		mutex_unlock(&pim->majmin_mutex);
 		VCRTCM_ERROR("pim %d, minor %d, not found\n",
 			     pimid, minor);
 		return -EBUSY;
@@ -1198,6 +1223,7 @@ int vcrtcm_pim_del_minor(int pimid, int minor)
 	dev = MKDEV(pim->major, minor);
 	device_destroy(vcrtcm_class, dev);
 	vcrtcm_kfree(vcrtcm_minor);
+	mutex_unlock(&pim->majmin_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_pim_del_minor);
