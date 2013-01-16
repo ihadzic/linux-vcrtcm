@@ -65,6 +65,7 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	INIT_LIST_HEAD(&pim->pcons_in_pim_list);
 	INIT_LIST_HEAD(&pim->minors_in_pim_list);
 	memset(&pim->kobj, 0, sizeof(struct kobject));
+	pim->major = -1;
 	pim->id = next_pimid;
 	pim->log_alloc_bugs = 1;
 	next_pimid++;

@@ -1060,7 +1060,7 @@ int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
-	if (pim->has_major) {
+	if (pim->major >= 0) {
 		VCRTCM_ERROR("pim %d already has major %d\n",
 			     pimid, pim->major);
 		return -EBUSY;
@@ -1068,8 +1068,8 @@ int vcrtcm_pim_add_major(int pimid, int desired_major, int max_minors)
 	r = vcrtcm_alloc_major(desired_major, max_minors, pim->name, &major);
 	if (r)
 		return r;
+	BUG_ON(major < 0);
 	pim->major = major;
-	pim->has_major = 1;
 	pim->max_minors = max_minors;
 	return 0;
 }
@@ -1085,7 +1085,7 @@ int vcrtcm_pim_del_major(int pimid)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
-	if (pim->has_major == 0) {
+	if (pim->major < 0) {
 		VCRTCM_ERROR("pin %d has no major\n", pimid);
 		return -ENOENT;
 	}
@@ -1095,7 +1095,6 @@ int vcrtcm_pim_del_major(int pimid)
 	}
 	vcrtcm_free_major(pim->major, pim->max_minors);
 	pim->major = 0;
-	pim->has_major = 0;
 	pim->max_minors = 0;
 	return 0;
 }
@@ -1107,7 +1106,7 @@ int vcrtcm_pim_get_major(int pimid)
 	struct vcrtcm_pim *pim;
 
 	pim = vcrtcm_get_pim(pimid);
-	if (!pim || pim->has_major == 0)
+	if (!pim || pim->major < 0)
 		return -ENOENT;
 	return pim->major;
 }
@@ -1143,7 +1142,7 @@ int vcrtcm_pim_add_minor(int pimid, int minor)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
-	if (!pim->has_major) {
+	if (pim->major < 0) {
 		VCRTCM_ERROR("pim %d has no major\n", pimid);
 		return -ENOENT;
 	}
@@ -1185,7 +1184,7 @@ int vcrtcm_pim_del_minor(int pimid, int minor)
 		VCRTCM_ERROR("pim %d not found\n", pimid);
 		return -ENOENT;
 	}
-	if (!pim->has_major) {
+	if (pim->major < 0) {
 		VCRTCM_ERROR("pim %d has no major\n", pimid);
 		return -ENOENT;
 	}
