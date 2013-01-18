@@ -1021,11 +1021,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	spin_lock_init(&minor->slock);
 	atomic_set(&minor->users, 0);
 	atomic_set(&minor->syscall_count, 0);
-	minor->shadowbuf = NULL;
-	minor->shadowbufsize = 0;
 	spin_lock_init(&minor->sb_lock);
-	minor->shadowbuf_pages = NULL;
-	minor->shadowbuf_num_pages = 0;
 
 	snprintf(minor->v4l2_dev.name,
 			sizeof(minor->v4l2_dev.name),
