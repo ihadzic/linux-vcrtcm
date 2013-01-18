@@ -1061,7 +1061,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 		return NULL;
 	}
 
-	mutex_init(&minor->mlock);
 	spin_lock_init(&minor->slock);
 	atomic_set(&minor->users, 0);
 	atomic_set(&minor->syscall_count, 0);
@@ -1078,13 +1077,12 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 					V4L2_BUF_TYPE_VIDEO_CAPTURE,
 					V4L2_FIELD_NONE,
 					sizeof(struct videobuf_buffer),
-					minor, &minor->mlock);
+					minor, NULL);
 	INIT_LIST_HEAD(&minor->active);
 	vfd = video_device_alloc();
 	if (!vfd)
 		goto unreg_dev;
 	*vfd = v4l2pim_template;
-	vfd->lock = &minor->mlock;
 	vfd->v4l2_dev = &minor->v4l2_dev;
 	vfd->minor = minornum;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);

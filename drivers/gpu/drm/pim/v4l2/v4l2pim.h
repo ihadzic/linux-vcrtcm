@@ -93,7 +93,6 @@ struct v4l2pim_minor {
 
 	struct video_device *vfd;
 	struct v4l2_device v4l2_dev;
-	struct mutex mlock;
 	spinlock_t slock;
 	struct videobuf_queue vb_vidq;
 	struct list_head active;
