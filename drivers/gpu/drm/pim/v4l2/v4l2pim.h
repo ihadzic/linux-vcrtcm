@@ -66,6 +66,8 @@ struct v4l2pim_fmt {
 	enum v4l2_colorspace colorspace;
 };
 
+#define V4L2PIM_STATUS_GENERATING 0
+
 struct v4l2pim_minor {
 	/* vcrtcm stuff */
 	struct list_head list;
@@ -94,7 +96,7 @@ struct v4l2pim_minor {
 	spinlock_t slock;
 	struct videobuf_queue vb_vidq;
 	struct list_head active;
-	unsigned long generating;
+	unsigned long status;
 	struct task_struct *kthread;
 	struct v4l2pim_fmt *fmt;
 };

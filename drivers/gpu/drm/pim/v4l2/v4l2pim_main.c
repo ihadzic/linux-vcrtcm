@@ -268,19 +268,19 @@ static int v4l2pim_thread(void *data)
 
 static void v4l2pim_start_generating(struct v4l2pim_minor *minor)
 {
-	if (test_and_set_bit(0, &minor->generating))
+	if (test_and_set_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
 		return;
 	minor->kthread = kthread_run(v4l2pim_thread, minor,
 					minor->v4l2_dev.name);
 	if (IS_ERR(minor->kthread)) {
-		clear_bit(0, &minor->generating);
+		clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
 		return;
 	}
 }
 
 static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
 {
-	if (!test_and_clear_bit(0, &minor->generating))
+	if (!test_and_clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
 		return;
 	if (minor->kthread) {
 		kthread_stop(minor->kthread);
@@ -292,7 +292,7 @@ static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
 
 static int v4l2pim_is_generating(struct v4l2pim_minor *minor)
 {
-	return test_bit(0, &minor->generating);
+	return test_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
 }
 
 /************************************************************************/
