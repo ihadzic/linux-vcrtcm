@@ -56,7 +56,7 @@ int v4l2pim_log_pcon_alloc_counts;
 int v4l2pim_pimid = -1;
 
 /* ID generator for allocating minor numbers */
-static struct vcrtcm_id_generator v4l2pim_minor_id_generator;
+static struct vcrtcm_id_generator minor_id_generator;
 
 /* NOTE: applications will set their preferred format.  That does not mean it
  *	 is our preferred format.  We would like applications to use bgr32 but
@@ -125,7 +125,7 @@ static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 /************************************************************************/
 
 static void
-v4l2pim_fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
+fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
 {
 	struct v4l2pim_pcon *pcon;
 	struct timeval ts;
@@ -242,7 +242,7 @@ static void v4l2pim_thread_tick(struct v4l2pim_minor *minor)
 	if (!waitqueue_active(&vb->done))
 		goto unlock;
 	list_del(&vb->queue);
-	v4l2pim_fillbuff(minor, vb);
+	fillbuff(minor, vb);
 	wake_up(&vb->done);
 unlock:
 	spin_unlock_irqrestore(&minor->slock, flags);
@@ -266,7 +266,7 @@ static int v4l2pim_thread(void *data)
 	return 0;
 }
 
-static void v4l2pim_start_generating(struct v4l2pim_minor *minor)
+static void start_generating(struct v4l2pim_minor *minor)
 {
 	if (test_and_set_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
 		return;
@@ -278,7 +278,7 @@ static void v4l2pim_start_generating(struct v4l2pim_minor *minor)
 	}
 }
 
-static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
+static void stop_generating(struct v4l2pim_minor *minor)
 {
 	if (!test_and_clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
 		return;
@@ -290,7 +290,7 @@ static void v4l2pim_stop_generating(struct v4l2pim_minor *minor)
 	videobuf_mmap_free(&minor->vb_vidq);
 }
 
-static int v4l2pim_is_generating(struct v4l2pim_minor *minor)
+static int is_generating(struct v4l2pim_minor *minor)
 {
 	return test_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
 }
@@ -516,7 +516,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 
-	if (v4l2pim_is_generating(minor))
+	if (is_generating(minor))
 		return -EBUSY;
 
 	fmt = get_format(f);
@@ -554,7 +554,7 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
-	v4l2pim_start_generating(minor);
+	start_generating(minor);
 	r = videobuf_read_stream(&minor->vb_vidq, data, count, ppos, 0,
 				 file->f_flags & O_NONBLOCK);
 	atomic_dec(&minor->syscall_count);
@@ -581,7 +581,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
-	v4l2pim_start_generating(minor);
+	start_generating(minor);
 	r = videobuf_poll_stream(file, &minor->vb_vidq, wait);
 	atomic_dec(&minor->syscall_count);
 	return r;
@@ -609,7 +609,7 @@ static int v4l2pim_release(struct file *file)
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	v4l2pim_stop_generating(minor);
+	stop_generating(minor);
 	atomic_dec(&minor->users);
 	module_put(THIS_MODULE);
 
@@ -733,7 +733,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		atomic_dec(&minor->syscall_count);
 		return ret;
 	}
-	v4l2pim_start_generating(minor);
+	start_generating(minor);
 	atomic_dec(&minor->syscall_count);
 	return 0;
 }
@@ -748,7 +748,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
-	v4l2pim_stop_generating(minor);
+	stop_generating(minor);
 	atomic_dec(&minor->syscall_count);
 	return 0;
 }
@@ -1004,16 +1004,15 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 		return NULL;
 	v4l2pim_num_minors++;
 
-	minornum = vcrtcm_id_generator_get(&v4l2pim_minor_id_generator,
-						VCRTCM_ID_REUSE);
+	minornum = vcrtcm_id_generator_get(&minor_id_generator,
+					   VCRTCM_ID_REUSE);
 	if (minornum < 0)
 		return NULL;
 
 	minor = vcrtcm_kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	if (!minor) {
 		VCRTCM_ERROR("failed alloc of v4l2pim_minor\n");
-		vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
-						minornum);
+		vcrtcm_id_generator_put(&minor_id_generator, minornum);
 		return NULL;
 	}
 
@@ -1074,8 +1073,7 @@ void v4l2pim_destroy_minor(struct v4l2pim_minor *minor)
 	video_unregister_device(minor->vfd);
 	v4l2_device_unregister(&minor->v4l2_dev);
 	v4l2pim_free_shadowbuf(minor);
-	vcrtcm_id_generator_put(&v4l2pim_minor_id_generator,
-					minor->minor);
+	vcrtcm_id_generator_put(&minor_id_generator, minor->minor);
 	BUG_ON(v4l2pim_num_minors == 0);
 	v4l2pim_num_minors--;
 	list_del(&minor->list);
@@ -1092,8 +1090,7 @@ static int __init v4l2pim_init(void)
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
 	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
 	vcrtcm_pim_log_alloc_cnts(v4l2pim_pimid, v4l2pim_log_pim_alloc_counts);
-	vcrtcm_id_generator_init(&v4l2pim_minor_id_generator,
-					V4L2PIM_MAX_MINORS);
+	vcrtcm_id_generator_init(&minor_id_generator, V4L2PIM_MAX_MINORS);
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
 		VCRTCM_WARNING("vid_limit (%d) too high, V4L2PIM_VID_LIMIT_MAX = %d\n", vid_limit, V4L2PIM_VID_LIMIT_MAX);
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
@@ -1119,7 +1116,7 @@ static void __exit v4l2pim_exit(void)
 		v4l2pim_destroy_minor(minor);
 	}
 	vcrtcm_pim_unregister(v4l2pim_pimid);
-	vcrtcm_id_generator_destroy(&v4l2pim_minor_id_generator);
+	vcrtcm_id_generator_destroy(&minor_id_generator);
 	VCRTCM_INFO("exiting v4l2pim\n");
 }
 
