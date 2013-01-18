@@ -591,9 +591,6 @@ static int v4l2pim_open(struct file *file)
 {
 	struct v4l2pim_minor *minor;
 
-	if (!try_module_get(THIS_MODULE))
-		return -EBUSY;
-
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
@@ -611,8 +608,6 @@ static int v4l2pim_release(struct file *file)
 		return -ENODEV;
 	stop_generating(minor);
 	atomic_dec(&minor->users);
-	module_put(THIS_MODULE);
-
 	return 0;
 }
 
