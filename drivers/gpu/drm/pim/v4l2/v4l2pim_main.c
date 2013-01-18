@@ -625,6 +625,13 @@ static int v4l2pim_release(struct file *file)
 	/* mark the state for shutdown */
 	if (!test_and_clear_bit(V4L2PIM_STATUS_ACTIVE, &minor->status))
 		return -EBADFD;
+	/* give chance to system calls to finish */
+	while(atomic_read(&minor->syscall_count)) {
+		/* FIX ME: raise the hell if syscall won't return */
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10));
+	}
+	/* now it's safe to clean up */
 	stop_generating(minor);
 	atomic_dec(&minor->users);
 	return 0;
