@@ -74,6 +74,7 @@ struct v4l2pim_minor {
 	struct mutex buffer_mutex;
 	int enabled_queue;
 	atomic_t users;
+	atomic_t syscall_count;
 	wait_queue_head_t xmit_sync_queue;
 	struct workqueue_struct *workqueue;
 	char *main_buffer;

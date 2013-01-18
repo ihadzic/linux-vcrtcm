@@ -541,6 +541,7 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
+	int r;
 
 	minor = video_drvdata(file);
 	if (!minor)
@@ -552,11 +553,12 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
-
+	atomic_inc(&minor->syscall_count);
 	v4l2pim_start_generating(minor);
-	return videobuf_read_stream(&minor->vb_vidq,
-				    data, count, ppos, 0,
-				    file->f_flags & O_NONBLOCK);
+	r = videobuf_read_stream(&minor->vb_vidq, data, count, ppos, 0,
+				 file->f_flags & O_NONBLOCK);
+	atomic_dec(&minor->syscall_count);
+	return r;
 }
 
 static unsigned int
@@ -566,6 +568,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	struct v4l2pim_pcon *pcon;
 	uint8_t *fb;
 	uint32_t fbsize;
+	int r;
 
 	minor = video_drvdata(file);
 	if (!minor)
@@ -577,9 +580,11 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
-
+	atomic_inc(&minor->syscall_count);
 	v4l2pim_start_generating(minor);
-	return videobuf_poll_stream(file, &minor->vb_vidq, wait);
+	r = videobuf_poll_stream(file, &minor->vb_vidq, wait);
+	atomic_dec(&minor->syscall_count);
+	return r;
 }
 
 static int v4l2pim_open(struct file *file)
@@ -629,8 +634,9 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
-
+	atomic_inc(&minor->syscall_count);
 	ret = videobuf_mmap_mapper(&minor->vb_vidq, vma);
+	atomic_dec(&minor->syscall_count);
 	return ret;
 }
 
@@ -662,28 +668,43 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p)
 {
 	struct v4l2pim_minor *minor;
+	int r;
+
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	return videobuf_reqbufs(&minor->vb_vidq, p);
+	atomic_inc(&minor->syscall_count);
+	r = videobuf_reqbufs(&minor->vb_vidq, p);
+	atomic_dec(&minor->syscall_count);
+	return r;
 }
 
 static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4l2pim_minor *minor;
+	int r;
+
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	return videobuf_querybuf(&minor->vb_vidq, p);
+	atomic_inc(&minor->syscall_count);
+	r = videobuf_querybuf(&minor->vb_vidq, p);
+	atomic_dec(&minor->syscall_count);
+	return r;
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4l2pim_minor *minor;
+	int r;
+
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	return videobuf_qbuf(&minor->vb_vidq, p);
+	atomic_inc(&minor->syscall_count);
+	r = videobuf_qbuf(&minor->vb_vidq, p);
+	atomic_dec(&minor->syscall_count);
+	return r;
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
@@ -706,10 +727,14 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -ENODEV;
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
+	atomic_inc(&minor->syscall_count);
 	ret = videobuf_streamon(&minor->vb_vidq);
-	if (ret)
+	if (ret) {
+		atomic_dec(&minor->syscall_count);
 		return ret;
+	}
 	v4l2pim_start_generating(minor);
+	atomic_dec(&minor->syscall_count);
 	return 0;
 }
 
@@ -722,7 +747,9 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -ENODEV;
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
+	atomic_inc(&minor->syscall_count);
 	v4l2pim_stop_generating(minor);
+	atomic_dec(&minor->syscall_count);
 	return 0;
 }
 
@@ -993,6 +1020,7 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	mutex_init(&minor->mlock);
 	spin_lock_init(&minor->slock);
 	atomic_set(&minor->users, 0);
+	atomic_set(&minor->syscall_count, 0);
 	minor->shadowbuf = NULL;
 	minor->shadowbufsize = 0;
 	spin_lock_init(&minor->sb_lock);
