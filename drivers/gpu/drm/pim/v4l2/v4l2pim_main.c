@@ -330,7 +330,11 @@ buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 static void free_buf(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
-	videobuf_vmalloc_free(vb);
+	struct videobuf_vmalloc_memory *mem = vb->priv;
+
+	BUG_ON(!mem);
+	if (mem->vaddr)
+		videobuf_vmalloc_free(vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
