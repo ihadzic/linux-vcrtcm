@@ -37,6 +37,15 @@
 
 #define VCRTCM_ALLOC_LOG_MAXLEN 64
 
+#define MAGIC_ALLOCATED 0xf00dbabe
+#define MAGIC_DECREMENTED 0xbeeff00d
+#define MAGIC_FREED 0xbeefdead
+
+struct alloc_hdr {
+	uint32_t owner;
+	uint32_t magic;
+};
+
 static int vcrtcm_alloc_cnt;
 static int vcrtcm_page_alloc_cnt;
 static atomic64_t ncalls_kmalloc = ATOMIC64_INIT(0);
@@ -233,6 +242,7 @@ EXPORT_SYMBOL(vcrtcm_free_multiple_pages);
 static void *finish_alloc(const char *fcn, void *ptr, uint32_t owner)
 {
 	int r;
+	struct alloc_hdr *hdr;
 
 	if (!ptr)
 		return NULL;
@@ -242,15 +252,17 @@ static void *finish_alloc(const char *fcn, void *ptr, uint32_t owner)
 		kfree(ptr);
 		return NULL;
 	}
-	*(uint32_t *)ptr = owner;
-	return ptr + sizeof(uint64_t);
+	hdr = (struct alloc_hdr *)ptr;
+	hdr->owner = owner;
+	hdr->magic = MAGIC_ALLOCATED;
+	return ptr + sizeof(struct alloc_hdr);
 }
 
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
 	void *ptr;
 
-	ptr = kmalloc(size + sizeof(uint64_t), gfp_mask);
+	ptr = kmalloc(size + sizeof(struct alloc_hdr), gfp_mask);
 	return finish_alloc(__func__, ptr, owner);
 }
 EXPORT_SYMBOL(vcrtcm_kmalloc);
@@ -259,30 +271,35 @@ void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner)
 {
 	void *ptr;
 
-	ptr = kzalloc(size + sizeof(uint64_t), gfp_mask);
+	ptr = kzalloc(size + sizeof(struct alloc_hdr), gfp_mask);
 	return finish_alloc(__func__, ptr, owner);
 }
 EXPORT_SYMBOL(vcrtcm_kzalloc);
 
 void vcrtcm_kfree_decronly(void *ptr)
 {
-	uint32_t owner;
+	struct alloc_hdr *hdr;
 
 	if (!ptr)
 		return;
-	ptr -= sizeof(uint64_t);
-	owner = *(uint32_t *)ptr;
+	hdr = ptr - sizeof(struct alloc_hdr);
+	BUG_ON(hdr->magic != MAGIC_ALLOCATED);
 	atomic64_inc(&ncalls_kfree);
-	adjcnts(__func__, owner, 0, 0);
+	adjcnts(__func__, hdr->owner, 0, 0);
+	hdr->magic = MAGIC_DECREMENTED;
 }
 EXPORT_SYMBOL(vcrtcm_kfree_decronly);
 
 void vcrtcm_kfree_freeonly(void *ptr)
 {
+	struct alloc_hdr *hdr;
+
 	if (!ptr)
 		return;
-	ptr -= sizeof(uint64_t);
-	kfree(ptr);
+	hdr = ptr - sizeof(struct alloc_hdr);
+	BUG_ON(hdr->magic != MAGIC_DECREMENTED);
+	hdr->magic = MAGIC_FREED;
+	kfree(hdr);
 }
 EXPORT_SYMBOL(vcrtcm_kfree_freeonly);
 
