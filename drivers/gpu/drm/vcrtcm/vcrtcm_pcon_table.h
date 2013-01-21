@@ -25,6 +25,7 @@
 #define __VCRTCM_PCONTABLE_H__
 
 #define VCRTCM_DMA_BUF_PERMS 0600
+#define PCONID_EXTID(pconid) ((pconid) & 0xffff)
 
 struct vcrtcm_pcon;
 struct vcrtcm_pim;
@@ -40,15 +41,30 @@ int vcrtcm_num_pcons(void);
 int vcrtcm_lock_pconid(int pconid);
 
 /*
+ * version of above function for external pcon ids
+ */
+int vcrtcm_lock_extid(int extid);
+
+/*
  * unlocks the pconid, regardless of whether a pcon with that id
  * currently exists.
  */
 int vcrtcm_unlock_pconid(int pconid);
 
 /*
- * retrieves the pcon with the given id.  does not do any locking.
+ * version of above function for external pcon ids
+ */
+int vcrtcm_unlock_extid(int extid);
+
+/*
+ * retrieves the pcon with the given internal id.  does not do any locking.
  */
 struct vcrtcm_pcon *vcrtcm_get_pcon(int pconid);
+
+/*
+ * retrieves the pcon with the given external id.  does not do any locking.
+ */
+struct vcrtcm_pcon *vcrtcm_get_pcon_extid(int extid);
 
 /*
  * retrieves the spin lock associated with the pconid

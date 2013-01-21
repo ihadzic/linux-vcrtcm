@@ -60,7 +60,7 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 }
 
 static long
-vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_pconid)
+vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_extid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon;
@@ -108,12 +108,12 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_pconid)
 	vcrtcm_sysfs_add_pcon(pcon);
 	list_add_tail(&pcon->pcons_in_pim_list,
 		      &pim->pcons_in_pim_list);
-	*ret_pconid = pconid;
+	*ret_extid = PCONID_EXTID(pconid);
 	vcrtcm_unlock_pconid(pconid);
 	return 0;
 }
 
-static long vcrtcm_ioctl_destroy(int pconid)
+static long vcrtcm_ioctl_destroy(int extid)
 {
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
@@ -121,12 +121,12 @@ static long vcrtcm_ioctl_destroy(int pconid)
 	unsigned long flags;
 	spinlock_t *pcon_spinlock;
 
-	if (vcrtcm_lock_pconid(pconid))
+	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
-	pcon = vcrtcm_get_pcon(pconid);
+	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("no pcon %d\n", extid);
 		return -EINVAL;
 	}
 	if (pcon->being_destroyed) {
@@ -134,7 +134,7 @@ static long vcrtcm_ioctl_destroy(int pconid)
 		return -EINVAL;
 	}
 	if (!pcon->pim->callbacks_enabled) {
-		vcrtcm_unlock_pconid(pconid);
+		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pim %s has callbacks disabled\n", pcon->pim->name);
 		return -ECANCELED;
 	}
@@ -148,7 +148,7 @@ static long vcrtcm_ioctl_destroy(int pconid)
 			r = pcon->pim_funcs.detach(pcon->pconid,
 							pcon->pcon_cookie);
 			if (r) {
-				vcrtcm_unlock_pconid(pconid);
+				vcrtcm_unlock_extid(extid);
 				VCRTCM_ERROR("pim refuses to detach pcon %d\n",
 					pcon->pconid);
 				return r;
@@ -158,13 +158,13 @@ static long vcrtcm_ioctl_destroy(int pconid)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
 		vcrtcm_detach(pcon);
 	}
-	VCRTCM_INFO("destroying pcon %i\n", pconid);
-	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
+	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
+	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
-	vcrtcm_set_spinlock_owner(pconid);
+	vcrtcm_set_spinlock_owner(pcon->pconid);
 	pcon->being_destroyed = 1;
-	vcrtcm_clear_spinlock_owner(pconid);
+	vcrtcm_clear_spinlock_owner(pcon->pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 	cookie = pcon->pcon_cookie;
 	funcs = pcon->pim->funcs;
@@ -172,18 +172,18 @@ static long vcrtcm_ioctl_destroy(int pconid)
 	 * NB: destroy() and page_flip() are the only callbacks
 	 * for which the mutex is not held
 	 */
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_unlock_extid(extid);
 	/*
 	 * NB: must tell pim to destroy pcon before destroying it myself,
 	 * to give the pcon a chance to returns its allocated buffers
 	 */
 	if (funcs.destroy)
-		funcs.destroy(pconid, cookie);
+		funcs.destroy(pcon->pconid, cookie);
 	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
 
-static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
+static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 {
 	struct vcrtcm_pcon *pcon;
 	int crtc_drmid;
@@ -196,7 +196,7 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	struct vcrtcm_conn *conn;
 	int conn_is_new;
 
-	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", pconid, connid,
+	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", extid, connid,
 		major, minor);
 	dev = MKDEV(major, minor);
 	drm_conn = drm_vcrtcm_get_crtc_for_attach(dev, connid, &crtc_drmid,
@@ -215,21 +215,21 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 		VCRTCM_ERROR("no attach callback\n");
 		return -EINVAL;
 	}
-	if (vcrtcm_lock_pconid(pconid))
+	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
-	pcon = vcrtcm_get_pcon(pconid);
+	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("no pcon %d\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
 	if (pcon->drm_crtc) {
-		vcrtcm_unlock_pconid(pconid);
+		vcrtcm_unlock_extid(extid);
 		VCRTCM_WARNING("pcon already attached\n");
 		return -EINVAL;
 	}
@@ -238,7 +238,7 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	conn = vcrtcm_get_conn(drm_conn);
 	if (!conn) {
 		vcrtcm_unlock_conntbl();
-		vcrtcm_unlock_pconid(pconid);
+		vcrtcm_unlock_extid(extid);
 		return -ENOMEM;
 	}
 	conn_is_new = (conn->num_attached_pcons == 0);
@@ -246,9 +246,9 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 	if (pcon->pim_funcs.attach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		r = pcon->pim_funcs.attach(pconid, pcon->pcon_cookie);
+		r = pcon->pim_funcs.attach(pcon->pconid, pcon->pcon_cookie);
 		if (r) {
-			vcrtcm_unlock_pconid(pconid);
+			vcrtcm_unlock_extid(extid);
 			if (conn_is_new) {
 				vcrtcm_lock_conntbl();
 				vcrtcm_free_conn(conn);
@@ -265,9 +265,9 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 		if (pcon->pim_funcs.detach &&
 			pcon->pcon_callbacks_enabled &&
 			pcon->pim->callbacks_enabled) {
-			pcon->pim_funcs.detach(pconid, pcon->pcon_cookie);
+			pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie);
 		}
-		vcrtcm_unlock_pconid(pconid);
+		vcrtcm_unlock_extid(extid);
 		if (conn_is_new) {
 			vcrtcm_lock_conntbl();
 			vcrtcm_free_conn(conn);
@@ -286,29 +286,29 @@ static long vcrtcm_ioctl_attach(int pconid, int connid, int major, int minor)
 		vcrtcm_sysfs_add_conn(conn);
 	vcrtcm_unlock_conntbl();
 	vcrtcm_sysfs_attach(pcon);
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_unlock_extid(extid);
 	return 0;
 }
 
-static long vcrtcm_ioctl_detach(int pconid)
+static long vcrtcm_ioctl_detach(int extid)
 {
 	struct vcrtcm_pcon *pcon;
 
-	if (vcrtcm_lock_pconid(pconid))
+	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
-	pcon = vcrtcm_get_pcon(pconid);
+	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("no pcon %d\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
 	if (!pcon->drm_crtc) {
-		vcrtcm_unlock_pconid(pconid);
+		vcrtcm_unlock_extid(extid);
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
@@ -318,35 +318,35 @@ static long vcrtcm_ioctl_detach(int pconid)
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
-		r = pcon->pim_funcs.detach(pconid, pcon->pcon_cookie);
+		r = pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie);
 		if (r) {
-			vcrtcm_unlock_pconid(pconid);
+			vcrtcm_unlock_extid(extid);
 			return r;
 		}
 	}
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	vcrtcm_detach(pcon);
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_unlock_extid(extid);
 	return 0;
 }
 
-static long vcrtcm_ioctl_fps(int pconid, int fps)
+static long vcrtcm_ioctl_fps(int extid, int fps)
 {
 	int r = 0;
 	struct vcrtcm_pcon *pcon;
 
-	if (vcrtcm_lock_pconid(pconid))
+	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
-	pcon = vcrtcm_get_pcon(pconid);
+	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("no pcon %d\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
 	if (fps <= 0) {
@@ -354,7 +354,7 @@ static long vcrtcm_ioctl_fps(int pconid, int fps)
 		pcon->vblank_period_jiffies = 0;
 		cancel_delayed_work_sync(&pcon->vblank_work);
 		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
-			pconid);
+			pcon->pconid);
 	} else {
 		unsigned long now;
 		int old_fps = pcon->fps;
@@ -370,36 +370,37 @@ static long vcrtcm_ioctl_fps(int pconid, int fps)
 	if (pcon->pim_funcs.set_fps &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		r = pcon->pim_funcs.set_fps(pconid, pcon->pcon_cookie, fps);
+		r = pcon->pim_funcs.set_fps(pcon->pconid, pcon->pcon_cookie,
+			fps);
 	}
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_unlock_extid(extid);
 	return r;
 }
 
-static long vcrtcm_ioctl_xmit(int pconid)
+static long vcrtcm_ioctl_xmit(int extid)
 {
 	int r = 0;
 	struct vcrtcm_pcon *pcon;
 
-	if (vcrtcm_lock_pconid(pconid))
+	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
-	pcon = vcrtcm_get_pcon(pconid);
+	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("no pcon %d\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		vcrtcm_unlock_pconid(pconid);
-		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
 	if (pcon->pim_funcs.dirty_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		r = pcon->pim_funcs.dirty_fb(pconid, pcon->pcon_cookie);
+		r = pcon->pim_funcs.dirty_fb(pcon->pconid, pcon->pcon_cookie);
 	}
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_unlock_extid(extid);
 	return r;
 }
 

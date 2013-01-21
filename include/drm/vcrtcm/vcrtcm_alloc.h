@@ -28,6 +28,7 @@
 #define VCRTCM_OWNER_VCRTCM 0x80000000
 #define VCRTCM_OWNER_PIM 0x40000000
 #define VCRTCM_OWNER_PCON 0x0
+#define VCRTCM_OWNER_BITMASK 0xc0000000
 
 void *vcrtcm_kmalloc(size_t size, gfp_t gfp_mask, uint32_t owner);
 void *vcrtcm_kzalloc(size_t size, gfp_t gfp_mask, uint32_t owner);

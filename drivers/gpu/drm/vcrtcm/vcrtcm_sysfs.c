@@ -27,6 +27,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_pim_table.h"
+#include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_conn.h"
 
@@ -127,6 +128,11 @@ static struct attribute pcon_attached_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+static struct attribute pcon_internal_pconid_attr = {
+	.name = "internal_pconid",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_local_pconid_attr,
@@ -134,6 +140,7 @@ static struct attribute *pcon_attributes[] = {
 	&pcon_attached_attr,
 	&pcon_minor_attr,
 	&pcon_attach_minor_attr,
+	&pcon_internal_pconid_attr,
 	NULL
 };
 
@@ -224,6 +231,8 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 	} else if (attr == &pcon_attach_minor_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%d\n",
 			pcon->attach_minor);
+	} else if (attr == &pcon_internal_pconid_attr) {
+		return scnprintf(buf, PAGE_SIZE, "0x%08x\n", pcon->pconid);
 	}
 	return 0;
 }
@@ -330,7 +339,7 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon)
 	if (!pcon)
 		return -EINVAL;
 	ret = kobject_init_and_add(&pcon->kobj, &pcon_type,
-		&pcons_kobj, "%i", pcon->pconid);
+		&pcons_kobj, "%i", PCONID_EXTID(pcon->pconid));
 	if (ret < 0) {
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;
