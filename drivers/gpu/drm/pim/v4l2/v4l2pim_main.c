@@ -1096,9 +1096,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	mutex_init(&minor->buffer_mutex);
 	minor->minor = minornum;
 	INIT_LIST_HEAD(&minor->list);
-	init_waitqueue_head(&minor->xmit_sync_queue);
-	minor->enabled_queue = 1;
-	minor->workqueue = create_workqueue("v4l2pim_workers");
 	minor->pcon = NULL;
 	list_add(&minor->list, &v4l2pim_minor_list);
 	return minor;

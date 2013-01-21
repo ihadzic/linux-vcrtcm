@@ -23,7 +23,6 @@
 #define __v4l2pim_H
 
 #include <linux/usb.h>
-#include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -75,11 +74,8 @@ struct v4l2pim_minor {
 	int minor;
 	struct v4l2pim_pcon *pcon;
 	struct mutex buffer_mutex;
-	int enabled_queue;
 	atomic_t users;
 	atomic_t syscall_count;
-	wait_queue_head_t xmit_sync_queue;
-	struct workqueue_struct *workqueue;
 	char *main_buffer;
 	char *cursor;
 
