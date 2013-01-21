@@ -1056,14 +1056,11 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	minornum = vcrtcm_id_generator_get(&minor_id_generator,
 					   VCRTCM_ID_REUSE);
 	if (minornum < 0)
-		return NULL;
+		goto minor_dec;
 
 	minor = vcrtcm_kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
-	if (!minor) {
-		VCRTCM_ERROR("failed alloc of v4l2pim_minor\n");
-		vcrtcm_id_generator_put(&minor_id_generator, minornum);
-		return NULL;
-	}
+	if (!minor)
+		goto gen_put;
 
 	spin_lock_init(&minor->slock);
 	atomic_set(&minor->users, 0);
@@ -1111,6 +1108,10 @@ unreg_dev:
 	v4l2_device_unregister(&minor->v4l2_dev);
 free_info:
 	vcrtcm_kfree(minor);
+gen_put:
+	vcrtcm_id_generator_put(&minor_id_generator, minornum);
+minor_dec:
+	v4l2pim_num_minors--;	
 	return NULL;
 
 }
