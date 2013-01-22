@@ -147,7 +147,9 @@ static long vcrtcm_ioctl_destroy(int extid)
 		return -ECANCELED;
 	}
 	if (pcon->drm_crtc) {
-		vcrtcm_prepare_detach(pcon);
+		int saved_fps = pcon->fps;
+
+		vcrtcm_set_fps(pcon, 0);
 		if (pcon->pim_funcs.detach &&
 			pcon->pcon_callbacks_enabled &&
 			pcon->pim->callbacks_enabled) {
@@ -156,9 +158,10 @@ static long vcrtcm_ioctl_destroy(int extid)
 			r = pcon->pim_funcs.detach(pcon->pconid,
 							pcon->pcon_cookie);
 			if (r) {
-				vcrtcm_unlock_extid(extid);
 				VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
 					pcon->pconid);
+				vcrtcm_set_fps(pcon, saved_fps);
+				vcrtcm_unlock_extid(extid);
 				return r;
 			}
 		}
@@ -301,6 +304,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 static long vcrtcm_ioctl_detach(int extid)
 {
 	struct vcrtcm_pcon *pcon;
+	int saved_fps;
 
 	if (vcrtcm_lock_extid(extid))
 		return -EINVAL;
@@ -321,13 +325,17 @@ static long vcrtcm_ioctl_detach(int extid)
 		return -EINVAL;
 	}
 	BUG_ON(!pcon->conn);
-	vcrtcm_prepare_detach(pcon);
+	saved_fps = pcon->fps;
+	vcrtcm_set_fps(pcon, 0);
 	if (pcon->pim_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
 		r = pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie);
 		if (r) {
+			VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
+				pcon->pconid);
+			vcrtcm_set_fps(pcon, saved_fps);
 			vcrtcm_unlock_extid(extid);
 			return r;
 		}
@@ -357,24 +365,7 @@ static long vcrtcm_ioctl_fps(int extid, int fps)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
-	if (fps <= 0) {
-		pcon->fps = 0;
-		pcon->vblank_period_jiffies = 0;
-		cancel_delayed_work_sync(&pcon->vblank_work);
-		VCRTCM_INFO("transmission disabled on pcon 0x%08x (fps == 0)\n",
-			pcon->pconid);
-	} else {
-		unsigned long now;
-		int old_fps = pcon->fps;
-
-		pcon->fps = fps;
-		pcon->vblank_period_jiffies = HZ/fps;
-		now = jiffies;
-		pcon->last_vblank_jiffies = now;
-		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
-		if (old_fps == 0)
-			schedule_delayed_work(&pcon->vblank_work, 0);
-	}
+	vcrtcm_set_fps(pcon, fps);
 	if (pcon->pim_funcs.set_fps &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {

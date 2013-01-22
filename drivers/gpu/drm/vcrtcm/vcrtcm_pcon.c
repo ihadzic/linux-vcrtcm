@@ -60,12 +60,31 @@ void vcrtcm_wait_if_necessary(struct vcrtcm_pcon *pcon)
 		vcrtcm_p_wait_fb(pcon->pconid);
 }
 
-void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
+void vcrtcm_set_fps(struct vcrtcm_pcon *pcon, int fps)
 {
-	VCRTCM_INFO("detaching pcon 0x%08x\n", pcon->pconid);
-	pcon->vblank_period_jiffies = 0;
-	pcon->fps = 0;
-	cancel_delayed_work_sync(&pcon->vblank_work);
+	if (fps == pcon->fps)
+		return;
+	if (fps <= 0) {
+		pcon->fps = 0;
+		pcon->vblank_period_jiffies = 0;
+		cancel_delayed_work_sync(&pcon->vblank_work);
+		VCRTCM_INFO("transmission disabled on pcon 0x%08x\n",
+			pcon->pconid);
+	} else {
+		unsigned long now;
+		int old_fps = pcon->fps;
+
+		pcon->fps = fps;
+		pcon->vblank_period_jiffies = HZ/fps;
+		now = jiffies;
+		pcon->last_vblank_jiffies = now;
+		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
+		if (old_fps == 0) {
+			schedule_delayed_work(&pcon->vblank_work, 0);
+			VCRTCM_INFO("transmission enabled on pcon 0x%08x (%d f/s)\n",
+				pcon->pconid, fps);
+		}
+	}
 	vcrtcm_wait_if_necessary(pcon);
 }
 

@@ -763,7 +763,7 @@ int vcrtcm_p_detach(int pconid)
 		VCRTCM_WARNING("pcon 0x%08x already detached\n", pcon->pconid);
 		return 0;
 	}
-	vcrtcm_prepare_detach(pcon);
+	vcrtcm_set_fps(pcon, 0);
 	if (pcon->gpu_funcs.detach)
 		pcon->gpu_funcs.detach(pcon->drm_crtc);
 	vcrtcm_detach(pcon);
@@ -803,7 +803,7 @@ int vcrtcm_p_destroy(int pconid)
 		return -EINVAL;
 	}
 	if (pcon->drm_crtc) {
-		vcrtcm_prepare_detach(pcon);
+		vcrtcm_set_fps(pcon, 0);
 		if (pcon->gpu_funcs.detach)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
 		vcrtcm_detach(pcon);

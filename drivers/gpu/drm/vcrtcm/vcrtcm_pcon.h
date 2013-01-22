@@ -70,9 +70,9 @@ struct vcrtcm_pcon {
 };
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon);
-void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon);
 void vcrtcm_detach(struct vcrtcm_pcon *pcon);
 void vcrtcm_set_crtc(struct vcrtcm_pcon *pcon, struct drm_crtc *crtc);
 void vcrtcm_wait_if_necessary(struct vcrtcm_pcon *pcon);
+void vcrtcm_set_fps(struct vcrtcm_pcon *pcon, int fps);
 
 #endif

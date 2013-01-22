@@ -34,6 +34,7 @@
 int vcrtcm_g_detach(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
+	int saved_fps;
 
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
@@ -49,15 +50,20 @@ int vcrtcm_g_detach(int pconid)
 		VCRTCM_WARNING("pcon already detached\n");
 		return -EINVAL;
 	}
-	vcrtcm_prepare_detach(pcon);
+	saved_fps = pcon->fps;
+	vcrtcm_set_fps(pcon, 0);
 	if (pcon->pim_funcs.detach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
 		r = pcon->pim_funcs.detach(pconid,
 					    pcon->pcon_cookie);
-		if (r)
+		if (r) {
+			VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
+				pcon->pconid);
+			vcrtcm_set_fps(pcon, saved_fps);
 			return r;
+		}
 	}
 	vcrtcm_detach(pcon);
 	return 0;
