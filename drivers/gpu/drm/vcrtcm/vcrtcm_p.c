@@ -58,7 +58,7 @@ static struct sg_table
 
 	pcon = vcrtcm_get_pcon(pbd->pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pbd->pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pbd->pconid);
 		return ERR_PTR(-ENODEV);
 	}
 	crtc = pcon->drm_crtc;
@@ -176,7 +176,7 @@ int vcrtcm_p_register_prime(int pconid,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
@@ -186,18 +186,18 @@ int vcrtcm_p_register_prime(int pconid,
 	}
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
-		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
+		VCRTCM_ERROR("no crtc for pcon 0x%08x\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
 	dev = crtc->dev;
 	if (!dev) {
-		VCRTCM_ERROR("no dev for pcon %d\n", pconid);
+		VCRTCM_ERROR("no dev for pcon 0x%08x\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
 	if (!dev->driver) {
-		VCRTCM_ERROR("no driver for pcon %d\n", pconid);
+		VCRTCM_ERROR("no driver for pcon 0x%08x\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
@@ -215,7 +215,7 @@ int vcrtcm_p_register_prime(int pconid,
 		goto out_err1;
 	}
 	pbd->gpu_private = obj;
-	VCRTCM_DEBUG("pcon %i push buffer GEM object name=%d, size=%d\n",
+	VCRTCM_DEBUG("pcon 0x%08x push buffer GEM object name=%d, size=%d\n",
 		     pconid, obj->name, obj->size);
 	return r;
 
@@ -257,28 +257,28 @@ int vcrtcm_p_unregister_prime(int pconid,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
 	if (!obj) {
-		VCRTCM_ERROR("no obj for pcon %d\n", pconid);
+		VCRTCM_ERROR("no obj for pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
-	VCRTCM_DEBUG("pcon %i freeing GEM object name=%d, size=%d\n",
+	VCRTCM_DEBUG("pcon 0x%08x freeing GEM object name=%d, size=%d\n",
 		     pconid, obj->name, obj->size);
 	crtc = pcon->drm_crtc;
 	if (!crtc) {
-		VCRTCM_ERROR("no crtc for pcon %d\n", pconid);
+		VCRTCM_ERROR("no crtc for pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	dev = crtc->dev;
 	if (!dev) {
-		VCRTCM_ERROR("no dev for pcon %d\n", pconid);
+		VCRTCM_ERROR("no dev for pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (!dev->driver) {
-		VCRTCM_ERROR("no driver for pcon %d\n", pconid);
+		VCRTCM_ERROR("no driver for pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	/*
@@ -322,7 +322,7 @@ int vcrtcm_p_wait_fb(int pconid)
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (!pcon->drm_crtc) {
@@ -382,7 +382,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	if (!pcon) {
 		vcrtcm_clear_spinlock_owner(pconid);
 		spin_unlock_irqrestore(pcon_spinlock, flags);
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -403,7 +403,8 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		pcon->last_vblank_jiffies = jiffies;
 		vcrtcm_clear_spinlock_owner(pconid);
 		spin_unlock_irqrestore(pcon_spinlock, flags);
-		VCRTCM_DEBUG("emulating vblank event for pcon %i\n", pconid);
+		VCRTCM_DEBUG("emulating vblank event for pcon 0x%08x\n",
+			pconid);
 		/*
 		 * spinlock released before going into the GPU-land
 		 * we are destruct-safe in here because we cached everything
@@ -451,7 +452,7 @@ int vcrtcm_p_push(int pconid,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -471,7 +472,7 @@ int vcrtcm_p_push(int pconid,
 		fpbd->virgin = 0;
 	}
 	if (pcon->gpu_funcs.push) {
-		VCRTCM_DEBUG("push for pcon %i\n", pconid);
+		VCRTCM_DEBUG("push for pcon 0x%08x\n", pconid);
 		return pcon->gpu_funcs.push(pcon->drm_crtc,
 			push_buffer_fb, push_buffer_cursor);
 	} else
@@ -505,7 +506,7 @@ int vcrtcm_p_hotplug(int pconid)
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -518,7 +519,7 @@ int vcrtcm_p_hotplug(int pconid)
 	}
 	if (pcon->gpu_funcs.hotplug) {
 		pcon->gpu_funcs.hotplug(pcon->drm_crtc);
-		VCRTCM_DEBUG("pcon %i hotplug\n", pconid);
+		VCRTCM_DEBUG("pcon 0x%08x hotplug\n", pconid);
 
 	}
 	return 0;
@@ -550,7 +551,7 @@ int vcrtcm_p_free_pb(int pconid,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
@@ -561,7 +562,7 @@ int vcrtcm_p_free_pb(int pconid,
 		BUG_ON(!pbd->num_pages);
 		r = vcrtcm_p_unregister_prime(pconid, pbd);
 		if (r) {
-			VCRTCM_ERROR("unregister_prime failed for pcon %d\n",
+			VCRTCM_ERROR("unregister_prime failed for pcon 0x%08x\n",
 				pconid);
 			return r;
 		}
@@ -619,7 +620,7 @@ vcrtcm_p_alloc_pb(int pconid, int npages,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		r = -ENODEV;
 		goto out_err0;
 	}
@@ -703,7 +704,7 @@ vcrtcm_p_realloc_pb(int pconid,
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return NULL;
 	}
 	if (pcon->being_destroyed) {
@@ -751,7 +752,7 @@ int vcrtcm_p_detach(int pconid)
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -759,7 +760,7 @@ int vcrtcm_p_detach(int pconid)
 		return -EINVAL;
 	}
 	if (!pcon->drm_crtc) {
-		VCRTCM_WARNING("pcon %d already detached\n", pcon->pconid);
+		VCRTCM_WARNING("pcon 0x%08x already detached\n", pcon->pconid);
 		return 0;
 	}
 	vcrtcm_prepare_detach(pcon);
@@ -794,7 +795,7 @@ int vcrtcm_p_destroy(int pconid)
 		return -EINVAL;
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -807,7 +808,7 @@ int vcrtcm_p_destroy(int pconid)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
 		vcrtcm_detach(pcon);
 	}
-	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
+	VCRTCM_INFO("destroying pcon 0x%08x\n", pcon->pconid);
 	spin_lock_irqsave(pcon_spinlock, flags);
 	vcrtcm_set_spinlock_owner(pconid);
 	pcon->being_destroyed = 1;
@@ -839,7 +840,7 @@ int vcrtcm_p_disable_callbacks(int pconid)
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */
@@ -873,7 +874,7 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on)
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		VCRTCM_ERROR("no pcon %d\n", pconid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	/* this function is legal to call on a pcon that is being destroyed */

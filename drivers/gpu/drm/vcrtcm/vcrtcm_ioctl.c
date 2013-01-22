@@ -104,7 +104,7 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_extid)
 		vcrtcm_unlock_pconid(pconid);
 		return r;
 	}
-	VCRTCM_INFO("new pcon created, id %i\n", pconid);
+	VCRTCM_INFO("new pcon created, id 0x%08x\n", pconid);
 	vcrtcm_sysfs_add_pcon(pcon);
 	list_add_tail(&pcon->pcons_in_pim_list,
 		      &pim->pcons_in_pim_list);
@@ -126,7 +126,7 @@ static long vcrtcm_ioctl_destroy(int extid)
 	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("no pcon %d\n", extid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -EINVAL;
 	}
 	if (pcon->being_destroyed) {
@@ -149,7 +149,7 @@ static long vcrtcm_ioctl_destroy(int extid)
 							pcon->pcon_cookie);
 			if (r) {
 				vcrtcm_unlock_extid(extid);
-				VCRTCM_ERROR("pim refuses to detach pcon %d\n",
+				VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
 					pcon->pconid);
 				return r;
 			}
@@ -158,7 +158,7 @@ static long vcrtcm_ioctl_destroy(int extid)
 			pcon->gpu_funcs.detach(pcon->drm_crtc);
 		vcrtcm_detach(pcon);
 	}
-	VCRTCM_INFO("destroying pcon %i\n", pcon->pconid);
+	VCRTCM_INFO("destroying pcon 0x%08x\n", pcon->pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pcon->pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
@@ -196,8 +196,8 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	struct vcrtcm_conn *conn;
 	int conn_is_new;
 
-	VCRTCM_INFO("attach pcon %d to conn %d of dev %d:%d\n", extid, connid,
-		major, minor);
+	VCRTCM_INFO("attach pcon 0x%08x to conn %d of dev %d:%d\n",
+		extid, connid, major, minor);
 	dev = MKDEV(major, minor);
 	drm_conn = drm_vcrtcm_get_crtc_for_attach(dev, connid, &crtc_drmid,
 		&crtc_index);
@@ -220,7 +220,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("no pcon %d\n", extid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -299,7 +299,7 @@ static long vcrtcm_ioctl_detach(int extid)
 	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("no pcon %d\n", extid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -341,7 +341,7 @@ static long vcrtcm_ioctl_fps(int extid, int fps)
 	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("no pcon %d\n", extid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
@@ -353,7 +353,7 @@ static long vcrtcm_ioctl_fps(int extid, int fps)
 		pcon->fps = 0;
 		pcon->vblank_period_jiffies = 0;
 		cancel_delayed_work_sync(&pcon->vblank_work);
-		VCRTCM_INFO("transmission disabled on pcon %d (fps == 0)\n",
+		VCRTCM_INFO("transmission disabled on pcon 0x%08x (fps == 0)\n",
 			pcon->pconid);
 	} else {
 		unsigned long now;
@@ -387,7 +387,7 @@ static long vcrtcm_ioctl_xmit(int extid)
 	pcon = vcrtcm_get_pcon_extid(extid);
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("no pcon %d\n", extid);
+		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {

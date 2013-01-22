@@ -100,7 +100,7 @@ static void doadjcnts(const char *fcn, int owner_type, int owner_id,
 		break;
 	case VCRTCM_OWNER_PCON:
 		log_this = vcrtcm_log_all_pcon_counts || log_this_owners_cnts;
-		snprintf(owner_log_buf, VCRTCM_ALLOC_LOG_MAXLEN, "pcon %d",
+		snprintf(owner_log_buf, VCRTCM_ALLOC_LOG_MAXLEN, "pcon 0x%08x",
 			owner_id);
 		break;
 	default:
@@ -172,7 +172,7 @@ static int adjcnts(const char *fcn, uint32_t owner, int incr, int ispage)
 			return 0;
 		}
 		dump_stack();
-		VCRTCM_ERROR("%s: pcon %d does not exist, unable to %s\n",
+		VCRTCM_ERROR("%s: pcon 0x%08x does not exist, unable to %s\n",
 			     fcn, pconid, incr ? "increment" : "decrement");
 		return -ENODEV;
 	}

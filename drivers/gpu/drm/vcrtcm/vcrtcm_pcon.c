@@ -62,7 +62,7 @@ void vcrtcm_wait_if_necessary(struct vcrtcm_pcon *pcon)
 
 void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
 {
-	VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
+	VCRTCM_INFO("detaching pcon 0x%08x\n", pcon->pconid);
 	pcon->vblank_period_jiffies = 0;
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
