@@ -49,7 +49,9 @@ void copy_cursor_work(struct work_struct *work);
 int udlpim_do_xmit_fb_pull(struct udlpim_pcon *pcon);
 int udlpim_do_xmit_fb_push(struct udlpim_pcon *pcon);
 
-int udlpim_instantiate(int pconid, uint32_t hints,
+int udlpim_instantiate(int pconid,
+	enum vcrtcm_xfer_mode requested_xfer_mode,
+	uint32_t hints,
 	void **cookie, struct vcrtcm_p_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minor,
 	int *vblank_slack, char *description);

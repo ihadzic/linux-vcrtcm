@@ -689,7 +689,8 @@ void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 	vcrtcm_kfree(pcon);
 }
 
-int udlpim_instantiate(int pconid, uint32_t hints,
+int udlpim_instantiate(int pconid,
+	enum vcrtcm_xfer_mode requested_xfer_mode, uint32_t hints,
 	void **cookie, struct vcrtcm_p_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
 	int *vblank_slack, char *description)
