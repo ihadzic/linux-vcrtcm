@@ -517,7 +517,7 @@ int vcrtcm_g_get_cursor(int pconid,
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pim_funcs.set_cursor &&
+	if (pcon->pim_funcs.get_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
