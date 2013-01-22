@@ -236,7 +236,6 @@ int v4l2pim_set_fb(int pconid, void *cookie,
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d.\n", minor->minor);
 	mutex_lock(&minor->buffer_mutex);
-	vcrtcm_p_wait_fb(pconid);
 	memcpy(&pcon->vcrtcm_fb, vcrtcm_fb, sizeof(struct vcrtcm_fb));
 	size = pcon->vcrtcm_fb.pitch * pcon->vcrtcm_fb.vdisplay;
 	r = v4l2pim_realloc_pb(pcon, size,
@@ -311,7 +310,6 @@ int v4l2pim_set_cursor(int pconid, void *cookie,
 	minor = pcon->minor;
 	V4L2PIM_DEBUG("minor %d\n", minor->minor);
 	mutex_lock(&minor->buffer_mutex);
-	vcrtcm_p_wait_fb(pconid);
 	memcpy(&pcon->vcrtcm_cursor, vcrtcm_cursor,
 			sizeof(struct vcrtcm_cursor));
 	size = pcon->vcrtcm_cursor.height *
