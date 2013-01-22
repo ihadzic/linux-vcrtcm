@@ -614,7 +614,8 @@ void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 	vcrtcm_kfree(pcon);
 }
 
-int v4l2pim_instantiate(int pconid, uint32_t hints,
+int v4l2pim_instantiate(int pconid,
+	enum vcrtcm_xfer_mode requested_xfer_mode, uint32_t hints,
 	void **cookie, struct vcrtcm_p_pcon_funcs *funcs,
 	enum vcrtcm_xfer_mode *xfer_mode, int *minornum,
 	int *vblank_slack, char *description)
