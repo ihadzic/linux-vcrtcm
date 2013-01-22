@@ -60,14 +60,22 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 }
 
 static long
-vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_extid)
+vcrtcm_ioctl_instantiate(int pimid, uint32_t requested_xfer_mode,
+	uint32_t hints, int *ret_extid)
 {
 	struct vcrtcm_pim *pim;
 	struct vcrtcm_pcon *pcon;
 	int pconid;
 	int r;
 
-	VCRTCM_DEBUG("pimid %d, hints %d\n", pimid, hints);
+	VCRTCM_DEBUG("inst: pimid %d, hints %d\n", pimid, hints);
+	if (requested_xfer_mode != VCRTCM_XFERMODE_UNSPECIFIED &&
+		requested_xfer_mode != VCRTCM_PEER_PULL &&
+		requested_xfer_mode != VCRTCM_PEER_PUSH &&
+		requested_xfer_mode != VCRTCM_PUSH_PULL) {
+		VCRTCM_ERROR("invalid xfer mode %d\n", requested_xfer_mode);
+		return -EINVAL;
+	}
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
 		VCRTCM_ERROR("invalid pimid %d\n", pimid);
@@ -90,7 +98,7 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t hints, int *ret_extid)
 	pconid = pcon->pconid;
 	vcrtcm_lock_pconid(pconid);
 	pcon->pim = pim;
-	r = pim->funcs.instantiate(pconid, hints,
+	r = pim->funcs.instantiate(pconid, requested_xfer_mode, hints,
 					&pcon->pcon_cookie,
 					&pcon->pim_funcs,
 					&pcon->xfer_mode,
@@ -417,7 +425,8 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	mutex_lock(&vcrtcm_ioctl_mutex);
 	switch (cmd) {
 	case VCRTCM_IOC_INSTANTIATE:
-		r = vcrtcm_ioctl_instantiate(args.arg1.pimid, args.arg2.hints,
+		r = vcrtcm_ioctl_instantiate(args.arg1.pimid,
+			args.arg2.xfer_mode, args.arg3.hints,
 			&args.result1.pconid);
 		break;
 	case VCRTCM_IOC_DESTROY:

@@ -227,8 +227,9 @@ struct vcrtcm_pim_funcs {
 	/*
 	 * This function must try to create a new PCON instance.
 	 */
-	int (*instantiate)(int pconid, uint32_t hints, void **cookie,
-		struct vcrtcm_p_pcon_funcs *funcs,
+	int (*instantiate)(int pconid,
+		enum vcrtcm_xfer_mode requested_xfer_mode, uint32_t hints,
+		void **cookie, struct vcrtcm_p_pcon_funcs *funcs,
 		enum vcrtcm_xfer_mode *xfer_mode, int *minor,
 		int *vblank_slack, char *description);
 

@@ -26,7 +26,7 @@
 /* IOCTLs */
 #define VCRTCM_MAGIC 'K'
 
-/* args: pimid hints */
+/* args: pimid xfer_mode hints */
 #define VCRTCM_IOC_INSTANTIATE _IOW(VCRTCM_MAGIC, 1, int)
 
 /* args: pconid */
@@ -54,15 +54,17 @@ struct vcrtcm_ioctl_args {
 		int32_t connid;
 	} arg1;
 	union {
-		uint32_t hints;
 		uint32_t testarg;
+		int32_t xfer_mode;
 		int32_t connid;
 		int32_t fps;
+		uint32_t hints;
 	} arg2;
 	union {
 		int32_t pconid;
 	} result1;
 	union {
+		uint32_t hints;
 		uint32_t major;
 	} arg3;
 	union {
