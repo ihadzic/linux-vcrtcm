@@ -522,12 +522,12 @@ int vcrtcm_g_get_cursor(int pconid,
 	if (pcon->pim_funcs.get_cursor &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
-		VCRTCM_DEBUG("calling get_fb backend, pcon %i\n",
+		VCRTCM_DEBUG("calling get_cursor backend, pcon %i\n",
 			     pconid);
 		r = pcon->pim_funcs.get_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
-		VCRTCM_DEBUG("missing get_fb backend, pcon %i\n",
+		VCRTCM_DEBUG("missing get_cursor backend, pcon %i\n",
 			     pconid);
 		r = 0;
 	}
