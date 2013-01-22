@@ -71,7 +71,7 @@ struct vcrtcm_pcon *vcrtcm_get_pcon_extid(int extid);
  */
 spinlock_t *vcrtcm_get_pconid_spinlock(int pconid);
 
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+#ifdef CONFIG_DEBUG_MUTEXES
 void vcrtcm_check_mutex(const char *func, int pconid);
 #else
 static inline void vcrtcm_check_mutex(const char *func, int pconid) {}

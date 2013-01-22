@@ -51,11 +51,6 @@ struct pconid_table_entry {
 	spinlock_t spinlock;
 	pid_t spinlock_owner;
 	struct mutex mutex;
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-	int in_mutex;
-	pid_t mutex_owner;
-	spinlock_t mutex_owner_spinlock;
-#endif
 	struct vcrtcm_pcon *pcon;
 };
 
@@ -89,10 +84,6 @@ void vcrtcm_init_pcon_table(void)
 		entry->spinlock_owner = -1;
 		spin_lock_init(&entry->spinlock);
 		mutex_init(&entry->mutex);
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-		entry->in_mutex = 0;
-		spin_lock_init(&entry->mutex_owner_spinlock);
-#endif
 	}
 }
 
@@ -224,15 +215,6 @@ int vcrtcm_lock_extid(int extid)
 	if (!entry)
 		return -EINVAL;
 	mutex_lock(&entry->mutex);
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-	{
-		unsigned long flags;
-		spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
-		entry->in_mutex = 1;
-		entry->mutex_owner = current->pid;
-		spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
-	}
-#endif
 	return 0;
 }
 
@@ -248,14 +230,8 @@ int vcrtcm_unlock_extid(int extid)
 	entry = extid2entry(extid);
 	if (!entry)
 		return -EINVAL;
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
-	BUG_ON(!entry->in_mutex);
-	{
-		unsigned long flags;
-		spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
-		entry->in_mutex = 0;
-		spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
-	}
+#ifdef CONFIG_DEBUG_MUTEXES
+	BUG_ON(!mutex_is_locked(&entry->mutex));
 #endif
 	mutex_unlock(&entry->mutex);
 	return 0;
@@ -266,24 +242,17 @@ int vcrtcm_unlock_pconid(int pconid)
 	return vcrtcm_unlock_extid(PCONID_EXTID(pconid));
 }
 
-#ifdef CONFIG_DRM_VCRTCM_DEBUG_MUTEXES
+#ifdef CONFIG_DEBUG_MUTEXES
 void
 vcrtcm_check_mutex(const char *func, int pconid)
 {
-	unsigned long flags;
-	int in_mutex;
-	pid_t mutex_owner;
 	struct pconid_table_entry *entry;
 
 	entry = pconid2entry(pconid);
 	if (!entry)
 		return;
-	spin_lock_irqsave(&entry->mutex_owner_spinlock, flags);
-	in_mutex = entry->in_mutex;
-	mutex_owner = entry->mutex_owner;
-	spin_unlock_irqrestore(&entry->mutex_owner_spinlock, flags);
-	BUG_ON(!in_mutex);
-	BUG_ON(mutex_owner != current->pid);
+	BUG_ON(!mutex_is_locked(&entry->mutex));
+	BUG_ON(entry->mutex.owner != current);
 }
 #endif
 
