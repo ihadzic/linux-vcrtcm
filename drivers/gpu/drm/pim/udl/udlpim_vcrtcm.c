@@ -66,13 +66,13 @@ struct udlpim_pcon *udlpim_cookie2pcon(int pconid, void *cookie)
 	struct udlpim_pcon *pcon = cookie;
 
 	if (pcon->magic != UDLPIM_PCON_GOOD_MAGIC) {
-		VCRTCM_ERROR("bad magic (0x%08x) in cookie (0x%p) for pcon %d\n",
+		VCRTCM_ERROR("bad magic (0x%08x) in cookie (0x%p) for pcon 0x%08x\n",
 			pcon->magic, cookie, pconid);
 		dump_stack();
 		return NULL;
 	}
 	if (pcon->pconid != pconid) {
-		VCRTCM_ERROR("mismatching pcon ids (%d vs. %d)\n",
+		VCRTCM_ERROR("mismatching pcon ids (0x%08x vs. 0x%08x)\n",
 			pconid, pcon->pconid);
 		dump_stack();
 		return NULL;
@@ -86,7 +86,7 @@ int udlpim_attach(int pconid, void *cookie)
 
 	if (!pcon)
 		return -ENODEV;
-	VCRTCM_INFO("attaching pcon %d\n", pconid);
+	VCRTCM_INFO("attaching pcon 0x%08x\n", pconid);
 	pcon->attached = 1;
 	return 0;
 }
@@ -96,7 +96,7 @@ void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_FB);
 	udlpim_free_pb(pcon, UDLPIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
-	VCRTCM_INFO("detached pcon %d\n", pcon->pconid);
+	VCRTCM_INFO("detached pcon 0x%08x\n", pcon->pconid);
 }
 
 int udlpim_detach(int pconid, void *cookie)
@@ -673,7 +673,7 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 		VCRTCM_ERROR("create_pcon failed, no memory\n");
 		return NULL;
 	}
-	VCRTCM_INFO("alloced pcon %d (0x%p)\n", pconid, pcon);
+	VCRTCM_INFO("alloced pcon 0x%08x (0x%p)\n", pconid, pcon);
 	pcon->magic = UDLPIM_PCON_GOOD_MAGIC;
 	pcon->pconid = pconid;
 	pcon->vcrtcm_cursor.flag = VCRTCM_CURSOR_FLAG_HIDE;
@@ -683,7 +683,7 @@ struct udlpim_pcon *udlpim_create_pcon(int pconid,
 
 void udlpim_destroy_pcon(struct udlpim_pcon *pcon)
 {
-	VCRTCM_INFO("destroying pcon %d (0x%p)\n", pcon->pconid, pcon);
+	VCRTCM_INFO("destroying pcon 0x%08x (0x%p)\n", pcon->pconid, pcon);
 	pcon->magic = UDLPIM_PCON_BAD_MAGIC;
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
@@ -715,7 +715,7 @@ int udlpim_instantiate(int pconid, uint32_t hints,
 			*xfer_mode = VCRTCM_PUSH_PULL;
 			*cookie = minor->pcon;
 			*vblank_slack = udlpim_fake_vblank_slack;
-			VCRTCM_INFO("udlpim %d now serves pcon %d\n",
+			VCRTCM_INFO("udlpim %d now serves pcon 0x%08x\n",
 				minor->minor, pconid);
 			return 0;
 		}
