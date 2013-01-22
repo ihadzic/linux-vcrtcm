@@ -133,6 +133,11 @@ static struct attribute pcon_internal_pconid_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+static struct attribute pcon_xfer_mode_attr = {
+	.name = "xfer_mode",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_local_pconid_attr,
@@ -141,6 +146,7 @@ static struct attribute *pcon_attributes[] = {
 	&pcon_minor_attr,
 	&pcon_attach_minor_attr,
 	&pcon_internal_pconid_attr,
+	&pcon_xfer_mode_attr,
 	NULL
 };
 
@@ -233,6 +239,9 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 			pcon->attach_minor);
 	} else if (attr == &pcon_internal_pconid_attr) {
 		return scnprintf(buf, PAGE_SIZE, "0x%08x\n", pcon->pconid);
+	} else if (attr == &pcon_xfer_mode_attr) {
+		return scnprintf(buf, PAGE_SIZE, "%s\n",
+			vcrtcm_xfer_mode_string(pcon->xfer_mode));
 	}
 	return 0;
 }
