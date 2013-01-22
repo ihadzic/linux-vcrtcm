@@ -81,4 +81,6 @@ struct vcrtcm_mode {
 	int refresh;
 };
 
+const char *vcrtcm_xfer_mode_string(enum vcrtcm_xfer_mode mode);
+
 #endif

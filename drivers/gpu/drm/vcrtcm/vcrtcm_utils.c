@@ -140,5 +140,3 @@ void vcrtcm_id_generator_put(struct vcrtcm_id_generator *gen, int id)
 	return;
 }
 EXPORT_SYMBOL(vcrtcm_id_generator_put);
-
-
