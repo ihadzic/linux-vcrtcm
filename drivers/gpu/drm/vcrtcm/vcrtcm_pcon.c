@@ -48,20 +48,25 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 }
 
+
+/*
+ * push-mode pims must wait_fb() before doing certain things,
+ * so do it for them to make sure it gets done
+ */
+void vcrtcm_wait_if_necessary(struct vcrtcm_pcon *pcon)
+{
+	if (pcon->xfer_mode == VCRTCM_PEER_PUSH ||
+	    pcon->xfer_mode == VCRTCM_PUSH_PULL)
+		vcrtcm_p_wait_fb(pcon->pconid);
+}
+
 void vcrtcm_prepare_detach(struct vcrtcm_pcon *pcon)
 {
 	VCRTCM_INFO("detaching pcon %i\n", pcon->pconid);
 	pcon->vblank_period_jiffies = 0;
 	pcon->fps = 0;
 	cancel_delayed_work_sync(&pcon->vblank_work);
-
-	/*
-	 * push-mode pims must wait_fb() before detaching,
-	 * so do it for them to make sure it gets done
-	 */
-	if (pcon->xfer_mode == VCRTCM_PEER_PUSH ||
-	    pcon->xfer_mode == VCRTCM_PUSH_PULL)
-		vcrtcm_p_wait_fb(pcon->pconid);
+	vcrtcm_wait_if_necessary(pcon);
 }
 
 void vcrtcm_detach(struct vcrtcm_pcon *pcon)

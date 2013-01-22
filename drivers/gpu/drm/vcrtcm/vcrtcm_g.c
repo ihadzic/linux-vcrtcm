@@ -105,6 +105,7 @@ int vcrtcm_g_set_fb(int pconid, struct vcrtcm_fb *fb)
 	if (pcon->pim_funcs.set_fb &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
+		vcrtcm_wait_if_necessary(pcon);
 		VCRTCM_DEBUG("calling set_fb backend, pcon %i\n",
 			     pconid);
 		r = pcon->pim_funcs.set_fb(pconid,
@@ -472,6 +473,7 @@ int vcrtcm_g_set_cursor(int pconid,
 		pcon->pim->callbacks_enabled) {
 		VCRTCM_DEBUG("calling set_cursor backend, pcon %i\n",
 			     pconid);
+		vcrtcm_wait_if_necessary(pcon);
 		r = pcon->pim_funcs.set_cursor(pconid,
 			pcon->pcon_cookie, cursor);
 	} else {
