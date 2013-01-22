@@ -356,24 +356,24 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
-	vb->size = fbsize;
-	if (0 != vb->baddr && vb->bsize < vb->size)
+	if (0 != vb->baddr && vb->bsize < fbsize)
 		return -EINVAL;
 
-	vb->width  = pcon->vcrtcm_fb.hdisplay;
-	vb->height = pcon->vcrtcm_fb.vdisplay;
-	vb->field  = field;
-
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
+		vb->size = fbsize;
 		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret < 0)
 			goto fail;
+		vb->width = pcon->vcrtcm_fb.hdisplay;
+		vb->height = pcon->vcrtcm_fb.vdisplay;
+		vb->field = field;
 	}
 	vb->state = VIDEOBUF_PREPARED;
 	return 0;
 
 fail:
 	free_buf(vq, vb);
+	vb->size = 0;
 	return ret;
 }
 
