@@ -114,13 +114,13 @@ static struct v4l2pim_pcon *v4l2pim_cookie2pcon(int pconid, void *cookie)
 	struct v4l2pim_pcon *pcon = cookie;
 
 	if (pcon->magic != V4L2PIM_PCON_GOOD_MAGIC) {
-		VCRTCM_ERROR("bad magic (0x%08x), cookie (0x%p), pcon %d\n",
+		VCRTCM_ERROR("bad magic (0x%08x), cookie (0x%p), pcon 0x%08x\n",
 			pcon->magic, cookie, pconid);
 		dump_stack();
 		return NULL;
 	}
 	if (pcon->pconid != pconid) {
-		VCRTCM_ERROR("mismatching pcon ids (%d vs. %d)\n",
+		VCRTCM_ERROR("mismatching pcon ids (0x%08x vs. 0x%08x)\n",
 			pconid, pcon->pconid);
 		dump_stack();
 		return NULL;
@@ -135,7 +135,7 @@ int v4l2pim_attach(int pconid, void *cookie)
 	if (!pcon)
 		return -ENODEV;
 	minor = pcon->minor;
-	VCRTCM_INFO("Attaching vl2pcon %d to pcon %d\n",
+	VCRTCM_INFO("Attaching vl2pcon 0x%08x to pcon 0x%08x\n",
 		minor->minor, pconid);
 
 	pcon->attached = 1;
@@ -148,14 +148,14 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 
 	minor = pcon->minor;
 	if (atomic_read(&minor->users) > 0) {
-		VCRTCM_ERROR("cannot detach pcon %d, minor %d in use\n",
+		VCRTCM_ERROR("cannot detach pcon 0x%08x, minor %d in use\n",
 			pcon->pconid, minor->minor);
 		return -EBUSY;
 	}
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
 	pcon->attached = 0;
-	VCRTCM_INFO("detached pcon %d\n", pcon->pconid);
+	VCRTCM_INFO("detached pcon 0x%08x\n", pcon->pconid);
 	return 0;
 }
 
@@ -598,7 +598,7 @@ struct v4l2pim_pcon
 			GFP_KERNEL, pconid);
 	if (pcon == NULL)
 		return NULL;
-	VCRTCM_INFO("alloced pcon %d (0x%p)\n", pconid, pcon);
+	VCRTCM_INFO("alloced pcon 0x%08x (0x%p)\n", pconid, pcon);
 	pcon->magic = V4L2PIM_PCON_GOOD_MAGIC;
 	pcon->pconid = pconid;
 	pcon->minor = minor;
@@ -608,7 +608,7 @@ struct v4l2pim_pcon
 
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon)
 {
-	VCRTCM_INFO("destroying pcon %d (0x%p)\n", pcon->pconid, pcon);
+	VCRTCM_INFO("destroying pcon 0x%08x (0x%p)\n", pcon->pconid, pcon);
 	pcon->magic = V4L2PIM_PCON_BAD_MAGIC;
 	pcon->minor->pcon = NULL;
 	vcrtcm_kfree(pcon);
@@ -638,7 +638,7 @@ int v4l2pim_instantiate(int pconid, uint32_t hints,
 	*xfer_mode = VCRTCM_PUSH_PULL;
 	*cookie = minor->pcon;
 	*vblank_slack = v4l2pim_fake_vblank_slack;
-	VCRTCM_INFO("v4l2pim %d now serves pcon %d\n",
+	VCRTCM_INFO("v4l2pim %d now serves pcon 0x%08x\n",
 			minor->minor, pconid);
 	return 0;
 }
