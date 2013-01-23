@@ -408,7 +408,8 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct vcrtcm_ioctl_args args;
 	long r;
 
-	VCRTCM_DEBUG("cmd = %u, arg = %lu\n", cmd, arg);
+	VCRTCM_INFO("ioctl: cmd = %u, arg = %lu, pid = %d\n", cmd, arg,
+		current->pid);
 	if (!access_ok(VERIFY_WRITE, arg, sizeof(args)))
 		return -EFAULT;
 	if (copy_from_user(&args, (void *)arg, sizeof(args)))
