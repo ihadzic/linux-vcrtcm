@@ -287,7 +287,6 @@ static void stop_generating(struct v4l2pim_minor *minor)
 		minor->kthread = NULL;
 	}
 	videobuf_stop(&minor->vb_vidq);
-	videobuf_mmap_free(&minor->vb_vidq);
 }
 
 static int is_generating(struct v4l2pim_minor *minor)
