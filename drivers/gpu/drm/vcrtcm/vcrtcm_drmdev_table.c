@@ -27,18 +27,13 @@
 
 #define MAX_NUM_DEVICES 32
 
-struct drmdev_table_entry {
-	struct drm_device *dev;
-	struct vcrtcm_g_drmdev_funcs funcs;
-};
-
-static struct drmdev_table_entry drmdev_table[MAX_NUM_DEVICES];
+static struct vcrtcm_drmdev drmdev_table[MAX_NUM_DEVICES];
 static DEFINE_SPINLOCK(drmdev_table_spinlock);
 
 /*
  * assumes dev is not already in table
  */
-int vcrtcm_set_drmdev_funcs(struct drm_device *dev,
+struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs)
 {
 	int k;
@@ -46,47 +41,45 @@ int vcrtcm_set_drmdev_funcs(struct drm_device *dev,
 
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
-		struct drmdev_table_entry *entry = &drmdev_table[k];
+		struct vcrtcm_drmdev *entry = &drmdev_table[k];
 		if (!entry->dev) {
 			entry->dev = dev;
 			entry->funcs = *funcs;
 			spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
-			return 0;
+			return entry;
 		}
 	}
 	spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
 	VCRTCM_ERROR("no free entry in device table\n");
-	return -EINVAL;
+	return NULL;
 }
 
-int vcrtcm_get_drmdev_funcs(struct drm_device *dev,
-	struct vcrtcm_g_drmdev_funcs *funcs)
+struct vcrtcm_drmdev *vcrtcm_get_drmdev(struct drm_device *dev)
 {
 	int k;
 	unsigned long flags;
 
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
-		struct drmdev_table_entry *entry = &drmdev_table[k];
+		struct vcrtcm_drmdev *entry = &drmdev_table[k];
 		if (entry->dev == dev) {
-			*funcs = entry->funcs;
 			spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
-			return 0;
+			return entry;
 		}
 	}
 	spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
 	VCRTCM_ERROR("dev %p not in device table\n", dev);
-	return -EINVAL;
+	return NULL;
 }
 
-int vcrtcm_remove_drmdev_funcs(struct drm_device *dev)
+int vcrtcm_remove_drmdev(struct drm_device *dev)
 {
 	int k;
 	unsigned long flags;
 
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
-		struct drmdev_table_entry *entry = &drmdev_table[k];
+		struct vcrtcm_drmdev *entry = &drmdev_table[k];
 		if (entry->dev == dev) {
 			entry->dev = NULL;
 			spin_unlock_irqrestore(&drmdev_table_spinlock, flags);

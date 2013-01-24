@@ -30,6 +30,7 @@
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_conn.h"
+#include "vcrtcm_drmdev_table.h"
 
 struct class *vcrtcm_class;
 
@@ -59,11 +60,20 @@ static ssize_t pim_pcons_show(struct kobject *kobj, struct attribute *attr,
 						char *buf);
 static ssize_t pim_pcons_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size);
+static ssize_t card_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t card_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
+static ssize_t card_conns_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t card_conns_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
 
 static struct kobj_type empty_type;
 static struct kobject pims_kobj;
 static struct kobject pcons_kobj;
 static struct kobject conns_kobj;
+static struct kobject cards_kobj;
 
 static const struct sysfs_ops pim_ops = {
 	.show = pim_show,
@@ -195,6 +205,34 @@ static struct kobj_type pim_pcons_type = {
 	.default_attrs = pim_pcons_attributes,
 };
 
+static const struct sysfs_ops card_ops = {
+	.show = card_show,
+	.store = card_store
+};
+
+static struct attribute *card_attributes[] = {
+	NULL
+};
+
+static struct kobj_type card_type = {
+	.sysfs_ops = &card_ops,
+	.default_attrs = card_attributes,
+};
+
+static const struct sysfs_ops card_conns_ops = {
+	.show = card_conns_show,
+	.store = card_conns_store
+};
+
+static struct attribute *card_conns_attributes[] = {
+	NULL
+};
+
+static struct kobj_type card_conns_type = {
+	.sysfs_ops = &card_conns_ops,
+	.default_attrs = card_conns_attributes,
+};
+
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
@@ -309,6 +347,40 @@ static ssize_t pim_pcons_store(struct kobject *kobj, struct attribute *attr,
 	return 0;
 }
 
+static ssize_t card_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
+{
+	struct vcrtcm_drmdev *vdev = (struct vcrtcm_drmdev *)
+				container_of(kobj, struct vcrtcm_drmdev, kobj);
+
+	if (!vdev)
+		return 0;
+	return 0;
+}
+
+static ssize_t card_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
+{
+	return 0;
+}
+
+static ssize_t card_conns_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
+{
+	struct vcrtcm_drmdev *vdev = (struct vcrtcm_drmdev *)
+		container_of(kobj, struct vcrtcm_drmdev, conns_kobj);
+
+	if (!vdev)
+		return 0;
+	return 0;
+}
+
+static ssize_t card_conns_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
+{
+	return 0;
+}
+
 int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 {
 	int ret = 0;
@@ -321,6 +393,7 @@ int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 	memset(&pcons_kobj, 0, sizeof(struct kobject));
 	memset(&empty_type, 0, sizeof(struct kobj_type));
 	memset(&conns_kobj, 0, sizeof(struct kobject));
+	memset(&cards_kobj, 0, sizeof(struct kobject));
 	ret = kobject_init_and_add(&pims_kobj, &empty_type,
 					&vcrtcm_device->kobj, "pims");
 	if (ret < 0) {
@@ -337,6 +410,12 @@ int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 					&vcrtcm_device->kobj, "connectors");
 	if (ret < 0) {
 		VCRTCM_ERROR("Error creating sysfs conn node...\n");
+		return ret;
+	}
+	ret = kobject_init_and_add(&cards_kobj, &empty_type,
+					&vcrtcm_device->kobj, "cards");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error creating sysfs card node...\n");
 		return ret;
 	}
 	return 0;
@@ -420,16 +499,29 @@ int vcrtcm_sysfs_add_conn(struct vcrtcm_conn *conn)
 		VCRTCM_ERROR("Error adding conn to sysfs\n");
 		return ret;
 	}
+	ret = kobject_init_and_add(&conn->pcons_kobj, &conn_pcons_type,
+		&conn->kobj, "pcons");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding conn/pcons to sysfs\n");
+		return ret;
+	}
 	ret = sysfs_create_link(&conn->kobj, &conn->drm_conn->kdev.kobj,
 		"drm_connector");
 	if (ret < 0) {
 		VCRTCM_ERROR("Error linking conn->drmconn in sysfs\n");
 		return ret;
 	}
-	ret = kobject_init_and_add(&conn->pcons_kobj, &conn_pcons_type,
-		&conn->kobj, "pcons");
+	ret = sysfs_create_link(&conn->kobj, &conn->vdev->kobj,
+		"card");
 	if (ret < 0) {
-		VCRTCM_ERROR("Error adding conn/pcons to sysfs\n");
+		VCRTCM_ERROR("Error linking conn->card in sysfs\n");
+		return ret;
+	}
+	snprintf(namebuf, NAMEBUFLEN, "%d", conn->drm_conn->base.id);
+	ret = sysfs_create_link(&conn->vdev->conns_kobj, &conn->kobj,
+			namebuf);
+	if (ret < 0) {
+		VCRTCM_ERROR("Error linking card->conn in sysfs\n");
 		return ret;
 	}
 	return 0;
@@ -437,9 +529,14 @@ int vcrtcm_sysfs_add_conn(struct vcrtcm_conn *conn)
 
 void vcrtcm_sysfs_del_conn(struct vcrtcm_conn *conn)
 {
+	char namebuf[NAMEBUFLEN];
+
 	if (!conn)
 		return;
+	snprintf(namebuf, NAMEBUFLEN, "%d", conn->drm_conn->base.id);
+	sysfs_remove_link(&conn->vdev->conns_kobj, namebuf);
 	sysfs_remove_link(&conn->kobj, "drm_connector");
+	sysfs_remove_link(&conn->kobj, "card");
 	kobject_del(&conn->pcons_kobj);
 	kobject_del(&conn->kobj);
 }
@@ -468,3 +565,40 @@ int vcrtcm_sysfs_detach(struct vcrtcm_pcon *pcon)
 	sysfs_remove_link(&pcon->kobj, "connector");
 	return 0;
 }
+
+int vcrtcm_sysfs_add_card(struct vcrtcm_drmdev *vdev)
+{
+	int ret = 0;
+	char namebuf[NAMEBUFLEN];
+
+	snprintf(namebuf, NAMEBUFLEN, "%d", MINOR(vdev->dev->dev->devt));
+	ret = kobject_init_and_add(&vdev->kobj, &card_type,
+		&cards_kobj, "%s", namebuf);
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding card to sysfs\n");
+		return ret;
+	}
+	ret = kobject_init_and_add(&vdev->conns_kobj, &card_conns_type,
+					&vdev->kobj, "connectors");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding card/conns to sysfs\n");
+		return ret;
+	}
+	ret = sysfs_create_link(&vdev->kobj, &vdev->dev->dev->kobj,
+		"drm_device");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error linking card->drmdev in sysfs\n");
+		return ret;
+	}
+	return 0;
+}
+
+void vcrtcm_sysfs_del_card(struct vcrtcm_drmdev *vdev)
+{
+	if (!vdev)
+		return;
+	sysfs_remove_link(&vdev->kobj, "drm_device");
+	kobject_del(&vdev->conns_kobj);
+	kobject_del(&vdev->kobj);
+}
+

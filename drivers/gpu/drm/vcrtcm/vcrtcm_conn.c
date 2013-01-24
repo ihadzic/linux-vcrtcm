@@ -40,12 +40,14 @@ void vcrtcm_unlock_conntbl(void)
 	mutex_unlock(&conn_list_mutex);
 }
 
-struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn)
+struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn,
+	struct vcrtcm_drmdev *vdev)
 {
 	struct vcrtcm_conn *conn;
 
 	list_for_each_entry(conn, &conn_list, conn_list) {
 		if (conn->drm_conn == drm_conn)
+			BUG_ON(conn->vdev != vdev);
 			return conn;
 	}
 	conn = (struct vcrtcm_conn *)vcrtcm_kzalloc(
@@ -56,6 +58,7 @@ struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn)
 	}
 	INIT_LIST_HEAD(&conn->conn_list);
 	conn->drm_conn = drm_conn;
+	conn->vdev = vdev;
 	list_add_tail(&conn->conn_list, &conn_list);
 	return conn;
 }

@@ -30,6 +30,7 @@
 #include "vcrtcm_module.h"
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_drmdev_table.h"
+#include "vcrtcm_sysfs_priv.h"
 
 int vcrtcm_g_detach(int pconid)
 {
@@ -876,12 +877,24 @@ EXPORT_SYMBOL(vcrtcm_g_unlock_pconid);
 int vcrtcm_g_register_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs)
 {
-	return vcrtcm_set_drmdev_funcs(dev, funcs);
+	struct vcrtcm_drmdev *vdev;
+
+	vdev = vcrtcm_add_drmdev(dev, funcs);
+	if (!vdev)
+		return -ENOMEM;
+	vcrtcm_sysfs_add_card(vdev);
+	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_register_drmdev);
 
 int vcrtcm_g_unregister_drmdev(struct drm_device *dev)
 {
-	return vcrtcm_remove_drmdev_funcs(dev);
+	struct vcrtcm_drmdev *vdev;
+
+	vdev = vcrtcm_get_drmdev(dev);
+	if (!vdev)
+		return -EINVAL;
+	vcrtcm_sysfs_del_card(vdev);
+	return vcrtcm_remove_drmdev(dev);
 }
 EXPORT_SYMBOL(vcrtcm_g_unregister_drmdev);

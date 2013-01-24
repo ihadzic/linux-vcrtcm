@@ -31,7 +31,10 @@
 struct vcrtcm_pim;
 struct vcrtcm_pcon;
 struct vcrtcm_conn;
+struct vcrtcm_drmdev;
 
+int vcrtcm_sysfs_add_card(struct vcrtcm_drmdev *dev);
+void vcrtcm_sysfs_del_card(struct vcrtcm_drmdev *dev);
 int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim);
 void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim);
 int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon);

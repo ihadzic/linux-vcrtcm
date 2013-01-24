@@ -20,16 +20,21 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
 #ifndef __VCRTCM_DRMDEV_H__
 #define __VCRTCM_DRMDEV_H__
 
 #include <vcrtcm/vcrtcm_gpu.h>
 
-int vcrtcm_set_drmdev_funcs(struct drm_device *dev,
+struct vcrtcm_drmdev {
+	struct drm_device *dev;
+	struct vcrtcm_g_drmdev_funcs funcs;
+	struct kobject kobj;
+	struct kobject conns_kobj;
+};
+
+struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs);
-int vcrtcm_get_drmdev_funcs(struct drm_device *dev,
-	struct vcrtcm_g_drmdev_funcs *funcs);
-int vcrtcm_remove_drmdev_funcs(struct drm_device *dev);
+struct vcrtcm_drmdev *vcrtcm_get_drmdev(struct drm_device *dev);
+int vcrtcm_remove_drmdev(struct drm_device *dev);
 
 #endif

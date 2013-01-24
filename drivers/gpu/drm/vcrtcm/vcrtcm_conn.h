@@ -24,9 +24,11 @@
 #define __VCRTCM_CONN_H__
 
 struct drm_connector;
+struct vcrtcm_drmdev;
 
 struct vcrtcm_conn {
 	struct drm_connector *drm_conn;
+	struct vcrtcm_drmdev *vdev;
 	struct kobject kobj;
 	struct kobject pcons_kobj;
 	int num_attached_pcons;
@@ -35,7 +37,8 @@ struct vcrtcm_conn {
 
 void vcrtcm_lock_conntbl(void);
 void vcrtcm_unlock_conntbl(void);
-struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn);
+struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn,
+	struct vcrtcm_drmdev *vdev);
 void vcrtcm_free_conn(struct vcrtcm_conn *conn);
 
 #endif
