@@ -55,6 +55,10 @@ static ssize_t conn_pcons_show(struct kobject *kobj, struct attribute *attr,
 						char *buf);
 static ssize_t conn_pcons_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size);
+static ssize_t pim_pcons_show(struct kobject *kobj, struct attribute *attr,
+						char *buf);
+static ssize_t pim_pcons_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size);
 
 static struct kobj_type empty_type;
 static struct kobject pims_kobj;
@@ -183,6 +187,20 @@ static struct kobj_type conn_pcons_type = {
 	.default_attrs = conn_pcons_attributes,
 };
 
+static const struct sysfs_ops pim_pcons_ops = {
+	.show = pim_pcons_show,
+	.store = pim_pcons_store
+};
+
+static struct attribute *pim_pcons_attributes[] = {
+	NULL
+};
+
+static struct kobj_type pim_pcons_type = {
+	.sysfs_ops = &pim_pcons_ops,
+	.default_attrs = pim_pcons_attributes,
+};
+
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
@@ -286,6 +304,23 @@ static ssize_t conn_pcons_store(struct kobject *kobj, struct attribute *attr,
 	return 0;
 }
 
+static ssize_t pim_pcons_show(struct kobject *kobj, struct attribute *attr,
+						char *buf)
+{
+	struct vcrtcm_pim *pim = (struct vcrtcm_pim *)
+				container_of(kobj, struct vcrtcm_pim, pcons_kobj);
+
+	if (!pim)
+		return 0;
+	return 0;
+}
+
+static ssize_t pim_pcons_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t size)
+{
+	return 0;
+}
+
 int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 {
 	int ret = 0;
@@ -331,6 +366,12 @@ int vcrtcm_sysfs_add_pim(struct vcrtcm_pim *pim)
 		VCRTCM_ERROR("Error adding pim to sysfs\n");
 		return ret;
 	}
+	ret = kobject_init_and_add(&pim->pcons_kobj, &pim_pcons_type,
+					&pim->kobj, "pcons");
+	if (ret < 0) {
+		VCRTCM_ERROR("Error adding pim/pcons to sysfs\n");
+		return ret;
+	}
 	return 0;
 }
 
@@ -338,6 +379,7 @@ void vcrtcm_sysfs_del_pim(struct vcrtcm_pim *pim)
 {
 	if (!pim)
 		return;
+	kobject_del(&pim->pcons_kobj);
 	kobject_del(&pim->kobj);
 }
 
@@ -353,7 +395,7 @@ int vcrtcm_sysfs_add_pcon(struct vcrtcm_pcon *pcon)
 		VCRTCM_ERROR("Error adding pcon to sysfs\n");
 		return ret;
 	}
-	ret = sysfs_create_link(&pcon->pim->kobj, &pcon->kobj,
+	ret = sysfs_create_link(&pcon->pim->pcons_kobj, &pcon->kobj,
 						pcon->kobj.name);
 	if (ret < 0) {
 		VCRTCM_ERROR("Error linking pim->pcon in sysfs\n");
@@ -371,7 +413,7 @@ void vcrtcm_sysfs_del_pcon(struct vcrtcm_pcon *pcon)
 {
 	if (!pcon)
 		return;
-	sysfs_remove_link(&pcon->pim->kobj, pcon->kobj.name);
+	sysfs_remove_link(&pcon->pim->pcons_kobj, pcon->kobj.name);
 	kobject_del(&pcon->kobj);
 }
 

@@ -45,6 +45,7 @@ struct vcrtcm_pim {
 	struct list_head minors_in_pim_list;
 
 	struct kobject kobj;
+	struct kobject pcons_kobj;
 	struct list_head pim_list;
 	int callbacks_enabled;
 	int alloc_cnt;
