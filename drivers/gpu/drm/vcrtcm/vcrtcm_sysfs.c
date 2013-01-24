@@ -37,7 +37,6 @@ struct class *vcrtcm_sysfs_get_class()
 }
 EXPORT_SYMBOL(vcrtcm_sysfs_get_class);
 
-/* Prototypes of sysfs property read/write functions. */
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf);
 static ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
@@ -47,40 +46,30 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size);
 
-/* Empty kobj_type to use for the "pims" and "pcons" directory. */
 static struct kobj_type empty_type;
-
-/* Kobject for "pims" directory. */
 static struct kobject pims_kobj;
-
-/* Kobject for "pcons" directory. */
 static struct kobject pcons_kobj;
 
-/* Operations to read/write properties on a PIM entry. */
 static const struct sysfs_ops pim_ops = {
 	.show = pim_show,
 	.store = pim_store
 };
 
-/* PIM name attribute */
 static struct attribute pim_name_attr = {
 	.name = "name",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PIM id attribute. */
 static struct attribute pim_id_attr = {
 	.name = "id",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PIM description attribute. */
 static struct attribute pim_desc_attr = {
 	.name = "description",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* Array of PIM attributes. */
 static struct attribute *pim_attributes[] = {
 	&pim_name_attr,
 	&pim_id_attr,
@@ -88,49 +77,41 @@ static struct attribute *pim_attributes[] = {
 	NULL
 };
 
-/* Definition of PIM kobj_type. */
 static struct kobj_type pim_type = {
 	.sysfs_ops = &pim_ops,
 	.default_attrs = pim_attributes,
 };
 
-/* Operations to read/write properties on a PCON entry. */
 static const struct sysfs_ops pcon_ops = {
 	.show = pcon_show,
 	.store = pcon_store
 };
 
-/* PCON description attribute. */
 static struct attribute pcon_desc_attr = {
 	.name = "description",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PCON minor attribute. */
 static struct attribute pcon_minor_attr = {
 	.name = "minor",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PCON localid attribute. */
 static struct attribute pcon_local_pconid_attr = {
 	.name = "local_pconid",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PCON fps attribute. */
 static struct attribute pcon_fps_attr = {
 	.name = "fps",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* PCON attached attribute */
 static struct attribute pcon_attached_attr = {
 	.name = "attached",
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
-/* Array of PCON attributes. */
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_local_pconid_attr,
@@ -140,13 +121,11 @@ static struct attribute *pcon_attributes[] = {
 	NULL
 };
 
-/* Definition of PCON kobj_type. */
 static struct kobj_type pcon_type = {
 	.sysfs_ops = &pcon_ops,
 	.default_attrs = pcon_attributes,
 };
 
-/* Implementation of the function to read PIM properties. */
 static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
@@ -168,14 +147,12 @@ static ssize_t pim_show(struct kobject *kobj, struct attribute *attr,
 	return 0;
 }
 
-/* Implementation of the function to write PIM properties (unused). */
 static ssize_t pim_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size)
 {
 	return 0;
 }
 
-/* Implementation of the function to read PCON properties. */
 static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 						char *buf)
 {
@@ -204,14 +181,12 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 	return 0;
 }
 
-/* Implementation of the function to write PCON properties (unused). */
 static ssize_t pcon_store(struct kobject *kobj, struct attribute *attr,
 						const char *buf, size_t size)
 {
 	return 0;
 }
 
-/* Initialize the pimmgr sysfs stuff (called from init). */
 int vcrtcm_sysfs_init(struct device *vcrtcm_device)
 {
 	int ret = 0;
