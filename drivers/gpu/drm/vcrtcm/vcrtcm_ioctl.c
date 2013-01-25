@@ -121,7 +121,7 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t requested_xfer_mode,
 	return 0;
 }
 
-static long vcrtcm_ioctl_destroy(int extid)
+static long vcrtcm_ioctl_destroy(int extid, int force)
 {
 	struct vcrtcm_pcon *pcon;
 	void *cookie;
@@ -156,7 +156,7 @@ static long vcrtcm_ioctl_destroy(int extid)
 			int r;
 
 			r = pcon->pim_funcs.detach(pcon->pconid,
-							pcon->pcon_cookie);
+				pcon->pcon_cookie, force);
 			if (r) {
 				VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
 					pcon->pconid);
@@ -277,7 +277,8 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		if (pcon->pim_funcs.detach &&
 			pcon->pcon_callbacks_enabled &&
 			pcon->pim->callbacks_enabled) {
-			pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie);
+			pcon->pim_funcs.detach(pcon->pconid,
+				pcon->pcon_cookie, 1);
 		}
 		vcrtcm_unlock_extid(extid);
 		if (conn_is_new) {
@@ -302,7 +303,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	return 0;
 }
 
-static long vcrtcm_ioctl_detach(int extid)
+static long vcrtcm_ioctl_detach(int extid, int force)
 {
 	struct vcrtcm_pcon *pcon;
 	int saved_fps;
@@ -332,7 +333,8 @@ static long vcrtcm_ioctl_detach(int extid)
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		int r;
-		r = pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie);
+		r = pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie,
+			force);
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
 				pcon->pconid);
@@ -423,14 +425,14 @@ long vcrtcm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			&args.result1.pconid);
 		break;
 	case VCRTCM_IOC_DESTROY:
-		r = vcrtcm_ioctl_destroy(args.arg1.pconid);
+		r = vcrtcm_ioctl_destroy(args.arg1.pconid, args.arg2.force);
 		break;
 	case VCRTCM_IOC_ATTACH:
 		r = vcrtcm_ioctl_attach(args.arg1.pconid, args.arg2.connid,
 			args.arg3.major, args.arg4.minor);
 		break;
 	case VCRTCM_IOC_DETACH:
-		r = vcrtcm_ioctl_detach(args.arg1.pconid);
+		r = vcrtcm_ioctl_detach(args.arg1.pconid, args.arg2.force);
 		break;
 	case VCRTCM_IOC_FPS:
 		r = vcrtcm_ioctl_fps(args.arg1.pconid, args.arg2.fps);

@@ -29,7 +29,7 @@
 /* args: pimid xfer_mode hints */
 #define VCRTCM_IOC_INSTANTIATE _IOW(VCRTCM_MAGIC, 1, int)
 
-/* args: pconid */
+/* args: pconid force */
 #define VCRTCM_IOC_DESTROY _IOW(VCRTCM_MAGIC, 2, int)
 
 /* args: pimid testarg */
@@ -38,7 +38,7 @@
 /* args: pconid drm-connector-id major minor */
 #define VCRTCM_IOC_ATTACH _IOW(VCRTCM_MAGIC, 4, int)
 
-/* args: pconid */
+/* args: pconid force */
 #define VCRTCM_IOC_DETACH _IOW(VCRTCM_MAGIC, 5, int)
 
 /* args: pconid fps */
@@ -59,6 +59,7 @@ struct vcrtcm_ioctl_args {
 		int32_t connid;
 		int32_t fps;
 		uint32_t hints;
+		uint32_t force;
 	} arg2;
 	union {
 		int32_t pconid;

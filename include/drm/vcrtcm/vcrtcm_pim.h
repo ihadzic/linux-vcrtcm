@@ -66,7 +66,7 @@ struct vcrtcm_push_buffer_descriptor {
  */
 struct vcrtcm_p_pcon_funcs {
 	/*
-	 * called to tell the pim that the pcon has become attached
+	 * called to tell the pim to attach the pcon
 	 *
 	 * mutex locked: yes
 	 * must be atomic: no
@@ -74,12 +74,12 @@ struct vcrtcm_p_pcon_funcs {
 	int (*attach)(int pconid, void *cookie);
 
 	/*
-	 * called to tell the pim that the pcon has become detached
+	 * called to tell the pim to detach the pcon
 	 *
 	 * mutex locked: yes
 	 * must be atomic: no
 	 */
-	int (*detach)(int pconid, void *cookie);
+	int (*detach)(int pconid, void *cookie, int force);
 
 	/*
 	 * called to tell the pim to set the pcon's frame buffer

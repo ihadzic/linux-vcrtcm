@@ -58,7 +58,7 @@ int vcrtcm_g_detach(int pconid)
 		pcon->pim->callbacks_enabled) {
 		int r;
 		r = pcon->pim_funcs.detach(pconid,
-					    pcon->pcon_cookie);
+					    pcon->pcon_cookie, 0);
 		if (r) {
 			VCRTCM_ERROR("pim refuses to detach pcon 0x%08x\n",
 				pcon->pconid);
