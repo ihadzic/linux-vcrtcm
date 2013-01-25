@@ -45,6 +45,11 @@ struct vcrtcm_pim *vcrtcm_create_pim(char *pim_name,
 	if (!pim_name || !funcs)
 		return NULL;
 	mutex_lock(&pim_list_mutex);
+	if (next_pimid & VCRTCM_OWNER_BITMASK) {
+		VCRTCM_ERROR("too many pim registrations\n");
+		mutex_unlock(&pim_list_mutex);
+		return NULL;
+	}
 	list_for_each_entry(pim, &pim_list, pim_list) {
 		if (strcmp(pim->name, pim_name) == 0) {
 			VCRTCM_ERROR("pim %s already exists; unregister it or use a different name\n", pim_name);
