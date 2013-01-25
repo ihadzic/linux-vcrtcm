@@ -99,7 +99,7 @@ void udlpim_detach_pcon(struct udlpim_pcon *pcon)
 	VCRTCM_INFO("detached pcon 0x%08x\n", pcon->pconid);
 }
 
-int udlpim_detach(int pconid, void *cookie)
+int udlpim_detach(int pconid, void *cookie, int force)
 {
 	struct udlpim_pcon *pcon = udlpim_cookie2pcon(pconid, cookie);
 
