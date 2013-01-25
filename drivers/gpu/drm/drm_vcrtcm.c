@@ -197,7 +197,7 @@ struct drm_connector *drm_vcrtcm_get_crtc_for_attach(dev_t dev,
 		mutex_unlock(&ddev->mode_config.mutex);
 		mutex_unlock(&drm_global_mutex);
 		DRM_ERROR("conn %d not in minor %d\n", connid, MINOR(dev));
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EINVAL);
 	}
 	obj = drm_mode_object_find(ddev, connid, DRM_MODE_OBJECT_CONNECTOR);
 	BUG_ON(!obj);
