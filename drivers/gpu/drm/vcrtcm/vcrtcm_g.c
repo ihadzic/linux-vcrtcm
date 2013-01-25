@@ -48,7 +48,7 @@ int vcrtcm_g_detach(int pconid)
 		return -EINVAL;
 	}
 	if (!pcon->drm_crtc) {
-		VCRTCM_WARNING("pcon already detached\n");
+		VCRTCM_WARNING("pcon 0x%08x already detached\n", pconid);
 		return -EINVAL;
 	}
 	saved_fps = pcon->fps;

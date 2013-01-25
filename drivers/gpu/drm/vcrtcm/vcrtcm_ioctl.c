@@ -44,7 +44,7 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 	VCRTCM_DEBUG("pimid %d, testarg %d\n", pimid, testarg);
 	pim = vcrtcm_get_pim(pimid);
 	if (!pim) {
-		VCRTCM_ERROR("invalid pimid\n");
+		VCRTCM_ERROR("invalid pimid %d\n", pimid);
 		return -EINVAL;
 	}
 	if (!pim->callbacks_enabled) {
@@ -106,8 +106,7 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t requested_xfer_mode,
 					&pcon->vblank_slack_jiffies,
 					pcon->description);
 	if (r) {
-		VCRTCM_ERROR("no pcons of type %s available...\n",
-			     pim->name);
+		VCRTCM_ERROR("pim %s instantiate failed\n", pim->name);
 		vcrtcm_dealloc_pcon(pcon);
 		vcrtcm_unlock_pconid(pconid);
 		return r;
@@ -135,7 +134,7 @@ static long vcrtcm_ioctl_destroy(int extid, int force)
 	if (!pcon) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
-		return -EINVAL;
+		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
 		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pcon->pconid);
@@ -219,12 +218,12 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	BUG_ON(crtc_index < 0);
 	vdev = vcrtcm_get_drmdev(drm_conn->dev);
 	if (!vdev) {
-		VCRTCM_ERROR("device %d:%d not registered\n", MAJOR(dev),
-			MINOR(dev));
-		return -EINVAL;
+		VCRTCM_ERROR("device %d:%d not registered\n", major, minor);
+		return -ENODEV;
 	}
 	if (!vdev->funcs.attach) {
-		VCRTCM_ERROR("no attach callback\n");
+		VCRTCM_ERROR("device %d:%d has no attach callback\n",
+			major, minor);
 		return -EINVAL;
 	}
 	if (vcrtcm_lock_extid(extid))
@@ -242,7 +241,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	}
 	if (pcon->drm_crtc) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_WARNING("pcon already attached\n");
+		VCRTCM_WARNING("pcon 0x%08x already attached\n", pcon->pconid);
 		return -EINVAL;
 	}
 	BUG_ON(pcon->conn);
@@ -323,7 +322,7 @@ static long vcrtcm_ioctl_detach(int extid, int force)
 	}
 	if (!pcon->drm_crtc) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_WARNING("pcon already detached\n");
+		VCRTCM_WARNING("pcon 0x%08x already detached\n", pcon->pconid);
 		return -EINVAL;
 	}
 	BUG_ON(!pcon->conn);
