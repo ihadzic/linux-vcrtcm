@@ -24,7 +24,7 @@
 /* VCRTCM interface function prototypes */
 
 int v4l2pim_attach(int pconid, void *cookie);
-int v4l2pim_detach(int pconid, void *cookie);
+int v4l2pim_detach(int pconid, void *cookie, int force);
 int v4l2pim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_set_fps(int pconid, void *cookie, int fps);
@@ -47,6 +47,6 @@ int v4l2pim_get_dpms(int pconid, void *cookie, int *state);
 
 void copy_cursor_work(struct work_struct *work);
 void v4l2pim_destroy_pcon(struct v4l2pim_pcon *pcon);
-int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon);
+int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon, int force);
 
 #endif

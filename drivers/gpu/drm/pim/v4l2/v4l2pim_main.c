@@ -1141,7 +1141,7 @@ static void __exit v4l2pim_exit(void)
 		int pconid = minor->pcon->pconid;
 
 		vcrtcm_p_lock_pconid(pconid);
-		v4l2pim_detach_pcon(minor->pcon); /* ignore return code */
+		v4l2pim_detach_pcon(minor->pcon, 1); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
 		vcrtcm_p_unlock_pconid(pconid);
 		v4l2pim_destroy_minor(minor);

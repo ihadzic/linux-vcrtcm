@@ -142,15 +142,20 @@ int v4l2pim_attach(int pconid, void *cookie)
 	return 0;
 }
 
-int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
+int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon, int force)
 {
 	struct v4l2pim_minor *minor;
 
 	minor = pcon->minor;
 	if (atomic_read(&minor->users) > 0) {
-		VCRTCM_ERROR("cannot detach pcon 0x%08x, minor %d in use\n",
-			pcon->pconid, minor->minor);
-		return -EBUSY;
+		if (force)
+			VCRTCM_WARNING("minor %d for pcon 0x%08x in use, detach forced\n",
+				minor->minor, pcon->pconid);
+		else {
+			VCRTCM_ERROR("cannot detach pcon 0x%08x, minor %d in use\n",
+				pcon->pconid, minor->minor);
+			return -EBUSY;
+		}
 	}
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_FB);
 	v4l2pim_free_pb(pcon, V4L2PIM_ALLOC_PB_FLAG_CURSOR);
@@ -159,13 +164,13 @@ int v4l2pim_detach_pcon(struct v4l2pim_pcon *pcon)
 	return 0;
 }
 
-int v4l2pim_detach(int pconid, void *cookie)
+int v4l2pim_detach(int pconid, void *cookie, int force)
 {
 	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
 
 	if (!pcon)
 		return -ENODEV;
-	return v4l2pim_detach_pcon(pcon);
+	return v4l2pim_detach_pcon(pcon, force);
 }
 
 static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
