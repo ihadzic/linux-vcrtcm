@@ -980,11 +980,12 @@ static int __videobuf_read_start(struct videobuf_queue *q)
 		err = q->ops->buf_prepare(q, q->bufs[i], field);
 		if (err)
 			return err;
-		list_add_tail(&q->bufs[i]->stream, &q->stream);
 	}
 	spin_lock_irqsave(q->irqlock, flags);
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		list_add_tail(&q->bufs[i]->stream, &q->stream);
 		q->ops->buf_queue(q, q->bufs[i]);
+	}
 	spin_unlock_irqrestore(q->irqlock, flags);
 	q->reading = 1;
 	return 0;
