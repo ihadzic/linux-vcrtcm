@@ -469,7 +469,7 @@ int radeon_attach_callback(int pconid, struct drm_device *dev,
 	struct radeon_crtc *radeon_crtc;
 	struct radeon_device *rdev;
 
-	DRM_INFO("attaching pcon %d to crtc %d:%d\n", pconid, crtc_drmid,
+	DRM_INFO("attaching pcon 0x%08x to crtc %d:%d\n", pconid, crtc_drmid,
 		crtc_index);
 	rdev = dev->dev_private;
 	BUG_ON(!rdev);
@@ -480,7 +480,7 @@ int radeon_attach_callback(int pconid, struct drm_device *dev,
 	}
 	BUG_ON(radeon_crtc->crtc_id != crtc_index);
 	if (radeon_crtc->pconid >= 0) {
-		DRM_ERROR("already attached to pcon %d\n", radeon_crtc->pconid);
+		DRM_ERROR("already attached to pcon 0x%08x\n", radeon_crtc->pconid);
 		return -EINVAL;
 	}
 	radeon_crtc->xfer_mode = xfer_mode;
