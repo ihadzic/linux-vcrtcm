@@ -449,6 +449,7 @@ int vcrtcm_p_push(int pconid,
 	struct drm_gem_object *push_buffer_fb = NULL;
 	struct drm_gem_object *push_buffer_cursor = NULL;
 
+	BUG_ON(!fpbd);
 	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
@@ -469,6 +470,7 @@ int vcrtcm_p_push(int pconid,
 	}
 	if (fpbd) {
 		push_buffer_fb = fpbd->gpu_private;
+		BUG_ON(!push_buffer_fb);
 		fpbd->virgin = 0;
 	}
 	if (pcon->gpu_funcs.push) {
