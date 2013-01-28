@@ -296,18 +296,28 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 			      struct drm_gem_object *dbuf_fb,
 			      struct drm_gem_object *dbuf_cursor)
 {
-	struct radeon_device *rdev = scrtc->dev->dev_private;
-	int ridx = radeon_copy_dma_ring_index(rdev);
-	struct radeon_crtc *srcrtc = to_radeon_crtc(scrtc);
-	struct drm_framebuffer *sfb = srcrtc->vcrtcm_push_fb;
-	struct drm_gem_object *scbo = srcrtc->cursor_bo;
-	struct radeon_fence *fence_c = srcrtc->last_push_fence_c;
-	struct radeon_fence *fence_fb = srcrtc->last_push_fence_fb;
+	struct radeon_device *rdev;
+	int ridx;
+	struct radeon_crtc *srcrtc;
+	struct drm_framebuffer *sfb;
+	struct drm_gem_object *scbo;
+	struct radeon_fence *fence_c;
+	struct radeon_fence *fence_fb;
 	struct drm_gem_object *sfbbo;
 	struct radeon_framebuffer *srfb;
 	struct radeon_bo *src_rbo, *dst_rbo;
 	uint64_t saddr, daddr;
 	unsigned num_pages, size_in_bytes;
+
+	BUG_ON(!scrtc);
+	BUG_ON(!dbuf_fb);
+	rdev = scrtc->dev->dev_private;
+	ridx = radeon_copy_dma_ring_index(rdev);
+	srcrtc = to_radeon_crtc(scrtc);
+	sfb = srcrtc->vcrtcm_push_fb;
+	scbo = srcrtc->cursor_bo;
+	fence_c = srcrtc->last_push_fence_c;
+	fence_fb = srcrtc->last_push_fence_fb;
 
 	/* bail out if we don't have the frame buffer */
 	if (!sfb)
@@ -320,6 +330,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	srcrtc->vcrtcm_push_in_progress = 1;
 	srfb = to_radeon_framebuffer(sfb);
 	sfbbo = srfb->obj;
+	BUG_ON(!sfbbo);
 
 	/* copy the mouse cursor first (if we have one) */
 	if (dbuf_cursor && scbo) {
