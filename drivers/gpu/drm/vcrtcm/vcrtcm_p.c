@@ -101,6 +101,7 @@ static void vcrtcm_dma_buf_release(struct dma_buf *dma_buf)
 		obj->export_dma_buf = NULL;
 		drm_gem_object_unreference_unlocked(obj);
 	}
+	pbd->gpu_private = NULL;
 }
 
 static void *vcrtcm_dma_buf_kmap(struct dma_buf *dma_buf,
