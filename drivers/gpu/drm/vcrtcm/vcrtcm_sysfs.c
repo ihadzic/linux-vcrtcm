@@ -168,7 +168,13 @@ static const struct sysfs_ops conn_ops = {
 	.store = conn_store
 };
 
+static struct attribute conn_virtual_attr = {
+	.name = "virtual",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 static struct attribute *conn_attributes[] = {
+	&conn_virtual_attr,
 	NULL
 };
 
@@ -304,6 +310,8 @@ static ssize_t conn_show(struct kobject *kobj, struct attribute *attr,
 
 	if (!conn)
 		return 0;
+	if (attr == &conn_virtual_attr)
+		return scnprintf(buf, PAGE_SIZE, "%d\n", conn->virtual);
 	return 0;
 }
 
