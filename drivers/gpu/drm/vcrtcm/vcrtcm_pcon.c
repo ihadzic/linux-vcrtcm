@@ -26,6 +26,7 @@
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_sysfs_priv.h"
+#include "vcrtcm_vblank.h"
 
 void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 {
@@ -101,7 +102,7 @@ void vcrtcm_set_fps(struct vcrtcm_pcon *pcon, int fps)
 		pcon->last_vblank_jiffies = now;
 		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
 		if (old_fps == 0) {
-			schedule_delayed_work(&pcon->vblank_work, 0);
+			vcrtcm_schedule_vblank(pcon);
 			VCRTCM_INFO("transmission enabled on pcon 0x%08x (%d f/s)\n",
 				pcon->pconid, fps);
 		}

@@ -23,14 +23,34 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_pcon.h"
 
-void
-vcrtcm_vblank_work_fcn(struct work_struct *work)
+static struct workqueue_struct *work_queue;
+
+int vcrtcm_vblank_init(void)
+{
+	work_queue = create_workqueue("vcrtcm_vblank");
+	if (!work_queue)
+		return -ENOMEM;
+	return 0;
+}
+
+void vcrtcm_vblank_deinit(void)
+{
+	destroy_workqueue(work_queue);
+}
+
+void vcrtcm_schedule_vblank(struct vcrtcm_pcon *pcon)
+{
+	queue_delayed_work(work_queue, &pcon->vblank_work, 0);
+}
+
+void vcrtcm_vblank_work_fcn(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
@@ -58,6 +78,6 @@ vcrtcm_vblank_work_fcn(struct work_struct *work)
 	next_vblank_delay = pcon->next_vblank_jiffies - (int)now;
 	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
 		next_vblank_delay = 0;
-	schedule_delayed_work(&pcon->vblank_work, next_vblank_delay);
+	queue_delayed_work(work_queue, &pcon->vblank_work, next_vblank_delay);
 	vcrtcm_unlock_pconid(pcon->pconid);
 }

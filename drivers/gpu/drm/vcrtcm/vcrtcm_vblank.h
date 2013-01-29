@@ -25,5 +25,8 @@
 #define __VCRTCM_VBLANK_H__
 
 void vcrtcm_vblank_work_fcn(struct work_struct *work);
+int vcrtcm_vblank_init(void);
+void vcrtcm_vblank_deinit(void);
+void vcrtcm_schedule_vblank(struct vcrtcm_pcon *pcon);
 
 #endif
