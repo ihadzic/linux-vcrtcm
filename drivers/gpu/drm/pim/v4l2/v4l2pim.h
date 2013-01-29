@@ -76,8 +76,6 @@ struct v4l2pim_minor {
 	struct mutex buffer_mutex;
 	atomic_t users;
 	atomic_t syscall_count;
-	char *main_buffer;
-	char *cursor;
 
 	/* v4l2pim */
 	uint8_t *shadowbuf;
@@ -85,7 +83,6 @@ struct v4l2pim_minor {
 	spinlock_t sb_lock;
 	struct page **shadowbuf_pages;
 	unsigned int shadowbuf_num_pages;
-	unsigned long jshadowbuf;
 
 	struct video_device *vfd;
 	struct v4l2_device v4l2_dev;
