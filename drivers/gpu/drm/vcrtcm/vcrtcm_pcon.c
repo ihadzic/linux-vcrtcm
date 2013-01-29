@@ -117,13 +117,7 @@ void vcrtcm_detach(struct vcrtcm_pcon *pcon)
 	pcon->attach_minor = -1;
 	vcrtcm_set_crtc(pcon, NULL);
 	vcrtcm_sysfs_detach(pcon);
-	vcrtcm_lock_conntbl();
-	--pcon->conn->num_attached_pcons;
-	if (pcon->conn->num_attached_pcons == 0) {
-		vcrtcm_sysfs_del_conn(pcon->conn);
-		vcrtcm_free_conn(pcon->conn);
-	}
-	vcrtcm_unlock_conntbl();
+	atomic_dec(&pcon->conn->num_attached_pcons);
 	pcon->conn = NULL;
 }
 

@@ -901,12 +901,26 @@ EXPORT_SYMBOL(vcrtcm_g_unregister_drmdev);
 
 int vcrtcm_g_register_connector(struct drm_connector *drm_conn, int virtual)
 {
+	struct vcrtcm_conn *conn;
+
+	conn = vcrtcm_add_conn(drm_conn, virtual);
+	if (IS_ERR(conn))
+		return PTR_ERR(conn);
+	vcrtcm_sysfs_add_conn(conn);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_register_connector);
 
 int vcrtcm_g_unregister_connector(struct drm_connector *drm_conn)
 {
+	struct vcrtcm_conn *conn;
+
+	conn = vcrtcm_get_conn(drm_conn);
+	if (!conn)
+		return -EINVAL;
+	BUG_ON(atomic_read(&conn->num_attached_pcons) != 0);
+	vcrtcm_sysfs_del_conn(conn);
+	vcrtcm_free_conn(conn);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_g_unregister_connector);

@@ -204,7 +204,6 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	dev_t dev;
 	int r;
 	struct vcrtcm_conn *conn;
-	int conn_is_new;
 
 	VCRTCM_INFO("attach pcon 0x%08x to conn %d of dev %d:%d\n",
 		extid, connid, major, minor);
@@ -220,6 +219,13 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	if (!vdev) {
 		VCRTCM_ERROR("device %d:%d not registered\n", major, minor);
 		return -ENODEV;
+	}
+	conn = vcrtcm_get_conn(drm_conn);
+	if (!conn) {
+		VCRTCM_ERROR("connector %d of device %d:%d not registered\n",
+			connid, major, minor);
+		vcrtcm_unlock_extid(extid);
+		return -ENOMEM;
 	}
 	if (!vdev->funcs.attach) {
 		VCRTCM_ERROR("device %d:%d has no attach callback\n",
@@ -245,26 +251,12 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		return -EINVAL;
 	}
 	BUG_ON(pcon->conn);
-	vcrtcm_lock_conntbl();
-	conn = vcrtcm_get_conn(drm_conn, vdev);
-	if (!conn) {
-		vcrtcm_unlock_conntbl();
-		vcrtcm_unlock_extid(extid);
-		return -ENOMEM;
-	}
-	conn_is_new = (conn->num_attached_pcons == 0);
-	vcrtcm_unlock_conntbl();
 	if (pcon->pim_funcs.attach &&
 		pcon->pcon_callbacks_enabled &&
 		pcon->pim->callbacks_enabled) {
 		r = pcon->pim_funcs.attach(pcon->pconid, pcon->pcon_cookie);
 		if (r) {
 			vcrtcm_unlock_extid(extid);
-			if (conn_is_new) {
-				vcrtcm_lock_conntbl();
-				vcrtcm_free_conn(conn);
-				vcrtcm_unlock_conntbl();
-			}
 			return r;
 		}
 	}
@@ -280,11 +272,6 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 				pcon->pcon_cookie, 1);
 		}
 		vcrtcm_unlock_extid(extid);
-		if (conn_is_new) {
-			vcrtcm_lock_conntbl();
-			vcrtcm_free_conn(conn);
-			vcrtcm_unlock_conntbl();
-		}
 		return r;
 	}
 	vcrtcm_set_crtc(pcon, drm_crtc);
@@ -292,11 +279,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		pcon->gpu_funcs.post_attach(pcon->drm_crtc);
 	pcon->attach_minor = minor;
 	pcon->conn = conn;
-	vcrtcm_lock_conntbl();
-	++conn->num_attached_pcons;
-	if (conn_is_new)
-		vcrtcm_sysfs_add_conn(conn);
-	vcrtcm_unlock_conntbl();
+	atomic_inc(&pcon->conn->num_attached_pcons);
 	vcrtcm_sysfs_attach(pcon);
 	vcrtcm_unlock_extid(extid);
 	return 0;

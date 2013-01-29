@@ -26,45 +26,59 @@
 #include <vcrtcm/vcrtcm_utils.h>
 #include <vcrtcm/vcrtcm_alloc.h>
 #include "vcrtcm_conn.h"
+#include "vcrtcm_drmdev_table.h"
 
 static DEFINE_MUTEX(conn_list_mutex);
 static LIST_HEAD(conn_list);
 
-void vcrtcm_lock_conntbl(void)
-{
-	mutex_lock(&conn_list_mutex);
-}
-
-void vcrtcm_unlock_conntbl(void)
-{
-	mutex_unlock(&conn_list_mutex);
-}
-
-struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn,
-	struct vcrtcm_drmdev *vdev)
+struct vcrtcm_conn *vcrtcm_add_conn(struct drm_connector *drm_conn, int virtual)
 {
 	struct vcrtcm_conn *conn;
+	struct vcrtcm_drmdev *vdev;
 
-	list_for_each_entry(conn, &conn_list, conn_list) {
-		if (conn->drm_conn == drm_conn)
-			BUG_ON(conn->vdev != vdev);
-			return conn;
+	vdev = vcrtcm_get_drmdev(drm_conn->dev);
+	if (!vdev) {
+		VCRTCM_ERROR("connector %d's device not registered\n",
+			drm_conn->base.id);
+		return ERR_PTR(-ENODEV);
 	}
+	mutex_lock(&conn_list_mutex);
 	conn = (struct vcrtcm_conn *)vcrtcm_kzalloc(
 		sizeof(struct vcrtcm_conn), GFP_KERNEL, VCRTCM_OWNER_VCRTCM);
 	if (!conn) {
 		VCRTCM_ERROR("cannot allocate memory for conn\n");
-		return NULL;
+		mutex_unlock(&conn_list_mutex);
+		return ERR_PTR(-ENOMEM);
 	}
 	INIT_LIST_HEAD(&conn->conn_list);
+	atomic_set(&conn->num_attached_pcons, 0);
 	conn->drm_conn = drm_conn;
 	conn->vdev = vdev;
+	conn->virtual = virtual;
 	list_add_tail(&conn->conn_list, &conn_list);
+	mutex_unlock(&conn_list_mutex);
 	return conn;
+}
+
+struct vcrtcm_conn *vcrtcm_get_conn(struct drm_connector *drm_conn)
+{
+	struct vcrtcm_conn *conn;
+
+	mutex_lock(&conn_list_mutex);
+	list_for_each_entry(conn, &conn_list, conn_list) {
+		if (conn->drm_conn == drm_conn) {
+			mutex_unlock(&conn_list_mutex);
+			return conn;
+		}
+	}
+	mutex_unlock(&conn_list_mutex);
+	return NULL;
 }
 
 void vcrtcm_free_conn(struct vcrtcm_conn *conn)
 {
+	mutex_lock(&conn_list_mutex);
 	list_del(&conn->conn_list);
 	vcrtcm_kfree(conn);
+	mutex_unlock(&conn_list_mutex);
 }
