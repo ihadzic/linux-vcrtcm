@@ -221,12 +221,44 @@ fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
 	vb->state = VIDEOBUF_DONE;
 }
 
-static void v4l2pim_thread_tick(struct v4l2pim_minor *minor)
+static void start_generating(struct v4l2pim_minor *minor)
+{
+	mutex_lock(&minor->buffer_mutex);
+	set_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
+	mutex_unlock(&minor->buffer_mutex);
+	return;
+}
+
+static void stop_generating(struct v4l2pim_minor *minor)
+{
+	mutex_lock(&minor->buffer_mutex);
+	if (!test_and_clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status)) {
+		mutex_unlock(&minor->buffer_mutex);
+		return;
+	}
+	videobuf_stop(&minor->vb_vidq);
+	mutex_unlock(&minor->buffer_mutex);
+}
+
+static int is_generating(struct v4l2pim_minor *minor)
+{
+	return test_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
+}
+
+static int is_active(struct v4l2pim_minor *minor)
+{
+	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
+}
+
+void v4l2pim_deliver_frame(struct v4l2pim_minor *minor)
 {
 	struct videobuf_buffer *vb;
 	unsigned long flags = 0;
 	uint8_t *fb;
 	uint32_t fbsize;
+
+	if (!is_generating(minor))
+		return;
 
 	fb = minor->shadowbuf;
 	fbsize = minor->shadowbufsize;
@@ -246,57 +278,6 @@ static void v4l2pim_thread_tick(struct v4l2pim_minor *minor)
 	wake_up(&vb->done);
 unlock:
 	spin_unlock_irqrestore(&minor->slock, flags);
-}
-
-static int v4l2pim_thread(void *data)
-{
-	struct v4l2pim_minor *minor;
-	unsigned long sleep_time;
-
-	minor = data;
-	sleep_time = msecs_to_jiffies(0);
-	/* set_freezable(); */
-	while (!kthread_should_stop()) {
-		v4l2pim_thread_tick(minor);
-		if (kthread_should_stop())
-			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(sleep_time);
-	}
-	return 0;
-}
-
-static void start_generating(struct v4l2pim_minor *minor)
-{
-	if (test_and_set_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
-		return;
-	minor->kthread = kthread_run(v4l2pim_thread, minor,
-					minor->v4l2_dev.name);
-	if (IS_ERR(minor->kthread)) {
-		clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
-		return;
-	}
-}
-
-static void stop_generating(struct v4l2pim_minor *minor)
-{
-	if (!test_and_clear_bit(V4L2PIM_STATUS_GENERATING, &minor->status))
-		return;
-	if (minor->kthread) {
-		kthread_stop(minor->kthread);
-		minor->kthread = NULL;
-	}
-	videobuf_stop(&minor->vb_vidq);
-}
-
-static int is_generating(struct v4l2pim_minor *minor)
-{
-	return test_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
-}
-
-static int is_active(struct v4l2pim_minor *minor)
-{
-	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
 }
 
 /************************************************************************/

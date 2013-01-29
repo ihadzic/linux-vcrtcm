@@ -568,6 +568,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		v4l2pim_cursor_overlay(pcon, push_buffer_index);
 		v4l2pim_buffer_copy(pcon, push_buffer_index,
 				    minor->shadowbuf, &minor->sb_lock);
+		v4l2pim_deliver_frame(minor);
 	}
 	mutex_unlock(&minor->buffer_mutex);
 	return r;
