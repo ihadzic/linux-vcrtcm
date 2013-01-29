@@ -233,8 +233,8 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 		vcrtcm_p_disable_callbacks(pconid);
 		udlpim_detach_pcon(minor->pcon);
 		udlpim_destroy_pcon(minor->pcon);
-		vcrtcm_p_destroy(pconid);
 		vcrtcm_p_unlock_pconid(pconid);
+		vcrtcm_p_destroy(pconid);
 	}
 
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
