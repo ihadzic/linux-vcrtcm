@@ -229,10 +229,12 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	if (minor->pcon) {
 		int pconid = minor->pcon->pconid;
 
+		vcrtcm_p_lock_pconid(pconid);
 		vcrtcm_p_disable_callbacks(pconid);
 		udlpim_detach_pcon(minor->pcon);
 		udlpim_destroy_pcon(minor->pcon);
 		vcrtcm_p_destroy(pconid);
+		vcrtcm_p_unlock_pconid(pconid);
 	}
 
 	/* TODO: Deal with reference count stuff. Perhaps have reference count
@@ -599,7 +601,7 @@ void udlpim_query_edid_core(struct udlpim_minor *minor)
 		(old_edid && !new_edid) || (old_edid && new_edid &&
 		memcmp(old_edid, new_edid, EDID_LENGTH) != 0))) {
 		UDLPIM_DEBUG("Calling hotplug.\n");
-		vcrtcm_p_hotplug(pcon->pconid);
+		vcrtcm_p_hotplug_l(pcon->pconid);
 	}
 
 	if (old_edid)
