@@ -114,7 +114,7 @@ static struct v4l2pim_pcon *v4l2pim_cookie2pcon(int pconid, void *cookie)
 	struct v4l2pim_pcon *pcon = cookie;
 
 	if (pcon->magic != V4L2PIM_PCON_GOOD_MAGIC) {
-		VCRTCM_ERROR("bad magic (0x%08x) in cookie (0x%p) for pcon %d\n",
+		VCRTCM_ERROR("bad magic (0x%08x), cookie (0x%p), pcon %d\n",
 			pcon->magic, cookie, pconid);
 		dump_stack();
 		return NULL;
@@ -436,23 +436,25 @@ int v4l2pim_vblank(int pconid, void *cookie)
 				  pcon->pbd_cursor[push_buffer_index]);
 
 		if (r) {
-			/* if push did not succeed, then vblank won't happen in the GPU */
-			/* so we have to make it out here */
+			/*
+			 * push did not succeed, vblank won't happen in the GPU
+			 * so we have to make it up here
+			 */
 			vcrtcm_p_emulate_vblank(pcon->pconid);
 		} else {
-			/* if push successed, then we need to swap push buffers
+			/*
+			 * if push succeeded, then we need to swap push buffers
 			 * and mark the buffer for transmission in the next
-			 * vblank interval; note that call to vcrtcm_p_push only
-			 * initiates the push request to GPU; when GPU does it
-			 * is up to the GPU and doesn't matter as long as it is
-			 * within the frame transmission period (otherwise, we'll
-			 * see from frame tearing)
+			 * vblank interval; note that call to vcrtcm_p_push
+			 * only initiates the push request to GPU; when GPU
+			 * does it, is up to the GPU and doesn't matter as
+			 * long as it is within the frame transmission period
+			 * (otherwise, we'll see from frame tearing)
 			 * If GPU completes the push before the next vblank
-			 * interval, then it is perfectly safe to mark the buffer
-			 * ready for transmission now because transmission wont
-			 * look at it until push is complete.
+			 * interval, then it is perfectly safe to mark the
+			 * buffer ready for transmission now because
+			 * transmission wont look at it until push is complete.
 			 */
-
 			pcon->last_xmit_jiffies = jiffies;
 			pcon->pb_needs_xmit[push_buffer_index] = 1;
 			push_buffer_index = (push_buffer_index + 1) & 0x1;
@@ -567,7 +569,8 @@ static struct vcrtcm_p_pcon_funcs v4l2pim_pcon_funcs = {
 	.vblank = v4l2pim_vblank,
 };
 
-struct v4l2pim_pcon *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)
+struct v4l2pim_pcon
+*v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)
 {
 	struct v4l2pim_pcon *pcon;
 

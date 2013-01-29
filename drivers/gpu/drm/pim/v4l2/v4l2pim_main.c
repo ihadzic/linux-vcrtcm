@@ -950,7 +950,8 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 	return 0;
 
 sb_alloc_map_err:
-	vcrtcm_free_multiple_pages(pages, num_pages, VCRTCM_OWNER_PIM | v4l2pim_pimid);
+	vcrtcm_free_multiple_pages(pages, num_pages,
+				   VCRTCM_OWNER_PIM | v4l2pim_pimid);
 sb_alloc_mpages_err:
 	vcrtcm_kfree(pages);
 sb_alloc_err:
@@ -1057,7 +1058,8 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	if (minornum < 0)
 		goto minor_dec;
 
-	minor = vcrtcm_kzalloc(sizeof(struct v4l2pim_minor), GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
+	minor = vcrtcm_kzalloc(sizeof(struct v4l2pim_minor),
+			       GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	if (!minor)
 		goto gen_put;
 
@@ -1132,11 +1134,13 @@ static struct vcrtcm_pim_funcs v4l2pim_pim_funcs = {
 static int __init v4l2pim_init(void)
 {
 	VCRTCM_INFO("v4l2 PCON, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
-	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs, &v4l2pim_pimid);
+	vcrtcm_pim_register(V4L2PIM_PIM_NAME, &v4l2pim_pim_funcs,
+			    &v4l2pim_pimid);
 	vcrtcm_pim_log_alloc_cnts(v4l2pim_pimid, v4l2pim_log_pim_alloc_counts);
 	vcrtcm_id_generator_init(&minor_id_generator, V4L2PIM_MAX_MINORS);
 	if (V4L2PIM_VID_LIMIT_MAX < vid_limit) {
-		VCRTCM_WARNING("vid_limit (%d) too high, V4L2PIM_VID_LIMIT_MAX = %d\n", vid_limit, V4L2PIM_VID_LIMIT_MAX);
+		VCRTCM_WARNING("vid_limit (%d) too high, max = %d\n",
+			       vid_limit, V4L2PIM_VID_LIMIT_MAX);
 		vid_limit = V4L2PIM_VID_LIMIT_MAX;
 	}
 	VCRTCM_INFO("Maximum stream memory allowable is %d\n", vid_limit);
@@ -1168,9 +1172,11 @@ module_init(v4l2pim_init);
 module_exit(v4l2pim_exit);
 
 MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information");
-module_param_named(debug, v4l2pim_debug, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(vid_limit, "MB of memory allowed for streaming buffers (default=16)");
-module_param_named(stream_mem, vid_limit, uint, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+module_param_named(debug, v4l2pim_debug, int,
+		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(vid_limit, "MB of memory for streaming buffers (default=16)");
+module_param_named(stream_mem, vid_limit, uint,
+		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(log_pim_alloc_cnts,
 		 "When set to 1, log all per-PIM alloc counts (default = 0)");
 module_param_named(log_pim_alloc_cnts, v4l2pim_log_pim_alloc_counts,
