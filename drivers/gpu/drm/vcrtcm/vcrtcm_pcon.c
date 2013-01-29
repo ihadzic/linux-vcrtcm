@@ -33,12 +33,21 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	spinlock_t *pcon_spinlock;
 	int pconid;
 
-	pconid = pcon->pconid;
-	pcon->vblank_period_jiffies = 0;
-	pcon->fps = 0;
+	BUG_ON(pcon->vblank_period_jiffies != 0);
+	BUG_ON(pcon->fps != 0);
+	/*
+	 * unlike in vcrtcm_set_fps() (see below), here we
+	 * call cancel_delayed_work_sync(), because we must
+	 * ensure that the vblank worker is really canceled
+	 * before freeing the pcon.  Note that unlike in the
+	 * case of vcrtcm_set_fps(), calling cancel_delayed_work_sync()
+	 * here cannot lead to deadlock, because the current
+	 * function is never called when the pcon lock is held.
+	 */
 	cancel_delayed_work_sync(&pcon->vblank_work);
 	list_del(&pcon->pcons_in_pim_list);
 	vcrtcm_sysfs_del_pcon(pcon);
+	pconid = pcon->pconid;
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	BUG_ON(!pcon_spinlock);
 	spin_lock_irqsave(pcon_spinlock, flags);
@@ -47,7 +56,6 @@ void vcrtcm_destroy_pcon(struct vcrtcm_pcon *pcon)
 	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 }
-
 
 /*
  * push-mode pims must wait_fb() before doing certain things,
@@ -67,7 +75,20 @@ void vcrtcm_set_fps(struct vcrtcm_pcon *pcon, int fps)
 	if (fps <= 0) {
 		pcon->fps = 0;
 		pcon->vblank_period_jiffies = 0;
-		cancel_delayed_work_sync(&pcon->vblank_work);
+		/*
+		 * do *not* call cancel_delayed_work_sync(), because
+		 * if the vblank worker is sitting waiting to take
+		 * the pcon lock (which we are currently holding)
+		 * a deadlock would result.  Note that calling the
+		 * non-syncing cancel_delayed_work() means that if
+		 * the vblank worker *is* sitting waiting to take
+		 * the pcon mutex, then the vblank work function
+		 * will resume executing sometime after this set-fps
+		 * operation completes.  That is ok, though, because
+		 * the vblank work function checks whether
+		 * vblank_period_jiffies is 0 and if so does nothing.
+		 */
+		cancel_delayed_work(&pcon->vblank_work);
 		VCRTCM_INFO("transmission disabled on pcon 0x%08x\n",
 			pcon->pconid);
 	} else {

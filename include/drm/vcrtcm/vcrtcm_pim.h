@@ -257,8 +257,13 @@ struct vcrtcm_pim_funcs {
  */
 
 /*
- * mutex: must be locked before calling this function
+ * mutex: must NOT be locked before calling this function
  * atomic: unspecified
+ *
+ * NB: The pcon must NOT be locked when this function is called.
+ * Not locking the pcon enables VCRTCM to wait_sync() for certain
+ * threads to finish all pcon-related operations without deadlocking
+ * the calling thread.
  */
 int vcrtcm_p_destroy(int pconid);
 

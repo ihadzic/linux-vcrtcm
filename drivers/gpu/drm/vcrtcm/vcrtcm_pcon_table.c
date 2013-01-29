@@ -254,6 +254,17 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	BUG_ON(!mutex_is_locked(&entry->mutex));
 	BUG_ON(entry->mutex.owner != current);
 }
+
+void
+vcrtcm_check_notmutex(const char *func, int pconid)
+{
+	struct pconid_table_entry *entry;
+
+	entry = pconid2entry(pconid);
+	if (!entry)
+		return;
+	BUG_ON(mutex_is_locked(&entry->mutex) && entry->mutex.owner == current);
+}
 #endif
 
 void vcrtcm_set_spinlock_owner(int pconid)

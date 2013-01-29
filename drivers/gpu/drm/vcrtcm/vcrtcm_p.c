@@ -792,7 +792,8 @@ int vcrtcm_p_destroy(int pconid)
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
-	vcrtcm_check_mutex(__func__, pconid);
+	vcrtcm_check_notmutex(__func__, pconid);
+	vcrtcm_lock_pconid(pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	if (!pcon_spinlock)
 		return -EINVAL;
@@ -817,6 +818,7 @@ int vcrtcm_p_destroy(int pconid)
 	pcon->being_destroyed = 1;
 	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
+	vcrtcm_unlock_pconid(pconid);
 	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
