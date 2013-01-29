@@ -36,6 +36,7 @@ struct vcrtcm_mode;
 struct drm_gem_object;
 struct drm_crtc;
 struct drm_device;
+struct drm_connector;
 
 /*
  * callback functions that the gpu driver must implement for a given pcon
@@ -133,6 +134,18 @@ int vcrtcm_g_register_drmdev(struct drm_device *dev,
  * atomic: unspecified
  */
 int vcrtcm_g_unregister_drmdev(struct drm_device *dev);
+
+/*
+ * mutex: N/A
+ * atomic: unspecified
+ */
+int vcrtcm_g_register_connector(struct drm_connector *conn, int virtual);
+
+/*
+ * mutex: N/A
+ * atomic: unspecified
+ */
+int vcrtcm_g_unregister_connector(struct drm_connector *conn);
 
 /*
  * mutex: must be locked before calling this function

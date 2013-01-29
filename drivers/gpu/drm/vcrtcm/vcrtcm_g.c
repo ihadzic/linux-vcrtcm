@@ -898,3 +898,15 @@ int vcrtcm_g_unregister_drmdev(struct drm_device *dev)
 	return vcrtcm_remove_drmdev(dev);
 }
 EXPORT_SYMBOL(vcrtcm_g_unregister_drmdev);
+
+int vcrtcm_g_register_connector(struct drm_connector *drm_conn, int virtual)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_g_register_connector);
+
+int vcrtcm_g_unregister_connector(struct drm_connector *drm_conn)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vcrtcm_g_unregister_connector);
