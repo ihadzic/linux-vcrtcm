@@ -53,7 +53,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 	if (rdev == NULL)
 		return 0;
 	if (ASIC_IS_VCRTC_CAPABLE(rdev))
-		radeon_vcrtcm_unregister_drmdev(dev);
+		radeon_vcrtcm_unregister_drmdev_and_connectors(dev);
 	radeon_acpi_fini(rdev);
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
@@ -128,9 +128,10 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 out:
 	if (r)
 		radeon_driver_unload_kms(dev);
-	else
+	else {
 		if (ASIC_IS_VCRTC_CAPABLE(rdev))
-			radeon_vcrtcm_register_drmdev(dev);
+			radeon_vcrtcm_register_drmdev_and_connectors(dev);
+	}
 	return r;
 }
 

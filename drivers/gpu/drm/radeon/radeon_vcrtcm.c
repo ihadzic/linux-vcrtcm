@@ -26,6 +26,7 @@
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
 #include "radeon_vcrtcm_kernel.h"
+#include "ObjectID.h"
 
 /*
  * NB: This function is called in atomic context.  Hence, it must
@@ -508,12 +509,34 @@ static struct vcrtcm_g_drmdev_funcs vcrtcm_drmdev_funcs = {
 	.attach = radeon_attach_callback,
 };
 
-int radeon_vcrtcm_register_drmdev(struct drm_device *dev)
+int radeon_vcrtcm_register_drmdev_and_connectors(struct drm_device *dev)
 {
-	return vcrtcm_g_register_drmdev(dev, &vcrtcm_drmdev_funcs);
+	int r;
+	struct drm_connector *conn;
+
+	r = vcrtcm_g_register_drmdev(dev, &vcrtcm_drmdev_funcs);
+	if (r < 0)
+		return r;
+	list_for_each_entry(conn, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *rconn;
+		int virtual;
+
+		rconn = to_radeon_connector(conn);
+		virtual = 0;
+		if (rconn->connector_object_id == CONNECTOR_OBJECT_ID_VIRTUAL)
+			virtual = 1;
+		vcrtcm_g_register_connector(conn, virtual);
+	}
+	return 0;
 }
 
-int radeon_vcrtcm_unregister_drmdev(struct drm_device *dev)
+int radeon_vcrtcm_unregister_drmdev_and_connectors(struct drm_device *dev)
 {
-	return vcrtcm_g_unregister_drmdev(dev);
+	struct drm_connector *conn;
+
+	list_for_each_entry(conn, &dev->mode_config.connector_list, head)
+		vcrtcm_g_unregister_connector(conn);
+	vcrtcm_g_unregister_drmdev(dev);
+	return 0;
 }
+
