@@ -192,7 +192,7 @@ int radeon_post_attach_callback(struct drm_crtc *crtc)
 	/* won't call set_base helper function and VCRTCM module won't */
 	/* have the FB information. So we do it here (we use */
 	/* atomic==1 because if this CRTC has the frame buffer */
-	/* bound, it should presumably be already pinned */
+	/* bound, it should presumably be already pinned) */
 	if (crtc->fb) {
 		DRM_INFO("post_attach: frame buffer exists\n");
 		r = radeon_virtual_crtc_do_set_base(crtc, crtc->fb, crtc->x,
@@ -367,7 +367,7 @@ static int radeon_vcrtcm_push(struct drm_crtc *scrtc,
 	}
 
 	/* now copy the frame buffer */
-	/* cacluate gpu addresses: both buffers should be already pinned */
+	/* calculate gpu addresses: both buffers should be already pinned */
 	dst_rbo = gem_to_radeon_bo(dbuf_fb);
 	daddr = radeon_bo_gpu_offset(dst_rbo);
 
