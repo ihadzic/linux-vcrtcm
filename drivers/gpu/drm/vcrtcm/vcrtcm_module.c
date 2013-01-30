@@ -28,6 +28,7 @@
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_utils.h>
+#include <drm/drm_vcrtcm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
@@ -65,16 +66,24 @@ static int __init vcrtcm_init(void)
 	if (r < 0)
 		return r;
 	vcrtcm_init_pcon_table();
-	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
 	vcrtcm_cdev = cdev_alloc();
 	if (!vcrtcm_cdev)
 		return -ENOMEM;
-	alloc_chrdev_region(&vcrtcm_dev, 0, 1, "pimmgr");
+	r = alloc_chrdev_region(&vcrtcm_dev, 0, 1, "vcrtcm");
+	if (r) {
+		VCRTCM_ERROR("alloc_chrdev_region failed\n");
+		return r;
+	}
 	vcrtcm_cdev->ops = &vcrtcm_fops;
 	vcrtcm_cdev->owner = THIS_MODULE;
 	cdev_add(vcrtcm_cdev, vcrtcm_dev, 1);
+	vcrtcm_class = class_create(THIS_MODULE, "vcrtcm");
 	vcrtcm_device = device_create(vcrtcm_class, NULL, vcrtcm_dev,
-				      NULL, "pimmgr");
+				      NULL, "vcrtcm");
+	if (IS_ERR(vcrtcm_device)) {
+		VCRTCM_ERROR("device_create failed\n");
+		return PTR_ERR(vcrtcm_device);
+	}
 	vcrtcm_sysfs_init(vcrtcm_device);
 	VCRTCM_INFO("driver loaded, major %d, minor %d\n",
 		    MAJOR(vcrtcm_dev), MINOR(vcrtcm_dev));
