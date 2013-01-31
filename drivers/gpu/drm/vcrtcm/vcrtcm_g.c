@@ -97,21 +97,6 @@ int vcrtcm_g_attach_l(int pconid,
 }
 EXPORT_SYMBOL(vcrtcm_g_attach_l);
 
-/*
- * called by the GPU driver to detach its CRTC from the
- * pixel consumer (PCON)
- * GPU driver must supply the PCON it is detaching
- * this function will also work if someoby else's
- * PCON is provided for detaching but this is not expected
- * to be used by the GPU driver (although VCRTCM may do
- * this if the PCON disappears from the system)
- *
- * after doing local cleanup, the detach function will
- * make a callback into the driver to finish up the
- * GPU driver-side cleanup (at least the GPU must
- * set the pointer to PCON to NULL and it may need to do
- * additional (driver-dependent) cleanup
- */
 int vcrtcm_g_detach(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
