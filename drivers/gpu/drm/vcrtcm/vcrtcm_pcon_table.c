@@ -64,7 +64,7 @@ static struct pconid_table_entry *pconid2entry(int pconid)
 	return &pconid_table[pconid];
 }
 
-void init_pcon_table(void)
+void vcrtcm_init_pcon_table(void)
 {
 	int k;
 

@@ -29,7 +29,7 @@
 struct vcrtcm_pcon;
 struct vcrtcm_pim;
 
-void init_pcon_table(void);
+void vcrtcm_init_pcon_table(void);
 struct vcrtcm_pcon *vcrtcm_alloc_pcon(struct vcrtcm_pim *pim);
 void vcrtcm_dealloc_pcon(struct vcrtcm_pcon *pcon);
 int vcrtcm_num_pcons(void);
