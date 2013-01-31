@@ -59,9 +59,9 @@ extern int v4l2pim_fake_vblank_slack;
 extern int v4l2pim_log_pcon_alloc_counts;
 
 struct v4l2pim_fmt {
-	char  *name;
-	uint32_t  fourcc;
-	int   depth;
+	char *name;
+	uint32_t fourcc;
+	int depth;
 	enum v4l2_colorspace colorspace;
 };
 
