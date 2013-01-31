@@ -115,11 +115,11 @@ struct v4l2pim_pcon {
 	struct v4l2pim_minor *minor;
 };
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *v4l2pim_minor,
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 				unsigned long size);
-void v4l2pim_free_shadowbuf(struct v4l2pim_minor *v4l2pim_minor);
+void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor);
 struct v4l2pim_minor *v4l2pim_create_minor(void);
-void v4l2pim_destroy_minor(struct v4l2pim_minor *v4l2pim_minor);
+void v4l2pim_destroy_minor(struct v4l2pim_minor *minor);
 void v4l2pim_deliver_frame(struct v4l2pim_minor *minor);
 
 #endif
