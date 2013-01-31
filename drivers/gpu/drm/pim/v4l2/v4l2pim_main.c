@@ -145,8 +145,8 @@ fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
 	if (!pcon)
 		return;
 
-	w  = pcon->vcrtcm_fb.hdisplay;
-	h = pcon->vcrtcm_fb.vdisplay;
+	w  = minor->frame_width;
+	h = minor->frame_height;
 	d = minor->fmt->depth;
 
 	spin_lock_irqsave(&minor->sb_lock, flags);
@@ -344,8 +344,8 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret < 0)
 			goto fail;
-		vb->width = pcon->vcrtcm_fb.hdisplay;
-		vb->height = pcon->vcrtcm_fb.vdisplay;
+		vb->width = minor->frame_width;
+		vb->height = minor->frame_height;
 		vb->field = field;
 	}
 	vb->state = VIDEOBUF_PREPARED;
@@ -430,8 +430,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = minor->frame_width;
+	f->fmt.pix.height       = minor->frame_height;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
 	f->fmt.pix.pixelformat  = fmt->fourcc;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
@@ -475,8 +475,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	field = V4L2_FIELD_NONE;
 
 	f->fmt.pix.field        = field;
-	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = minor->frame_width;
+	f->fmt.pix.height       = minor->frame_height;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -512,8 +512,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 	minor->fmt = fmt;
-	f->fmt.pix.width        = pcon->vcrtcm_fb.hdisplay;
-	f->fmt.pix.height       = pcon->vcrtcm_fb.vdisplay;
+	f->fmt.pix.width        = minor->frame_width;
+	f->fmt.pix.height       = minor->frame_height;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -848,8 +848,8 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (fsize->pixel_format == formats[i].fourcc) {
 			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-			fsize->discrete.width = pcon->vcrtcm_fb.hdisplay;
-			fsize->discrete.height = pcon->vcrtcm_fb.vdisplay;
+			fsize->discrete.width = minor->frame_width;
+			fsize->discrete.height = minor->frame_height;
 			return 0;
 		}
 
@@ -872,8 +872,8 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 
 	if (fival->index != 0)
 		return -EINVAL;
-	if (fival->width != pcon->vcrtcm_fb.hdisplay &&
-			fival->height != pcon->vcrtcm_fb.hdisplay)
+	if (fival->width != minor->frame_width &&
+	    fival->height != minor->frame_height)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
@@ -890,20 +890,20 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 /* shadowbuf alloc/free                                                 */
 /************************************************************************/
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
-				unsigned long size)
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor, int w, int h, int bpp)
 {
 	struct page **pages;
 	unsigned int num_pages;
 	uint8_t *shadowbuf;
 	int result;
+	int size;
 	unsigned long flags;
 
 	if (!minor)
 		return -EINVAL;
 
 	v4l2pim_free_shadowbuf(minor);
-
+	size = w * h * (bpp >> 3);
 	num_pages = size / PAGE_SIZE;
 	if (size % PAGE_SIZE > 0)
 		num_pages++;
@@ -926,6 +926,8 @@ int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
 	minor->shadowbufsize = size;
 	minor->shadowbuf_pages = pages;
 	minor->shadowbuf_num_pages = num_pages;
+	minor->frame_width = w;
+	minor->frame_height = h;
 	spin_unlock_irqrestore(&minor->sb_lock, flags);
 
 	return 0;

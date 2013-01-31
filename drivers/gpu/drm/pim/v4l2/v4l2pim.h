@@ -92,6 +92,8 @@ struct v4l2pim_minor {
 	unsigned long status;
 	struct task_struct *kthread;
 	struct v4l2pim_fmt *fmt;
+	int frame_width;
+	int frame_height;
 };
 
 struct v4l2pim_pcon {
@@ -115,8 +117,7 @@ struct v4l2pim_pcon {
 	struct v4l2pim_minor *minor;
 };
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor,
-				unsigned long size);
+int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor, int w, int h, int bpp);
 void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor);
 struct v4l2pim_minor *v4l2pim_create_minor(void);
 void v4l2pim_destroy_minor(struct v4l2pim_minor *minor);

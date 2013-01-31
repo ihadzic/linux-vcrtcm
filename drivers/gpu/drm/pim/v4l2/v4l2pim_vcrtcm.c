@@ -212,13 +212,13 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 		need_shadow_buf = (flag == V4L2PIM_ALLOC_PB_FLAG_FB) ? 1 : 0;
 	}
 	if (need_shadow_buf) {
-		uint32_t w, h, sb_size;
+		int w, h, bpp;
 
 		/* this should get freed later */
 		w = pcon->vcrtcm_fb.hdisplay;
 		h = pcon->vcrtcm_fb.vdisplay;
-		sb_size = w * h * (pcon->vcrtcm_fb.bpp >> 3);
-		v4l2pim_alloc_shadowbuf(minor, sb_size);
+		bpp = pcon->vcrtcm_fb.bpp;
+		v4l2pim_alloc_shadowbuf(minor, w, h, bpp);
 	}
 	return r;
 }
