@@ -30,7 +30,7 @@
 #include <vcrtcm/vcrtcm_gpu.h>
 #include "radeon.h"
 #include "atom.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 static void radeon_overscan_setup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode)

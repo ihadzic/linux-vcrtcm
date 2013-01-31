@@ -27,7 +27,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64

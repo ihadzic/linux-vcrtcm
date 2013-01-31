@@ -25,7 +25,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 #include "ObjectID.h"
 
 /*

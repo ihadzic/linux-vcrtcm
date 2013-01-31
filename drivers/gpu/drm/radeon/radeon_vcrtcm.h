@@ -22,9 +22,25 @@
  * Author: Ilija Hadzic <ihadzic@research.bell-labs.com>
  */
 
-#ifndef __RADEON_VCRTCM_H__
-#define __RADEON_VCRTCM_H__
+#ifndef __RADEON_VCRTCM_KERNEL_H__
+#define __RADEON_VCRTCM_KERNEL_H__
 
-#define RADEON_VCRTCM_FPS_HARD_LIMIT  100
+#include <vcrtcm/vcrtcm_gpu.h>
+#include "radeon_vcrtcm.h"
+
+int radeon_vcrtcm_detach(struct radeon_crtc *radeon_crtc);
+int radeon_vcrtcm_wait(struct drm_device *dev,
+		       struct drm_mode_group *mode_group);
+void radeon_vcrtcm_xmit(struct drm_device *dev,
+			struct drm_mode_group *mode_group);
+int radeon_vcrtcm_set_fb(struct radeon_crtc *radeon_crtc,
+			 int x, int y,
+			 struct drm_framebuffer *fb,
+			 uint64_t fb_location, int pcon_locked);
+int radeon_vcrtcm_page_flip(struct radeon_crtc *radeon_crtc,
+			    u64 base);
+void radeon_vblank_emulation_work_func(struct work_struct *work);
+int radeon_vcrtcm_register_drmdev_and_connectors(struct drm_device *dev);
+int radeon_vcrtcm_unregister_drmdev_and_connectors(struct drm_device *dev);
 
 #endif

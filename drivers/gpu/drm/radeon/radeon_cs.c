@@ -29,7 +29,7 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 void r100_cs_dump_packet(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt);

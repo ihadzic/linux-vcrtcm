@@ -31,7 +31,7 @@
 #include "radeon.h"
 #include "atom.h"
 #include "atom-bits.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 static void atombios_overscan_setup(struct drm_crtc *crtc,
 				    struct drm_display_mode *mode,

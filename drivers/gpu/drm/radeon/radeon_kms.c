@@ -30,7 +30,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon_asic.h"
 #include "radeon_virtual_crtc.h"
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>

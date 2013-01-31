@@ -31,7 +31,7 @@
 #include "radeon_virtual_crtc.h"
 #include "atom.h"
 
-#include "radeon_vcrtcm_kernel.h"
+#include "radeon_vcrtcm.h"
 
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
