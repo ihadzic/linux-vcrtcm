@@ -31,16 +31,21 @@
 static struct vcrtcm_drmdev drmdev_table[MAX_NUM_DEVICES];
 static DEFINE_SPINLOCK(drmdev_table_spinlock);
 
+int vcrtcm_drmdev_minor(struct drm_device *dev)
+{
+	return MINOR(dev->primary->device);
+}
+
 static struct vcrtcm_drmdev *vcrtcm_get_drmdev_byminor(struct drm_device *dev)
 {
 	int k;
 	unsigned long flags;
-	int minor = MINOR(dev->dev->devt);
+	int minor = vcrtcm_drmdev_minor(dev);
 
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
 		struct vcrtcm_drmdev *entry = &drmdev_table[k];
-		if (entry->dev && MINOR(entry->dev->dev->devt) == minor) {
+		if (entry->dev && vcrtcm_drmdev_minor(entry->dev) == minor) {
 			spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
 			return entry;
 		}
@@ -62,7 +67,7 @@ struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	}
 	if (vcrtcm_get_drmdev_byminor(dev)) {
 		VCRTCM_ERROR("drmdev %p has duplicate minor %d, not registering\n",
-			dev, MINOR(dev->dev->devt));
+			dev, vcrtcm_drmdev_minor(dev));
 		return NULL;
 	}
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);

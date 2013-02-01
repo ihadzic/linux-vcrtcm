@@ -36,5 +36,6 @@ struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs);
 struct vcrtcm_drmdev *vcrtcm_get_drmdev(struct drm_device *dev);
 int vcrtcm_remove_drmdev(struct drm_device *dev);
+int vcrtcm_drmdev_minor(struct drm_device *dev);
 
 #endif

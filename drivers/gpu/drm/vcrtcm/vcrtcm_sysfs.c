@@ -500,7 +500,8 @@ int vcrtcm_sysfs_add_conn(struct vcrtcm_conn *conn)
 	char namebuf[NAMEBUFLEN];
 
 	snprintf(namebuf, NAMEBUFLEN, "%d:%d",
-		MINOR(conn->drm_conn->dev->dev->devt), conn->drm_conn->base.id);
+		vcrtcm_drmdev_minor(conn->drm_conn->dev),
+		conn->drm_conn->base.id);
 	ret = kobject_init_and_add(&conn->kobj, &conn_type,
 		&conns_kobj, "%s", namebuf);
 	if (ret < 0) {
@@ -579,7 +580,7 @@ int vcrtcm_sysfs_add_card(struct vcrtcm_drmdev *vdev)
 	int ret = 0;
 	char namebuf[NAMEBUFLEN];
 
-	snprintf(namebuf, NAMEBUFLEN, "%d", MINOR(vdev->dev->dev->devt));
+	snprintf(namebuf, NAMEBUFLEN, "%d", vcrtcm_drmdev_minor(vdev->dev));
 	ret = kobject_init_and_add(&vdev->kobj, &card_type,
 		&cards_kobj, "%s", namebuf);
 	if (ret < 0) {
