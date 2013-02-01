@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <drm/drmP.h>
 #include "vcrtcm_drmdev_table.h"
 #include "vcrtcm_utils_priv.h"
 
@@ -29,6 +30,25 @@
 
 static struct vcrtcm_drmdev drmdev_table[MAX_NUM_DEVICES];
 static DEFINE_SPINLOCK(drmdev_table_spinlock);
+
+static struct vcrtcm_drmdev *vcrtcm_get_drmdev_byminor(struct drm_device *dev)
+{
+	int k;
+	unsigned long flags;
+	int minor = MINOR(dev->dev->devt);
+
+	spin_lock_irqsave(&drmdev_table_spinlock, flags);
+	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
+		struct vcrtcm_drmdev *entry = &drmdev_table[k];
+		if (entry->dev && MINOR(entry->dev->dev->devt) == minor) {
+			spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
+			return entry;
+		}
+	}
+	spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
+	VCRTCM_INFO("minor %d not in device table\n", minor);
+	return NULL;
+}
 
 struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs)
@@ -38,6 +58,11 @@ struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 
 	if (vcrtcm_get_drmdev(dev)) {
 		VCRTCM_ERROR("drmdev %p already registered\n", dev);
+		return NULL;
+	}
+	if (vcrtcm_get_drmdev_byminor(dev)) {
+		VCRTCM_ERROR("drmdev %p has duplicate minor %d, not registering\n",
+			dev, MINOR(dev->dev->devt));
 		return NULL;
 	}
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
