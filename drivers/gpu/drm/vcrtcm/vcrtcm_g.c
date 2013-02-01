@@ -879,6 +879,7 @@ int vcrtcm_g_register_drmdev(struct drm_device *dev,
 {
 	struct vcrtcm_drmdev *vdev;
 
+	VCRTCM_INFO("registering device %d (%p)\n", MINOR(dev->dev->devt), dev);
 	vdev = vcrtcm_add_drmdev(dev, funcs);
 	if (!vdev)
 		return -ENOMEM;
@@ -903,6 +904,9 @@ int vcrtcm_g_register_connector(struct drm_connector *drm_conn, int virtual)
 {
 	struct vcrtcm_conn *conn;
 
+	VCRTCM_INFO("registering connector %d of device %d (%p)\n",
+		drm_conn->base.id, MINOR(drm_conn->dev->dev->devt),
+		drm_conn->dev);
 	conn = vcrtcm_add_conn(drm_conn, virtual);
 	if (IS_ERR(conn))
 		return PTR_ERR(conn);
