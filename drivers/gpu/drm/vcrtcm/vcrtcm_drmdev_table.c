@@ -30,15 +30,16 @@
 static struct vcrtcm_drmdev drmdev_table[MAX_NUM_DEVICES];
 static DEFINE_SPINLOCK(drmdev_table_spinlock);
 
-/*
- * assumes dev is not already in table
- */
 struct vcrtcm_drmdev *vcrtcm_add_drmdev(struct drm_device *dev,
 	struct vcrtcm_g_drmdev_funcs *funcs)
 {
 	int k;
 	unsigned long flags;
 
+	if (vcrtcm_get_drmdev(dev)) {
+		VCRTCM_ERROR("drmdev %p already registered\n", dev);
+		return NULL;
+	}
 	spin_lock_irqsave(&drmdev_table_spinlock, flags);
 	for (k = 0; k < MAX_NUM_DEVICES; ++k) {
 		struct vcrtcm_drmdev *entry = &drmdev_table[k];
@@ -68,7 +69,7 @@ struct vcrtcm_drmdev *vcrtcm_get_drmdev(struct drm_device *dev)
 		}
 	}
 	spin_unlock_irqrestore(&drmdev_table_spinlock, flags);
-	VCRTCM_ERROR("dev %p not in device table\n", dev);
+	VCRTCM_INFO("dev %p not in device table\n", dev);
 	return NULL;
 }
 
