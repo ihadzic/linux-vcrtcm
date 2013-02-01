@@ -344,7 +344,6 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on);
  * the pcon, then calls the nonlocking variant, then unlocks
  * the pcon.
  */
-int vcrtcm_p_destroy_l(int pconid);
 int vcrtcm_p_emulate_vblank_l(int pconid);
 int vcrtcm_p_wait_fb_l(int pconid);
 int vcrtcm_p_register_prime_l(int pconid,

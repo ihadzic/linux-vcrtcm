@@ -824,18 +824,6 @@ int vcrtcm_p_destroy(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_destroy);
 
-int vcrtcm_p_destroy_l(int pconid)
-{
-	int r;
-
-	if (vcrtcm_p_lock_pconid(pconid))
-		return -EINVAL;
-	r = vcrtcm_p_destroy(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
-	return r;
-}
-EXPORT_SYMBOL(vcrtcm_p_destroy_l);
-
 int vcrtcm_p_disable_callbacks(int pconid)
 {
 	struct vcrtcm_pcon *pcon;
