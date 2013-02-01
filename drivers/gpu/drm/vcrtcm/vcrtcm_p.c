@@ -939,7 +939,7 @@ int vcrtcm_pim_unregister(int pimid)
 	VCRTCM_INFO("unregistering %s\n", pim->name);
 	list_for_each_entry_safe(pcon, tmp,
 			&pim->pcons_in_pim_list, pcons_in_pim_list)
-		vcrtcm_p_destroy_l(pcon->pconid);
+		vcrtcm_p_destroy(pcon->pconid);
 	vcrtcm_sysfs_del_pim(pim);
 	vcrtcm_destroy_pim(pim);
 	mutex_unlock(&vcrtcm_ioctl_mutex);
