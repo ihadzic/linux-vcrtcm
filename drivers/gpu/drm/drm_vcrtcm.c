@@ -72,13 +72,13 @@ static int search_encoder(struct drm_device *dev, struct drm_connector *conn,
 	int mask = 0x1;
 	int index = 0;
 
-	DRM_INFO("possible crtcs: 0x%08x\n", enc->possible_crtcs);
+	DRM_DEBUG("possible crtcs: 0x%08x\n", enc->possible_crtcs);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (enc->possible_crtcs & mask) {
 			int drmid = crtc->base.id;
-			DRM_INFO("search crtc %d:%d\n", drmid, index);
+			DRM_DEBUG("search crtc %d:%d\n", drmid, index);
 			if (drm_obj_is_in_group(drmid, group)) {
-				DRM_INFO("crtc %d:%d is in group\n", drmid, index);
+				DRM_DEBUG("crtc %d:%d is in group\n", drmid, index);
 				if (*crtc_drmid >= 0) {
 					DRM_ERROR("conn %d has multiple crtcs\n",
 						conn->base.id);
@@ -104,13 +104,13 @@ static int drm_vcrtcm_select_crtc_for_attach(struct drm_device *dev,
 	int num_items;
 	int k;
 
-	DRM_INFO("selecting crtc from: %d crtc, %d enc, %d conn, %d plane\n",
+	DRM_DEBUG("selecting crtc from: %d crtc, %d enc, %d conn, %d plane\n",
 		group->num_crtcs, group->num_encoders, group->num_connectors,
 		group->num_planes);
 	num_items = group->num_crtcs + group->num_encoders +
 		group->num_connectors;
 	for (k = 0; k < num_items; ++k)
-		DRM_INFO("id %d\n", group->id_list[k]);
+		DRM_DEBUG("id %d\n", group->id_list[k]);
 
 	/* if connector has an in-use crtc that is also in the group,
 	 * choose it.
@@ -133,13 +133,13 @@ static int drm_vcrtcm_select_crtc_for_attach(struct drm_device *dev,
 	*crtc_index = -1;
 	for (k = 0; k < DRM_CONNECTOR_MAX_ENCODER; ++k) {
 		int enc_id = conn->encoder_ids[k];
-		DRM_INFO("search enc %d\n", enc_id);
+		DRM_DEBUG("search enc %d\n", enc_id);
 		if (drm_obj_is_in_group(enc_id, group)) {
 			struct drm_mode_object *obj;
 			struct drm_encoder *enc;
 			int r;
 
-			DRM_INFO("enc %d is in group\n", enc_id);
+			DRM_DEBUG("enc %d is in group\n", enc_id);
 			obj = drm_mode_object_find(dev, enc_id,
 				DRM_MODE_OBJECT_ENCODER);
 			BUG_ON(!obj);
