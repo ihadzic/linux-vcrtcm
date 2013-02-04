@@ -407,6 +407,18 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static void populate_v4l2_format(struct v4l2_format *f, int w, int h,
+				 struct v4l2pim_fmt *fmt, enum v4l2_field field)
+{
+	f->fmt.pix.width = w;
+	f->fmt.pix.height = h;
+	f->fmt.pix.field = field;
+	f->fmt.pix.pixelformat  = fmt->fourcc;
+	f->fmt.pix.colorspace = fmt->colorspace;
+	f->fmt.pix.bytesperline = w * (fmt->depth >> 3) ;
+	f->fmt.pix.sizeimage = w * f->fmt.pix.bytesperline;
+}
+
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
@@ -429,15 +441,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	fmt = minor->fmt;
 	if (!fmt)
 		return -EINVAL;
-
-	f->fmt.pix.width = minor->frame_width;
-	f->fmt.pix.height = minor->frame_height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
-	f->fmt.pix.pixelformat  = fmt->fourcc;
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	f->fmt.pix.colorspace = fmt->colorspace;
-
+	populate_v4l2_format(f, minor->frame_width, minor->frame_height,
+			     fmt, V4L2_FIELD_NONE);
 	return 0;
 }
 
@@ -472,13 +477,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		field = V4L2_FIELD_NONE;
 	else if (V4L2_FIELD_NONE != field)
 		return -EINVAL;
-	f->fmt.pix.field = field;
-	f->fmt.pix.width = minor->frame_width;
-	f->fmt.pix.height = minor->frame_height;
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	f->fmt.pix.colorspace = fmt->colorspace;
-
+	populate_v4l2_format(f, minor->frame_width, minor->frame_height,
+			     fmt, field);
 	return 0;
 }
 
