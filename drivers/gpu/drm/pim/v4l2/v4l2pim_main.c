@@ -470,9 +470,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		field = V4L2_FIELD_NONE;
 	else if (V4L2_FIELD_NONE != field)
 		return -EINVAL;
-
-	field = V4L2_FIELD_NONE;
-
 	f->fmt.pix.field = field;
 	f->fmt.pix.width = minor->frame_width;
 	f->fmt.pix.height = minor->frame_height;
