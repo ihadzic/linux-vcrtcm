@@ -461,6 +461,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	fbsize = minor->shadowbufsize;
 	if (!fb || fbsize <= 0)
 		return -EINVAL;
+	if (is_generating(minor))
+		return -EBUSY;
 	fmt = get_format(f);
 	if (!fmt)
 		return -EINVAL;
@@ -484,42 +486,16 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
-	struct v4l2pim_fmt *fmt;
-	uint8_t *fb;
-	uint32_t fbsize;
-	enum v4l2_field field;
+	int r;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
-		return -EINVAL;
-
-	if (is_generating(minor))
-		return -EBUSY;
-
-	fmt = get_format(f);
-	if (!fmt)
-		return -EINVAL;
-	field = f->fmt.pix.field;
-	if (field == V4L2_FIELD_ANY)
-		field = V4L2_FIELD_NONE;
-	else if (V4L2_FIELD_NONE != field)
-		return -EINVAL;
-	minor->fmt = fmt;
-	f->fmt.pix.width = minor->frame_width;
-	f->fmt.pix.height = minor->frame_height;
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	f->fmt.pix.colorspace = fmt->colorspace;
-	minor->vb_vidq.field = field;
-
+	r = vidioc_try_fmt_vid_cap(file, priv, f);
+	if (r)
+		return r;
+	minor->fmt = get_format(f);
+	minor->vb_vidq.field = f->fmt.pix.field;
 	return 0;
 }
 
