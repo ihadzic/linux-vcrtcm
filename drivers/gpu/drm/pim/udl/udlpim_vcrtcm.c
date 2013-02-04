@@ -457,7 +457,7 @@ int udlpim_get_modes(int pconid, void *cookie,
 	/* Build the new vcrtcm_mode list. */
 	vcrtcm_mode_list =
 		vcrtcm_kmalloc(sizeof(struct vcrtcm_mode) * udlpim_mode_count,
-			GFP_KERNEL, pconid);
+			GFP_KERNEL, VCRTCM_OWNER_PIM | udlpim_pimid);
 
 	/* Copy the udlpim_video_mode list to the vcrtcm_mode list. */
 	for (i = 0; i < udlpim_mode_count; i++) {
