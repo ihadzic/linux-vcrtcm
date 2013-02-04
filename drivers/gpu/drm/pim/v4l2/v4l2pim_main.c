@@ -430,13 +430,12 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	f->fmt.pix.width        = minor->frame_width;
-	f->fmt.pix.height       = minor->frame_height;
-	f->fmt.pix.field        = V4L2_FIELD_NONE;
+	f->fmt.pix.width = minor->frame_width;
+	f->fmt.pix.height = minor->frame_height;
+	f->fmt.pix.field = V4L2_FIELD_NONE;
 	f->fmt.pix.pixelformat  = fmt->fourcc;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = fmt->colorspace;
 
 	return 0;
@@ -474,12 +473,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	field = V4L2_FIELD_NONE;
 
-	f->fmt.pix.field        = field;
-	f->fmt.pix.width        = minor->frame_width;
-	f->fmt.pix.height       = minor->frame_height;
+	f->fmt.pix.field = field;
+	f->fmt.pix.width = minor->frame_width;
+	f->fmt.pix.height = minor->frame_height;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = fmt->colorspace;
 
 	return 0;
@@ -512,11 +510,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 	minor->fmt = fmt;
-	f->fmt.pix.width        = minor->frame_width;
-	f->fmt.pix.height       = minor->frame_height;
+	f->fmt.pix.width = minor->frame_width;
+	f->fmt.pix.height = minor->frame_height;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * (fmt->depth >> 3));
-	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = fmt->colorspace;
 	minor->vb_vidq.field = f->fmt.pix.field;
 
