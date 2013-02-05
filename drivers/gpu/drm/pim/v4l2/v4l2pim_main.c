@@ -1128,10 +1128,10 @@ static void __exit v4l2pim_exit(void)
 module_init(v4l2pim_init);
 module_exit(v4l2pim_exit);
 
-MODULE_PARM_DESC(v4l2pim_debug, "Enable debugging information");
+MODULE_PARM_DESC(debug, "Enable debugging information");
 module_param_named(debug, v4l2pim_debug, int,
 		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
-MODULE_PARM_DESC(vid_limit, "MB of memory for streaming buffers (default=16)");
+MODULE_PARM_DESC(stream_mem, "MB of memory for streaming buffers (default=16)");
 module_param_named(stream_mem, vid_limit, uint,
 		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(log_pim_alloc_cnts,
