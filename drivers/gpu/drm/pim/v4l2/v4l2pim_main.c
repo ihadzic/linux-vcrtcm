@@ -120,81 +120,67 @@ static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 	return &formats[i];
 }
 
-static int copy_line(char *dst, char *src, int hpixels, uint32_t fourcc)
+static int swizzle_pixel(char *dst, char *src, uint32_t fourcc)
 {
-	int hlen;
-	char *src_end;
-
 	switch (fourcc) {
-	case V4L2_PIX_FMT_BGR32:
-		/* native format so just copy */
-		hlen = hpixels * 4;
-		memcpy(dst, src, hlen);
-		return hlen;
 	case V4L2_PIX_FMT_RGB32:
 		/* reorder the bytes */
-		hlen = hpixels * 4;
-		src_end = src + hlen;
-		while (src < src_end) {
-			dst[0] = src[2];
-			dst[1] = src[1];
-			dst[2] = src[0];
-			dst[3] = src[3];
-			src += 4;
-			dst += 4;
-		}
-		return hlen;
+		dst[0] = src[2];
+		dst[1] = src[1];
+		dst[2] = src[0];
+		dst[3] = src[3];
+		break;
 	case V4L2_PIX_FMT_BGR24:
 		/* get rid of alpha */
-		hlen = hpixels * 3;
-		src_end = src + hpixels * 4;
-		while (src < src_end) {
-			dst[0] = src[0];
-			dst[1] = src[1];
-			dst[2] = src[2];
-			src += 4;
-			dst += 3;
-		}
-		return hlen;
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = src[2];
+		break;
 	case V4L2_PIX_FMT_RGB24:
 		/* reorder the bytes, get rid of alpha */
-		hlen = hpixels * 3;
-		src_end = src + hpixels * 4;
-		while (src < src_end) {
-			dst[0] = src[2];
-			dst[1] = src[1];
-			dst[2] = src[0];
-			src += 4;
-			dst += 3;
-		}
-		return hlen;
+		dst[0] = src[2];
+		dst[1] = src[1];
+		dst[2] = src[0];
+		break;
 	case V4L2_PIX_FMT_RGB565:
-		hlen = hpixels * 2;
-		src_end = src + hpixels * 4;
-		while (src < src_end) {
-			dst[0] = ((src[1] & 0x1C) << 3) |
-				((src[0] >> 3) & 0xFF);
-			dst[1] = (src[2] & 0xF8) |
-				((src[1] >> 5) & 0xFF);
-			src += 4;
-			dst += 2;
-		}
-		return hlen;
+		dst[0] = ((src[1] & 0x1C) << 3) | ((src[0] >> 3) & 0xFF);
+		dst[1] = (src[2] & 0xF8) | ((src[1] >> 5) & 0xFF);
+		break;
 	case V4L2_PIX_FMT_RGB555:
-		hlen = hpixels * 2;
-		src_end = src + hpixels * 4;
-		while (src < src_end) {
-			dst[0] = ((src[1] & 0xF8) << 2) |
-				((src[0] >> 3) & 0xFF);
-			dst[1] = ((src[2] & 0xF8) >> 1) |
-				((src[1] & 0xF8) >> 6);
-			src += 4;
-			dst += 2;
-		}
-		return hlen;
+		dst[0] = ((src[1] & 0xF8) << 2) | ((src[0] >> 3) & 0xFF);
+		dst[1] = ((src[2] & 0xF8) >> 1) | ((src[1] & 0xF8) >> 6);
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
+
+static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
+{
+	int hlen, dst_bpp, src_bpp;
+	char *src_end;
+
+	src_bpp = 4;
+	dst_bpp = fmt->depth >> 3;
+	hlen = hpixels * dst_bpp;
+	src_end = src + hpixels * src_bpp;
+	if (fmt->fourcc == V4L2_PIX_FMT_BGR32) {
+		/* native format so just copy */
+		BUG_ON(src_bpp != dst_bpp);
+		memcpy(dst, src, hlen);
+	} else {
+		while (src < src_end) {
+			int r;
+
+			r = swizzle_pixel(dst, src, fmt->fourcc);
+			if (unlikely(r))
+				return r;
+			src += src_bpp;
+			dst += dst_bpp;
+		}
+	}
+	return hlen;
 }
 
 static void start_generating(struct v4l2pim_minor *minor)
@@ -262,7 +248,7 @@ int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 	for (i = 0; i < vpixels; i++) {
 		int bcopied;
 
-		bcopied = copy_line(dst, src, hpixels, minor->fmt->fourcc);
+		bcopied = copy_line(dst, src, hpixels, minor->fmt);
 		if (bcopied < 0) {
 			r = bcopied;
 			goto unlock;
