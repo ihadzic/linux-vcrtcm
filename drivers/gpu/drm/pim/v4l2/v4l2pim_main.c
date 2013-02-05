@@ -50,7 +50,7 @@ LIST_HEAD(v4l2pim_minor_list);
 int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
 static unsigned int vid_limit = 16;
-int v4l2pim_debug; /* Enable the printing of debugging information */
+int v4l2pim_debug;
 int v4l2pim_log_pim_alloc_counts;
 int v4l2pim_log_pcon_alloc_counts;
 int v4l2pim_pimid = -1;
@@ -268,10 +268,6 @@ unlock:
 	return r;
 }
 
-/************************************************************************/
-/* videobuf                                                             */
-/************************************************************************/
-
 static int
 buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
@@ -359,10 +355,6 @@ static void buf_release(struct videobuf_queue *vq,
 {
 	free_buf(vq, vb);
 }
-
-/************************************************************************/
-/* ioctl                                                                */
-/************************************************************************/
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -850,10 +842,6 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-/************************************************************************/
-/* shadowbuf alloc/free                                                 */
-/************************************************************************/
-
 int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor, int w, int h, int bpp)
 {
 	struct page **pages;
@@ -934,10 +922,6 @@ void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor)
 		shadowbuf_num_pages, VCRTCM_OWNER_PIM | v4l2pim_pimid);
 	vcrtcm_kfree(shadowbuf_pages);
 }
-
-/************************************************************************/
-/* funcs                                                                */
-/************************************************************************/
 
 static const struct v4l2_file_operations v4l2pim_fops = {
 	.owner		= THIS_MODULE,
