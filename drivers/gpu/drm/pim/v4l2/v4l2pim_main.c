@@ -183,6 +183,15 @@ static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
 	return hlen;
 }
 
+static uint32_t fb_size(struct v4l2pim_minor *minor)
+{
+	uint32_t r;
+
+	r = minor->frame_width * minor->frame_height;
+	r *= minor->fmt->depth >> 3;
+	return r;
+}
+
 static void start_generating(struct v4l2pim_minor *minor)
 {
 	mutex_lock(&minor->buffer_mutex);
@@ -273,18 +282,12 @@ buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
-	uint8_t *fb;
-	uint32_t fbsize;
 
 	minor = vq->priv_data;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
-		return -EINVAL;
-	*size = fbsize;
+	*size = fb_size(minor);
 	if (0 == *count)
 		*count = 32;
 	while (*size * *count > vid_limit * 1024 * 1024)
@@ -308,23 +311,17 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 {
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
-	uint8_t *fb;
-	uint32_t fbsize;
 	int ret;
 
 	minor = vq->priv_data;
 	pcon = minor->pcon;
 	if (!pcon)
 		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
-		return -EINVAL;
-	if (0 != vb->baddr && vb->bsize < fbsize)
+	if (0 != vb->baddr && vb->bsize < fb_size(minor))
 		return -EINVAL;
 
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
-		vb->size = fbsize;
+		vb->size = fb_size(minor);
 		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret < 0)
 			goto fail;
@@ -405,18 +402,12 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
-	uint8_t *fb;
-	uint32_t fbsize;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	fmt = minor->fmt;
 	if (!fmt)
@@ -432,8 +423,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
-	uint8_t *fb;
-	uint32_t fbsize;
 	enum v4l2_field field;
 
 	minor = video_drvdata(file);
@@ -441,10 +430,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	if (is_generating(minor))
 		return -EBUSY;
@@ -484,8 +469,6 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
-	uint8_t *fb;
-	uint32_t fbsize;
 	int r;
 
 	minor = video_drvdata(file);
@@ -493,10 +476,6 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
@@ -515,8 +494,6 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
-	uint8_t *fb;
-	uint32_t fbsize;
 	int r;
 
 	minor = video_drvdata(file);
@@ -524,10 +501,6 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
@@ -581,8 +554,6 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2pim_minor *minor;
 	struct v4l2pim_pcon *pcon;
-	uint8_t *fb;
-	uint32_t fbsize;
 	int ret;
 
 	minor = video_drvdata(file);
@@ -590,10 +561,6 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 		return -ENODEV;
 	pcon = minor->pcon;
 	if (!pcon)
-		return -EINVAL;
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
