@@ -120,105 +120,81 @@ static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 	return &formats[i];
 }
 
-/************************************************************************/
-/* stream thread                                                        */
-/************************************************************************/
-
-static void
-fillbuff(struct v4l2pim_minor *minor, struct videobuf_buffer *vb)
+static int copy_line(char *dst, char *src, int hpixels, uint32_t fourcc)
 {
-	struct v4l2pim_pcon *pcon;
-	struct timeval ts;
-	uint8_t *fb, *fbend, *dst;
-	uint32_t fbsize;
-	uint32_t w, h, d;
-	unsigned long flags;
+	int hlen;
+	char *src_end;
 
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
-		return;
-	dst = videobuf_to_vmalloc(vb);
-	if (!dst)
-		return;
-	pcon = minor->pcon;
-	if (!pcon)
-		return;
-
-	w  = minor->frame_width;
-	h = minor->frame_height;
-	d = minor->fmt->depth;
-
-	spin_lock_irqsave(&minor->sb_lock, flags);
-	switch (minor->fmt->fourcc) {
+	switch (fourcc) {
 	case V4L2_PIX_FMT_BGR32:
 		/* native format so just copy */
-		memcpy(dst, fb, fbsize);
-		vb->size = fbsize;
-		break;
+		hlen = hpixels * 4;
+		memcpy(dst, src, hlen);
+		return hlen;
 	case V4L2_PIX_FMT_RGB32:
 		/* reorder the bytes */
-		fbend = fb + fbsize;
-		while (fb < fbend) {
-			dst[0] = fb[2];
-			dst[1] = fb[1];
-			dst[2] = fb[0];
-			dst[3] = fb[3];
-			fb += 4;
+		hlen = hpixels * 4;
+		src_end = src + hlen;
+		while (src < src_end) {
+			dst[0] = src[2];
+			dst[1] = src[1];
+			dst[2] = src[0];
+			dst[3] = src[3];
+			src += 4;
 			dst += 4;
 		}
-		break;
+		return hlen;
 	case V4L2_PIX_FMT_BGR24:
 		/* get rid of alpha */
-		fbend = fb + fbsize;
-		while (fb < fbend) {
-			dst[0] = fb[0];
-			dst[1] = fb[1];
-			dst[2] = fb[2];
-			fb += 4;
+		hlen = hpixels * 3;
+		src_end = src + hpixels * 4;
+		while (src < src_end) {
+			dst[0] = src[0];
+			dst[1] = src[1];
+			dst[2] = src[2];
+			src += 4;
 			dst += 3;
 		}
-		break;
+		return hlen;
 	case V4L2_PIX_FMT_RGB24:
 		/* reorder the bytes, get rid of alpha */
-		fbend = fb + fbsize;
-		while (fb < fbend) {
-			dst[0] = fb[2];
-			dst[1] = fb[1];
-			dst[2] = fb[0];
-			fb += 4;
+		hlen = hpixels * 3;
+		src_end = src + hpixels * 4;
+		while (src < src_end) {
+			dst[0] = src[2];
+			dst[1] = src[1];
+			dst[2] = src[0];
+			src += 4;
 			dst += 3;
 		}
-		break;
+		return hlen;
 	case V4L2_PIX_FMT_RGB565:
-		fbend = fb + fbsize;
-		while (fb < fbend) {
-			dst[0] = ((fb[1] & 0x1C) << 3) | ((fb[0] >> 3) & 0xFF);
-			dst[1] = (fb[2] & 0xF8) | ((fb[1] >> 5) & 0xFF);
-			fb += 4;
+		hlen = hpixels * 2;
+		src_end = src + hpixels * 4;
+		while (src < src_end) {
+			dst[0] = ((src[1] & 0x1C) << 3) |
+				((src[0] >> 3) & 0xFF);
+			dst[1] = (src[2] & 0xF8) |
+				((src[1] >> 5) & 0xFF);
+			src += 4;
 			dst += 2;
 		}
-		break;
+		return hlen;
 	case V4L2_PIX_FMT_RGB555:
-		fbend = fb + fbsize;
-		while (fb < fbend) {
-			dst[0] = ((fb[1] & 0xF8) << 2) | ((fb[0] >> 3) & 0xFF);
-			dst[1] = ((fb[2] & 0xF8) >> 1) | ((fb[1] & 0xF8) >> 6);
-			fb += 4;
+		hlen = hpixels * 2;
+		src_end = src + hpixels * 4;
+		while (src < src_end) {
+			dst[0] = ((src[1] & 0xF8) << 2) |
+				((src[0] >> 3) & 0xFF);
+			dst[1] = ((src[2] & 0xF8) >> 1) |
+				((src[1] & 0xF8) >> 6);
+			src += 4;
 			dst += 2;
 		}
-		break;
+		return hlen;
 	default:
-		d = 0;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&minor->sb_lock, flags);
-
-	vb->size = w * h * (d >> 3);
-	vb->field_count++;
-	do_gettimeofday(&ts);
-	vb->ts = ts;
-	vb->state = VIDEOBUF_DONE;
 }
 
 static void start_generating(struct v4l2pim_minor *minor)
@@ -250,32 +226,60 @@ static int is_active(struct v4l2pim_minor *minor)
 	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
 }
 
-void v4l2pim_deliver_frame(struct v4l2pim_minor *minor)
+int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 {
 	struct videobuf_buffer *vb;
-	unsigned long flags = 0;
-	uint8_t *fb;
-	uint32_t fbsize;
+	struct v4l2pim_pcon *pcon = minor->pcon;
+	unsigned long flags;
+	unsigned int hpixels, vpixels, pitch;
+	unsigned int vp_offset, vpx, vpy;
+	int i, r = 0;
+	int vbsize;
+	char *src, *dst;
+	struct timeval ts;
 
-	if (!is_generating(minor))
-		return;
-
-	fb = minor->shadowbuf;
-	fbsize = minor->shadowbufsize;
-	if (!fb || fbsize <= 0)
-		return;
-
+	if (!pcon || !is_generating(minor))
+		return -EINVAL;
 	spin_lock_irqsave(&minor->slock, flags);
 	if (list_empty(&minor->active))
 		goto unlock;
-
 	vb = list_entry(minor->active.next,
 			struct videobuf_buffer, queue);
 	list_del(&vb->queue);
-	fillbuff(minor, vb);
+	dst = videobuf_to_vmalloc(vb);
+	if (!dst) {
+		r = -EFAULT;
+		goto unlock;
+	}
+	hpixels = pcon->vcrtcm_fb.hdisplay;
+	vpixels = pcon->vcrtcm_fb.vdisplay;
+	vpx = pcon->vcrtcm_fb.viewport_x;
+	vpy = pcon->vcrtcm_fb.viewport_y;
+	pitch = pcon->vcrtcm_fb.pitch;
+	vp_offset = pitch * vpy + vpx * (pcon->vcrtcm_fb.bpp >> 3);
+	src = pcon->pb_fb[push_buffer_index] + vp_offset;
+	vbsize = 0;
+	for (i = 0; i < vpixels; i++) {
+		int bcopied;
+
+		bcopied = copy_line(dst, src, hpixels, minor->fmt->fourcc);
+		if (bcopied < 0) {
+			r = bcopied;
+			goto unlock;
+		}
+		src += pitch;
+		dst += bcopied;
+		vbsize += bcopied;
+	}
+	vb->size = vbsize;
+	vb->field_count++;
+	do_gettimeofday(&ts);
+	vb->ts = ts;
+	vb->state = VIDEOBUF_DONE;
 	wake_up(&vb->done);
 unlock:
 	spin_unlock_irqrestore(&minor->slock, flags);
+	return r;
 }
 
 /************************************************************************/

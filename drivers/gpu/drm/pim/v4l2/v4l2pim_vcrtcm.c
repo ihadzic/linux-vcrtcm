@@ -442,43 +442,6 @@ void v4l2pim_cursor_overlay(struct v4l2pim_pcon *pcon, int push_buffer_index)
 	}
 }
 
-void v4l2pim_buffer_copy(struct v4l2pim_pcon *pcon, int push_buffer_index,
-			 char *shadowbuf, spinlock_t *shadowbuf_lock)
-{
-	unsigned int hpixels, vpixels;
-	unsigned int p, vp_offset, hlen, vpx, vpy, bpp;
-	int i;
-	char *mb, *sb;
-	unsigned long flags;
-	unsigned long jiffies_snapshot;
-
-	hpixels = pcon->vcrtcm_fb.hdisplay;
-	vpixels = pcon->vcrtcm_fb.vdisplay;
-	vpx = pcon->vcrtcm_fb.viewport_x;
-	vpy = pcon->vcrtcm_fb.viewport_y;
-	bpp = pcon->vcrtcm_fb.bpp >> 3;
-	p = pcon->vcrtcm_fb.pitch;
-	vp_offset = p * vpy + vpx * bpp;
-	hlen = hpixels * bpp;
-
-	V4L2PIM_DEBUG("[%d]: initiating copy\n", push_buffer_index);
-	jiffies_snapshot = jiffies;
-	spin_lock_irqsave(shadowbuf_lock, flags);
-	if (shadowbuf) {
-		mb = pcon->pb_fb[push_buffer_index] + vp_offset;
-		sb = shadowbuf;
-		for (i = 0; i < vpixels; i++) {
-			memcpy(sb, mb, hlen);
-			mb += p;
-			sb += hlen;
-		}
-	}
-	spin_unlock_irqrestore(shadowbuf_lock, flags);
-	V4L2PIM_DEBUG("copy took %u ms\n",
-		      jiffies_to_msecs(jiffies - jiffies_snapshot));
-	pcon->pb_needs_xmit[push_buffer_index] = 0;
-}
-
 int v4l2pim_vblank(int pconid, void *cookie)
 {
 	struct v4l2pim_pcon *pcon = v4l2pim_cookie2pcon(pconid, cookie);
@@ -568,10 +531,13 @@ int v4l2pim_vblank(int pconid, void *cookie)
 
 	if ((pcon->pb_needs_xmit[push_buffer_index]) &&
 	    (!pcon->pbd_fb[push_buffer_index]->virgin)) {
+		V4L2PIM_DEBUG("[%d]: initiating copy\n", push_buffer_index);
+		jiffies_snapshot = jiffies;
 		v4l2pim_cursor_overlay(pcon, push_buffer_index);
-		v4l2pim_buffer_copy(pcon, push_buffer_index,
-				    minor->shadowbuf, &minor->sb_lock);
-		v4l2pim_deliver_frame(minor);
+		v4l2pim_deliver_frame(minor, push_buffer_index);
+		pcon->pb_needs_xmit[push_buffer_index] = 0;
+		V4L2PIM_DEBUG("[%d]: copy took %u ms\n", push_buffer_index,
+			      jiffies_to_msecs(jiffies - jiffies_snapshot));
 	}
 	mutex_unlock(&minor->buffer_mutex);
 	return r;
