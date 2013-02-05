@@ -24,7 +24,6 @@
 
 #include <linux/usb.h>
 #include <linux/delay.h>
-#include <linux/kthread.h>
 #include <linux/mutex.h>
 
 #include <media/v4l2-common.h>
@@ -90,7 +89,6 @@ struct v4l2pim_minor {
 	struct videobuf_queue vb_vidq;
 	struct list_head active;
 	unsigned long status;
-	struct task_struct *kthread;
 	struct v4l2pim_fmt *fmt;
 	int frame_width;
 	int frame_height;
