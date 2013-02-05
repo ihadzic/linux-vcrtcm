@@ -271,8 +271,6 @@ void v4l2pim_deliver_frame(struct v4l2pim_minor *minor)
 
 	vb = list_entry(minor->active.next,
 			struct videobuf_buffer, queue);
-	if (!waitqueue_active(&vb->done))
-		goto unlock;
 	list_del(&vb->queue);
 	fillbuff(minor, vb);
 	wake_up(&vb->done);
