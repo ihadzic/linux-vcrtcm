@@ -46,6 +46,13 @@
 #define V4L2PIM_VERSION \
 	KERNEL_VERSION(V4L2PIM_MAJOR_VERSION, V4L2PIM_MINOR_VERSION, V4L2PIM_RELEASE)
 
+#define V4L2PIM_DEFAULT_WIDTH 1024
+#define V4L2PIM_DEFAULT_HEIGHT 768
+#define V4L2PIM_MAX_WIDTH 4096
+#define V4L2PIM_MAX_HEIGHT 4096
+#define V4L2PIM_MIN_WIDTH 8
+#define V4L2PIM_MIN_HEIGHT 8
+
 LIST_HEAD(v4l2pim_minor_list);
 int v4l2pim_num_minors;
 int v4l2pim_fake_vblank_slack = 1;
@@ -54,6 +61,8 @@ int v4l2pim_debug;
 int v4l2pim_log_pim_alloc_counts;
 int v4l2pim_log_pcon_alloc_counts;
 int v4l2pim_pimid = -1;
+static int default_width = V4L2PIM_DEFAULT_WIDTH;
+static int default_height = V4L2PIM_DEFAULT_HEIGHT;
 
 /* ID generator for allocating minor numbers */
 static struct vcrtcm_id_generator minor_id_generator;
@@ -512,6 +521,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 static int v4l2pim_open(struct file *file)
 {
 	struct v4l2pim_minor *minor;
+	int r;
 
 	minor = video_drvdata(file);
 	if (!minor || !is_active(minor))
@@ -520,7 +530,25 @@ static int v4l2pim_open(struct file *file)
 	if (test_and_set_bit(V4L2PIM_STATUS_OPEN, &minor->status))
 		return -EBUSY;
 	atomic_inc(&minor->users);
-	v4l2pim_get_fb_attrs(minor);
+	r = v4l2pim_get_fb_attrs(minor);
+	if (r) {
+		int w = default_width;
+		int h = default_height;
+
+		/*
+		 * if pcon has no framebuffer (typicall unattached pcon)
+		 * we use default size, but since default size is a module
+		 * parameter, we have to make sure it's sane
+		 */
+		if (w > V4L2PIM_MAX_WIDTH || w < V4L2PIM_MAX_WIDTH)
+			w = V4L2PIM_DEFAULT_WIDTH;
+		if (h > V4L2PIM_MAX_HEIGHT || h < V4L2PIM_MAX_HEIGHT)
+			h = V4L2PIM_DEFAULT_HEIGHT;
+		minor->frame_width = w;
+		minor->frame_height = h;
+	}
+	VCRTCM_INFO("minor %d, videobuf dimensions are %dx%d\n",
+		    minor->minor, minor->frame_width, minor->frame_height);
 	return 0;
 }
 
@@ -1057,6 +1085,12 @@ MODULE_PARM_DESC(log_pcon_alloc_cnts,
 		 "When set to 1, log all per-PCON alloc counts (default = 0)");
 module_param_named(log_pcon_alloc_cnts, v4l2pim_log_pcon_alloc_counts,
 		   int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(default_width, "Default videobuf width");
+module_param_named(default_width, default_width, int,
+		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(default_height, "Default videobuf height");
+module_param_named(default_height, default_height, int,
+		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("v4l2 PCON");
