@@ -167,7 +167,7 @@ static int swizzle_pixel(char *dst, char *src, uint32_t fourcc)
 
 static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
 {
-	int hlen, dst_bpp, src_bpp;
+	int dst_bpp, src_bpp;
 	char *src_end;
 
 	/*
@@ -178,12 +178,11 @@ static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
 	 */
 	src_bpp = 4;
 	dst_bpp = fmt->depth >> 3;
-	hlen = hpixels * dst_bpp;
 	src_end = src + hpixels * src_bpp;
 	if (fmt->fourcc == V4L2_PIX_FMT_BGR32) {
 		/* native format so just copy */
 		BUG_ON(src_bpp != dst_bpp);
-		memcpy(dst, src, hlen);
+		memcpy(dst, src, hpixels * dst_bpp);
 	} else {
 		while (src < src_end) {
 			int r;
@@ -195,7 +194,7 @@ static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
 			dst += dst_bpp;
 		}
 	}
-	return hlen;
+	return dst_bpp;
 }
 
 static uint32_t fb_size(struct v4l2pim_minor *minor)
@@ -256,8 +255,7 @@ int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 	unsigned long flags;
 	unsigned int hpixels, vpixels, pitch;
 	unsigned int vp_offset, vpx, vpy;
-	int i, r = 0;
-	int vbsize;
+	int i, dst_bpp = 0, r = 0;
 	char *src, *dst;
 	struct timeval ts;
 
@@ -276,26 +274,26 @@ int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 		goto unlock;
 	}
 	hpixels = pcon->vcrtcm_fb.hdisplay;
+	if (hpixels > minor->frame_width)
+		hpixels = minor->frame_width;
 	vpixels = pcon->vcrtcm_fb.vdisplay;
+	if (vpixels > minor->frame_height)
+		vpixels = minor->frame_height;
 	vpx = pcon->vcrtcm_fb.viewport_x;
 	vpy = pcon->vcrtcm_fb.viewport_y;
 	pitch = pcon->vcrtcm_fb.pitch;
 	vp_offset = pitch * vpy + vpx * (pcon->vcrtcm_fb.bpp >> 3);
 	src = pcon->pb_fb[push_buffer_index] + vp_offset;
-	vbsize = 0;
 	for (i = 0; i < vpixels; i++) {
-		int bcopied;
-
-		bcopied = copy_line(dst, src, hpixels, minor->fmt);
-		if (bcopied < 0) {
-			r = bcopied;
+		dst_bpp = copy_line(dst, src, hpixels, minor->fmt);
+		if (dst_bpp < 0) {
+			r = dst_bpp;
 			goto unlock;
 		}
 		src += pitch;
-		dst += bcopied;
-		vbsize += bcopied;
+		dst += dst_bpp * minor->frame_width;
 	}
-	vb->size = vbsize;
+	vb->size = minor->frame_width * minor->frame_height * dst_bpp;
 	vb->field_count++;
 	do_gettimeofday(&ts);
 	vb->ts = ts;
