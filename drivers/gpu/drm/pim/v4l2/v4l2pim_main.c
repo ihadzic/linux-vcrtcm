@@ -247,7 +247,8 @@ int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 	char *src, *dst;
 	struct timeval ts;
 
-	if (!pcon || !is_generating(minor))
+	BUG_ON(!pcon);
+	if (!is_generating(minor))
 		return -EINVAL;
 	spin_lock_irqsave(&minor->slock, flags);
 	if (list_empty(&minor->active))
