@@ -161,6 +161,12 @@ static int copy_line(char *dst, char *src, int hpixels, struct v4l2pim_fmt *fmt)
 	int hlen, dst_bpp, src_bpp;
 	char *src_end;
 
+	/*
+	 * FIXME: source bpp is hard-coded and assumes that GPU delivers 32-bit
+	 * format. In a perfect world we should pick up the bpp from VCRTCM, but
+	 * if we start supporting multiple source formats, then this whole
+	 * function will change, so hard coding src_bpp is not much of a sin.
+	 */
 	src_bpp = 4;
 	dst_bpp = fmt->depth >> 3;
 	hlen = hpixels * dst_bpp;
@@ -221,6 +227,14 @@ static int is_active(struct v4l2pim_minor *minor)
 	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
 }
 
+/*
+ * This function copies the frame from the VCRTCM push buffer into
+ * videobuf. This is the primary interface betweeh the VCRTCM-facing
+ * side of the driver and the V4L2-facing side of the driver.
+ * The function references PCON structure, but it does not lock
+ * the PCON because it is called in the context of VBLANK-emulation
+ * thread, so the PCON is already locked.
+ */
 int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index)
 {
 	struct videobuf_buffer *vb;
