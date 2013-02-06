@@ -135,8 +135,8 @@ int v4l2pim_attach(int pconid, void *cookie)
 	if (!pcon)
 		return -ENODEV;
 	minor = pcon->minor;
-	VCRTCM_INFO("Attaching vl2pcon 0x%08x to pcon 0x%08x\n",
-		minor->minor, pconid);
+	VCRTCM_INFO("Attaching minor %d for pcon 0x%08x\n",
+		    minor->minor, pconid);
 
 	pcon->attached = 1;
 	return 0;
