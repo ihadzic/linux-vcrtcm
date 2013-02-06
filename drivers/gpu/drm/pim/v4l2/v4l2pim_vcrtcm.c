@@ -577,6 +577,34 @@ int v4l2pim_get_fps(struct v4l2pim_minor *minor)
 	return fps;
 }
 
+/*
+ * Snapshots attached framebuffer attributes (e.g., dimensions) into
+ * v4l2pim_minor structure. Typically called by the open() system call
+ * of the V4L2-facing side of the driver.
+ *
+ * In theory we could snapshot the the attributes whenever the buffers
+ * are allocated (or re-allocated), but that's dangerous because
+ * application hase a separate ioctl to query the buffer size so, depending
+ * on the order or system calls, the application may end up in inconsistent
+ * state. If we snapshot only at the time of open(), we should be safe.
+ */
+int v4l2pim_get_fb_attrs(struct v4l2pim_minor *minor)
+{
+	struct v4l2pim_pcon *pcon = minor->pcon;
+	int r ;
+
+	BUG_ON(!pcon);
+	vcrtcm_p_lock_pconid(pcon->pconid);
+	if (pcon->pbd_fb[pcon->push_buffer_index]) {
+		minor->frame_width = pcon->vcrtcm_fb.hdisplay;
+		minor->frame_height = pcon->vcrtcm_fb.vdisplay;
+		r = 0;
+	} else
+		r = -ENODEV;
+	vcrtcm_p_unlock_pconid(pcon->pconid);
+	return r;
+}
+
 struct v4l2pim_pcon
 *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)
 {

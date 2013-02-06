@@ -520,7 +520,7 @@ static int v4l2pim_open(struct file *file)
 	if (test_and_set_bit(V4L2PIM_STATUS_OPEN, &minor->status))
 		return -EBUSY;
 	atomic_inc(&minor->users);
-
+	v4l2pim_get_fb_attrs(minor);
 	return 0;
 }
 
