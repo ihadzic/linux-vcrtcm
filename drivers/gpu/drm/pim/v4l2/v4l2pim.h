@@ -77,13 +77,7 @@ struct v4l2pim_minor {
 	atomic_t users;
 	atomic_t syscall_count;
 
-	/* v4l2pim */
-	uint8_t *shadowbuf;
-	uint32_t shadowbufsize;
-	spinlock_t sb_lock;
-	struct page **shadowbuf_pages;
-	unsigned int shadowbuf_num_pages;
-
+	/* v4l2 stuff */
 	struct video_device *vfd;
 	struct v4l2_device v4l2_dev;
 	spinlock_t slock;
@@ -116,8 +110,6 @@ struct v4l2pim_pcon {
 	struct v4l2pim_minor *minor;
 };
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor, int w, int h, int bpp);
-void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor);
 struct v4l2pim_minor *v4l2pim_create_minor(void);
 void v4l2pim_destroy_minor(struct v4l2pim_minor *minor);
 int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index);

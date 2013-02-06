@@ -178,8 +178,6 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 {
 	int num_pages, r = 0;
 	struct vcrtcm_push_buffer_descriptor *pbd0, *pbd1;
-	int need_shadow_buf = 0;
-	struct v4l2pim_minor *minor = pcon->minor;
 
 	if (flag ==  V4L2PIM_ALLOC_PB_FLAG_FB) {
 		pbd0 = pcon->pbd_fb[0];
@@ -201,7 +199,6 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 		/* no old buffer present */
 		BUG_ON(pbd1);
 		r = v4l2pim_alloc_pb(pcon, num_pages, flag);
-		need_shadow_buf = (flag == V4L2PIM_ALLOC_PB_FLAG_FB) ? 1 : 0;
 	} else if (pbd0->num_pages == num_pages) {
 		V4L2PIM_DEBUG("%s: reusing existing push buffer\n",
 			      V4L2PIM_ALLOC_PB_STRING(flag));
@@ -214,16 +211,6 @@ static int v4l2pim_realloc_pb(struct v4l2pim_pcon *pcon,
 		BUG_ON(pbd0->num_pages != pbd1->num_pages);
 		v4l2pim_free_pb(pcon, flag);
 		r = v4l2pim_alloc_pb(pcon, num_pages, flag);
-		need_shadow_buf = (flag == V4L2PIM_ALLOC_PB_FLAG_FB) ? 1 : 0;
-	}
-	if (need_shadow_buf) {
-		int w, h, bpp;
-
-		/* this should get freed later */
-		w = pcon->vcrtcm_fb.hdisplay;
-		h = pcon->vcrtcm_fb.vdisplay;
-		bpp = pcon->vcrtcm_fb.bpp;
-		v4l2pim_alloc_shadowbuf(minor, w, h, bpp);
 	}
 	return r;
 }

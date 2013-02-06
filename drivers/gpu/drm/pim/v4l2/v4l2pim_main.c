@@ -811,87 +811,6 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-int v4l2pim_alloc_shadowbuf(struct v4l2pim_minor *minor, int w, int h, int bpp)
-{
-	struct page **pages;
-	unsigned int num_pages;
-	uint8_t *shadowbuf;
-	int result;
-	int size;
-	unsigned long flags;
-
-	if (!minor)
-		return -EINVAL;
-
-	v4l2pim_free_shadowbuf(minor);
-	size = w * h * (bpp >> 3);
-	num_pages = size / PAGE_SIZE;
-	if (size % PAGE_SIZE > 0)
-		num_pages++;
-
-	pages = vcrtcm_kmalloc(sizeof(struct page *) * num_pages,
-		GFP_KERNEL, VCRTCM_OWNER_PIM | v4l2pim_pimid);
-	if (!pages)
-		goto sb_alloc_err;
-	result = vcrtcm_alloc_multiple_pages(GFP_KERNEL, pages,
-		num_pages, VCRTCM_OWNER_PIM | v4l2pim_pimid);
-	if (result != 0)
-		goto sb_alloc_mpages_err;
-	shadowbuf = vm_map_ram(pages, num_pages, 0, PAGE_KERNEL);
-	if (!shadowbuf)
-		goto sb_alloc_map_err;
-	memset(shadowbuf, 0, size);
-
-	spin_lock_irqsave(&minor->sb_lock, flags);
-	minor->shadowbuf = shadowbuf;
-	minor->shadowbufsize = size;
-	minor->shadowbuf_pages = pages;
-	minor->shadowbuf_num_pages = num_pages;
-	minor->frame_width = w;
-	minor->frame_height = h;
-	spin_unlock_irqrestore(&minor->sb_lock, flags);
-
-	return 0;
-
-sb_alloc_map_err:
-	vcrtcm_free_multiple_pages(pages, num_pages,
-				   VCRTCM_OWNER_PIM | v4l2pim_pimid);
-sb_alloc_mpages_err:
-	vcrtcm_kfree(pages);
-sb_alloc_err:
-
-	return -ENOMEM;
-}
-
-void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor)
-{
-	unsigned long flags;
-	uint8_t *shadowbuf;
-	struct page **shadowbuf_pages;
-	unsigned int shadowbuf_num_pages;
-
-	if (!minor)
-		return;
-	spin_lock_irqsave(&minor->slock, flags);
-	if (!minor->shadowbuf) {
-		spin_unlock_irqrestore(&minor->slock, flags);
-		return;
-	}
-	shadowbuf = minor->shadowbuf;
-	shadowbuf_pages = minor->shadowbuf_pages;
-	shadowbuf_num_pages = minor->shadowbuf_num_pages;
-	minor->shadowbuf = NULL;
-	minor->shadowbufsize = 0;
-	minor->shadowbuf_pages = NULL;
-	minor->shadowbuf_num_pages = 0;
-	spin_unlock_irqrestore(&minor->slock, flags);
-	vm_unmap_ram(shadowbuf,
-		shadowbuf_num_pages);
-	vcrtcm_free_multiple_pages(shadowbuf_pages,
-		shadowbuf_num_pages, VCRTCM_OWNER_PIM | v4l2pim_pimid);
-	vcrtcm_kfree(shadowbuf_pages);
-}
-
 static const struct v4l2_file_operations v4l2pim_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2pim_open,
@@ -966,7 +885,6 @@ struct v4l2pim_minor *v4l2pim_create_minor()
 	spin_lock_init(&minor->slock);
 	atomic_set(&minor->users, 0);
 	atomic_set(&minor->syscall_count, 0);
-	spin_lock_init(&minor->sb_lock);
 
 	snprintf(minor->v4l2_dev.name,
 			sizeof(minor->v4l2_dev.name),
@@ -1018,7 +936,6 @@ void v4l2pim_destroy_minor(struct v4l2pim_minor *minor)
 {
 	video_unregister_device(minor->vfd);
 	v4l2_device_unregister(&minor->v4l2_dev);
-	v4l2pim_free_shadowbuf(minor);
 	vcrtcm_id_generator_put(&minor_id_generator, minor->minor);
 	BUG_ON(v4l2pim_num_minors == 0);
 	v4l2pim_num_minors--;
