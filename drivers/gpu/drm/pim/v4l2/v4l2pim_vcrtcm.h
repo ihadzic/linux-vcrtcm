@@ -28,7 +28,6 @@ int v4l2pim_detach(int pconid, void *cookie, int force);
 int v4l2pim_set_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_get_fb(int pconid, void *cookie, struct vcrtcm_fb *vcrtcm_fb);
 int v4l2pim_set_fps(int pconid, void *cookie, int fps);
-int v4l2pim_get_fps(int pconid, void *cookie, int *fps);
 int v4l2pim_set_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 int v4l2pim_get_cursor(int pconid, void *cookie, struct vcrtcm_cursor *vcrtcm_cursor);
 void v4l2pim_disable(int pconid, void *cookie);
