@@ -66,6 +66,7 @@ struct v4l2pim_fmt {
 
 #define V4L2PIM_STATUS_GENERATING 0
 #define V4L2PIM_STATUS_OPEN 1
+#define V4L2PIM_STATUS_ACTIVE 2
 
 struct v4l2pim_minor {
 	/* vcrtcm stuff */

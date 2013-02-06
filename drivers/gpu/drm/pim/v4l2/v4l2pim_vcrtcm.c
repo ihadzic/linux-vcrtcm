@@ -629,6 +629,7 @@ int v4l2pim_instantiate(int pconid,
 	*vblank_slack = v4l2pim_fake_vblank_slack;
 	VCRTCM_INFO("v4l2pim %d now serves pcon 0x%08x\n",
 			minor->minor, pconid);
+	set_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
 	return 0;
 }
 
@@ -641,6 +642,7 @@ void v4l2pim_destroy(int pconid, void *cookie)
 	if (!pcon)
 		return;
 	minor = pcon->minor;
+	clear_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
 	v4l2pim_destroy_pcon(pcon);
 	v4l2pim_destroy_minor(minor);
 }

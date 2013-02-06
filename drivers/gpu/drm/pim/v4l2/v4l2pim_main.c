@@ -227,6 +227,11 @@ static int is_open(struct v4l2pim_minor *minor)
 	return test_bit(V4L2PIM_STATUS_OPEN, &minor->status);
 }
 
+static int is_active(struct v4l2pim_minor *minor)
+{
+	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
+}
+
 /*
  * This function copies the frame from the VCRTCM push buffer into
  * videobuf. This is the primary interface betweeh the VCRTCM-facing
@@ -509,7 +514,7 @@ static int v4l2pim_open(struct file *file)
 	struct v4l2pim_minor *minor;
 
 	minor = video_drvdata(file);
-	if (!minor)
+	if (!minor || !is_active(minor))
 		return -ENODEV;
 	/* claim the device and do not allow multiple openers */
 	if (test_and_set_bit(V4L2PIM_STATUS_OPEN, &minor->status))
