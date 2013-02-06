@@ -281,12 +281,8 @@ static int
 buf_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 
 	minor = vq->priv_data;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	*size = fb_size(minor);
 	if (0 == *count)
 		*count = 32;
@@ -310,13 +306,9 @@ buf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	int ret;
 
 	minor = vq->priv_data;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	if (0 != vb->baddr && vb->bsize < fb_size(minor))
 		return -EINVAL;
 
@@ -400,15 +392,11 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	fmt = minor->fmt;
 	if (!fmt)
 		return -EINVAL;
@@ -421,16 +409,12 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	struct v4l2pim_fmt *fmt;
 	enum v4l2_field field;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	if (is_generating(minor))
 		return -EBUSY;
 	fmt = get_format(f);
@@ -468,15 +452,11 @@ static ssize_t
 v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	int r;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
 		atomic_dec(&minor->syscall_count);
@@ -493,15 +473,11 @@ static unsigned int
 v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	int r;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
 		atomic_dec(&minor->syscall_count);
@@ -553,15 +529,11 @@ static int v4l2pim_release(struct file *file)
 static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	int ret;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
 	if (!is_active(minor)) {
 		atomic_dec(&minor->syscall_count);
@@ -709,16 +681,11 @@ static int
 vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	struct v4l2_fract timeperframe;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
-
 	if (parm->type !=  V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
@@ -734,15 +701,10 @@ static int
 vidioc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
-
 	if (parm->type !=  V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
@@ -755,16 +717,11 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 					struct v4l2_frmsizeenum *fsize)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
-
 	if (fsize->index != 0)
 		return -EINVAL;
 
@@ -783,16 +740,11 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 					struct v4l2_frmivalenum *fival)
 {
 	struct v4l2pim_minor *minor;
-	struct v4l2pim_pcon *pcon;
 	uint32_t i;
 
 	minor = video_drvdata(file);
 	if (!minor)
 		return -ENODEV;
-	pcon = minor->pcon;
-	if (!pcon)
-		return -EINVAL;
-
 	if (fival->index != 0)
 		return -EINVAL;
 	if (fival->width != minor->frame_width &&
