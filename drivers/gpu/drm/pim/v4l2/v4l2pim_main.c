@@ -222,9 +222,9 @@ static int is_generating(struct v4l2pim_minor *minor)
 	return test_bit(V4L2PIM_STATUS_GENERATING, &minor->status);
 }
 
-static int is_active(struct v4l2pim_minor *minor)
+static int is_open(struct v4l2pim_minor *minor)
 {
-	return test_bit(V4L2PIM_STATUS_ACTIVE, &minor->status);
+	return test_bit(V4L2PIM_STATUS_OPEN, &minor->status);
 }
 
 /*
@@ -473,7 +473,7 @@ v4l2pim_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -494,7 +494,7 @@ v4l2pim_poll(struct file *file, struct poll_table_struct *wait)
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -512,7 +512,7 @@ static int v4l2pim_open(struct file *file)
 	if (!minor)
 		return -ENODEV;
 	/* claim the device and do not allow multiple openers */
-	if (test_and_set_bit(V4L2PIM_STATUS_ACTIVE, &minor->status))
+	if (test_and_set_bit(V4L2PIM_STATUS_OPEN, &minor->status))
 		return -EBUSY;
 	atomic_inc(&minor->users);
 
@@ -527,7 +527,7 @@ static int v4l2pim_release(struct file *file)
 	if (!minor)
 		return -ENODEV;
 	/* mark the state for shutdown */
-	if (!test_and_clear_bit(V4L2PIM_STATUS_ACTIVE, &minor->status))
+	if (!test_and_clear_bit(V4L2PIM_STATUS_OPEN, &minor->status))
 		return -EBADFD;
 	/* give chance to system calls to finish */
 	while(atomic_read(&minor->syscall_count)) {
@@ -550,7 +550,7 @@ static int v4l2pim_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -593,7 +593,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -611,7 +611,7 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -629,7 +629,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (!minor)
 		return -ENODEV;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -659,7 +659,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
@@ -683,7 +683,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	atomic_inc(&minor->syscall_count);
-	if (!is_active(minor)) {
+	if (!is_open(minor)) {
 		atomic_dec(&minor->syscall_count);
 		return -ESHUTDOWN;
 	}
