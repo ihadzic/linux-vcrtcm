@@ -2,6 +2,7 @@
  * Copyright (C) 2011 Alcatel-Lucent, Inc.
  * Authors: Hans Christian Woithe <hans.woithe@alcatel-lucent.com>
  *          Bill Katsak <william.katsak@alcatel-lucent.com>
+ *          Ilija Hadzic <ilija.hadzic@alcatel-lucent.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
