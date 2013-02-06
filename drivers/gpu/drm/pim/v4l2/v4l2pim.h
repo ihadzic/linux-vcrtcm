@@ -120,5 +120,6 @@ void v4l2pim_free_shadowbuf(struct v4l2pim_minor *minor);
 struct v4l2pim_minor *v4l2pim_create_minor(void);
 void v4l2pim_destroy_minor(struct v4l2pim_minor *minor);
 int v4l2pim_deliver_frame(struct v4l2pim_minor *minor, int push_buffer_index);
+int v4l2pim_get_fps(struct v4l2pim_minor *minor);
 
 #endif

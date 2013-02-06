@@ -559,6 +559,23 @@ static struct vcrtcm_p_pcon_funcs v4l2pim_pcon_funcs = {
 	.disable = v4l2pim_disable,
 	.vblank = v4l2pim_vblank,
 };
+/*
+ * Retrieve fps rate for a PCON associated with specified minor.
+ * N.B.: This function is *not* a vcrtcm callback. It is used by
+ *       v4l2-facing side of the driver to find out the frame rate
+ *       of the video stream.
+ */
+int v4l2pim_get_fps(struct v4l2pim_minor *minor)
+{
+	struct v4l2pim_pcon *pcon = minor->pcon;
+	int fps;
+
+	BUG_ON(!pcon);
+	vcrtcm_p_lock_pconid(pcon->pconid);
+	fps = pcon->fps;
+	vcrtcm_p_unlock_pconid(pcon->pconid);
+	return fps;
+}
 
 struct v4l2pim_pcon
 *v4l2pim_create_pcon(int pconid, struct v4l2pim_minor *minor)

@@ -723,7 +723,7 @@ vidioc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm)
 		return -EINVAL;
 
 	timeperframe.numerator = 1001;
-	timeperframe.denominator = pcon->fps * 1000;
+	timeperframe.denominator = v4l2pim_get_fps(minor) * 1000;
 
 	parm->parm.capture.capability |=  V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.timeperframe = timeperframe;
@@ -801,9 +801,11 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (fival->pixel_format == formats[i].fourcc) {
+			int fps = v4l2pim_get_fps(minor);
+
 			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 			fival->discrete.numerator = 1001;
-			fival->discrete.denominator = pcon->fps * 1000;
+			fival->discrete.denominator = fps * 1000;
 			return 0;
 		}
 	return -EINVAL;
