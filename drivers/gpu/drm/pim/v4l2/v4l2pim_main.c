@@ -64,6 +64,7 @@ int v4l2pim_log_pcon_alloc_counts;
 int v4l2pim_pimid = -1;
 static int default_width = V4L2PIM_DEFAULT_WIDTH;
 static int default_height = V4L2PIM_DEFAULT_HEIGHT;
+static int bgra_only;
 
 /* ID generator for allocating minor numbers */
 static struct vcrtcm_id_generator minor_id_generator;
@@ -80,7 +81,6 @@ static struct v4l2pim_fmt formats[] = {
 		.depth		= 32,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
-/*
 	{
 		.name		= "RGB-8-8-8-8",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
@@ -111,20 +111,27 @@ static struct v4l2pim_fmt formats[] = {
 		.depth		= 16,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 	},
-*/
 };
+
+static int formats_array_size(void)
+{
+	if (bgra_only)
+		return 1;
+	else
+		return ARRAY_SIZE(formats);
+}
 
 static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
 {
 	struct v4l2pim_fmt *fmt;
 	uint32_t i;
-	for (i = 0; i < ARRAY_SIZE(formats); i++) {
+	for (i = 0; i < formats_array_size(); i++) {
 		fmt = &formats[i];
 		if (fmt->fourcc == f->fmt.pix.pixelformat)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(formats))
+	if (i == formats_array_size())
 		return NULL;
 
 	return &formats[i];
@@ -396,7 +403,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct v4l2pim_fmt *fmt;
 
-	if (f->index >= ARRAY_SIZE(formats))
+	if (f->index >= formats_array_size())
 		return -EINVAL;
 	fmt = &formats[f->index];
 	strlcpy(f->description, fmt->name, sizeof(f->description));
@@ -473,6 +480,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return r;
 	minor->fmt = get_format(f);
 	minor->vb_vidq.field = f->fmt.pix.field;
+	VCRTCM_INFO("setting pixel format to %s\n", minor->fmt->name);
 	return 0;
 }
 
@@ -772,7 +780,7 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	if (fsize->index != 0)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(formats); i++)
+	for (i = 0; i < formats_array_size(); i++)
 		if (fsize->pixel_format == formats[i].fourcc) {
 			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 			fsize->discrete.width = minor->frame_width;
@@ -798,7 +806,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	    fival->height != minor->frame_height)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(formats); i++)
+	for (i = 0; i < formats_array_size(); i++)
 		if (fival->pixel_format == formats[i].fourcc) {
 			int fps = v4l2pim_get_fps(minor);
 
@@ -1006,6 +1014,9 @@ module_param_named(default_width, default_width, int,
 		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(default_height, "Default videobuf height");
 module_param_named(default_height, default_height, int,
+		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(bgra_only, "When set to 1, use only BGRA format (default = 0)");
+module_param_named(bgra_only, bgra_only, int,
 		   S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 MODULE_LICENSE("GPL v2");
