@@ -137,6 +137,7 @@ static long vcrtcm_ioctl_destroy(int extid, int force)
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
+		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
@@ -224,7 +225,6 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	if (!conn) {
 		VCRTCM_ERROR("connector %d of device %d:%d not registered\n",
 			connid, major, minor);
-		vcrtcm_unlock_extid(extid);
 		return -ENOMEM;
 	}
 	if (!vdev->funcs.attach) {
