@@ -66,6 +66,9 @@ struct vcrtcm_pcon {
 	unsigned long vblank_period_jiffies;
 	unsigned long last_vblank_jiffies;
 	unsigned long next_vblank_jiffies;
+	int vblank_msec_elapsed_min;
+	int vblank_msec_elapsed_max;
+	int vblank_msec_elapsed_last;
 	int vblank_slack_jiffies;
 };
 

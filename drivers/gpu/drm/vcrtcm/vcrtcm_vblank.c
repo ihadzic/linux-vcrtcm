@@ -69,11 +69,22 @@ void vcrtcm_vblank_work_fcn(struct work_struct *work)
 	if (time_after_eq(now + pcon->vblank_slack_jiffies,
 		pcon->next_vblank_jiffies)) {
 		pcon->next_vblank_jiffies += pcon->vblank_period_jiffies;
-		if (pcon->pim_funcs.vblank &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled)
-			pcon->pim_funcs.vblank(pcon->pconid,
-				pcon->pcon_cookie);
+		if (pcon->pim_funcs.vblank && pcon->pcon_callbacks_enabled &&
+		    pcon->pim->callbacks_enabled) {
+			unsigned long jiffies_snapshot;
+			int msec_elapsed;
+
+			jiffies_snapshot = jiffies;
+			pcon->pim_funcs.vblank(pcon->pconid, pcon->pcon_cookie);
+			msec_elapsed = jiffies_to_msecs(jiffies -
+							jiffies_snapshot);
+			pcon->vblank_msec_elapsed_last = msec_elapsed;
+			if (msec_elapsed > pcon->vblank_msec_elapsed_max)
+				pcon->vblank_msec_elapsed_max = msec_elapsed;
+			if ((msec_elapsed < pcon->vblank_msec_elapsed_min) ||
+			    pcon->vblank_msec_elapsed_min == -1)
+				pcon->vblank_msec_elapsed_min = msec_elapsed;
+		}
 	}
 	next_vblank_delay = pcon->next_vblank_jiffies - (int)now;
 	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
