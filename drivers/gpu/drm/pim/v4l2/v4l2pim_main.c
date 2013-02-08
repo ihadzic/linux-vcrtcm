@@ -113,25 +113,25 @@ static struct v4l2pim_fmt formats[] = {
 	},
 };
 
-static int formats_array_size(void)
+static int formats_array_size(int force_bgra)
 {
-	if (bgra_only)
+	if (force_bgra)
 		return 1;
 	else
 		return ARRAY_SIZE(formats);
 }
 
-static struct v4l2pim_fmt *get_format(struct v4l2_format *f)
+static struct v4l2pim_fmt *get_format(struct v4l2_format *f, int force_bgra)
 {
 	struct v4l2pim_fmt *fmt;
 	uint32_t i;
-	for (i = 0; i < formats_array_size(); i++) {
+	for (i = 0; i < formats_array_size(force_bgra); i++) {
 		fmt = &formats[i];
 		if (fmt->fourcc == f->fmt.pix.pixelformat)
 			break;
 	}
 
-	if (i == formats_array_size())
+	if (i == formats_array_size(force_bgra))
 		return NULL;
 
 	return &formats[i];
@@ -402,8 +402,12 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_fmtdesc *f)
 {
 	struct v4l2pim_fmt *fmt;
+	struct v4l2pim_minor *minor;
 
-	if (f->index >= formats_array_size())
+	minor = video_drvdata(file);
+	if (!minor)
+		return -ENODEV;
+	if (f->index >= formats_array_size(minor->bgra_only))
 		return -EINVAL;
 	fmt = &formats[f->index];
 	strlcpy(f->description, fmt->name, sizeof(f->description));
@@ -452,7 +456,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -ENODEV;
 	if (is_generating(minor))
 		return -EBUSY;
-	fmt = get_format(f);
+	fmt = get_format(f, minor->bgra_only);
 	if (!fmt)
 		return -EINVAL;
 
@@ -478,7 +482,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	r = vidioc_try_fmt_vid_cap(file, priv, f);
 	if (r)
 		return r;
-	minor->fmt = get_format(f);
+	minor->fmt = get_format(f, minor->bgra_only);
 	minor->vb_vidq.field = f->fmt.pix.field;
 	VCRTCM_INFO("setting pixel format to %s\n", minor->fmt->name);
 	return 0;
@@ -554,8 +558,12 @@ static int v4l2pim_open(struct file *file)
 		minor->frame_width = w;
 		minor->frame_height = h;
 	}
+	minor->bgra_only = bgra_only;
 	VCRTCM_INFO("minor %d, videobuf dimensions are %dx%d\n",
 		    minor->minor, minor->frame_width, minor->frame_height);
+	if (minor->bgra_only)
+		VCRTCM_INFO("minor %d, videobuf format restricted to BGRA\n",
+			    minor->minor);
 	return 0;
 }
 
@@ -780,7 +788,7 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 	if (fsize->index != 0)
 		return -EINVAL;
 
-	for (i = 0; i < formats_array_size(); i++)
+	for (i = 0; i < formats_array_size(minor->bgra_only); i++)
 		if (fsize->pixel_format == formats[i].fourcc) {
 			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 			fsize->discrete.width = minor->frame_width;
@@ -806,7 +814,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *fh,
 	    fival->height != minor->frame_height)
 		return -EINVAL;
 
-	for (i = 0; i < formats_array_size(); i++)
+	for (i = 0; i < formats_array_size(minor->bgra_only); i++)
 		if (fival->pixel_format == formats[i].fourcc) {
 			int fps = v4l2pim_get_fps(minor);
 

@@ -87,6 +87,7 @@ struct v4l2pim_minor {
 	struct v4l2pim_fmt *fmt;
 	int frame_width;
 	int frame_height;
+	int bgra_only;
 };
 
 struct v4l2pim_pcon {
