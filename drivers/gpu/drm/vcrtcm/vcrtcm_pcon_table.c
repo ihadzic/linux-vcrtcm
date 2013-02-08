@@ -215,6 +215,9 @@ int vcrtcm_lock_extid(int extid)
 	entry = extid2entry(extid);
 	if (!entry)
 		return -EINVAL;
+#ifdef CONFIG_DEBUG_MUTEXES
+	BUG_ON(mutex_is_locked(&entry->mutex) && entry->mutex.owner == current);
+#endif
 	mutex_lock(&entry->mutex);
 	return 0;
 }
@@ -233,6 +236,7 @@ int vcrtcm_unlock_extid(int extid)
 		return -EINVAL;
 #ifdef CONFIG_DEBUG_MUTEXES
 	BUG_ON(!mutex_is_locked(&entry->mutex));
+	BUG_ON(entry->mutex.owner != current);
 #endif
 	mutex_unlock(&entry->mutex);
 	return 0;

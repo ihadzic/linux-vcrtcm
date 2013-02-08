@@ -792,7 +792,6 @@ int vcrtcm_p_destroy(int pconid)
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
-	vcrtcm_check_notmutex(__func__, pconid);
 	vcrtcm_lock_pconid(pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	if (!pcon_spinlock)
