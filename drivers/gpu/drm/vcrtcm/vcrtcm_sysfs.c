@@ -147,6 +147,22 @@ static struct attribute pcon_xfer_mode_attr = {
 	.mode = S_IRUSR | S_IRGRP | S_IROTH
 };
 
+
+static struct attribute pcon_vblank_msec_elapsed_min = {
+	.name = "vblank_msec_elapsed_min",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
+static struct attribute pcon_vblank_msec_elapsed_max = {
+	.name = "vblank_msec_elapsed_max",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
+static struct attribute pcon_vblank_msec_elapsed_last = {
+	.name = "vblank_msec_elapsed_last",
+	.mode = S_IRUSR | S_IRGRP | S_IROTH
+};
+
 static struct attribute *pcon_attributes[] = {
 	&pcon_desc_attr,
 	&pcon_fps_attr,
@@ -155,6 +171,9 @@ static struct attribute *pcon_attributes[] = {
 	&pcon_attach_minor_attr,
 	&pcon_internal_pconid_attr,
 	&pcon_xfer_mode_attr,
+	&pcon_vblank_msec_elapsed_min,
+	&pcon_vblank_msec_elapsed_max,
+	&pcon_vblank_msec_elapsed_last,
 	NULL
 };
 
@@ -292,6 +311,15 @@ static ssize_t pcon_show(struct kobject *kobj, struct attribute *attr,
 	} else if (attr == &pcon_xfer_mode_attr) {
 		return scnprintf(buf, PAGE_SIZE, "%s\n",
 			vcrtcm_xfer_mode_string(pcon->xfer_mode));
+	} else if (attr == &pcon_vblank_msec_elapsed_min) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 pcon->vblank_msec_elapsed_min);
+	} else if (attr == &pcon_vblank_msec_elapsed_max) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 pcon->vblank_msec_elapsed_max);
+	} else if (attr == &pcon_vblank_msec_elapsed_last) {
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 pcon->vblank_msec_elapsed_last);
 	}
 	return 0;
 }
