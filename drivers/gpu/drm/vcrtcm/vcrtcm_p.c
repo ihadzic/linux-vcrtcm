@@ -356,6 +356,8 @@ int vcrtcm_p_wait_fb_l(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
 
+typedef void (*vblank_fcn_t)(struct drm_crtc *drm_crtc);
+
 /*
  * called by the PCON to emulate vblank
  * this is the link between the vblank event that happened in
@@ -400,6 +402,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 	}
 	if (pcon->gpu_funcs.vblank) {
 		struct drm_crtc *crtc = pcon->drm_crtc;
+		vblank_fcn_t vblank_fcn = pcon->gpu_funcs.vblank;
 
 		pcon->last_vblank_jiffies = jiffies;
 		vcrtcm_clear_spinlock_owner(pconid);
@@ -414,7 +417,7 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		 * of these functions will ensure that the system survives
 		 * and destruct-race
 		 */
-		pcon->gpu_funcs.vblank(crtc);
+		vblank_fcn(crtc);
 		return 0;
 	}
 	pcon->last_vblank_jiffies = jiffies;
