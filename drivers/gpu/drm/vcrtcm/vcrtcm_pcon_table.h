@@ -46,6 +46,20 @@ int vcrtcm_lock_pconid(int pconid);
 int vcrtcm_lock_extid(int extid);
 
 /*
+ * locks the pconid, regardless of whether a pcon with that id
+ * currently exists.  if the pcon exists and is attached, then
+ * also locks the crtc before locking the pconid.
+ */
+int vcrtcm_lock_crtc_and_pconid(int pconid,
+	int attaches_and_detaches_are_blocked);
+
+/*
+ * version of above function for external pcon ids
+ */
+int vcrtcm_lock_crtc_and_extid(int extid,
+	int attaches_and_detaches_are_blocked);
+
+/*
  * unlocks the pconid, regardless of whether a pcon with that id
  * currently exists.
  */
@@ -55,6 +69,18 @@ int vcrtcm_unlock_pconid(int pconid);
  * version of above function for external pcon ids
  */
 int vcrtcm_unlock_extid(int extid);
+
+/*
+ * unlocks the pconid, regardless of whether a pcon with that id
+ * currently exists.  if the pcon exists and is attached, then
+ * also unlocks the crtc before locking the pconid.
+ */
+int vcrtcm_unlock_crtc_and_pconid(int pconid);
+
+/*
+ * version of above function for external pcon ids
+ */
+int vcrtcm_unlock_crtc_and_extid(int extid);
 
 /*
  * retrieves the pcon with the given internal id.  does not do any locking.

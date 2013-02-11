@@ -235,7 +235,7 @@ int vcrtcm_p_register_prime_l(int pconid,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_register_prime(pconid, pbd);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_register_prime_l);
@@ -304,7 +304,7 @@ int vcrtcm_p_unregister_prime_l(int pconid,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_unregister_prime(pconid, pbd);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_unregister_prime_l);
@@ -351,7 +351,7 @@ int vcrtcm_p_wait_fb_l(int pconid)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_wait_fb(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
@@ -431,7 +431,7 @@ int vcrtcm_p_emulate_vblank_l(int pconid)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_emulate_vblank(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank_l);
@@ -493,7 +493,7 @@ int vcrtcm_p_push_l(int pconid,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_push(pconid, fpbd, cpbd);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_push_l);
@@ -536,7 +536,7 @@ int vcrtcm_p_hotplug_l(int pconid)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_hotplug(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_hotplug_l);
@@ -599,7 +599,7 @@ int vcrtcm_p_free_pb_l(int pconid,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_free_pb(pconid, pbd);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_free_pb_l);
@@ -682,7 +682,7 @@ vcrtcm_p_alloc_pb_l(int pconid, int npages,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return ERR_PTR(-EINVAL);
 	r = vcrtcm_p_alloc_pb(pconid, npages, gfp_mask);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_alloc_pb_l);
@@ -743,7 +743,7 @@ vcrtcm_p_realloc_pb_l(int pconid,
 	if (vcrtcm_p_lock_pconid(pconid))
 		return ERR_PTR(-EINVAL);
 	r = vcrtcm_p_realloc_pb(pconid, pbd, npages, gfp_mask);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_realloc_pb_l);
@@ -781,7 +781,7 @@ int vcrtcm_p_detach_l(int pconid)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_detach(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_detach_l);
@@ -792,7 +792,7 @@ int vcrtcm_p_destroy(int pconid)
 	struct vcrtcm_pcon *pcon;
 	unsigned long flags;
 
-	vcrtcm_lock_pconid(pconid);
+	vcrtcm_p_lock_pconid(pconid);
 	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
 	if (!pcon_spinlock)
 		return -EINVAL;
@@ -817,7 +817,7 @@ int vcrtcm_p_destroy(int pconid)
 	pcon->being_destroyed = 1;
 	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
-	vcrtcm_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	vcrtcm_destroy_pcon(pcon);
 	return 0;
 }
@@ -854,7 +854,7 @@ int vcrtcm_p_disable_callbacks_l(int pconid)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_disable_callbacks(pconid);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_disable_callbacks_l);
@@ -882,20 +882,24 @@ int vcrtcm_p_log_alloc_cnts_l(int pconid, int on)
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
 	r = vcrtcm_p_log_alloc_cnts(pconid, on);
-	vcrtcm_g_unlock_pconid(pconid);
+	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }
 EXPORT_SYMBOL(vcrtcm_p_log_alloc_cnts_l);
 
+/*
+ * the pim-side version of the pcon locking function
+ * also locks the attached crtc (if there is one)
+ */
 int vcrtcm_p_lock_pconid(int pconid)
 {
-	return vcrtcm_lock_pconid(pconid);
+	return vcrtcm_lock_crtc_and_pconid(pconid, 0);
 }
 EXPORT_SYMBOL(vcrtcm_p_lock_pconid);
 
 int vcrtcm_p_unlock_pconid(int pconid)
 {
-	return vcrtcm_unlock_pconid(pconid);
+	return vcrtcm_unlock_crtc_and_pconid(pconid);
 }
 EXPORT_SYMBOL(vcrtcm_p_unlock_pconid);
 

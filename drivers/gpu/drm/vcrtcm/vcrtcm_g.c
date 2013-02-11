@@ -862,6 +862,11 @@ int vcrtcm_g_disable_l(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_g_disable_l);
 
+/*
+ * the gpu-driver-side version of the pcon locking function
+ * does *not* also lock the attached crtc (if there is one),
+ * because drm itself locks the crtc in the drm ioctl logic.
+ */
 int vcrtcm_g_lock_pconid(int pconid)
 {
 	return vcrtcm_lock_pconid(pconid);

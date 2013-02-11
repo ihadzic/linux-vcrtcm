@@ -28,6 +28,7 @@
 #include <vcrtcm/vcrtcm_sysfs.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_alloc.h>
+#include <drm/drm_vcrtcm.h>
 #include "vcrtcm_pcon_table.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_module.h"
@@ -35,6 +36,7 @@
 #include "vcrtcm_pim_table.h"
 #include "vcrtcm_vblank.h"
 #include "vcrtcm_pcon.h"
+#include "vcrtcm_ioctl_priv.h"
 
 #define MAX_NUM_PCONS 1024
 
@@ -52,6 +54,7 @@ struct pconid_table_entry {
 	pid_t spinlock_owner;
 	struct mutex mutex;
 	struct vcrtcm_pcon *pcon;
+	struct drm_crtc *locked_crtc;
 };
 
 static struct pconid_table_entry pconid_table[MAX_NUM_PCONS];
@@ -212,12 +215,10 @@ int vcrtcm_lock_extid(int extid)
 {
 	struct pconid_table_entry *entry;
 
+	vcrtcm_check_notmutex(__func__, extid);
 	entry = extid2entry(extid);
 	if (!entry)
 		return -EINVAL;
-#ifdef CONFIG_DEBUG_MUTEXES
-	BUG_ON(mutex_is_locked(&entry->mutex) && entry->mutex.owner == current);
-#endif
 	mutex_lock(&entry->mutex);
 	return 0;
 }
@@ -248,8 +249,7 @@ int vcrtcm_unlock_pconid(int pconid)
 }
 
 #ifdef CONFIG_DEBUG_MUTEXES
-void
-vcrtcm_check_mutex(const char *func, int pconid)
+void vcrtcm_check_mutex(const char *func, int pconid)
 {
 	struct pconid_table_entry *entry;
 
@@ -260,15 +260,20 @@ vcrtcm_check_mutex(const char *func, int pconid)
 	BUG_ON(entry->mutex.owner != current);
 }
 
-void
-vcrtcm_check_notmutex(const char *func, int pconid)
+void vcrtcm_check_notmutex(const char *func, int pconid)
 {
 	struct pconid_table_entry *entry;
 
 	entry = pconid2entry(pconid);
 	if (!entry)
 		return;
-	BUG_ON(mutex_is_locked(&entry->mutex) && entry->mutex.owner == current);
+	/*
+	 * the following should be true, but it's not safe to check
+	 * it when not holding the mutex
+	 *
+	 * BUG_ON(mutex_is_locked(&entry->mutex) &&
+	 *		entry->mutex.owner == current);
+	 */
 }
 #endif
 
@@ -310,4 +315,109 @@ int vcrtcm_current_pid_is_spinlock_owner(int pconid)
 	ret = (entry->spinlock_owner == current->pid);
 	spin_unlock_irqrestore(&pconid_table_spinlock, flags);
 	return ret;
+}
+
+int vcrtcm_lock_crtc_and_extid(int extid,
+	int attaches_and_detaches_are_blocked)
+{
+	struct pconid_table_entry *entry;
+	unsigned long flags0;
+	unsigned long flags1;
+	struct drm_crtc *crtc = NULL;
+
+	vcrtcm_check_notmutex(__func__, extid);
+	entry = extid2entry(extid);
+	if (!entry)
+		return -EINVAL;
+
+	/*
+	 * If attaches and detaches are not already blocked,
+	 * then block them, because the logic below requires
+	 * that they be blocked.
+	 */
+	if (!attaches_and_detaches_are_blocked)
+		mutex_lock(&vcrtcm_ioctl_mutex);
+
+	/*
+	 * We take pconid_table_spinlock so we can look at
+	 * entry->pcon, and we take entry->spinlock so we can
+	 * look at entry->pcon->drm_crtc.  But we take them in
+	 * the opposite order, because that is the required
+	 * order of taking those two locks (to prevent deadlocks).
+	 * Also, we delay the taking of the drm lock until we
+	 * have released both spinlocks, because the drm lock is
+	 * a mutex, and it is not kosher to lock a mutex while
+	 * in a spin lock.
+	 */
+	spin_lock_irqsave(&entry->spinlock, flags1);
+	spin_lock_irqsave(&pconid_table_spinlock, flags0);
+	if (entry->pcon)
+		crtc = entry->pcon->drm_crtc;
+	spin_unlock_irqrestore(&pconid_table_spinlock, flags0);
+	spin_unlock_irqrestore(&entry->spinlock, flags1);
+
+	/*
+	 * The required order of taking the crtc and pconid locks
+	 * is: first crtc, then pconid.  However, we must ensure that
+	 * the crtc that we lock is the one to which the pcon will be
+	 * attached (if any) *after* we lock the pconid.  The fact
+	 * that attaches and detaches cannot occur while this code
+	 * is executing ensures that the crtc variable right now
+	 * holds the right crtc.
+	 */
+	if (crtc)
+		drm_vcrtcm_lock_crtc(crtc);
+
+	mutex_lock(&entry->mutex);
+
+	/*
+	 * These assertions check that the crtc variable above held
+	 * the right crtc.
+	 */
+	if (entry->pcon)
+		BUG_ON(crtc != entry->pcon->drm_crtc);
+	else
+		BUG_ON(crtc != NULL);
+
+	/* The caller of this function might attach or detach the
+	 * pcon.  To ensure that the eventual call to
+	 * vcrtcm_unlock_crtc_and_extid() unlocks the crtc that
+	 * was locked here, we stash the value of the crtc.
+	 */
+	entry->locked_crtc = crtc;
+
+	if (!attaches_and_detaches_are_blocked)
+		mutex_unlock(&vcrtcm_ioctl_mutex);
+	return 0;
+}
+
+int vcrtcm_unlock_crtc_and_extid(int extid)
+{
+	struct pconid_table_entry *entry;
+	struct drm_crtc *crtc = NULL;
+
+	entry = extid2entry(extid);
+	if (!entry)
+		return -EINVAL;
+#ifdef CONFIG_DEBUG_MUTEXES
+	BUG_ON(!mutex_is_locked(&entry->mutex));
+	BUG_ON(entry->mutex.owner != current);
+#endif
+	crtc = entry->locked_crtc;
+	mutex_unlock(&entry->mutex);
+	if (crtc)
+		drm_vcrtcm_unlock_crtc(crtc);
+	return 0;
+}
+
+int vcrtcm_lock_crtc_and_pconid(int pconid,
+	int attaches_and_detaches_are_blocked)
+{
+	return vcrtcm_lock_crtc_and_extid(PCONID_EXTID(pconid),
+		attaches_and_detaches_are_blocked);
+}
+
+int vcrtcm_unlock_crtc_and_pconid(int pconid)
+{
+	return vcrtcm_unlock_crtc_and_extid(PCONID_EXTID(pconid));
 }
