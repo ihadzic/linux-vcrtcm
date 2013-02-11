@@ -400,11 +400,11 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
 		return -EINVAL;
 	}
+	pcon->last_vblank_jiffies = jiffies;
 	if (pcon->gpu_funcs.vblank) {
 		struct drm_crtc *crtc = pcon->drm_crtc;
 		vblank_fcn_t vblank_fcn = pcon->gpu_funcs.vblank;
 
-		pcon->last_vblank_jiffies = jiffies;
 		vcrtcm_clear_spinlock_owner(pconid);
 		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_DEBUG("emulating vblank event for pcon 0x%08x\n",
@@ -420,7 +420,6 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		vblank_fcn(crtc);
 		return 0;
 	}
-	pcon->last_vblank_jiffies = jiffies;
 	vcrtcm_clear_spinlock_owner(pconid);
 	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return 0;
