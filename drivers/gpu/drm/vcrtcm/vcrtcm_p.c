@@ -410,12 +410,12 @@ int vcrtcm_p_emulate_vblank(int pconid)
 		VCRTCM_DEBUG("emulating vblank event for pcon 0x%08x\n",
 			pconid);
 		/*
-		 * spinlock released before going into the GPU-land
-		 * we are destruct-safe in here because we cached everything
-		 * from PCON while we held the spinlock; if GPU makes
-		 * any calls back into the VCRTCM, the destruct-safe property
-		 * of these functions will ensure that the system survives
-		 * and destruct-race
+		 * spinlock must be released before calling into gpu driver
+		 * to prevent deadlock.  we are still destruct-safe here
+		 * because everything we need related to pcon was cached
+		 * while we held the spinlock.  if GPU calls back into
+		 * VCRTCM, the destruct-safe property of the VCRTCM API
+		 * ensures that nothing bad happens
 		 */
 		vblank_fcn(crtc);
 		return 0;
