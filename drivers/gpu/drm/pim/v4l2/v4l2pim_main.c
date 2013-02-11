@@ -424,7 +424,7 @@ static void populate_v4l2_format(struct v4l2_format *f, int w, int h,
 	f->fmt.pix.pixelformat  = fmt->fourcc;
 	f->fmt.pix.colorspace = fmt->colorspace;
 	f->fmt.pix.bytesperline = w * (fmt->depth >> 3) ;
-	f->fmt.pix.sizeimage = w * f->fmt.pix.bytesperline;
+	f->fmt.pix.sizeimage = h * f->fmt.pix.bytesperline;
 }
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
