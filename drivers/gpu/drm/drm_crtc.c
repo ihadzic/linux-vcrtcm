@@ -438,6 +438,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->funcs = funcs;
 	crtc->invert_dimensions = false;
 	crtc->render_node_owner = -1;
+	mutex_init(&crtc->vcrtcm_mutex);
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -1430,7 +1431,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_crtc *crtc_resp = data;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	struct drm_mode_object *obj;
 	int ret = 0;
 
@@ -1446,6 +1447,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -1474,6 +1476,8 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	}
 
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -1908,7 +1912,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	struct drm_mode_set_plane *plane_req = data;
 	struct drm_mode_object *obj;
 	struct drm_plane *plane;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	struct drm_framebuffer *fb;
 	int ret = 0;
 	unsigned int fb_width, fb_height;
@@ -1959,6 +1963,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2034,6 +2039,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	}
 
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -2062,7 +2069,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_crtc *crtc_req = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	struct drm_connector **connector_set = NULL, *connector;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_display_mode *mode = NULL;
@@ -2087,6 +2094,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2221,6 +2229,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 out:
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -2230,7 +2240,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_cursor *req = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -2247,6 +2257,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2276,6 +2287,8 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 		}
 	}
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -3467,12 +3480,14 @@ static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 {
 	int ret = -EINVAL;
 	struct drm_crtc *crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (crtc->funcs->set_property)
 		ret = crtc->funcs->set_property(crtc, property, value);
 	if (!ret)
 		drm_object_property_set_value(obj, property, value);
 
+	mutex_unlock(&crtc->vcrtcm_mutex);
 	return ret;
 }
 
@@ -3661,7 +3676,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_crtc_lut *crtc_lut = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	void *r_base, *g_base, *b_base;
 	int size;
 	int ret = 0;
@@ -3676,6 +3691,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3719,6 +3735,8 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
 
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 
@@ -3729,7 +3747,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_crtc_lut *crtc_lut = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	void *r_base, *g_base, *b_base;
 	int size;
 	int ret = 0;
@@ -3744,6 +3762,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3779,6 +3798,8 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 		goto out;
 	}
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -3788,7 +3809,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_crtc_page_flip *page_flip = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = NULL;
 	struct drm_framebuffer *fb;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
@@ -3804,6 +3825,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!obj)
 		goto out;
 	crtc = obj_to_crtc(obj);
+	mutex_lock(&crtc->vcrtcm_mutex);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3886,6 +3908,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 out:
+	if (crtc)
+		mutex_unlock(&crtc->vcrtcm_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }

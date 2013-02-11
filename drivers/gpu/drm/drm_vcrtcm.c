@@ -214,3 +214,20 @@ struct drm_connector *drm_vcrtcm_get_crtc_for_attach(dev_t dev,
 	return conn;
 }
 EXPORT_SYMBOL(drm_vcrtcm_get_crtc_for_attach);
+
+/*
+ * these two helper functions will enable us in the future
+ * to replace the vcrtcm_mutex with the eventual upstream
+ * per-crtc mutex without having to modify any vcrtcm code.
+ */
+void drm_vcrtcm_lock_crtc(struct drm_crtc *crtc)
+{
+	mutex_lock(&crtc->vcrtcm_mutex);
+}
+EXPORT_SYMBOL(drm_vcrtcm_lock_crtc);
+
+void drm_vcrtcm_unlock_crtc(struct drm_crtc *crtc)
+{
+	mutex_unlock(&crtc->vcrtcm_mutex);
+}
+EXPORT_SYMBOL(drm_vcrtcm_unlock_crtc);

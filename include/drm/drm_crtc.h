@@ -422,6 +422,7 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+	struct mutex vcrtcm_mutex;
 };
 
 
