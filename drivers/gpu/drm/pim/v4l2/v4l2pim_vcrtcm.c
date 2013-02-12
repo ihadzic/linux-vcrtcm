@@ -559,9 +559,9 @@ int v4l2pim_get_fps(struct v4l2pim_minor *minor)
 	int fps;
 
 	BUG_ON(!pcon);
-	vcrtcm_p_lock_pconid(pcon->pconid);
+	vcrtcm_p_lock_crtc_and_pconid(pcon->pconid);
 	fps = pcon->fps;
-	vcrtcm_p_unlock_pconid(pcon->pconid);
+	vcrtcm_p_unlock_crtc_and_pconid(pcon->pconid);
 	return fps;
 }
 
@@ -582,14 +582,14 @@ int v4l2pim_get_fb_attrs(struct v4l2pim_minor *minor)
 	int r ;
 
 	BUG_ON(!pcon);
-	vcrtcm_p_lock_pconid(pcon->pconid);
+	vcrtcm_p_lock_crtc_and_pconid(pcon->pconid);
 	if (pcon->pbd_fb[pcon->push_buffer_index]) {
 		minor->frame_width = pcon->vcrtcm_fb.hdisplay;
 		minor->frame_height = pcon->vcrtcm_fb.vdisplay;
 		r = 0;
 	} else
 		r = -ENODEV;
-	vcrtcm_p_unlock_pconid(pcon->pconid);
+	vcrtcm_p_unlock_crtc_and_pconid(pcon->pconid);
 	return r;
 }
 

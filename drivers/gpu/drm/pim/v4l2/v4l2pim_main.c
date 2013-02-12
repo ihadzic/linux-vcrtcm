@@ -989,10 +989,10 @@ static void __exit v4l2pim_exit(void)
 	list_for_each_entry_safe(minor, tmp, &v4l2pim_minor_list, list) {
 		int pconid = minor->pcon->pconid;
 
-		vcrtcm_p_lock_pconid(pconid);
+		vcrtcm_p_lock_crtc_and_pconid(pconid);
 		v4l2pim_detach_pcon(minor->pcon, 1); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
-		vcrtcm_p_unlock_pconid(pconid);
+		vcrtcm_p_unlock_crtc_and_pconid(pconid);
 		v4l2pim_destroy_minor(minor);
 	}
 	vcrtcm_pim_unregister(v4l2pim_pimid);
