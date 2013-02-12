@@ -62,12 +62,8 @@ struct vcrtcm_g_pcon_funcs {
 	/*
 	 * called to tell the gpu driver to emulate a vblank on the pcon
 	 *
-	 * mutex locked: not necessarily
-	 * must be atomic: YES
-	 *
-	 * additional exclusion guarantee: regardless of whether
-	 * the mutex is locked, it is guaranteed that the pcon
-	 * will not be destroyed while this function is executing
+	 * mutex locked: yes
+	 * must be atomic: no
 	 */
 	void (*vblank)(struct drm_crtc *drm_crtc);
 

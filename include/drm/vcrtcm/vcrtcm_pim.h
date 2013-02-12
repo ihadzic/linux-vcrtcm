@@ -268,10 +268,15 @@ struct vcrtcm_pim_funcs {
 int vcrtcm_p_destroy(int pconid);
 
 /*
- * mutex: need not be locked before calling this function
- * atomic: YES
+ * The caller must set the is_atomic argument to true if this function
+ * is being called in atomic context.
+ *
+ * mutex: if is_atomic is true, then the pcon need not be locked
+ *		before calling this function, otherwise the pcon must be locked
+ * atomic: if is_atomic is true, then this function is atomic,
+ *		otherwise the atomicness of this function is unspecified
  */
-int vcrtcm_p_emulate_vblank(int pconid);
+int vcrtcm_p_emulate_vblank(int pconid, int is_atomic);
 
 /*
  * mutex: must be locked before calling this function
@@ -344,7 +349,7 @@ int vcrtcm_p_log_alloc_cnts(int pconid, int on);
  * the pcon, then calls the nonlocking variant, then unlocks
  * the pcon.
  */
-int vcrtcm_p_emulate_vblank_l(int pconid);
+int vcrtcm_p_emulate_vblank_l(int pconid, int is_atomic);
 int vcrtcm_p_wait_fb_l(int pconid);
 int vcrtcm_p_register_prime_l(int pconid,
 	struct vcrtcm_push_buffer_descriptor *pbd);

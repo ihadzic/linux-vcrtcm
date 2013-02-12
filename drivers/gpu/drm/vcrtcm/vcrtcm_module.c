@@ -45,6 +45,7 @@
 #include "vcrtcm_alloc_priv.h"
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_vblank.h"
+#include "vcrtcm_p.h"
 
 static const struct file_operations vcrtcm_fops;
 static dev_t vcrtcm_dev;
@@ -62,6 +63,9 @@ static int __init vcrtcm_init(void)
 
 	VCRTCM_INFO
 	    ("Virtual CRTC Manager, (C) Bell Labs, Alcatel-Lucent, Inc.\n");
+	r = vcrtcm_init_pside();
+	if (r < 0)
+		return r;
 	r = vcrtcm_vblank_init();
 	if (r < 0)
 		return r;
@@ -105,6 +109,7 @@ static void __exit vcrtcm_exit(void)
 	if (vcrtcm_class)
 		class_destroy(vcrtcm_class);
 	vcrtcm_vblank_deinit();
+	vcrtcm_deinit_pside();
 	VCRTCM_INFO("module exiting");
 }
 

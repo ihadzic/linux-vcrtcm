@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-buf.h>
+#include <linux/workqueue.h>
 #include <vcrtcm/vcrtcm_pim.h>
 #include <vcrtcm/vcrtcm_gpu.h>
 #include <vcrtcm/vcrtcm_alloc.h>
@@ -37,6 +38,13 @@
 #include "vcrtcm_module.h"
 #include "vcrtcm_alloc_priv.h"
 #include "vcrtcm_ioctl_priv.h"
+
+struct emulate_vblank_bottom_work {
+	struct work_struct base;
+	int pconid;
+};
+
+static struct workqueue_struct *emulate_vblank_bottom_queue;
 
 /*
  * Callback from DMABUF when dma_buf object is attached and mapped
@@ -356,7 +364,28 @@ int vcrtcm_p_wait_fb_l(int pconid)
 }
 EXPORT_SYMBOL(vcrtcm_p_wait_fb_l);
 
-typedef void (*vblank_fcn_t)(struct drm_crtc *drm_crtc);
+int vcrtcm_init_pside(void)
+{
+	emulate_vblank_bottom_queue = create_workqueue("emulate_vblank_bottom");
+	if (!emulate_vblank_bottom_queue)
+		return -ENOMEM;
+	return 0;
+}
+
+void vcrtcm_deinit_pside(void)
+{
+	flush_workqueue(emulate_vblank_bottom_queue);
+	destroy_workqueue(emulate_vblank_bottom_queue);
+}
+
+static void emulate_vblank_bottom_work_fcn(struct work_struct *work)
+{
+	struct emulate_vblank_bottom_work *mywork =
+		container_of(work, struct emulate_vblank_bottom_work, base);
+
+	vcrtcm_p_emulate_vblank_l(mywork->pconid, 0);
+	kfree(mywork);
+}
 
 /*
  * called by the PCON to emulate vblank
@@ -364,75 +393,54 @@ typedef void (*vblank_fcn_t)(struct drm_crtc *drm_crtc);
  * the PCON but is emulated by the virtual
  * CRTC implementation in the GPU-hardware-specific driver
  */
-int vcrtcm_p_emulate_vblank(int pconid)
+int vcrtcm_p_emulate_vblank(int pconid, int is_atomic)
 {
-	unsigned long flags;
-	spinlock_t *pcon_spinlock;
 	struct vcrtcm_pcon *pcon;
 
-	/*
-	 * NB: this function does not require that the mutex be locked,
-	 * because some pims call this function from an isr
-	 *
-	 * vcrtcm_check_mutex(__func__, pconid);
-	 */
-	pcon_spinlock = vcrtcm_get_pconid_spinlock(pconid);
-	if (!pcon_spinlock)
-		return -EINVAL;
-	spin_lock_irqsave(pcon_spinlock, flags);
-	vcrtcm_set_spinlock_owner(pconid);
+	if (is_atomic) {
+		struct emulate_vblank_bottom_work *work;
+
+		/* have bottom half call vcrtcm_p_emulate_vblank_l() */
+		work = kzalloc(sizeof(struct emulate_vblank_bottom_work),
+			GFP_ATOMIC);
+		if (!work)
+			return -ENOMEM;
+		INIT_WORK(&work->base, emulate_vblank_bottom_work_fcn);
+		work->pconid = pconid;
+		queue_work(emulate_vblank_bottom_queue, &work->base);
+		return 0;
+	}
+	vcrtcm_check_mutex(__func__, pconid);
 	pcon = vcrtcm_get_pcon(pconid);
 	if (!pcon) {
-		vcrtcm_clear_spinlock_owner(pconid);
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("no pcon 0x%08x\n", pconid);
 		return -ENODEV;
 	}
 	if (pcon->being_destroyed) {
-		vcrtcm_clear_spinlock_owner(pconid);
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
 	if (!pcon->drm_crtc) {
-		vcrtcm_clear_spinlock_owner(pconid);
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_ERROR("pcon 0x%08x not attached\n", pconid);
 		return -EINVAL;
 	}
 	pcon->last_vblank_jiffies = jiffies;
 	if (pcon->gpu_funcs.vblank) {
-		struct drm_crtc *crtc = pcon->drm_crtc;
-		vblank_fcn_t vblank_fcn = pcon->gpu_funcs.vblank;
-
-		vcrtcm_clear_spinlock_owner(pconid);
-		spin_unlock_irqrestore(pcon_spinlock, flags);
 		VCRTCM_DEBUG("emulating vblank event for pcon 0x%08x\n",
 			pconid);
-		/*
-		 * spinlock must be released before calling into gpu driver
-		 * to prevent deadlock.  we are still destruct-safe here
-		 * because everything we need related to pcon was cached
-		 * while we held the spinlock.  if GPU calls back into
-		 * VCRTCM, the destruct-safe property of the VCRTCM API
-		 * ensures that nothing bad happens
-		 */
-		vblank_fcn(crtc);
-		return 0;
+		pcon->gpu_funcs.vblank(pcon->drm_crtc);
 	}
-	vcrtcm_clear_spinlock_owner(pconid);
-	spin_unlock_irqrestore(pcon_spinlock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(vcrtcm_p_emulate_vblank);
 
-int vcrtcm_p_emulate_vblank_l(int pconid)
+int vcrtcm_p_emulate_vblank_l(int pconid, int is_atomic)
 {
 	int r;
 
 	if (vcrtcm_p_lock_pconid(pconid))
 		return -EINVAL;
-	r = vcrtcm_p_emulate_vblank(pconid);
+	r = vcrtcm_p_emulate_vblank(pconid, is_atomic);
 	vcrtcm_p_unlock_pconid(pconid);
 	return r;
 }

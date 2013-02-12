@@ -24,4 +24,7 @@
 #ifndef __VCRTCM_P_H__
 #define __VCRTCM_P_H__
 
+int vcrtcm_init_pside(void);
+void vcrtcm_deinit_pside(void);
+
 #endif
