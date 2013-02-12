@@ -379,7 +379,7 @@ int vcrtcm_pim_enable_callbacks(int pimid);
 int vcrtcm_pim_disable_callbacks(int pimid);
 int vcrtcm_pim_log_alloc_cnts(int pimid, int on);
 
-int vcrtcm_p_lock_pconid(int pconid);
-int vcrtcm_p_unlock_pconid(int pconid);
+int vcrtcm_p_lock_crtc_and_pconid(int pconid);
+int vcrtcm_p_unlock_crtc_and_pconid(int pconid);
 
 #endif
