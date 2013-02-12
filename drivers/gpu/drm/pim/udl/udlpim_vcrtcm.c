@@ -597,7 +597,7 @@ int udlpim_vblank(int pconid, void *cookie)
 		if (r) {
 			/* if push did not succeed, then vblank won't happen in the GPU */
 			/* so we have to make it out here */
-			vcrtcm_p_emulate_vblank(pcon->pconid);
+			vcrtcm_p_emulate_vblank(pcon->pconid, 0);
 		} else {
 			/* if push successed, then we need to swap push buffers
 			 * and mark the buffer for USB transmission in the next
@@ -619,7 +619,7 @@ int udlpim_vblank(int pconid, void *cookie)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		vcrtcm_p_emulate_vblank(pcon->pconid);
+		vcrtcm_p_emulate_vblank(pcon->pconid, 0);
 		UDLPIM_DEBUG("transmission not happening\n");
 	}
 
