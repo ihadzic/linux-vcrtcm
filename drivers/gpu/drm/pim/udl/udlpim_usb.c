@@ -229,11 +229,11 @@ static void udlpim_usb_disconnect(struct usb_interface *interface)
 	if (minor->pcon) {
 		int pconid = minor->pcon->pconid;
 
-		vcrtcm_p_lock_pconid(pconid);
+		vcrtcm_p_lock_crtc_and_pconid(pconid);
 		vcrtcm_p_disable_callbacks(pconid);
 		udlpim_detach_pcon(minor->pcon);
 		udlpim_destroy_pcon(minor->pcon);
-		vcrtcm_p_unlock_pconid(pconid);
+		vcrtcm_p_unlock_crtc_and_pconid(pconid);
 		vcrtcm_p_destroy(pconid);
 	}
 
