@@ -305,7 +305,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		vcrtcm_unlock_crtc_and_extid(extid);
 		return r;
 	}
-	vcrtcm_set_crtc(pcon, drm_crtc);
+	pcon->drm_crtc = drm_crtc;
 	if (pcon->gpu_funcs.post_attach)
 		pcon->gpu_funcs.post_attach(pcon->drm_crtc);
 	pcon->attach_minor = minor;
