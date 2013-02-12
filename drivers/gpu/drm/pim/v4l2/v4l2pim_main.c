@@ -993,6 +993,7 @@ static void __exit v4l2pim_exit(void)
 		v4l2pim_detach_pcon(minor->pcon, 1); /* ignore return code */
 		v4l2pim_destroy_pcon(minor->pcon);
 		vcrtcm_p_unlock_crtc_and_pconid(pconid);
+		vcrtcm_p_destroy(pconid);
 		v4l2pim_destroy_minor(minor);
 	}
 	vcrtcm_pim_unregister(v4l2pim_pimid);
