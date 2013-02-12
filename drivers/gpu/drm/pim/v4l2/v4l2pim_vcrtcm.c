@@ -491,7 +491,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 			 * push did not succeed, vblank won't happen in the GPU
 			 * so we have to make it up here
 			 */
-			vcrtcm_p_emulate_vblank(pcon->pconid);
+			vcrtcm_p_emulate_vblank(pcon->pconid, 0);
 		} else {
 			/*
 			 * if push succeeded, then we need to swap push buffers
@@ -513,7 +513,7 @@ int v4l2pim_vblank(int pconid, void *cookie)
 		}
 	} else {
 		/* transmission didn't happen so we need to fake out a vblank */
-		vcrtcm_p_emulate_vblank(pcon->pconid);
+		vcrtcm_p_emulate_vblank(pcon->pconid, 0);
 		V4L2PIM_DEBUG("transmission not happening\n");
 	}
 
