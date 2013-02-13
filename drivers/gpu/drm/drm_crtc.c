@@ -2628,7 +2628,9 @@ int drm_mode_rmfb(struct drm_device *dev,
 		goto out;
 	}
 
+	drm_vcrtcm_lock_all_crtcs(dev);
 	drm_framebuffer_remove(fb);
+	drm_vcrtcm_unlock_all_crtcs(dev);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2777,9 +2779,11 @@ void drm_fb_release(struct drm_file *priv)
 	struct drm_framebuffer *fb, *tfb;
 
 	mutex_lock(&dev->mode_config.mutex);
+	drm_vcrtcm_lock_all_crtcs(dev);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
 		drm_framebuffer_remove(fb);
 	}
+	drm_vcrtcm_unlock_all_crtcs(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
