@@ -1085,7 +1085,15 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
+	struct drm_device *dev = fb->dev;
+	struct drm_crtc *crtc;
 
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct radeon_crtc *rcrtc = to_radeon_crtc(crtc);
+
+		if (rcrtc->vcrtcm_push_fb == fb)
+			rcrtc->vcrtcm_push_fb = NULL;
+	}
 	if (radeon_fb->obj) {
 		drm_gem_object_unreference_unlocked(radeon_fb->obj);
 	}
