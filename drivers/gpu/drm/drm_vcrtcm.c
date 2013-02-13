@@ -231,3 +231,24 @@ void drm_vcrtcm_unlock_crtc(struct drm_crtc *crtc)
 	mutex_unlock(&crtc->vcrtcm_mutex);
 }
 EXPORT_SYMBOL(drm_vcrtcm_unlock_crtc);
+
+void drm_vcrtcm_lock_all_crtcs(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		drm_vcrtcm_lock_crtc(crtc);
+}
+EXPORT_SYMBOL(drm_vcrtcm_lock_all_crtcs);
+
+void drm_vcrtcm_unlock_all_crtcs(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		drm_vcrtcm_unlock_crtc(crtc);
+}
+EXPORT_SYMBOL(drm_vcrtcm_unlock_all_crtcs);
+
+
+
