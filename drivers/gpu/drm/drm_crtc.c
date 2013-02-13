@@ -36,6 +36,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_vcrtcm.h>
 
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
@@ -1447,7 +1448,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -1477,7 +1478,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -1963,7 +1964,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2040,7 +2041,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -2094,7 +2095,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2230,7 +2231,7 @@ out:
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -2257,7 +2258,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -2288,7 +2289,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	}
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -3480,14 +3481,14 @@ static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 {
 	int ret = -EINVAL;
 	struct drm_crtc *crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (crtc->funcs->set_property)
 		ret = crtc->funcs->set_property(crtc, property, value);
 	if (!ret)
 		drm_object_property_set_value(obj, property, value);
 
-	mutex_unlock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_unlock_crtc(crtc);
 	return ret;
 }
 
@@ -3691,7 +3692,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3736,7 +3737,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 
@@ -3762,7 +3763,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3799,7 +3800,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	}
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -3825,7 +3826,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!obj)
 		goto out;
 	crtc = obj_to_crtc(obj);
-	mutex_lock(&crtc->vcrtcm_mutex);
+	drm_vcrtcm_lock_crtc(crtc);
 
 	if (file_priv->minor->type == DRM_MINOR_RENDER) {
 		struct drm_mode_group *mode_group =
@@ -3909,7 +3910,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 out:
 	if (crtc)
-		mutex_unlock(&crtc->vcrtcm_mutex);
+		drm_vcrtcm_unlock_crtc(crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
