@@ -47,6 +47,10 @@ static long vcrtcm_ioctl_pimtest(int pimid, int testarg)
 		VCRTCM_ERROR("invalid pimid %d\n", pimid);
 		return -EINVAL;
 	}
+	if (pim->being_deregistered) {
+		VCRTCM_ERROR("pim %s is deregistering\n", pim->name);
+		return -ECANCELED;
+	}
 	if (!pim->callbacks_enabled) {
 		VCRTCM_ERROR("pim %s has callbacks disabled\n", pim->name);
 		return -ECANCELED;
@@ -82,6 +86,10 @@ vcrtcm_ioctl_instantiate(int pimid, uint32_t requested_xfer_mode,
 		return -EINVAL;
 	}
 	VCRTCM_INFO("pim is %s\n", pim->name);
+	if (pim->being_deregistered) {
+		VCRTCM_ERROR("pim %s is deregistering\n", pim->name);
+		return -ECANCELED;
+	}
 	if (!pim->callbacks_enabled) {
 		VCRTCM_ERROR("pim %s has callbacks disabled\n", pim->name);
 		return -ECANCELED;
@@ -136,23 +144,33 @@ static long vcrtcm_ioctl_destroy(int extid, int force)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (pcon->pim->being_deregistered) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
+		return -ECANCELED;
+	}
+	if (!pcon->pim->callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s has callbacks disabled\n",
+			pcon->pim->name);
+		return -ECANCELED;
+	}
 	if (pcon->being_destroyed) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x already being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
-	if (!pcon->pim->callbacks_enabled) {
+	if (!pcon->pcon_callbacks_enabled) {
 		vcrtcm_unlock_extid(extid);
-		VCRTCM_ERROR("pim %s has callbacks disabled\n", pcon->pim->name);
+		VCRTCM_ERROR("pcon 0x%08x has callbacks disabled\n",
+			pcon->pconid);
 		return -ECANCELED;
 	}
 	if (pcon->drm_crtc) {
 		int saved_fps = pcon->fps;
 
 		vcrtcm_set_fps(pcon, 0);
-		if (pcon->pim_funcs.detach &&
-			pcon->pcon_callbacks_enabled &&
-			pcon->pim->callbacks_enabled) {
+		if (pcon->pim_funcs.detach) {
 			int r;
 
 			r = pcon->pim_funcs.detach(pcon->pconid,
@@ -240,10 +258,27 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (pcon->pim->being_deregistered) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
+		return -ECANCELED;
+	}
+	if (!pcon->pim->callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s has callbacks disabled\n",
+			pcon->pim->name);
+		return -ECANCELED;
+	}
 	if (pcon->being_destroyed) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
+	}
+	if (!pcon->pcon_callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x has callbacks disabled\n",
+			pcon->pconid);
+		return -ECANCELED;
 	}
 	if (pcon->drm_crtc) {
 		vcrtcm_unlock_extid(extid);
@@ -251,9 +286,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 		return -EINVAL;
 	}
 	BUG_ON(pcon->conn);
-	if (pcon->pim_funcs.attach &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
+	if (pcon->pim_funcs.attach) {
 		r = pcon->pim_funcs.attach(pcon->pconid, pcon->pcon_cookie);
 		if (r) {
 			vcrtcm_unlock_extid(extid);
@@ -265,9 +298,7 @@ static long vcrtcm_ioctl_attach(int extid, int connid, int major, int minor)
 	if (r) {
 		memset(&pcon->gpu_funcs, 0,
 			sizeof(struct vcrtcm_g_pcon_funcs));
-		if (pcon->pim_funcs.detach &&
-			pcon->pcon_callbacks_enabled &&
-			pcon->pim->callbacks_enabled) {
+		if (pcon->pim_funcs.detach) {
 			pcon->pim_funcs.detach(pcon->pconid,
 				pcon->pcon_cookie, 1);
 		}
@@ -298,10 +329,27 @@ static long vcrtcm_ioctl_detach(int extid, int force)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (pcon->pim->being_deregistered) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
+		return -ECANCELED;
+	}
+	if (!pcon->pim->callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s has callbacks disabled\n",
+			pcon->pim->name);
+		return -ECANCELED;
+	}
 	if (pcon->being_destroyed) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
+	}
+	if (!pcon->pcon_callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x has callbacks disabled\n",
+			pcon->pconid);
+		return -ECANCELED;
 	}
 	if (!pcon->drm_crtc) {
 		vcrtcm_unlock_extid(extid);
@@ -311,9 +359,7 @@ static long vcrtcm_ioctl_detach(int extid, int force)
 	BUG_ON(!pcon->conn);
 	saved_fps = pcon->fps;
 	vcrtcm_set_fps(pcon, 0);
-	if (pcon->pim_funcs.detach &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
+	if (pcon->pim_funcs.detach) {
 		int r;
 		r = pcon->pim_funcs.detach(pcon->pconid, pcon->pcon_cookie,
 			force);
@@ -345,18 +391,32 @@ static long vcrtcm_ioctl_fps(int extid, int fps)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (pcon->pim->being_deregistered) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
+		return -ECANCELED;
+	}
+	if (!pcon->pim->callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s has callbacks disabled\n",
+			pcon->pim->name);
+		return -ECANCELED;
+	}
 	if (pcon->being_destroyed) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
+	if (!pcon->pcon_callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x has callbacks disabled\n",
+			pcon->pconid);
+		return -ECANCELED;
+	}
 	vcrtcm_set_fps(pcon, fps);
-	if (pcon->pim_funcs.set_fps &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
+	if (pcon->pim_funcs.set_fps)
 		r = pcon->pim_funcs.set_fps(pcon->pconid, pcon->pcon_cookie,
 			fps);
-	}
 	vcrtcm_unlock_extid(extid);
 	return r;
 }
@@ -374,16 +434,30 @@ static long vcrtcm_ioctl_xmit(int extid)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (pcon->pim->being_deregistered) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
+		return -ECANCELED;
+	}
+	if (!pcon->pim->callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pim %s has callbacks disabled\n",
+			pcon->pim->name);
+		return -ECANCELED;
+	}
 	if (pcon->being_destroyed) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pcon->pconid);
 		return -EINVAL;
 	}
-	if (pcon->pim_funcs.dirty_fb &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
-		r = pcon->pim_funcs.dirty_fb(pcon->pconid, pcon->pcon_cookie);
+	if (!pcon->pcon_callbacks_enabled) {
+		vcrtcm_unlock_extid(extid);
+		VCRTCM_ERROR("pcon 0x%08x has callbacks disabled\n",
+			pcon->pconid);
+		return -ECANCELED;
 	}
+	if (pcon->pim_funcs.dirty_fb)
+		r = pcon->pim_funcs.dirty_fb(pcon->pconid, pcon->pcon_cookie);
 	vcrtcm_unlock_extid(extid);
 	return r;
 }

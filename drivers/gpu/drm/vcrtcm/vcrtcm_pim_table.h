@@ -35,6 +35,7 @@ struct vcrtcm_minor {
 struct vcrtcm_pim {
 	char name[PIM_NAME_MAXLEN];
 	int id;
+	int being_deregistered;
 	struct vcrtcm_pim_funcs funcs;
 	struct list_head pcons_in_pim_list;
 

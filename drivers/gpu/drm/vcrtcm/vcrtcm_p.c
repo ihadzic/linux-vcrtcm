@@ -923,10 +923,13 @@ int vcrtcm_pim_unregister(int pimid)
 	if (!pim)
 		return -EINVAL;
 	mutex_lock(&vcrtcm_ioctl_mutex);
+	pim->being_deregistered = 1;
+	mutex_unlock(&vcrtcm_ioctl_mutex);
 	VCRTCM_INFO("unregistering %s\n", pim->name);
 	list_for_each_entry_safe(pcon, tmp,
 			&pim->pcons_in_pim_list, pcons_in_pim_list)
 		vcrtcm_p_destroy(pcon->pconid);
+	mutex_lock(&vcrtcm_ioctl_mutex);
 	vcrtcm_sysfs_del_pim(pim);
 	vcrtcm_destroy_pim(pim);
 	mutex_unlock(&vcrtcm_ioctl_mutex);
