@@ -1959,7 +1959,14 @@ int radeon_asic_init(struct radeon_device *rdev)
 	}
 
 	if (ASIC_IS_VCRTC_CAPABLE(rdev)) {
+		int max_crtc = 32;
+
 		rdev->num_virtual_crtc = radeon_num_virt_crtcs;
+		if (rdev->num_virtual_crtc + rdev->num_crtc > max_crtc) {
+			DRM_INFO("actual number of virtual CRTCs %d\n",
+				 rdev->num_virtual_crtc);
+			rdev->num_virtual_crtc = max_crtc - rdev->num_crtc;
+		}
 	} else {
 		rdev->num_virtual_crtc = 0;
 		if (radeon_num_virt_crtcs)
