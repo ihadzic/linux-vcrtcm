@@ -391,6 +391,11 @@ static long vcrtcm_ioctl_fps(int extid, int fps)
 		VCRTCM_ERROR("no pcon 0x%08x\n", extid);
 		return -ENODEV;
 	}
+	if (!pcon->drm_crtc) {
+		vcrtcm_unlock_crtc_and_extid(extid);
+		VCRTCM_WARNING("pcon 0x%08x not attached\n", pcon->pconid);
+		return -EINVAL;
+	}
 	if (pcon->pim->being_deregistered) {
 		vcrtcm_unlock_extid(extid);
 		VCRTCM_ERROR("pim %s is deregistering\n", pcon->pim->name);
