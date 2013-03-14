@@ -639,7 +639,7 @@ static int rotator_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	return 0;
 }
 
-static int __devinit rotator_probe(struct platform_device *pdev)
+static int rotator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot;
@@ -656,11 +656,9 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 				platform_get_device_id(pdev)->driver_data;
 
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rot->regs = devm_request_and_ioremap(dev, rot->regs_res);
-	if (!rot->regs) {
-		dev_err(dev, "failed to map register\n");
-		return -ENXIO;
-	}
+	rot->regs = devm_ioremap_resource(dev, rot->regs_res);
+	if (IS_ERR(rot->regs))
+		return PTR_ERR(rot->regs);
 
 	rot->irq = platform_get_irq(pdev, 0);
 	if (rot->irq < 0) {
@@ -718,7 +716,7 @@ err_clk_get:
 	return ret;
 }
 
-static int __devexit rotator_remove(struct platform_device *pdev)
+static int rotator_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot = dev_get_drvdata(dev);
@@ -734,7 +732,7 @@ static int __devexit rotator_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct rot_limit_table rot_limit_tbl = {
+static struct rot_limit_table rot_limit_tbl = {
 	.ycbcr420_2p = {
 		.min_w = 32,
 		.min_h = 32,
@@ -751,7 +749,7 @@ struct rot_limit_table rot_limit_tbl = {
 	},
 };
 
-struct platform_device_id rotator_driver_ids[] = {
+static struct platform_device_id rotator_driver_ids[] = {
 	{
 		.name		= "exynos-rot",
 		.driver_data	= (unsigned long)&rot_limit_tbl,
@@ -829,7 +827,7 @@ static const struct dev_pm_ops rotator_pm_ops = {
 
 struct platform_driver rotator_driver = {
 	.probe		= rotator_probe,
-	.remove		= __devexit_p(rotator_remove),
+	.remove		= rotator_remove,
 	.id_table	= rotator_driver_ids,
 	.driver		= {
 		.name	= "exynos-rot",
