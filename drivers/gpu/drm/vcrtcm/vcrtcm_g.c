@@ -693,12 +693,13 @@ int vcrtcm_g_pcon_connected_l(int pconid, int *status)
 }
 EXPORT_SYMBOL(vcrtcm_g_pcon_connected_l);
 
-static struct vcrtcm_mode common_modes[17] = {
+static struct vcrtcm_mode common_modes[18] = {
 	{640, 480, 60},
 	{720, 480, 60},
 	{800, 600, 60},
 	{848, 480, 60},
 	{1024, 768, 60},
+	{1024, 600, 60},
 	{1152, 768, 60},
 	{1280, 720, 60},
 	{1280, 800, 60},
