@@ -27,6 +27,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_vcrtcm.h>
 #include "radeon.h"
 #include "radeon_virtual_crtc.h"
 #include "atom.h"
@@ -1313,7 +1314,7 @@ int radeon_virtual_crtc_get_vblank_timestamp_kms(struct drm_device *dev,
 
 void radeon_virtual_crtc_set_emulated_vblank_time(struct radeon_crtc *radeon_crtc)
 {
-	do_gettimeofday(&radeon_crtc->emulated_vblank_time);
+	drm_vcrtcm_get_time(&radeon_crtc->emulated_vblank_time);
 	radeon_crtc->emulated_vblank_time_valid = 1;
 }
 
