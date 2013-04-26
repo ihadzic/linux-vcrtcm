@@ -33,5 +33,6 @@ void drm_vcrtcm_lock_crtc(struct drm_crtc *crtc);
 void drm_vcrtcm_unlock_crtc(struct drm_crtc *crtc);
 void drm_vcrtcm_lock_all_crtcs(struct drm_device *dev);
 void drm_vcrtcm_unlock_all_crtcs(struct drm_device *dev);
+void drm_vcrtcm_get_time(struct timeval *now);
 
 #endif

@@ -250,5 +250,22 @@ void drm_vcrtcm_unlock_all_crtcs(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_vcrtcm_unlock_all_crtcs);
 
+/*
+ * This function produces the present time in DRM-compatible format
+ * which can be either the wallclock timestamp or monotonic timestamp
+ * depending on the value of drm_timestamp_monotonic parameter. Typically
+ * used for timestamping the emulated vblanks.
+ */
+void drm_vcrtcm_get_time(struct timeval *now)
+{
+	ktime_t ktime;
 
-
+	ktime = ktime_get();
+	if (!drm_timestamp_monotonic) {
+		ktime_t mono_time_offset;
+		mono_time_offset = ktime_get_monotonic_offset();
+		ktime = ktime_sub(ktime, mono_time_offset);
+	}
+	*now = ktime_to_timeval(ktime);
+}
+EXPORT_SYMBOL(drm_vcrtcm_get_time);
