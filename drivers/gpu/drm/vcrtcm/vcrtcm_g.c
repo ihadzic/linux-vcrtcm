@@ -571,13 +571,10 @@ int vcrtcm_g_set_dpms(int pconid, int state)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pim_funcs.set_dpms &&
-		pcon->pcon_callbacks_enabled &&
-		pcon->pim->callbacks_enabled) {
-		VCRTCM_DEBUG("calling set_dpms backend, pcon 0x%08x\n",
-			     pconid);
-		r = pcon->pim_funcs.set_dpms(pconid,
-			pcon->pcon_cookie, state);
+	if (pcon->pim_funcs.set_dpms && pcon->pcon_callbacks_enabled &&
+	    pcon->pim->callbacks_enabled) {
+		VCRTCM_DEBUG("calling set_dpms backend, pcon 0x%08x\n", pconid);
+		r = pcon->pim_funcs.set_dpms(pconid, pcon->pcon_cookie, state);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon 0x%08x\n",
 			     pconid);
