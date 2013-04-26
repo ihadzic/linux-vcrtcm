@@ -25,6 +25,7 @@
 #include <vcrtcm/vcrtcm_utils.h>
 #include "vcrtcm_pcon.h"
 #include "vcrtcm_pcon_table.h"
+#include "vcrtcm_pim_table.h"
 #include "vcrtcm_sysfs_priv.h"
 #include "vcrtcm_vblank.h"
 
@@ -95,13 +96,23 @@ void vcrtcm_set_fps(struct vcrtcm_pcon *pcon, int fps)
 	} else {
 		unsigned long now;
 		int old_fps = pcon->fps;
+		int dpms, r;
 
 		pcon->fps = fps;
 		pcon->vblank_period_jiffies = HZ/fps;
 		now = jiffies;
 		pcon->last_vblank_jiffies = now;
 		pcon->next_vblank_jiffies = now + pcon->vblank_period_jiffies;
-		if (old_fps == 0) {
+		/* get the DPMS state, assume on if we can't get it */
+		if (pcon->pim_funcs.get_dpms && pcon->pcon_callbacks_enabled &&
+		    pcon->pim->callbacks_enabled) {
+			r = pcon->pim_funcs.get_dpms(pcon->pconid,
+						     pcon->pcon_cookie, &dpms);
+			if (r)
+				dpms = VCRTCM_DPMS_STATE_ON;
+		} else
+			dpms = VCRTCM_DPMS_STATE_ON;
+		if (old_fps == 0 && fps != 0 && dpms == VCRTCM_DPMS_STATE_ON) {
 			vcrtcm_schedule_vblank(pcon);
 			VCRTCM_INFO("transmission enabled on pcon 0x%08x (%d f/s)\n",
 				pcon->pconid, fps);
