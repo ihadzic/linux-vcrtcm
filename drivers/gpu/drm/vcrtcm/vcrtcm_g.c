@@ -29,6 +29,7 @@
 #include "vcrtcm_utils_priv.h"
 #include "vcrtcm_module.h"
 #include "vcrtcm_pcon.h"
+#include "vcrtcm_vblank.h"
 #include "vcrtcm_drmdev_table.h"
 #include "vcrtcm_sysfs_priv.h"
 
@@ -571,10 +572,19 @@ int vcrtcm_g_set_dpms(int pconid, int state)
 		VCRTCM_ERROR("pcon 0x%08x being destroyed\n", pconid);
 		return -EINVAL;
 	}
-	if (pcon->pim_funcs.set_dpms && pcon->pcon_callbacks_enabled &&
-	    pcon->pim->callbacks_enabled) {
+	if (pcon->pim_funcs.set_dpms && pcon->pim_funcs.get_dpms &&
+	    pcon->pcon_callbacks_enabled && pcon->pim->callbacks_enabled) {
+		int oldst;
+		VCRTCM_DEBUG("calling get_dpms backend, pcon 0x%08x\n", pconid);
+		r = pcon->pim_funcs.get_dpms(pconid, pcon->pcon_cookie, &oldst);
+		if (r)
+			return r;
 		VCRTCM_DEBUG("calling set_dpms backend, pcon 0x%08x\n", pconid);
 		r = pcon->pim_funcs.set_dpms(pconid, pcon->pcon_cookie, state);
+		/* turn back on vblank generation if needed */
+		if (oldst == VCRTCM_DPMS_STATE_OFF &&
+		    state == VCRTCM_DPMS_STATE_ON)
+			vcrtcm_schedule_vblank(pcon);
 	} else {
 		VCRTCM_DEBUG("missing set_dpms backend, pcon 0x%08x\n",
 			     pconid);

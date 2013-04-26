@@ -57,6 +57,7 @@ void vcrtcm_vblank_work_fcn(struct work_struct *work)
 	struct vcrtcm_pcon *pcon =
 		container_of(delayed_work, struct vcrtcm_pcon, vblank_work);
 	int next_vblank_delay;
+	int dpms, r;
 	unsigned long now;
 
 	vcrtcm_lock_crtc_and_pconid(pcon->pconid, 0);
@@ -89,6 +90,18 @@ void vcrtcm_vblank_work_fcn(struct work_struct *work)
 	next_vblank_delay = pcon->next_vblank_jiffies - (int)now;
 	if (next_vblank_delay <= pcon->vblank_slack_jiffies)
 		next_vblank_delay = 0;
-	queue_delayed_work(work_queue, &pcon->vblank_work, next_vblank_delay);
+	/* check DPMS state of the PCON (if we can't get it, assume it's on */
+	if (pcon->pim_funcs.get_dpms && pcon->pcon_callbacks_enabled &&
+	    pcon->pim->callbacks_enabled) {
+		r = pcon->pim_funcs.get_dpms(pcon->pconid, pcon->pcon_cookie,
+					     &dpms);
+		if (r)
+			dpms = VCRTCM_DPMS_STATE_ON;
+	} else
+		dpms = VCRTCM_DPMS_STATE_ON;
+	/* schedule next vblank only if state is on */
+	if (dpms == VCRTCM_DPMS_STATE_ON)
+		queue_delayed_work(work_queue, &pcon->vblank_work,
+				   next_vblank_delay);
 	vcrtcm_unlock_crtc_and_pconid(pcon->pconid);
 }
